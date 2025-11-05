@@ -63,7 +63,10 @@
       "options": {
         "targetName": "test"
       },
-      "exclude": ["apps/schoolable-nest-api-e2e/**/*"]
+      "exclude": [
+        "apps/schoolable-nest-api-e2e/**/*",
+        "apps/wc-nest-api-e2e/**/*"
+      ]
     }
   ],
   "generators": {
