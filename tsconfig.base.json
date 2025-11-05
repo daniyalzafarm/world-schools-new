@@ -15,7 +15,10 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@world-schools/ui-web": ["packages/ui-web/src/index.ts"]
+      "@world-schools/ui-web": ["packages/ui-web/src/index.ts"],
+      "@world-schools/schoolable-types": [
+        "packages/schoolable-types/src/index.ts"
+      ]
     }
   },
   "exclude": ["node_modules", "tmp"]
