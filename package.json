@@ -4,9 +4,12 @@
   "license": "MIT",
   "scripts": {},
   "private": true,
-  "dependencies": {},
   "devDependencies": {
-    "@nx/js": "22.0.2",
+    "@nx/js": "^22.0.2",
+    "@nx/nest": "^22.0.2",
+    "@nx/next": "^22.0.2",
+    "@nx/react": "^22.0.2",
+    "@nx/react-native": "^22.0.2",
     "@nx/workspace": "22.0.2",
     "nx": "22.0.2"
   }
