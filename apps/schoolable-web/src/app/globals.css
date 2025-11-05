@@ -1,0 +1,368 @@
+@import './fonts.css';
+@import 'tailwindcss';
+@plugin '../hero.ts';
+@source '../../../../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}';
+@custom-variant dark (&:is(.dark *));
+
+.data-\[hover\=true\]\:bg-default[data-hover='true'] {
+  background-color: theme('colors.gray.200') !important;
+}
+
+.data-\[hover\=true\]\:border-default-400[data-hover='true'] {
+  background-color: theme('colors.gray.200') !important;
+}
+
+.data-\[hover\=true\]\:bg-gray-100[data-hover='true'] {
+  background-color: theme('colors.gray.200') !important;
+}
+
+@theme {
+  --font-family-sans: 'Figtree', system-ui, sans-serif;
+  --font-sans: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary-50: #eef4ff;
+  --color-primary-100: #d9e6ff;
+  --color-primary-200: #b3ceff;
+  --color-primary-300: #8db6ff;
+  --color-primary-400: #669eff;
+  --color-primary-500: #357bff;
+  --color-primary-600: #2e6de6;
+  --color-primary-700: #265bcc;
+  --color-primary-800: #1f4ab3;
+  --color-primary-900: #183a99;
+  --color-primary-950: #05070d;
+
+  /* primary-dark (brand deep blue-gray) */
+  --color-primary-dark-50: #f5f6fa;
+  --color-primary-dark-100: #e4e7ee;
+  --color-primary-dark-200: #c9ccd9;
+  --color-primary-dark-300: #aeb3c5;
+  --color-primary-dark-400: #8e94aa;
+  --color-primary-dark-500: #1e263b;
+  --color-primary-dark-600: #1a2134;
+  --color-primary-dark-700: #151b2b;
+  --color-primary-dark-800: #101522;
+  --color-primary-dark-900: #0b0f19;
+  --color-primary-dark: var(--color-primary-dark-500);
+
+  --color-secondary-50: #f7f7f8;
+  --color-secondary-100: #eceeef;
+  --color-secondary-200: #d9dde0;
+  --color-secondary-300: #c1c6cb;
+  --color-secondary-400: #a5acb3;
+  --color-secondary-500: #565a5e;
+  --color-secondary-600: #4b4f53;
+  --color-secondary-700: #3f4347;
+  --color-secondary-800: #34383c;
+  --color-secondary-900: #292d31;
+  --color-secondary-950: #1f2326;
+
+  --color-violet-50: #f5f3ff;
+  --color-violet-100: #ede9fe;
+  --color-violet-200: #ddd6fe;
+  --color-violet-300: #c4b5fd;
+  --color-violet-400: #a78bfa;
+  --color-violet-500: #8b5cf6;
+  --color-violet-600: #7c3aed;
+  --color-violet-700: #6d28d9;
+  --color-violet-800: #5b21b6;
+  --color-violet-900: #4c1d95;
+  --color-violet-950: #2e1065;
+
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-200: #bbf7d0;
+  --color-success-300: #86efac;
+  --color-success-400: #4ade80;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-success-800: #166534;
+  --color-success-900: #14532d;
+
+  --color-warning-50: #fefce8;
+  --color-warning-100: #fef9c3;
+  --color-warning-200: #fef08a;
+  --color-warning-300: #fde047;
+  --color-warning-400: #facc15;
+  --color-warning-500: #eab308;
+  --color-warning-600: #ca8a04;
+  --color-warning-700: #a16207;
+  --color-warning-800: #854d0e;
+  --color-warning-900: #713f12;
+
+  --color-error-50: #fef2f2;
+  --color-error-100: #fee2e2;
+  --color-error-200: #fecaca;
+  --color-error-300: #fca5a5;
+  --color-error-400: #f87171;
+  --color-error-500: #ef4444;
+  --color-error-600: #dc2626;
+  --color-error-700: #b91c1c;
+  --color-error-800: #991b1b;
+  --color-error-900: #7f1d1d;
+
+  --spacing-18: 4.5rem;
+  --spacing-88: 22rem;
+  --spacing-128: 32rem;
+
+  --border-radius-xl: 1rem;
+  --border-radius-2xl: 1.5rem;
+  --border-radius-3xl: 2rem;
+
+  --box-shadow-soft: 0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04);
+  --box-shadow-medium: 0 4px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --box-shadow-strong: 0 10px 40px -10px rgba(0, 0, 0, 0.15), 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+
+  --breakpoint-3xl: 1920px;
+}
+
+/* Configure dark mode using CSS-first approach */
+@variant dark (&:where(.dark, .dark *));
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  0% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-down {
+  0% {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  0% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@layer base {
+  html {
+    font-family: 'Figtree', system-ui, sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 50%, #fdf2f8 100%);
+    color: #1e293b;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+    transition: background-color 0.3s ease;
+  }
+
+  .dark body {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #374151 100%);
+    color: #f8fafc;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    background: #334155;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: #64748b;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+}
+
+@layer components {
+  /* Responsive Image Gallery Styles */
+  .image-gallery-tailwind {
+    @apply rounded-xl overflow-hidden;
+  }
+
+  .image-gallery-tailwind .image-gallery-content {
+    @apply bg-white dark:bg-gray-800;
+  }
+
+  .image-gallery-tailwind .image-gallery-slide img {
+    @apply w-full h-auto object-cover;
+    max-height: 400px;
+  }
+
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    .image-gallery-tailwind .image-gallery-slide img {
+      max-height: 250px;
+    }
+
+    .image-gallery-tailwind .image-gallery-thumbnails-wrapper {
+      @apply px-2;
+    }
+
+    .image-gallery-tailwind .image-gallery-thumbnail {
+      @apply w-12 h-12 mx-1;
+    }
+
+    .image-gallery-tailwind .image-gallery-thumbnail img {
+      @apply w-full h-full object-cover rounded;
+    }
+  }
+
+  /* Tablet optimizations */
+  @media (min-width: 769px) and (max-width: 1024px) {
+    .image-gallery-tailwind .image-gallery-slide img {
+      max-height: 320px;
+    }
+  }
+
+  /* Desktop optimizations */
+  @media (min-width: 1025px) {
+    .image-gallery-tailwind .image-gallery-slide img {
+      max-height: 400px;
+    }
+  }
+
+  /* Dark mode adjustments */
+  .dark .image-gallery-tailwind .image-gallery-content {
+    @apply bg-gray-800;
+  }
+
+  .dark .image-gallery-tailwind .image-gallery-thumbnails {
+    @apply bg-gray-800;
+  }
+
+  /* Navigation buttons responsive styling */
+  .image-gallery-tailwind .image-gallery-left-nav,
+  .image-gallery-tailwind .image-gallery-right-nav {
+    @apply text-gray-600 dark:text-gray-300;
+  }
+
+  @media (max-width: 768px) {
+    .image-gallery-tailwind .image-gallery-left-nav,
+    .image-gallery-tailwind .image-gallery-right-nav {
+      @apply w-8 h-8 text-sm;
+    }
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* .data-\[hover\=true\]\:bg-default[data-hover="true"] {
+    @apply bg-gray-200 !important;
+  } */
+
+  .animation-fade-in {
+    animation: fade-in 0.3s ease-in-out;
+  }
+
+  .animation-slide-up {
+    animation: slide-up 0.3s ease-out;
+  }
+
+  .animation-slide-down {
+    animation: slide-down 0.3s ease-out;
+  }
+
+  .animation-scale-in {
+    animation: scale-in 0.2s ease-out;
+  }
+
+  .backdrop-blur-xs {
+    backdrop-filter: blur(2px);
+  }
+
+  .backdrop-blur-sm {
+    backdrop-filter: blur(4px);
+  }
+
+  .backdrop-blur-md {
+    backdrop-filter: blur(8px);
+  }
+
+  .backdrop-blur-lg {
+    backdrop-filter: blur(12px);
+  }
+
+  .backdrop-blur-xl {
+    backdrop-filter: blur(16px);
+  }
+
+  .backdrop-blur-2xl {
+    backdrop-filter: blur(24px);
+  }
+
+  .backdrop-blur-3xl {
+    backdrop-filter: blur(32px);
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-track-gray-100 {
+    scrollbar-color: #f3f4f6 transparent;
+  }
+
+  .scrollbar-track-gray-900 {
+    scrollbar-color: #111827 transparent;
+  }
+}
