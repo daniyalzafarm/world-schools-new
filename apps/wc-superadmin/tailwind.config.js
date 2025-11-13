@@ -113,7 +113,7 @@ const config = {
               800: '#137358',
               900: '#0d4d3b',
               DEFAULT: '#45f0b5',
-              foreground: '#ffffff',
+              foreground: '#07153d',
             },
             secondary: {
               50: '#e8eaf0',
