@@ -403,8 +403,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                               className={cn(
                                 'flex h-9 items-center p-2 rounded-lg cursor-pointer text-sm',
                                 childIsActive
-                                  ? 'bg-primary-100 text-primary'
-                                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'
+                                  ? 'bg-primary-100 dark:bg-primary-900/30'
+                                  : 'hover:bg-gray-200 dark:hover:bg-gray-800'
                               )}
                               onClick={() => {
                                 if (sidebarOpen) setSidebarOpen(false)
