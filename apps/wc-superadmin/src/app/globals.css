@@ -118,7 +118,7 @@
 
   body {
     background: linear-gradient(145deg, #f8fbff 0%, #f3f6ff 45%, #fdfdfd 100%);
-    color: #111827;
+    color: var(--color-secondary-500);
     font-feature-settings:
       'rlig' 1,
       'calt' 1;
