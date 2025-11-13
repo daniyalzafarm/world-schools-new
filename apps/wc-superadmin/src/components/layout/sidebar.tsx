@@ -81,9 +81,14 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     name: 'User Messages',
-    href: '/user-messages',
+    href: '',
     icon: <MessageCircle size={20} />,
-    type: 'regular',
+    type: 'collapsible',
+    children: [
+      { name: 'My Inbox', href: '/user-messages/my-inbox', icon: <Circle size={16} /> },
+      { name: 'Unassigned', href: '/user-messages/unassigned', icon: <Circle size={16} /> },
+      { name: 'Team Inbox', href: '/user-messages/team-inbox', icon: <Circle size={16} /> },
+    ],
   },
   {
     name: 'All Providers',
@@ -122,6 +127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   const [isManuallyExpanded, setIsManuallyExpanded] = React.useState(false)
   const [expandedSections, setExpandedSections] = React.useState<Record<string, boolean>>({
     'Provider Messages': false,
+    'User Messages': false,
   })
 
   // Refs
