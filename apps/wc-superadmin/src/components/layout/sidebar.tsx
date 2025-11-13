@@ -34,6 +34,43 @@ import { cn } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
 
+// Custom hook for sidebar expansion state management
+const useSidebarExpansion = (onToggleCollapse: () => void) => {
+  const [isHovered, setIsHovered] = React.useState(false)
+  const [isManuallyExpanded, setIsManuallyExpanded] = React.useState(true) // Start as manually expanded
+  const [isExpandedFully, setIsExpandedFully] = React.useState(false)
+  const [hoverTimeout, setHoverTimeout] = React.useState<NodeJS.Timeout | null>(null)
+
+  const expandSidebar = React.useCallback(() => {
+    setIsHovered(true)
+    onToggleCollapse()
+  }, [onToggleCollapse])
+
+  const collapseSidebar = React.useCallback(() => {
+    setIsHovered(false)
+    onToggleCollapse()
+  }, [onToggleCollapse])
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (hoverTimeout) clearTimeout(hoverTimeout)
+    }
+  }, [hoverTimeout])
+
+  return {
+    isHovered,
+    isManuallyExpanded,
+    setIsManuallyExpanded,
+    isExpandedFully,
+    setIsExpandedFully,
+    hoverTimeout,
+    setHoverTimeout,
+    expandSidebar,
+    collapseSidebar,
+  }
+}
+
 interface SidebarProps {
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
@@ -123,8 +160,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   const { user, logout } = useAuthStore()
 
   // Collapsed state is managed locally within the sidebar
-  const [isCollapsed, setIsCollapsed] = React.useState(true)
-  const [isManuallyExpanded, setIsManuallyExpanded] = React.useState(false)
+  const [isCollapsed, setIsCollapsed] = React.useState(false) // Start expanded
+  const toggleCollapsed = () => {
+    setIsCollapsed(prev => !prev)
+  }
+
+  // Custom hook for state management
+  const {
+    isHovered,
+    isManuallyExpanded,
+    setIsManuallyExpanded,
+    isExpandedFully,
+    setIsExpandedFully,
+    hoverTimeout,
+    setHoverTimeout,
+    expandSidebar,
+    collapseSidebar,
+  } = useSidebarExpansion(toggleCollapsed)
+
   const [expandedSections, setExpandedSections] = React.useState<Record<string, boolean>>({
     'Provider Messages': false,
     'User Messages': false,
@@ -134,8 +187,89 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   const asideRef = React.useRef<HTMLDivElement | null>(null)
   const userSectionRef = React.useRef<HTMLDivElement | null>(null)
 
-  const toggleCollapsed = () => {
-    setIsCollapsed(prev => !prev)
+  // Mouse event handlers
+  const handleMouseEnter = React.useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      // Safely check if the target is within the user section
+      const target = e.target as Node
+      const isInUserSection = target instanceof Node && userSectionRef.current?.contains(target)
+
+      if (isManuallyExpanded || isInUserSection) return
+      if (isCollapsed) {
+        if (hoverTimeout) clearTimeout(hoverTimeout)
+        const timeout = setTimeout(() => expandSidebar(), 300)
+        setHoverTimeout(timeout)
+      }
+    },
+    [isManuallyExpanded, isCollapsed, hoverTimeout, expandSidebar, setHoverTimeout]
+  )
+
+  const handleMouseLeave = React.useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (isManuallyExpanded) return
+
+      const nextTarget = (e.relatedTarget ?? (e as any).nativeEvent?.relatedTarget) as Node | null
+      // Safely check if we're leaving the sidebar by ensuring nextTarget is a valid Node
+      const leavingSidebar =
+        !nextTarget || !(nextTarget instanceof Node) || !asideRef.current?.contains(nextTarget)
+
+      if (isCollapsed) {
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout)
+          setHoverTimeout(null)
+        }
+      } else if (isHovered && !isCollapsed && leavingSidebar) {
+        if (hoverTimeout) clearTimeout(hoverTimeout)
+        const timeout = setTimeout(() => collapseSidebar(), 100)
+        setHoverTimeout(timeout)
+      }
+    },
+    [isManuallyExpanded, isCollapsed, isHovered, hoverTimeout, collapseSidebar, setHoverTimeout]
+  )
+
+  const handleMouseMove = React.useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      // Safely check if the target is within the user section
+      const target = e.target as Node
+      const isInUserSection = target instanceof Node && userSectionRef.current?.contains(target)
+
+      if (isInUserSection && hoverTimeout) {
+        clearTimeout(hoverTimeout)
+        setHoverTimeout(null)
+      }
+    },
+    [hoverTimeout, setHoverTimeout]
+  )
+
+  const handleClickableAreaClick = React.useCallback(() => {
+    if (!isCollapsed) {
+      if (!isManuallyExpanded) {
+        // Sidebar is hover-expanded, lock it open
+        setIsManuallyExpanded(true)
+      } else {
+        // Sidebar is manually expanded, collapse it
+        setIsManuallyExpanded(false)
+        collapseSidebar()
+      }
+    } else {
+      // Sidebar is collapsed, expand it
+      toggleCollapsed()
+    }
+  }, [isCollapsed, isManuallyExpanded, setIsManuallyExpanded, collapseSidebar])
+
+  // Listen for width transition end to mark expanded state completion
+  React.useEffect(() => {
+    const el = asideRef.current
+    if (!el) return
+    const onEnd = (e: TransitionEvent) => {
+      if (e.propertyName === 'width') setIsExpandedFully(!isCollapsed)
+    }
+    el.addEventListener('transitionend', onEnd as any)
+    return () => el.removeEventListener('transitionend', onEnd as any)
+  }, [isCollapsed, setIsExpandedFully])
+
+  const toggleSection = (sectionName: string) => {
+    setExpandedSections(prev => ({ ...prev, [sectionName]: !prev[sectionName] }))
   }
 
   const handleArrowToggle = React.useCallback(() => {
@@ -146,13 +280,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
       setIsManuallyExpanded(true)
     } else {
       setIsManuallyExpanded(false)
-      setIsCollapsed(true)
+      collapseSidebar()
     }
-  }, [isCollapsed, isManuallyExpanded])
-
-  const toggleSection = (sectionName: string) => {
-    setExpandedSections(prev => ({ ...prev, [sectionName]: !prev[sectionName] }))
-  }
+  }, [isCollapsed, isManuallyExpanded, setIsManuallyExpanded, collapseSidebar])
 
   const handleNavigation = React.useCallback(
     (item: NavItem) => {
@@ -200,6 +330,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
           'transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
           isCollapsed ? 'w-16' : 'w-64'
         )}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onMouseMove={handleMouseMove}
       >
         <div className="flex h-full flex-col">
           {/* Logo section */}
@@ -304,8 +437,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
             })}
           </nav>
 
-          {/* Spacer */}
-          <div className="flex-1" />
+          {/* Clickable area for sidebar toggle */}
+          <div
+            className={cn(
+              'flex-1',
+              (isManuallyExpanded || isHovered) && (isManuallyExpanded ? 'cursor-w-resize' : 'cursor-e-resize')
+            )}
+            onClick={(isManuallyExpanded || isHovered) ? handleClickableAreaClick : undefined}
+          />
 
           {/* User Section */}
           <div
