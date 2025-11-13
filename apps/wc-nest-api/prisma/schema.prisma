@@ -1,0 +1,186 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// User Management & Authentication
+// ============================================
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String?  @map("password_hash")
+  firstName    String?  @map("first_name")
+  lastName     String?  @map("last_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  userAccounts  UserAccount[]
+  roles         UserRole[]
+  parentProfile Parent?
+  ownedProvider Provider?
+
+  @@map("users")
+}
+
+model UserAccount {
+  id                    String   @id @default(cuid())
+  userId                String   @map("user_id")
+  type                  String
+  authProvider          String   @map("auth_provider")
+  authProviderAccountId String   @map("auth_provider_account_id")
+  refreshToken          String?  @map("refresh_token") @db.Text
+  accessToken           String?  @map("access_token") @db.Text
+  expiresAt             Int?     @map("expires_at")
+  tokenType             String?  @map("token_type")
+  scope                 String?
+  idToken               String?  @map("id_token") @db.Text
+  sessionState          String?  @map("session_state")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([authProvider, authProviderAccountId])
+  @@index([userId])
+  @@map("user_accounts")
+}
+
+// ============================================
+// RBAC (Role-Based Access Control)
+// ============================================
+
+model Role {
+  id           String   @id @default(uuid())
+  name         String
+  isSystemRole Boolean  @default(false) @map("is_system_role")
+  providerId   String?  @map("provider_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  provider    Provider?        @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@unique([name, providerId])
+  @@index([providerId])
+  @@map("roles")
+}
+
+model UserRole {
+  userId String @map("user_id")
+  roleId String @map("role_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model Permission {
+  id        String   @id
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id")
+  permissionId String @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+// ============================================
+// Provider (Organization)
+// ============================================
+
+model Provider {
+  id         String   @id @default(uuid())
+  name       String
+  ownerId    String   @unique @map("owner_id")
+  address    String?
+  city       String?
+  state      String?
+  postalCode String?  @map("postal_code")
+  country    String?
+  phone      String?
+  email      String?
+  website    String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  owner User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  roles Role[]
+
+  @@index([ownerId])
+  @@map("providers")
+}
+
+// ============================================
+// Parent Profile
+// ============================================
+
+model Parent {
+  id         String   @id @default(uuid())
+  userId     String   @unique @map("user_id")
+  phone      String?
+  address    String?
+  city       String?
+  state      String?
+  postalCode String?  @map("postal_code")
+  country    String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  children Children[]
+
+  @@index([userId])
+  @@map("parents")
+}
+
+// ============================================
+// Children
+// ============================================
+
+model Children {
+  id          String    @id @default(uuid())
+  firstName   String    @map("first_name")
+  lastName    String    @map("last_name")
+  dateOfBirth DateTime? @map("date_of_birth")
+  grade       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // The parent this child belongs to
+  parentId String @map("parent_id")
+  parent   Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@index([parentId])
+  @@map("children")
+}
