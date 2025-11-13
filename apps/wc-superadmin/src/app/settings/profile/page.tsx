@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { Input } from '@world-schools/ui-web'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 
-const SettingsPage = () => {
+const ProfilePage = () => {
   const { user } = useAuthStore()
 
   // Form state
@@ -214,5 +214,5 @@ const SettingsPage = () => {
   )
 }
 
-export default SettingsPage
+export default ProfilePage
 

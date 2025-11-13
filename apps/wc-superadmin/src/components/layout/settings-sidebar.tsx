@@ -19,7 +19,7 @@ interface SettingsNavigationItem {
 const settingsNavigationItems: SettingsNavigationItem[] = [
   {
     name: 'Profile',
-    href: '/settings',
+    href: '/settings/profile',
     icon: <User size={20} />,
   },
 ]
@@ -37,10 +37,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
   }
 
   const isActive = (href: string) => {
-    if (href === '/settings') {
-      return pathname === '/settings'
-    }
-    return pathname.startsWith(href)
+    return pathname === href || pathname.startsWith(href + '/')
   }
 
   return (

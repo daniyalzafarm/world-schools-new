@@ -482,7 +482,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                   aria-label="User menu"
                   onAction={key => {
                     if (key === 'settings') {
-                      router.push('/settings')
+                      router.push('/settings/profile')
                     } else if (key === 'logout') {
                       logout()
                       router.push('/auth/signin')
