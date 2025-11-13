@@ -1,43 +1,71 @@
 'use client'
 
 import React from 'react'
-import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { cn } from '@world-schools/ui-web'
-
-const SIZE_MAP = {
-  sm: 'text-base px-2 py-1 rounded-lg',
-  md: 'text-lg px-3 py-1.5 rounded-xl',
-  lg: 'text-xl px-4 py-2 rounded-2xl',
-} as const
+import { useRouter } from 'next/navigation'
 
 interface LogoProps {
-  size?: keyof typeof SIZE_MAP
-  showWordmark?: boolean
+  size?: 'sm' | 'md' | 'lg'
+  showText?: boolean
   className?: string
 }
 
-export function Logo({ size = 'md', showWordmark = true, className }: LogoProps) {
+export function Logo({ size = 'md', showText = true, className }: LogoProps) {
   const router = useRouter()
 
+  const iconSizeClasses = {
+    sm: 'h-8',
+    md: 'h-8',
+    lg: 'h-10',
+  }
+
+  const textLogoSizeClasses = {
+    sm: 'h-5',
+    md: 'h-5',
+    lg: 'h-12',
+  }
+
+  const iconSizes = {
+    sm: 32,
+    md: 32,
+    lg: 36,
+  }
+
+  const textLogoSizes = {
+    sm: { width: 80, height: 16 },
+    md: { width: 120, height: 22 },
+    lg: { width: 150, height: 24 },
+  }
+
   return (
-    <button
-      type="button"
-      onClick={() => router.push('/analytics-dashboard')}
+    <div
+      onClick={() => router.push('/')}
       className={cn(
-        'flex items-center gap-2 text-primary-dark bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 shadow-sm backdrop-blur transition hover:border-primary hover:shadow-md',
-        SIZE_MAP[size],
-        className
+        'flex items-center cursor-pointer',
+        className,
+        size == 'lg' ? 'gap-2' : 'gap-2'
       )}
     >
-      <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-primary text-white font-semibold shadow-lg">
-        WC
-      </span>
-      {showWordmark && (
-        <span className="flex flex-col text-left leading-tight">
-          <span className="font-semibold">World Camps</span>
-          <span className="text-xs text-secondary-500 uppercase tracking-[0.18em]">Superadmin</span>
-        </span>
+      {/* Logo Icon */}
+      <Image
+        src="/assets/world-camps-icon-rounded.png"
+        alt="World Camps"
+        width={iconSizes[size]}
+        height={iconSizes[size]}
+        className={cn('object-contain', iconSizeClasses[size])}
+      />
+
+      {/* Logo Text */}
+      {showText && (
+        <Image
+          src="/assets/world-camps-dark.png"
+          alt="World Camps"
+          width={textLogoSizes[size].width}
+          height={textLogoSizes[size].height}
+          className={cn('object-contain mt-1', textLogoSizeClasses[size])}
+        />
       )}
-    </button>
+    </div>
   )
 }

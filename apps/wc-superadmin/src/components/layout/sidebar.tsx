@@ -207,7 +207,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
             <div className="flex items-center justify-between gap-2 whitespace-nowrap">
               <div className={cn('flex w-full', 'justify-start')}>
                 <div className="flex-shrink-0">
-                  <Logo size={'md'} showWordmark={!isCollapsed} />
+                  <Logo size={'md'} showText={!isCollapsed} />
                 </div>
               </div>
             </div>
