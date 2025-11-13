@@ -4,9 +4,42 @@ This document lists all available commands for the applications in this monorepo
 
 ---
 
-## 1. `apps/schoolable-web/` (Next.js Application)
+## Applications Overview
 
-### Application Running Commands
+This monorepo contains **5 applications**:
+
+| Application | Type | Path | Description |
+|------------|------|------|-------------|
+| **schoolable-web** | Next.js | `apps/schoolable-web/` | Modern school management platform |
+| **wc-booking** | Next.js | `apps/wc-booking/` | World Schools booking application |
+| **wc-provider** | Next.js | `apps/wc-provider/` | World Schools provider portal |
+| **wc-superadmin** | Next.js | `apps/wc-superadmin/` | World Schools super admin dashboard |
+| **wc-nest-api** | NestJS API | `apps/wc-nest-api/` | Backend API with authentication and RBAC |
+
+---
+
+## Table of Contents
+
+1. [Next.js Applications](#nextjs-applications)
+   - [schoolable-web](#1-schoolable-web)
+   - [wc-booking](#2-wc-booking)
+   - [wc-provider](#3-wc-provider)
+   - [wc-superadmin](#4-wc-superadmin)
+2. [NestJS API Applications](#nestjs-api-applications)
+   - [wc-nest-api](#5-wc-nest-api)
+3. [Global Commands](#global-commands-all-applications)
+
+---
+
+## Next.js Applications
+
+### 1. `schoolable-web`
+
+**Path**: `apps/schoolable-web/`
+**Type**: Next.js Application
+**Description**: Modern school management platform
+
+#### Application Running Commands
 
 ```bash
 # Start development server with hot reload
@@ -54,7 +87,7 @@ nx test schoolable-web --watch
 nx test schoolable-web --coverage
 ```
 
-### Type Checking
+#### Type Checking
 
 ```bash
 # Run TypeScript type checking
@@ -63,9 +96,177 @@ nx typecheck schoolable-web
 
 ---
 
-## 2. `apps/wc-nest-api/` (NestJS API Application)
+### 2. `wc-booking`
 
-### Application Running Commands
+**Path**: `apps/wc-booking/`
+**Type**: Next.js Application
+**Description**: World Schools booking application
+
+#### Application Running Commands
+
+```bash
+# Start development server with hot reload
+nx dev wc-booking
+
+# Build for production
+nx build wc-booking
+
+# Start production server (after building)
+nx start wc-booking
+
+# Serve static build
+nx serve-static wc-booking
+```
+
+#### Linting Commands
+
+```bash
+# Run ESLint to check for code quality issues
+nx lint wc-booking
+
+# Run ESLint and automatically fix issues
+nx lint wc-booking --fix
+```
+
+#### Testing Commands
+
+```bash
+# Run unit tests
+nx test wc-booking
+
+# Run tests in watch mode
+nx test wc-booking --watch
+
+# Run tests with coverage
+nx test wc-booking --coverage
+```
+
+#### Type Checking
+
+```bash
+# Run TypeScript type checking
+nx typecheck wc-booking
+```
+
+---
+
+### 3. `wc-provider`
+
+**Path**: `apps/wc-provider/`
+**Type**: Next.js Application
+**Description**: World Schools provider portal
+
+#### Application Running Commands
+
+```bash
+# Start development server with hot reload
+nx dev wc-provider
+
+# Build for production
+nx build wc-provider
+
+# Start production server (after building)
+nx start wc-provider
+
+# Serve static build
+nx serve-static wc-provider
+```
+
+#### Linting Commands
+
+```bash
+# Run ESLint to check for code quality issues
+nx lint wc-provider
+
+# Run ESLint and automatically fix issues
+nx lint wc-provider --fix
+```
+
+#### Testing Commands
+
+```bash
+# Run unit tests
+nx test wc-provider
+
+# Run tests in watch mode
+nx test wc-provider --watch
+
+# Run tests with coverage
+nx test wc-provider --coverage
+```
+
+#### Type Checking
+
+```bash
+# Run TypeScript type checking
+nx typecheck wc-provider
+```
+
+---
+
+### 4. `wc-superadmin`
+
+**Path**: `apps/wc-superadmin/`
+**Type**: Next.js Application
+**Description**: World Schools super admin dashboard
+
+#### Application Running Commands
+
+```bash
+# Start development server with hot reload
+nx dev wc-superadmin
+
+# Build for production
+nx build wc-superadmin
+
+# Start production server (after building)
+nx start wc-superadmin
+
+# Serve static build
+nx serve-static wc-superadmin
+```
+
+#### Linting Commands
+
+```bash
+# Run ESLint to check for code quality issues
+nx lint wc-superadmin
+
+# Run ESLint and automatically fix issues
+nx lint wc-superadmin --fix
+```
+
+#### Testing Commands
+
+```bash
+# Run unit tests
+nx test wc-superadmin
+
+# Run tests in watch mode
+nx test wc-superadmin --watch
+
+# Run tests with coverage
+nx test wc-superadmin --coverage
+```
+
+#### Type Checking
+
+```bash
+# Run TypeScript type checking
+nx typecheck wc-superadmin
+```
+
+---
+
+## NestJS API Applications
+
+### 5. `wc-nest-api`
+
+**Path**: `apps/wc-nest-api/`
+**Type**: NestJS API Application
+**Description**: World Schools backend API with authentication and RBAC
+
+#### Application Running Commands
 
 ```bash
 # Start development server with hot reload
@@ -87,7 +288,7 @@ nx serve wc-nest-api --configuration=production
 nx preview wc-nest-api
 ```
 
-### Linting Commands
+#### Linting Commands
 
 ```bash
 # Run ESLint to check for code quality issues
@@ -97,7 +298,7 @@ nx lint wc-nest-api
 nx lint wc-nest-api --fix
 ```
 
-### Testing Commands
+#### Testing Commands
 
 ```bash
 # Run unit tests
@@ -113,7 +314,7 @@ nx test wc-nest-api --coverage
 nx e2e wc-nest-api-e2e
 ```
 
-### Prisma Commands
+#### Prisma Commands
 
 **Important**: Each application has its own Prisma setup with separate database connections. Always use the Nx targets for the specific application.
 
@@ -305,11 +506,14 @@ nx prisma:seed your-app-name
 
 ## Quick Start Workflows
 
-### First Time Setup - schoolable-web
+### First Time Setup - Next.js Applications
 
 ```bash
-# From monorepo root
+# From monorepo root - choose the app you want to run
 nx dev schoolable-web
+nx dev wc-booking
+nx dev wc-provider
+nx dev wc-superadmin
 ```
 
 ### First Time Setup - wc-nest-api
@@ -322,11 +526,119 @@ nx prisma:seed wc-nest-api
 nx serve wc-nest-api
 ```
 
-### Development Workflow
+### Development Workflow Examples
+
+#### Running schoolable-web with API
 
 ```bash
-# Start both applications in separate terminals
-nx dev schoolable-web          # Terminal 1
-nx serve wc-nest-api           # Terminal 2
+# Terminal 1: Start the API
+nx serve wc-nest-api
+
+# Terminal 2: Start the web app
+nx dev schoolable-web
 ```
+
+#### Running all World Schools apps
+
+```bash
+# Terminal 1: Start the API
+nx serve wc-nest-api
+
+# Terminal 2: Start booking app
+nx dev wc-booking
+
+# Terminal 3: Start provider portal
+nx dev wc-provider
+
+# Terminal 4: Start super admin dashboard
+nx dev wc-superadmin
+```
+
+#### Running multiple apps simultaneously
+
+```bash
+# Run multiple apps in parallel (requires separate terminals or use a process manager)
+nx run-many --target=dev --projects=wc-booking,wc-provider,wc-superadmin --parallel=3
+```
+
+---
+
+## Quick Reference
+
+### Start Development Server
+
+```bash
+# Next.js apps
+nx dev schoolable-web
+nx dev wc-booking
+nx dev wc-provider
+nx dev wc-superadmin
+
+# NestJS API
+nx serve wc-nest-api
+```
+
+### Build for Production
+
+```bash
+# Next.js apps
+nx build schoolable-web
+nx build wc-booking
+nx build wc-provider
+nx build wc-superadmin
+
+# NestJS API
+nx build wc-nest-api
+```
+
+### Run Linting
+
+```bash
+# Lint a specific app
+nx lint <app-name>
+
+# Lint with auto-fix
+nx lint <app-name> --fix
+
+# Lint all apps
+nx run-many --target=lint --all
+```
+
+### Run Tests
+
+```bash
+# Test a specific app
+nx test <app-name>
+
+# Test all apps
+nx run-many --target=test --all
+
+# Test with coverage
+nx test <app-name> --coverage
+```
+
+### Prisma Operations (wc-nest-api only)
+
+```bash
+nx prisma:generate wc-nest-api    # Generate Prisma Client
+nx prisma:migrate wc-nest-api     # Run migrations
+nx prisma:seed wc-nest-api        # Seed database
+nx prisma:studio wc-nest-api      # Open Prisma Studio
+```
+
+---
+
+## Application Ports (Default)
+
+When running in development mode, applications typically use these ports:
+
+| Application | Port | URL |
+|------------|------|-----|
+| **schoolable-web** | 4200 | http://localhost:4200 |
+| **wc-booking** | 4201 | http://localhost:4201 |
+| **wc-provider** | 4202 | http://localhost:4202 |
+| **wc-superadmin** | 4203 | http://localhost:4203 |
+| **wc-nest-api** | 3000 | http://localhost:3000 |
+
+**Note**: Actual ports may vary based on your Nx configuration and what's already running. Check the terminal output when starting each app to see the actual port being used.
 
