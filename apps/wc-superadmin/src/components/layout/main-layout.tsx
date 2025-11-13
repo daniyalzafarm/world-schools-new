@@ -1,29 +1,49 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { Sidebar } from '@/components/layout/sidebar'
-import { TopNav } from '@/components/layout/top-nav'
+import { MobileHeader } from '@/components/layout/mobile-header'
 
 interface MainLayoutProps {
   children: React.ReactNode
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Handle responsive behavior
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setSidebarOpen(false) // Close mobile sidebar on desktop
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   return (
     <ProtectedRoute requireAuth requireSuperAdmin>
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-        <div className="flex min-h-screen">
-          <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-          <div className="flex-1 flex flex-col min-h-screen">
-            <TopNav onToggleSidebar={() => setIsSidebarOpen(prev => !prev)} />
-            <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-slate-50/70 dark:bg-slate-950">
-              <div className="max-w-7xl mx-auto space-y-6">{children}</div>
-            </main>
-          </div>
+      <div className="flex h-screen bg-white dark:bg-gray-900">
+        {/* Sidebar */}
+        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Mobile Header */}
+          <MobileHeader menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+
+          {/* Main content */}
+          <main className="flex-1 overflow-auto">
+            <div className="h-full pt-14 lg:pt-0">
+              <div className="p-6 lg:p-8">
+                <div className="max-w-7xl mx-auto space-y-6">{children}</div>
+              </div>
+            </div>
+          </main>
         </div>
       </div>
     </ProtectedRoute>
