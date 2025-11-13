@@ -1,23 +1,166 @@
-// const { createGlobPatternsForDependencies } = require('@nx/next/tailwind');
-
-// The above utility import will not work if you are using Next.js' --turbo.
-// Instead you will have to manually add the dependent paths to be included.
-// For example
-// ../libs/buttons/**/*.{ts,tsx,js,jsx,html}',                 <--- Adding a shared lib
-// !../libs/buttons/**/*.{stories,spec}.{ts,tsx,js,jsx,html}', <--- Skip adding spec/stories files from shared lib
-
-// If you are **not** using `--turbo` you can uncomment both lines 1 & 19.
-// A discussion of the issue can be found: https://github.com/nrwl/nx/issues/26510
+import { heroui } from '@heroui/react'
 
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+const config = {
   content: [
-    './{src,pages,components,app}/**/*.{ts,tsx,js,jsx,html}',
-    '!./{src,pages,components,app}/**/*.{stories,spec}.{ts,tsx,js,jsx,html}',
-    //     ...createGlobPatternsForDependencies(__dirname)
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['Figtree', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
+      colors: {
+        primary: {
+          50: '#eef6ff',
+          100: '#d6e7ff',
+          200: '#b6d4ff',
+          300: '#8dbbff',
+          400: '#5c9eff',
+          500: '#1A6CFF',
+          600: '#1558d6',
+          700: '#1145ad',
+          800: '#0c3184',
+          900: '#071e5b',
+          DEFAULT: '#1A6CFF',
+        },
+        'primary-dark': {
+          50: '#f5f6fa',
+          100: '#e4e7ee',
+          200: '#c9ccd9',
+          300: '#aeb3c5',
+          400: '#8e94aa',
+          500: '#1E263B',
+          600: '#1a2134',
+          700: '#151b2b',
+          800: '#101522',
+          900: '#0b0f19',
+          DEFAULT: '#1E263B',
+        },
+        secondary: {
+          50: '#f7f7f8',
+          100: '#eceeef',
+          200: '#d9dde0',
+          300: '#c1c6cb',
+          400: '#a5acb3',
+          500: '#565A5E',
+          600: '#4b4f53',
+          700: '#3f4347',
+          800: '#34383c',
+          900: '#292d31',
+          DEFAULT: '#565A5E',
+        },
+      },
+    },
   },
-  plugins: [],
-};
+  darkMode: 'class',
+  plugins: [
+    heroui({
+      themes: {
+        light: {
+          fonts: {
+            sans: 'var(--font-figtree)',
+          },
+          colors: {
+            primary: {
+              50: '#eef6ff',
+              100: '#d6e7ff',
+              200: '#b6d4ff',
+              300: '#8dbbff',
+              400: '#5c9eff',
+              500: '#1A6CFF',
+              600: '#1558d6',
+              700: '#1145ad',
+              800: '#0c3184',
+              900: '#071e5b',
+              DEFAULT: '#1A6CFF',
+              foreground: '#ffffff',
+            },
+            'primary-dark': {
+              50: '#f5f6fa',
+              100: '#e4e7ee',
+              200: '#c9ccd9',
+              300: '#aeb3c5',
+              400: '#8e94aa',
+              500: '#1E263B',
+              600: '#1a2134',
+              700: '#151b2b',
+              800: '#101522',
+              900: '#0b0f19',
+              DEFAULT: '#1E263B',
+              foreground: '#ffffff',
+            },
+            secondary: {
+              50: '#f7f7f8',
+              100: '#eceeef',
+              200: '#d9dde0',
+              300: '#c1c6cb',
+              400: '#a5acb3',
+              500: '#565A5E',
+              600: '#4b4f53',
+              700: '#3f4347',
+              800: '#34383c',
+              900: '#292d31',
+              DEFAULT: '#565A5E',
+              foreground: '#ffffff',
+            },
+          },
+        },
+        dark: {
+          fonts: {
+            sans: 'var(--font-figtree)',
+          },
+          colors: {
+            primary: {
+              50: '#eef6ff',
+              100: '#d6e7ff',
+              200: '#b6d4ff',
+              300: '#8dbbff',
+              400: '#5c9eff',
+              500: '#1A6CFF',
+              600: '#1558d6',
+              700: '#1145ad',
+              800: '#0c3184',
+              900: '#071e5b',
+              DEFAULT: '#1A6CFF',
+              foreground: '#ffffff',
+            },
+            'primary-dark': {
+              50: '#f5f6fa',
+              100: '#e4e7ee',
+              200: '#c9ccd9',
+              300: '#aeb3c5',
+              400: '#8e94aa',
+              500: '#1E263B',
+              600: '#1a2134',
+              700: '#151b2b',
+              800: '#101522',
+              900: '#0b0f19',
+              DEFAULT: '#1E263B',
+              foreground: '#ffffff',
+            },
+            secondary: {
+              50: '#f7f7f8',
+              100: '#eceeef',
+              200: '#d9dde0',
+              300: '#c1c6cb',
+              400: '#a5acb3',
+              500: '#565A5E',
+              600: '#4b4f53',
+              700: '#3f4347',
+              800: '#34383c',
+              900: '#292d31',
+              DEFAULT: '#565A5E',
+              foreground: '#ffffff',
+            },
+          },
+        },
+      },
+    }),
+  ],
+}
+
+export default config
