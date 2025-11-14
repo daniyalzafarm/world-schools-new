@@ -58,8 +58,8 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
           'fixed lg:static z-40',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
           'transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
-          // Full width on mobile, fixed width on desktop
-          'w-full lg:w-80',
+          // Full width on mobile, match main sidebar width (w-64) on desktop
+          'w-full lg:w-64',
           // Add top padding on mobile to account for MobileHeader height
           'pt-8 lg:pt-0'
         )}

@@ -33,6 +33,7 @@ import { cn } from '@world-schools/ui-web'
 
 import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
+import eventBus from '@/utils/event-bus'
 
 // Custom hook for sidebar expansion state management
 const useSidebarExpansion = (onToggleCollapse: () => void) => {
@@ -267,6 +268,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
     el.addEventListener('transitionend', onEnd as any)
     return () => el.removeEventListener('transitionend', onEnd as any)
   }, [isCollapsed, setIsExpandedFully])
+
+  // Listen for sidebar collapse event from settings page
+  React.useEffect(() => {
+    const handleCollapseEvent = () => {
+      // Only collapse if not already collapsed
+      if (!isCollapsed) {
+        setIsManuallyExpanded(false)
+        setIsCollapsed(true)
+      }
+    }
+
+    eventBus.$on('sidebar:collapse', 'sidebar-component', handleCollapseEvent)
+
+    return () => {
+      eventBus.$off('sidebar:collapse', 'sidebar-component')
+    }
+  }, [isCollapsed, setIsManuallyExpanded])
 
   const toggleSection = (sectionName: string) => {
     setExpandedSections(prev => ({ ...prev, [sectionName]: !prev[sectionName] }))

@@ -1,15 +1,22 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Button } from '@heroui/react'
 import { cn } from "@world-schools/ui-web"
 import { Menu, X } from 'lucide-react'
 import { MainLayout } from '@/components/layout/main-layout'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { SettingsSidebar } from '@/components/layout/settings-sidebar'
+import eventBus from '@/utils/event-bus'
 
 const SettingsLayout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Emit sidebar collapse event when settings page mounts
+  useEffect(() => {
+    // Emit the collapse event to the main sidebar
+    eventBus.$emit('sidebar:collapse')
+  }, []) // Empty dependency array ensures this only runs once on mount
 
   return (
     <ProtectedRoute requireAuth={true} requireSuperAdmin={true}>
