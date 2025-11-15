@@ -41,14 +41,16 @@ export function createNestJsConfig(importMetaUrl) {
   const __filename = fileURLToPath(importMetaUrl)
   const __dirname = dirname(__filename)
 
+  // Configuration for source files (non-test)
   const typescriptConfig = {
     files: ['**/*.ts'],
+    ignores: ['**/*.{test,spec}.ts', '**/__tests__/**/*.ts', '**/tests/**/*.ts', 'jest.config.ts'],
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
         ecmaVersion: 'latest',
         sourceType: 'module',
-        project: [resolve(__dirname, 'tsconfig.json')],
+        project: resolve(__dirname, 'tsconfig.app.json'),
         tsconfigRootDir: __dirname,
       },
       globals: {
@@ -202,12 +204,30 @@ export function createNestJsConfig(importMetaUrl) {
       },
     },
 
-    // Configuration for all TypeScript files
+    // Configuration for source files (non-test)
     typescriptConfig,
 
-    // Configuration for test files
+    // Configuration for test files (uses tsconfig.spec.json)
     {
-      files: ['**/*.{test,spec}.ts', '**/__tests__/**/*.ts', '**/tests/**/*.ts'],
+      files: ['**/*.{test,spec}.ts', '**/__tests__/**/*.ts', '**/tests/**/*.ts', 'jest.config.ts'],
+      languageOptions: {
+        parser: typescriptParser,
+        parserOptions: {
+          ecmaVersion: 'latest',
+          sourceType: 'module',
+          project: resolve(__dirname, 'tsconfig.spec.json'),
+          tsconfigRootDir: __dirname,
+        },
+        globals: {
+          ...globals.node,
+          ...globals.es2020,
+          ...globals.jest,
+          NodeJS: 'readonly',
+        },
+      },
+      plugins: {
+        '@typescript-eslint': typescript,
+      },
       rules: {
         '@typescript-eslint/no-explicit-any': 'off',
         'no-console': 'off',
@@ -215,9 +235,9 @@ export function createNestJsConfig(importMetaUrl) {
       },
     },
 
-    // Configuration for configuration files
+    // Configuration for configuration files (uses tsconfig.spec.json for jest.config.ts)
     {
-      files: ['*.config.{js,ts,mjs}', 'prisma/seed.ts'],
+      files: ['*.config.{js,mjs}', 'prisma/seed.ts'],
       rules: {
         'no-console': 'off',
         '@typescript-eslint/no-explicit-any': 'off',

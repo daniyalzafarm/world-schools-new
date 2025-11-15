@@ -1,11 +1,6 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "outDir": "../../dist/out-tsc",
-    "module": "commonjs",
-    "moduleResolution": "node10",
-    "types": ["jest", "node"]
-  },
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.nestjs.spec.json",
   "include": [
     "jest.config.ts",
     "src/**/*.test.ts",

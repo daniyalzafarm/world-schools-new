@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Next.js",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    // Next.js specific settings
+    "jsx": "preserve",
+    "plugins": [{ "name": "next" }],
+
+    // Strict type checking
+    "strict": true,
+    "noImplicitAny": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+
+    // Module resolution
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+
+    // Emit settings
+    "noEmit": true,
+    "emitDeclarationOnly": false,
+    "incremental": true,
+
+    // Interop and compatibility
+    "esModuleInterop": true,
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // Library and target
+    "lib": ["dom", "dom.iterable", "esnext"],
+
+    // Class fields
+    "useDefineForClassFields": true
+  }
+}
+

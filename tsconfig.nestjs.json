@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "NestJS",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    // NestJS requires these for decorators
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    // Module settings for Node.js
+    "module": "commonjs",
+    "target": "es2021",
+
+    // Interop
+    "esModuleInterop": true,
+
+    // Strict type checking (enable strictNullChecks for better type safety)
+    "strict": true,
+    "strictNullChecks": true,
+
+    // Output
+    "outDir": "../../dist/out-tsc",
+
+    // Types
+    "types": ["node"]
+  }
+}
+

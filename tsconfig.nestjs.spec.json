@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "NestJS Test",
+  "extends": "./tsconfig.nestjs.json",
+  "compilerOptions": {
+    // Test-specific module resolution
+    "moduleResolution": "node10",
+
+    // Include Jest types
+    "types": ["jest", "node"]
+  }
+}
+
