@@ -13,21 +13,21 @@ import {
   Tooltip,
 } from '@heroui/react'
 import {
-  Activity,
   ArrowLeftToLine,
+  Banknote,
   Bell,
-  ChartBarBig,
-  ChartPie,
+  Building,
   ChevronDown,
   ChevronRight,
-  Circle,
+  House,
   Inbox,
-  Layers3,
+  ListPlus,
   LogOut,
   MessageCircle,
+  MessageCircleWarning,
   Settings,
   ShieldCheck,
-  Users2,
+  User,
 } from 'lucide-react'
 import { cn } from '@world-schools/ui-web'
 
@@ -90,31 +90,42 @@ const NAV_ITEMS: NavItem[] = [
   {
     name: 'Analytics Dashboard',
     href: '/analytics-dashboard',
-    icon: <ChartBarBig size={20} />,
+    icon: <House size={20} />,
     type: 'regular',
   },
   {
     name: 'Financial Dashboard',
     href: '/financial-dashboard',
-    icon: <ChartPie size={20} />,
+    icon: <Banknote size={20} />,
     type: 'regular',
   },
   {
     name: 'Provider Requests',
     href: '/provider-requests',
-    icon: <Layers3 size={20} />,
+    icon: <ListPlus size={20} />,
     badge: 2,
     type: 'regular',
   },
   {
     name: 'Provider Messages',
     href: '',
-    icon: <Inbox size={20} />,
+    icon: <MessageCircle size={20} />,
     type: 'collapsible',
+    badge: 4,
     children: [
-      { name: 'My Inbox', href: '/provider-messages/my-inbox', icon: <Circle size={16} /> },
-      { name: 'Unassigned', href: '/provider-messages/unassigned', icon: <Circle size={16} /> },
-      { name: 'Team Inbox', href: '/provider-messages/team-inbox', icon: <Circle size={16} /> },
+      {
+        name: 'My Inbox',
+        href: '/provider-messages/my-inbox',
+        badge: 2,
+        icon: <MessageCircle size={18} />,
+      },
+      {
+        name: 'Unassigned',
+        href: '/provider-messages/unassigned',
+        badge: 2,
+        icon: <MessageCircleWarning size={18} />,
+      },
+      { name: 'Team Inbox', href: '/provider-messages/team-inbox', icon: <Inbox size={18} /> },
     ],
   },
   {
@@ -123,21 +134,25 @@ const NAV_ITEMS: NavItem[] = [
     icon: <MessageCircle size={20} />,
     type: 'collapsible',
     children: [
-      { name: 'My Inbox', href: '/user-messages/my-inbox', icon: <Circle size={16} /> },
-      { name: 'Unassigned', href: '/user-messages/unassigned', icon: <Circle size={16} /> },
-      { name: 'Team Inbox', href: '/user-messages/team-inbox', icon: <Circle size={16} /> },
+      { name: 'My Inbox', href: '/user-messages/my-inbox', icon: <MessageCircle size={18} /> },
+      {
+        name: 'Unassigned',
+        href: '/user-messages/unassigned',
+        icon: <MessageCircleWarning size={18} />,
+      },
+      { name: 'Team Inbox', href: '/user-messages/team-inbox', icon: <Inbox size={18} /> },
     ],
   },
   {
     name: 'All Providers',
     href: '/all-providers',
-    icon: <Activity size={20} />,
+    icon: <Building size={20} />,
     type: 'regular',
   },
   {
     name: 'Users',
     href: '/users',
-    icon: <Users2 size={20} />,
+    icon: <User size={20} />,
     type: 'regular',
   },
   {
@@ -383,14 +398,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                       isActive ? 'bg-primary-100' : 'hover:bg-gray-200 dark:hover:bg-gray-800'
                     )}
                   >
-                    <span className="flex justify-center min-w-[24px]">
+                    <span className="flex justify-center min-w-6">
                       {item.badge ? (
                         <Badge
-                          color="success"
+                          color="primary"
                           content={item.badge}
                           size="sm"
                           placement="top-right"
-                          showOutline
+                          showOutline={false}
                         >
                           {item.icon}
                         </Badge>
@@ -428,7 +443,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                                 if (sidebarOpen) setSidebarOpen(false)
                               }}
                             >
-                              <span className="flex justify-center min-w-[20px]">{child.icon}</span>
+                              {child.badge ? (
+                                <Badge
+                                  color="primary"
+                                  content={child.badge}
+                                  size="sm"
+                                  placement="top-right"
+                                  showOutline={false}
+                                >
+                                  {child.icon}
+                                </Badge>
+                              ) : (
+                                child.icon
+                              )}
                               <span className="ml-2">{child.name}</span>
                             </div>
                           </Link>
