@@ -1,21 +1,22 @@
-import { FlatCompat } from '@eslint/eslintrc';
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-import js from '@eslint/js';
-import { fixupConfigRules } from '@eslint/compat';
-import nx from '@nx/eslint-plugin';
-import baseConfig from '../../eslint.config.mjs';
-const compat = new FlatCompat({
-  baseDirectory: dirname(fileURLToPath(import.meta.url)),
-  recommendedConfig: js.configs.recommended,
-});
+/**
+ * ESLint configuration for wc-provider Next.js application
+ *
+ * This configuration uses the shared Next.js config from the root directory.
+ * To add app-specific overrides, add them to the config array before exporting.
+ */
 
-export default [
-  ...fixupConfigRules(compat.extends('next')),
-  ...fixupConfigRules(compat.extends('next/core-web-vitals')),
-  ...baseConfig,
-  ...nx.configs['flat/react-typescript'],
-  {
-    ignores: ['.next/**/*'],
-  },
-];
+import { createNextJsConfig } from '../../eslint.config.nextjs.mjs'
+
+// Create the base Next.js configuration
+const config = createNextJsConfig(import.meta.url)
+
+// Add app-specific overrides here if needed
+// Example:
+// config.push({
+//   files: ['**/*.ts', '**/*.tsx'],
+//   rules: {
+//     // Your app-specific rules here
+//   }
+// })
+
+export default config
