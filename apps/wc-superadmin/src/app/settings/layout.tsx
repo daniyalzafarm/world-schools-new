@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { Button } from '@heroui/react'
-import { cn } from "@world-schools/ui-web"
+import { cn } from '@world-schools/ui-web'
 import { Menu, X } from 'lucide-react'
 import { MainLayout } from '@/components/layout/main-layout'
 import { ProtectedRoute } from '@/components/auth/protected-route'
@@ -72,4 +72,3 @@ const SettingsLayout = ({ children }: { children: React.ReactNode }) => {
 }
 
 export default SettingsLayout
-

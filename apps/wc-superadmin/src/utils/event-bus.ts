@@ -43,4 +43,3 @@ const eventBus: EventBusType = {
 }
 
 export default eventBus
-

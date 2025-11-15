@@ -66,7 +66,9 @@ export default function SignInPage() {
       <main className="flex-1 flex items-center justify-center px-4 pb-18">
         <div className="w-full max-w-md bg-white/90 dark:bg-slate-900/70 backdrop-blur rounded-3xl shadow-xl p-10 space-y-8">
           <div className="space-y-2 text-center">
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Superadmin Console</h1>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+              Superadmin Console
+            </h1>
             <p className="text-slate-600 dark:text-slate-300">
               Sign in to review provider applications, monitor activity, and manage your teams.
             </p>

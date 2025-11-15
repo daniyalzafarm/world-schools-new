@@ -3,13 +3,7 @@
 import React from 'react'
 import { Button, Input, Tooltip } from '@heroui/react'
 import { useTheme } from 'next-themes'
-import {
-  Bell,
-  Menu,
-  MoonStar,
-  Search,
-  Sun,
-} from 'lucide-react'
+import { Bell, Menu, MoonStar, Search, Sun } from 'lucide-react'
 
 interface TopNavProps {
   onToggleSidebar: () => void
@@ -48,12 +42,7 @@ export function TopNav({ onToggleSidebar }: TopNavProps) {
 
           <div className="flex items-center gap-2 ml-auto">
             <Tooltip content="Toggle theme" placement="bottom">
-              <Button
-                isIconOnly
-                variant="light"
-                radius="full"
-                onPress={handleToggleTheme}
-              >
+              <Button isIconOnly variant="light" radius="full" onPress={handleToggleTheme}>
                 {resolvedTheme === 'dark' ? <Sun size={18} /> : <MoonStar size={18} />}
               </Button>
             </Tooltip>

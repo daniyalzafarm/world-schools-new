@@ -459,9 +459,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
           <div
             className={cn(
               'flex-1',
-              (isManuallyExpanded || isHovered) && (isManuallyExpanded ? 'cursor-w-resize' : 'cursor-e-resize')
+              (isManuallyExpanded || isHovered) &&
+                (isManuallyExpanded ? 'cursor-w-resize' : 'cursor-e-resize')
             )}
-            onClick={(isManuallyExpanded || isHovered) ? handleClickableAreaClick : undefined}
+            onClick={isManuallyExpanded || isHovered ? handleClickableAreaClick : undefined}
           />
 
           {/* User Section */}
@@ -524,7 +525,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                 </DropdownMenu>
               </Dropdown>
               <Tooltip
-                content={isCollapsed ? 'Expand' : !isManuallyExpanded ? 'Keep expanded' : 'Collapse'}
+                content={
+                  isCollapsed ? 'Expand' : !isManuallyExpanded ? 'Keep expanded' : 'Collapse'
+                }
                 placement="right"
                 delay={100}
                 closeDelay={0}

@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { cn } from "@world-schools/ui-web"
+import { cn } from '@world-schools/ui-web'
 import { User } from 'lucide-react'
 
 interface SettingsSidebarProps {
@@ -82,9 +82,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                       onClick={() => handleNavigation(item)}
                       className={cn(
                         'flex items-center p-2 rounded-lg cursor-pointer transition-all duration-200',
-                        active
-                          ? 'bg-primary-100'
-                          : 'hover:bg-gray-200 dark:hover:bg-gray-800'
+                        active ? 'bg-primary-100' : 'hover:bg-gray-200 dark:hover:bg-gray-800'
                       )}
                     >
                       <span className="w-8 flex justify-center">
@@ -106,4 +104,3 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
     </>
   )
 }
-

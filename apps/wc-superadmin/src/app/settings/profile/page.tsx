@@ -62,10 +62,10 @@ const ProfilePage = () => {
     // Here you would typically call an API to reset the password
   }
 
-  const isPasswordValid = 
-    passwordData.currentPassword && 
-    passwordData.newPassword && 
-    passwordData.confirmPassword && 
+  const isPasswordValid =
+    passwordData.currentPassword &&
+    passwordData.newPassword &&
+    passwordData.confirmPassword &&
     passwordData.newPassword === passwordData.confirmPassword
 
   return (
@@ -215,4 +215,3 @@ const ProfilePage = () => {
 }
 
 export default ProfilePage
-

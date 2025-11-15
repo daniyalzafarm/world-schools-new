@@ -14,11 +14,9 @@ export function ComingSoon() {
               <Rocket size={48} className="text-primary" strokeWidth={1.5} />
             </div>
           </div>
-          
+
           <div className="space-y-2 max-w-md">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-              Coming Soon
-            </h2>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Coming Soon</h2>
             <p className="text-slate-500 dark:text-slate-400">
               This feature is currently under development and will be available soon.
             </p>
@@ -28,4 +26,3 @@ export function ComingSoon() {
     </Card>
   )
 }
-

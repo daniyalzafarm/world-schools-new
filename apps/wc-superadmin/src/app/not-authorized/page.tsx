@@ -18,7 +18,8 @@ export default function NotAuthorizedPage() {
             Access requires superadmin privileges
           </h1>
           <p className="text-slate-600 dark:text-slate-300">
-            You attempted to view an area that is restricted to members of the Superadmin team. Please sign in with an authorized account or contact the workspace owner.
+            You attempted to view an area that is restricted to members of the Superadmin team.
+            Please sign in with an authorized account or contact the workspace owner.
           </p>
         </div>
         <Button color="primary" radius="full" size="lg" onPress={() => router.push('/auth/signin')}>

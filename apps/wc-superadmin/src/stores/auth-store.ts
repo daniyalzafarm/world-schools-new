@@ -73,7 +73,8 @@ export const useAuthStore = create<AuthStore>()(
         await new Promise(resolve => setTimeout(resolve, 300))
 
         const rawEmail = credentials.email?.trim()
-        const email = rawEmail && rawEmail.length > 0 ? rawEmail : `superadmin+${Date.now()}@worldcamps.dev`
+        const email =
+          rawEmail && rawEmail.length > 0 ? rawEmail : `superadmin+${Date.now()}@worldcamps.dev`
         const password = credentials.password ?? ''
 
         const user: User = {
