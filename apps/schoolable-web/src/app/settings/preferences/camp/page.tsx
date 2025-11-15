@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Accordion, AccordionItem, Button, Chip, DateRangePicker, Progress } from '@heroui/react'
 import { BadgeCheck, ChevronLeft, X } from 'lucide-react'
-import { Autocomplete, ChipButton, Input, RangeSlider, ShowMoreButton } from "@world-schools/ui-web"
+import { Autocomplete, ChipButton, Input, RangeSlider, ShowMoreButton } from '@world-schools/ui-web'
 import { CalendarDate } from '@internationalized/date'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 

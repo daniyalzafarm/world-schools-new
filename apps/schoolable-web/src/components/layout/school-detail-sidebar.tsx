@@ -16,7 +16,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { StarRating } from "@world-schools/ui-web"
+import { StarRating } from '@world-schools/ui-web'
 import ImageGallery from 'react-image-gallery'
 
 interface SchoolDetailSidebarProps {

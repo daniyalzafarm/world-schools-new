@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Button } from '@heroui/react'
-import { cn } from "@world-schools/ui-web"
+import { cn } from '@world-schools/ui-web'
 
 // Shared base classes to keep visual parity across usages
 const BASE_BUTTON_CLASSES = [

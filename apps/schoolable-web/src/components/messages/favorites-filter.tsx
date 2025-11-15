@@ -3,7 +3,7 @@
 import React from 'react'
 import { Button } from '@heroui/react'
 import { Star } from 'lucide-react'
-import { cn } from "@world-schools/ui-web"
+import { cn } from '@world-schools/ui-web'
 
 interface FavoritesFilterProps {
   isActive: boolean

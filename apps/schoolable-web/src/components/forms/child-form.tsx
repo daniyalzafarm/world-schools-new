@@ -14,7 +14,7 @@ import {
   SelectField,
   ShowMoreButton,
   Textarea,
-} from "@world-schools/ui-web"
+} from '@world-schools/ui-web'
 
 import {
   type AcademicPreferences,

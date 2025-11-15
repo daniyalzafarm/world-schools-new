@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Accordion, AccordionItem, Button, Chip, Progress } from '@heroui/react'
-import { Autocomplete, ChipButton, Input, RangeSlider, ShowMoreButton } from "@world-schools/ui-web"
+import { Autocomplete, ChipButton, Input, RangeSlider, ShowMoreButton } from '@world-schools/ui-web'
 import { BadgeCheck, ChevronLeft } from 'lucide-react'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 

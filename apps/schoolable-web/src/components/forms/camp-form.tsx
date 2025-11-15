@@ -13,7 +13,7 @@ import {
   RangeSlider,
   SelectField,
   Textarea,
-} from "@world-schools/ui-web"
+} from '@world-schools/ui-web'
 
 import {
   ACTIVITY_OPTIONS,

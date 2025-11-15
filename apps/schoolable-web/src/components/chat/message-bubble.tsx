@@ -3,7 +3,7 @@
 import React from 'react'
 import { Avatar } from '@heroui/react'
 import type { Message } from '@/types/chat'
-import { cn } from "@world-schools/ui-web"
+import { cn } from '@world-schools/ui-web'
 
 interface MessageBubbleProps {
   message: Message

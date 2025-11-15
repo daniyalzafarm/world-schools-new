@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { cn } from "@world-schools/ui-web"
+import { cn } from '@world-schools/ui-web'
 import { ChevronDown, ChevronRight, Plus, School, Tent, User } from 'lucide-react'
 import { useSchoolsStore } from '@/stores/schools-store'
 import { useCampsStore } from '@/stores/camps-store'

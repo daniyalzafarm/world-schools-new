@@ -3,7 +3,7 @@
 import React, { useEffect, useRef } from 'react'
 import { Button, Textarea } from '@heroui/react'
 import { ArrowUp } from 'lucide-react'
-import { cn } from "@world-schools/ui-web"
+import { cn } from '@world-schools/ui-web'
 
 interface ChatInputProps {
   value: string

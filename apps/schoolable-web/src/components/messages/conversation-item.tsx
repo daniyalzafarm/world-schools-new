@@ -16,7 +16,7 @@ import {
   Trash2,
 } from 'lucide-react'
 
-import { cn } from "@world-schools/ui-web"
+import { cn } from '@world-schools/ui-web'
 import { formatShortRelativeTime, isUserOnline } from '@/utils/time-format'
 import type { Conversation } from '@/types/conversation'
 import { useParams } from 'next/navigation'

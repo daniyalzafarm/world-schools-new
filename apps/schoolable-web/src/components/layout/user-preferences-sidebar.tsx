@@ -12,7 +12,7 @@ import {
   Star,
   X,
 } from 'lucide-react'
-import { cn, StarRating } from "@world-schools/ui-web"
+import { cn, StarRating } from '@world-schools/ui-web'
 import type { Review as ReviewType, UserProfileData } from '@/types/user-profile'
 
 interface UserProfileSidebarProps {

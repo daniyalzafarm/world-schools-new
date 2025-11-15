@@ -9,7 +9,6 @@ import { Check, Eye, EyeOff, X } from 'lucide-react'
 import { Input } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
 
-
 type ForgotPasswordStep = 'email' | 'otp' | 'newPassword'
 
 interface PasswordRequirement {
