@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, Input, Link } from '@heroui/react'
+import { Button, Link } from '@heroui/react'
 import { Eye, EyeOff } from 'lucide-react'
 
+import { Input } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -59,95 +60,79 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex flex-col">
-      <header className="py-6 px-6">
-        <Logo size="lg" />
-      </header>
-      <main className="flex-1 flex items-center justify-center px-4 pb-18">
-        <div className="w-full max-w-md bg-white/90 dark:bg-slate-900/70 backdrop-blur rounded-3xl shadow-xl p-10 space-y-8">
-          <div className="space-y-2 text-center">
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-              Superadmin Console
-            </h1>
-            <p className="text-slate-600 dark:text-slate-300">
-              Sign in to review provider applications, monitor activity, and manage your teams.
-            </p>
+    <div className="min-h-screen bg-white flex flex-col">
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md space-y-6">
+          <div className="flex justify-center mb-4">
+            <Logo size="lg" />
           </div>
-
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
-              {error}
+          <div className="bg-gray-50 rounded-2xl p-8 space-y-6">
+            <div className="space-y-2 text-center">
+              <h1 className="text-2xl font-bold text-secondary-500">Welcome back</h1>
+              <p className="text-sm text-gray-500">
+                Sign-in to your booking system super-admin account
+              </p>
             </div>
-          )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <Input
-              type="email"
-              label="Work email"
-              labelPlacement="outside"
-              placeholder="you@worldcamps.org"
-              value={formData.email}
-              onValueChange={value => setFormData(prev => ({ ...prev, email: value }))}
-              isInvalid={!!errors.email}
-              errorMessage={errors.email}
-              variant="bordered"
-              radius="full"
-              size="lg"
-              classNames={{
-                inputWrapper:
-                  'border border-slate-200 bg-white hover:border-primary focus-within:border-primary shadow-sm',
-              }}
-            />
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 text-center">
+                {error}
+              </div>
+            )}
 
-            <Input
-              type={showPassword ? 'text' : 'password'}
-              label="Password"
-              labelPlacement="outside"
-              placeholder="Enter your password"
-              value={formData.password}
-              onValueChange={value => setFormData(prev => ({ ...prev, password: value }))}
-              endContent={
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(prev => !prev)}
-                  className="text-slate-400 hover:text-slate-600"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              }
-              isInvalid={!!errors.password}
-              errorMessage={errors.password}
-              variant="bordered"
-              radius="full"
-              size="lg"
-              classNames={{
-                inputWrapper:
-                  'border border-slate-200 bg-white hover:border-primary focus-within:border-primary shadow-sm',
-              }}
-            />
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <Input
+                type="email"
+                placeholder="Email address"
+                value={formData.email}
+                onValueChange={value => setFormData(prev => ({ ...prev, email: value }))}
+                isInvalid={!!errors.email}
+                errorMessage={errors.email}
+                variant="bordered"
+                radius="lg"
+                size="lg"
+              />
 
-            <div className="flex justify-between text-sm">
-              <Link
-                href="/auth/forgot-password"
-                className="font-semibold text-primary hover:text-primary-700"
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Password"
+                value={formData.password}
+                onValueChange={value => setFormData(prev => ({ ...prev, password: value }))}
+                endContent={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(prev => !prev)}
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                }
+                isInvalid={!!errors.password}
+                errorMessage={errors.password}
+                variant="bordered"
+                radius="lg"
+                size="lg"
+              />
+
+              <div className="flex justify-center text-sm">
+                <Link href="/auth/forgot-password" className="text-gray-500 hover:text-gray-700">
+                  Forgot password?
+                </Link>
+              </div>
+
+              <Button
+                type="submit"
+                size="lg"
+                radius="full"
+                color="primary"
+                className="w-full font-semibold"
+                isLoading={isLoading}
+                isDisabled={isLoading}
               >
-                Forgot password?
-              </Link>
-              <span className="text-slate-500">Support: superadmin@worldcamps.org</span>
-            </div>
-
-            <Button
-              type="submit"
-              size="lg"
-              radius="full"
-              color="primary"
-              className="w-full font-semibold"
-              isLoading={isLoading}
-              isDisabled={isLoading}
-            >
-              {isLoading ? 'Authenticating…' : 'Sign in'}
-            </Button>
-          </form>
+                {isLoading ? 'Authenticating…' : 'Sign in'}
+              </Button>
+            </form>
+          </div>
         </div>
       </main>
     </div>
