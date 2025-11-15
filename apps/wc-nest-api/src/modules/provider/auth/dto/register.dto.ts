@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger'
+import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator'
 
 export class RegisterProviderDto {
   @ApiProperty({
@@ -8,7 +8,7 @@ export class RegisterProviderDto {
   })
   @IsEmail()
   @IsNotEmpty()
-  email: string;
+  email: string
 
   @ApiProperty({
     description: 'Password',
@@ -18,7 +18,7 @@ export class RegisterProviderDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(6)
-  password: string;
+  password: string
 
   @ApiProperty({
     description: 'First name',
@@ -26,7 +26,7 @@ export class RegisterProviderDto {
   })
   @IsString()
   @IsNotEmpty()
-  firstName: string;
+  firstName: string
 
   @ApiProperty({
     description: 'Last name',
@@ -34,7 +34,7 @@ export class RegisterProviderDto {
   })
   @IsString()
   @IsNotEmpty()
-  lastName: string;
+  lastName: string
 
   @ApiProperty({
     description: 'Provider (school/organization) name',
@@ -42,7 +42,7 @@ export class RegisterProviderDto {
   })
   @IsString()
   @IsNotEmpty()
-  providerName: string;
+  providerName: string
 
   @ApiProperty({
     description: 'Provider phone number',
@@ -51,7 +51,7 @@ export class RegisterProviderDto {
   })
   @IsString()
   @IsOptional()
-  providerPhone?: string;
+  providerPhone?: string
 
   @ApiProperty({
     description: 'Provider email',
@@ -60,7 +60,7 @@ export class RegisterProviderDto {
   })
   @IsEmail()
   @IsOptional()
-  providerEmail?: string;
+  providerEmail?: string
 
   @ApiProperty({
     description: 'Provider address',
@@ -69,7 +69,7 @@ export class RegisterProviderDto {
   })
   @IsString()
   @IsOptional()
-  providerAddress?: string;
+  providerAddress?: string
 
   @ApiProperty({
     description: 'City',
@@ -78,7 +78,7 @@ export class RegisterProviderDto {
   })
   @IsString()
   @IsOptional()
-  city?: string;
+  city?: string
 
   @ApiProperty({
     description: 'State/Province',
@@ -87,7 +87,7 @@ export class RegisterProviderDto {
   })
   @IsString()
   @IsOptional()
-  state?: string;
+  state?: string
 
   @ApiProperty({
     description: 'Postal code',
@@ -96,7 +96,7 @@ export class RegisterProviderDto {
   })
   @IsString()
   @IsOptional()
-  postalCode?: string;
+  postalCode?: string
 
   @ApiProperty({
     description: 'Country',
@@ -105,7 +105,7 @@ export class RegisterProviderDto {
   })
   @IsString()
   @IsOptional()
-  country?: string;
+  country?: string
 
   @ApiProperty({
     description: 'Website URL',
@@ -114,6 +114,5 @@ export class RegisterProviderDto {
   })
   @IsString()
   @IsOptional()
-  website?: string;
+  website?: string
 }
-

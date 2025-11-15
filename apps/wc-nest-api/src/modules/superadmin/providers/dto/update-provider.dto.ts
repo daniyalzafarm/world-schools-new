@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsEmail, IsOptional } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger'
+import { IsEmail, IsOptional, IsString } from 'class-validator'
 
 export class UpdateProviderDto {
   @ApiProperty({
@@ -9,7 +9,7 @@ export class UpdateProviderDto {
   })
   @IsString()
   @IsOptional()
-  name?: string;
+  name?: string
 
   @ApiProperty({
     description: 'Provider address',
@@ -18,7 +18,7 @@ export class UpdateProviderDto {
   })
   @IsString()
   @IsOptional()
-  address?: string;
+  address?: string
 
   @ApiProperty({
     description: 'City',
@@ -27,7 +27,7 @@ export class UpdateProviderDto {
   })
   @IsString()
   @IsOptional()
-  city?: string;
+  city?: string
 
   @ApiProperty({
     description: 'State/Province',
@@ -36,7 +36,7 @@ export class UpdateProviderDto {
   })
   @IsString()
   @IsOptional()
-  state?: string;
+  state?: string
 
   @ApiProperty({
     description: 'Postal code',
@@ -45,7 +45,7 @@ export class UpdateProviderDto {
   })
   @IsString()
   @IsOptional()
-  postal_code?: string;
+  postal_code?: string
 
   @ApiProperty({
     description: 'Country',
@@ -54,7 +54,7 @@ export class UpdateProviderDto {
   })
   @IsString()
   @IsOptional()
-  country?: string;
+  country?: string
 
   @ApiProperty({
     description: 'Phone number',
@@ -63,7 +63,7 @@ export class UpdateProviderDto {
   })
   @IsString()
   @IsOptional()
-  phone?: string;
+  phone?: string
 
   @ApiProperty({
     description: 'Email address',
@@ -72,7 +72,7 @@ export class UpdateProviderDto {
   })
   @IsEmail()
   @IsOptional()
-  email?: string;
+  email?: string
 
   @ApiProperty({
     description: 'Website URL',
@@ -81,6 +81,5 @@ export class UpdateProviderDto {
   })
   @IsString()
   @IsOptional()
-  website?: string;
+  website?: string
 }
-

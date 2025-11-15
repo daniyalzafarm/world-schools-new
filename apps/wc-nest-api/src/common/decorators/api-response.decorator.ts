@@ -1,14 +1,14 @@
-import { applyDecorators, type Type } from '@nestjs/common';
-import { ApiResponse } from '@nestjs/swagger';
+import { applyDecorators, type Type } from '@nestjs/common'
+import { ApiResponse } from '@nestjs/swagger'
 
 export interface ApiResponseOptions {
-  status?: number;
-  description?: string;
-  type?: Type<any> | string;
+  status?: number
+  description?: string
+  type?: Type<any> | string
 }
 
 export function ApiSuccessResponse(options: ApiResponseOptions = {}) {
-  const { status = 200, description = 'Success', type } = options;
+  const { status = 200, description = 'Success', type } = options
 
   return applyDecorators(
     ApiResponse({
@@ -33,11 +33,11 @@ export function ApiSuccessResponse(options: ApiResponseOptions = {}) {
         required: ['success', 'data'],
       },
     })
-  );
+  )
 }
 
 export function ApiErrorResponseDoc(options: ApiResponseOptions = {}) {
-  const { status = 400, description = 'Error' } = options;
+  const { status = 400, description = 'Error' } = options
 
   return applyDecorators(
     ApiResponse({
@@ -72,6 +72,5 @@ export function ApiErrorResponseDoc(options: ApiResponseOptions = {}) {
         required: ['success', 'data'],
       },
     })
-  );
+  )
 }
-

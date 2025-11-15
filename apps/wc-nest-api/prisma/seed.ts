@@ -1,13 +1,13 @@
-import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import { PrismaClient } from '@prisma/client'
+import * as bcrypt from 'bcryptjs'
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🌱 Seeding database...');
+  console.log('🌱 Seeding database...')
 
   // Create system permissions
-  console.log('Creating permissions...');
+  console.log('Creating permissions...')
   const permissions = [
     { id: 'users.create', name: 'Create users' },
     { id: 'users.read', name: 'Read users' },
@@ -29,35 +29,33 @@ async function main() {
     { id: 'children.read', name: 'Read children' },
     { id: 'children.update', name: 'Update children' },
     { id: 'children.delete', name: 'Delete children' },
-  ];
+  ]
 
   for (const permission of permissions) {
     await prisma.permission.upsert({
       where: { id: permission.id },
       update: {},
       create: permission,
-    });
+    })
   }
 
-  console.log(`✅ Created ${permissions.length} permissions`);
+  console.log(`✅ Created ${permissions.length} permissions`)
 
   // Create system roles
-  console.log('Creating system roles...');
+  console.log('Creating system roles...')
 
   // Super Admin Role (has all permissions)
   let superAdminRole = await prisma.role.findFirst({
     where: { name: 'Super Admin', isSystemRole: true, providerId: null },
-  });
+  })
 
-  if (!superAdminRole) {
-    superAdminRole = await prisma.role.create({
-      data: {
-        name: 'Super Admin',
-        isSystemRole: true,
-        providerId: null,
-      },
-    });
-  }
+  superAdminRole ??= await prisma.role.create({
+    data: {
+      name: 'Super Admin',
+      isSystemRole: true,
+      providerId: null,
+    },
+  })
 
   // Assign all permissions to Super Admin
   for (const permission of permissions) {
@@ -73,33 +71,31 @@ async function main() {
         roleId: superAdminRole.id,
         permissionId: permission.id,
       },
-    });
+    })
   }
 
   // Provider Admin Role (for school owners)
   let providerAdminRole = await prisma.role.findFirst({
     where: { name: 'Provider Admin', isSystemRole: true, providerId: null },
-  });
+  })
 
-  if (!providerAdminRole) {
-    providerAdminRole = await prisma.role.create({
-      data: {
-        name: 'Provider Admin',
-        isSystemRole: true,
-        providerId: null,
-      },
-    });
-  }
+  providerAdminRole ??= await prisma.role.create({
+    data: {
+      name: 'Provider Admin',
+      isSystemRole: true,
+      providerId: null,
+    },
+  })
 
   // Assign provider-related permissions to Provider Admin
   const providerAdminPermissions = permissions.filter(
-    (p) =>
+    p =>
       p.id.startsWith('providers.') ||
       p.id.startsWith('parents.') ||
       p.id.startsWith('children.') ||
       p.id === 'users.read' ||
-      p.id === 'roles.read',
-  );
+      p.id === 'roles.read'
+  )
 
   for (const permission of providerAdminPermissions) {
     await prisma.rolePermission.upsert({
@@ -114,28 +110,26 @@ async function main() {
         roleId: providerAdminRole.id,
         permissionId: permission.id,
       },
-    });
+    })
   }
 
   // Parent Role (for parents)
   let parentRole = await prisma.role.findFirst({
     where: { name: 'Parent', isSystemRole: true, providerId: null },
-  });
+  })
 
-  if (!parentRole) {
-    parentRole = await prisma.role.create({
-      data: {
-        name: 'Parent',
-        isSystemRole: true,
-        providerId: null,
-      },
-    });
-  }
+  parentRole ??= await prisma.role.create({
+    data: {
+      name: 'Parent',
+      isSystemRole: true,
+      providerId: null,
+    },
+  })
 
   // Assign parent-related permissions
   const parentPermissions = permissions.filter(
-    (p) => p.id === 'children.read' || p.id === 'parents.read',
-  );
+    p => p.id === 'children.read' || p.id === 'parents.read'
+  )
 
   for (const permission of parentPermissions) {
     await prisma.rolePermission.upsert({
@@ -150,14 +144,14 @@ async function main() {
         roleId: parentRole.id,
         permissionId: permission.id,
       },
-    });
+    })
   }
 
-  console.log('✅ Created system roles: Super Admin, Provider Admin, Parent');
+  console.log('✅ Created system roles: Super Admin, Provider Admin, Parent')
 
   // Create a super admin user
-  console.log('Creating super admin user...');
-  const hashedPassword = await bcrypt.hash('admin123', 10);
+  console.log('Creating super admin user...')
+  const hashedPassword = await bcrypt.hash('admin123', 10)
 
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@worldschools.com' },
@@ -168,7 +162,7 @@ async function main() {
       firstName: 'Super',
       lastName: 'Admin',
     },
-  });
+  })
 
   // Assign Super Admin role to admin user
   await prisma.userRole.upsert({
@@ -183,25 +177,25 @@ async function main() {
       userId: adminUser.id,
       roleId: superAdminRole.id,
     },
-  });
+  })
 
-  console.log('✅ Created super admin user: admin@worldschools.com / admin123');
+  console.log('✅ Created super admin user: admin@worldschools.com / admin123')
 
-  console.log('');
-  console.log('🎉 Seeding completed successfully!');
-  console.log('');
-  console.log('📝 Login credentials:');
-  console.log('   Email: admin@worldschools.com');
-  console.log('   Password: admin123');
-  console.log('');
-  console.log('⚠️  Remember to change the admin password in production!');
+  console.log('')
+  console.log('🎉 Seeding completed successfully!')
+  console.log('')
+  console.log('📝 Login credentials:')
+  console.log('   Email: admin@worldschools.com')
+  console.log('   Password: admin123')
+  console.log('')
+  console.log('⚠️  Remember to change the admin password in production!')
 }
 
 main()
-  .catch((e) => {
-    console.error('❌ Error seeding database:', e);
-    process.exit(1);
+  .catch(e => {
+    console.error('❌ Error seeding database:', e)
+    process.exit(1)
   })
   .finally(async () => {
-    await prisma.$disconnect();
-  });
+    await prisma.$disconnect()
+  })

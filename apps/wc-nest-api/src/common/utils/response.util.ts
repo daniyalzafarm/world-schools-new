@@ -1,4 +1,4 @@
-import type { ApiErrorResponse, ApiResponse } from '../interfaces/api-response.interface';
+import type { ApiErrorResponse, ApiResponse } from '../interfaces/api-response.interface'
 
 export class ResponseUtil {
   /**
@@ -10,7 +10,7 @@ export class ResponseUtil {
     return {
       success: true,
       data,
-    };
+    }
   }
 
   /**
@@ -28,7 +28,6 @@ export class ResponseUtil {
         ...(error && { error }),
         ...(statusCode && { statusCode }),
       },
-    };
+    }
   }
 }
-

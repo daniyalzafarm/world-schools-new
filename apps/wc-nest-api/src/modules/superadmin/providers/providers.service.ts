@@ -1,12 +1,12 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
-  ConflictException,
-  BadRequestException,
-} from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { CreateProviderDto } from './dto/create-provider.dto';
-import { UpdateProviderDto } from './dto/update-provider.dto';
+} from '@nestjs/common'
+import { PrismaService } from '../../../prisma/prisma.service'
+import { CreateProviderDto } from './dto/create-provider.dto'
+import { UpdateProviderDto } from './dto/update-provider.dto'
 
 @Injectable()
 export class SuperAdminProvidersService {
@@ -16,23 +16,19 @@ export class SuperAdminProvidersService {
     // Verify owner exists
     const owner = await this.prisma.user.findUnique({
       where: { id: createProviderDto.owner_id },
-    });
+    })
 
     if (!owner) {
-      throw new NotFoundException(
-        `User with ID '${createProviderDto.owner_id}' not found`,
-      );
+      throw new NotFoundException(`User with ID '${createProviderDto.owner_id}' not found`)
     }
 
     // Check if owner already has a provider
     const existingProvider = await this.prisma.provider.findUnique({
       where: { owner_id: createProviderDto.owner_id },
-    });
+    })
 
     if (existingProvider) {
-      throw new ConflictException(
-        `User '${owner.email}' already owns a provider`,
-      );
+      throw new ConflictException(`User '${owner.email}' already owns a provider`)
     }
 
     // Create provider
@@ -53,9 +49,9 @@ export class SuperAdminProvidersService {
           },
         },
       },
-    });
+    })
 
-    return provider;
+    return provider
   }
 
   async findAll() {
@@ -78,7 +74,7 @@ export class SuperAdminProvidersService {
       orderBy: {
         created_at: 'desc',
       },
-    });
+    })
   }
 
   async findOne(id: string) {
@@ -99,18 +95,18 @@ export class SuperAdminProvidersService {
           },
         },
       },
-    });
+    })
 
     if (!provider) {
-      throw new NotFoundException(`Provider with ID '${id}' not found`);
+      throw new NotFoundException(`Provider with ID '${id}' not found`)
     }
 
-    return provider;
+    return provider
   }
 
   async update(id: string, updateProviderDto: UpdateProviderDto) {
     // Verify provider exists
-    await this.findOne(id);
+    await this.findOne(id)
 
     // Update provider
     const provider = await this.prisma.provider.update({
@@ -131,21 +127,20 @@ export class SuperAdminProvidersService {
           },
         },
       },
-    });
+    })
 
-    return provider;
+    return provider
   }
 
   async remove(id: string) {
     // Verify provider exists
-    const provider = await this.findOne(id);
+    const provider = await this.findOne(id)
 
     // Delete provider (roles will be cascade deleted)
     await this.prisma.provider.delete({
       where: { id },
-    });
+    })
 
-    return { message: `Provider '${provider.name}' deleted successfully` };
+    return { message: `Provider '${provider.name}' deleted successfully` }
   }
 }
-

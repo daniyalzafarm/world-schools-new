@@ -1,32 +1,32 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app/app.module';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { randomUUID } from 'crypto';
+import { NestFactory } from '@nestjs/core'
+import { AppModule } from './app/app.module'
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
+import { randomUUID } from 'crypto'
 // Add randomUUID to global scope
-(global as any).crypto = { randomUUID };
-import { ConfigService } from './config/config.service';
-import { HttpExceptionFilter, ResponseInterceptor } from './common';
-import type { NestExpressApplication } from '@nestjs/platform-express';
-import { ValidationPipe } from '@nestjs/common';
-import { join } from 'path';
-import helmet from 'helmet';
-import cookieParser from 'cookie-parser';
-import { AuthTokenMiddleware } from './common/middleware/auth-token.middleware';
+;(global as any).crypto = { randomUUID }
+import { ConfigService } from './config/config.service'
+import { HttpExceptionFilter, ResponseInterceptor } from './common'
+import type { NestExpressApplication } from '@nestjs/platform-express'
+import { ValidationPipe } from '@nestjs/common'
+import { join } from 'path'
+import helmet from 'helmet'
+import cookieParser from 'cookie-parser'
+import { AuthTokenMiddleware } from './common/middleware/auth-token.middleware'
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  const configService = app.get(ConfigService);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule)
+  const configService = app.get(ConfigService)
 
   // Configure trust proxy for accurate IP address capture
-  const trustProxyConfig = configService.trustProxyConfig;
-  app.set('trust proxy', trustProxyConfig);
+  const trustProxyConfig = configService.trustProxyConfig
+  app.set('trust proxy', trustProxyConfig)
 
   // Enable cookie parsing
-  app.use(cookieParser());
+  app.use(cookieParser())
 
   // Register AuthTokenMiddleware globally (after cookieParser)
-  const authTokenMiddleware = app.get(AuthTokenMiddleware);
-  app.use(authTokenMiddleware.use.bind(authTokenMiddleware));
+  const authTokenMiddleware = app.get(AuthTokenMiddleware)
+  app.use(authTokenMiddleware.use.bind(authTokenMiddleware))
 
   // Apply security headers with Helmet (if enabled)
   if (configService.isHelmetEnabled) {
@@ -46,7 +46,7 @@ async function bootstrap() {
         crossOriginEmbedderPolicy: false,
         crossOriginResourcePolicy: { policy: 'cross-origin' },
       })
-    );
+    )
   }
 
   // Enable validation with transformation
@@ -56,7 +56,7 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
     })
-  );
+  )
 
   // Enable CORS
   app.enableCors({
@@ -71,24 +71,24 @@ async function bootstrap() {
     ],
     credentials: true,
     exposedHeaders: ['x-access-token', 'x-refresh-token'],
-  });
+  })
 
   // Apply global response interceptor and exception filter
-  app.useGlobalInterceptors(new ResponseInterceptor());
-  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalInterceptors(new ResponseInterceptor())
+  app.useGlobalFilters(new HttpExceptionFilter())
 
   const config = new DocumentBuilder()
     .setTitle('World Schools API')
     .setDescription('The World Schools API documentation')
     .setVersion('1.0')
     .addBearerAuth()
-    .build();
+    .build()
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
+  const document = SwaggerModule.createDocument(app, config)
+  SwaggerModule.setup('docs', app, document)
 
-  await app.listen(configService.port);
-   
-  console.table({ Docs: `http://localhost:${configService.port}/docs` });
+  await app.listen(configService.port)
+
+  console.table({ Docs: `http://localhost:${configService.port}/docs` })
 }
-void bootstrap();
+void bootstrap()

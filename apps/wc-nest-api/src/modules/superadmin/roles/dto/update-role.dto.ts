@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsArray } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger'
+import { IsArray, IsOptional, IsString } from 'class-validator'
 
 export class UpdateRoleDto {
   @ApiProperty({
@@ -9,7 +9,7 @@ export class UpdateRoleDto {
   })
   @IsString()
   @IsOptional()
-  name?: string;
+  name?: string
 
   @ApiProperty({
     description: 'Permission IDs to assign to this role',
@@ -19,6 +19,5 @@ export class UpdateRoleDto {
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
-  permission_ids?: string[];
+  permission_ids?: string[]
 }
-

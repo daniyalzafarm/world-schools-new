@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsEmail, IsOptional, IsUUID } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger'
+import { IsEmail, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator'
 
 export class GoogleSignInDto {
   @ApiProperty({
@@ -8,7 +8,7 @@ export class GoogleSignInDto {
   })
   @IsString()
   @IsNotEmpty()
-  providerAccountId: string;
+  providerAccountId: string
 
   @ApiProperty({
     description: 'Email from Google account',
@@ -16,7 +16,7 @@ export class GoogleSignInDto {
   })
   @IsEmail()
   @IsNotEmpty()
-  email: string;
+  email: string
 
   @ApiProperty({
     description: 'First name from Google account',
@@ -24,7 +24,7 @@ export class GoogleSignInDto {
   })
   @IsString()
   @IsNotEmpty()
-  firstName: string;
+  firstName: string
 
   @ApiProperty({
     description: 'Last name from Google account',
@@ -32,7 +32,7 @@ export class GoogleSignInDto {
   })
   @IsString()
   @IsNotEmpty()
-  lastName: string;
+  lastName: string
 
   @ApiProperty({
     description: 'Provider ID to associate parent with',
@@ -40,7 +40,7 @@ export class GoogleSignInDto {
   })
   @IsUUID()
   @IsNotEmpty()
-  providerId: string;
+  providerId: string
 
   @ApiProperty({
     description: 'Parent phone number',
@@ -49,7 +49,7 @@ export class GoogleSignInDto {
   })
   @IsString()
   @IsOptional()
-  phone?: string;
+  phone?: string
 
   @ApiProperty({
     description: 'Parent address',
@@ -58,7 +58,7 @@ export class GoogleSignInDto {
   })
   @IsString()
   @IsOptional()
-  address?: string;
+  address?: string
 
   @ApiProperty({
     description: 'City',
@@ -67,7 +67,7 @@ export class GoogleSignInDto {
   })
   @IsString()
   @IsOptional()
-  city?: string;
+  city?: string
 
   @ApiProperty({
     description: 'State/Province',
@@ -76,7 +76,7 @@ export class GoogleSignInDto {
   })
   @IsString()
   @IsOptional()
-  state?: string;
+  state?: string
 
   @ApiProperty({
     description: 'Postal code',
@@ -85,7 +85,7 @@ export class GoogleSignInDto {
   })
   @IsString()
   @IsOptional()
-  postalCode?: string;
+  postalCode?: string
 
   @ApiProperty({
     description: 'Country',
@@ -94,6 +94,5 @@ export class GoogleSignInDto {
   })
   @IsString()
   @IsOptional()
-  country?: string;
+  country?: string
 }
-

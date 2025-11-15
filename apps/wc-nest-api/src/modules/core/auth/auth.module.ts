@@ -1,21 +1,21 @@
-import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { APP_GUARD } from '@nestjs/core';
+import { Module } from '@nestjs/common'
+import { JwtModule } from '@nestjs/jwt'
+import { PassportModule } from '@nestjs/passport'
+import { APP_GUARD } from '@nestjs/core'
 
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { PrismaModule } from '../../../prisma/prisma.module';
-import { ConfigModule } from '../../../config/config.module';
-import { ConfigService } from '../../../config/config.service';
+import { AuthService } from './auth.service'
+import { AuthController } from './auth.controller'
+import { PrismaModule } from '../../../prisma/prisma.module'
+import { ConfigModule } from '../../../config/config.module'
+import { ConfigService } from '../../../config/config.service'
 
 // Strategies
-import { LocalStrategy } from './strategies/local.strategy';
-import { JwtStrategy } from './strategies/jwt.strategy';
+import { LocalStrategy } from './strategies/local.strategy'
+import { JwtStrategy } from './strategies/jwt.strategy'
 
 // Guards
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { RolesOrPermissionsGuard } from './guards/roles-or-permissions.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard'
+import { RolesOrPermissionsGuard } from './guards/roles-or-permissions.guard'
 
 @Module({
   imports: [
@@ -49,4 +49,3 @@ import { RolesOrPermissionsGuard } from './guards/roles-or-permissions.guard';
   exports: [AuthService, JwtAuthGuard, RolesOrPermissionsGuard],
 })
 export class AuthModule {}
-

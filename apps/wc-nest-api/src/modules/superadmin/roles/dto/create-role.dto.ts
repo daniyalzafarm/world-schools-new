@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsBoolean, IsOptional, IsArray } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger'
+import { IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator'
 
 export class CreateRoleDto {
   @ApiProperty({
@@ -8,7 +8,7 @@ export class CreateRoleDto {
   })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name: string
 
   @ApiProperty({
     description: 'Whether this is a system-wide role',
@@ -17,7 +17,7 @@ export class CreateRoleDto {
   })
   @IsBoolean()
   @IsOptional()
-  is_system_role?: boolean;
+  is_system_role?: boolean
 
   @ApiProperty({
     description: 'Permission IDs to assign to this role',
@@ -27,6 +27,5 @@ export class CreateRoleDto {
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
-  permission_ids?: string[];
+  permission_ids?: string[]
 }
-

@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsEmail, IsOptional, IsUUID } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger'
+import { IsEmail, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator'
 
 export class CreateProviderDto {
   @ApiProperty({
@@ -8,7 +8,7 @@ export class CreateProviderDto {
   })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name: string
 
   @ApiProperty({
     description: 'Owner user ID',
@@ -16,7 +16,7 @@ export class CreateProviderDto {
   })
   @IsUUID()
   @IsNotEmpty()
-  owner_id: string;
+  owner_id: string
 
   @ApiProperty({
     description: 'Provider address',
@@ -25,7 +25,7 @@ export class CreateProviderDto {
   })
   @IsString()
   @IsOptional()
-  address?: string;
+  address?: string
 
   @ApiProperty({
     description: 'City',
@@ -34,7 +34,7 @@ export class CreateProviderDto {
   })
   @IsString()
   @IsOptional()
-  city?: string;
+  city?: string
 
   @ApiProperty({
     description: 'State/Province',
@@ -43,7 +43,7 @@ export class CreateProviderDto {
   })
   @IsString()
   @IsOptional()
-  state?: string;
+  state?: string
 
   @ApiProperty({
     description: 'Postal code',
@@ -52,7 +52,7 @@ export class CreateProviderDto {
   })
   @IsString()
   @IsOptional()
-  postal_code?: string;
+  postal_code?: string
 
   @ApiProperty({
     description: 'Country',
@@ -61,7 +61,7 @@ export class CreateProviderDto {
   })
   @IsString()
   @IsOptional()
-  country?: string;
+  country?: string
 
   @ApiProperty({
     description: 'Phone number',
@@ -70,7 +70,7 @@ export class CreateProviderDto {
   })
   @IsString()
   @IsOptional()
-  phone?: string;
+  phone?: string
 
   @ApiProperty({
     description: 'Email address',
@@ -79,7 +79,7 @@ export class CreateProviderDto {
   })
   @IsEmail()
   @IsOptional()
-  email?: string;
+  email?: string
 
   @ApiProperty({
     description: 'Website URL',
@@ -88,6 +88,5 @@ export class CreateProviderDto {
   })
   @IsString()
   @IsOptional()
-  website?: string;
+  website?: string
 }
-

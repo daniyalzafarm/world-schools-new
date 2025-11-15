@@ -1,7 +1,7 @@
-import { Module } from '@nestjs/common';
-import { SuperAdminRolesService } from './roles.service';
-import { SuperAdminRolesController } from './roles.controller';
-import { PrismaModule } from '../../../prisma/prisma.module';
+import { Module } from '@nestjs/common'
+import { SuperAdminRolesService } from './roles.service'
+import { SuperAdminRolesController } from './roles.controller'
+import { PrismaModule } from '../../../prisma/prisma.module'
 
 @Module({
   imports: [PrismaModule],
@@ -9,4 +9,3 @@ import { PrismaModule } from '../../../prisma/prisma.module';
   providers: [SuperAdminRolesService],
 })
 export class SuperAdminRolesModule {}
-

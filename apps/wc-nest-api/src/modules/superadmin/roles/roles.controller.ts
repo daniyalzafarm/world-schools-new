@@ -1,20 +1,11 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  UseGuards,
-} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { SuperAdminRolesService } from './roles.service';
-import { CreateRoleDto } from './dto/create-role.dto';
-import { UpdateRoleDto } from './dto/update-role.dto';
-import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard';
-import { Roles } from '../../core/auth/decorators/roles.decorator';
-import { ResponseUtil } from '../../../common/utils/response.util';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common'
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
+import { SuperAdminRolesService } from './roles.service'
+import { CreateRoleDto } from './dto/create-role.dto'
+import { UpdateRoleDto } from './dto/update-role.dto'
+import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
+import { Roles } from '../../core/auth/decorators/roles.decorator'
+import { ResponseUtil } from '../../../common/utils/response.util'
 
 @ApiTags('SuperAdmin Roles')
 @ApiBearerAuth()
@@ -30,8 +21,8 @@ export class SuperAdminRolesController {
     description: 'Create a new system-wide role with optional permissions',
   })
   async create(@Body() createRoleDto: CreateRoleDto) {
-    const role = await this.rolesService.create(createRoleDto);
-    return ResponseUtil.success(role, 'Role created successfully');
+    const role = await this.rolesService.create(createRoleDto)
+    return ResponseUtil.success(role, 'Role created successfully')
   }
 
   @Get()
@@ -40,8 +31,8 @@ export class SuperAdminRolesController {
     description: 'Retrieve all system-wide roles with their permissions',
   })
   async findAll() {
-    const roles = await this.rolesService.findAll();
-    return ResponseUtil.success(roles, 'Roles retrieved successfully');
+    const roles = await this.rolesService.findAll()
+    return ResponseUtil.success(roles, 'Roles retrieved successfully')
   }
 
   @Get(':id')
@@ -50,8 +41,8 @@ export class SuperAdminRolesController {
     description: 'Retrieve a specific role with its permissions',
   })
   async findOne(@Param('id') id: string) {
-    const role = await this.rolesService.findOne(id);
-    return ResponseUtil.success(role, 'Role retrieved successfully');
+    const role = await this.rolesService.findOne(id)
+    return ResponseUtil.success(role, 'Role retrieved successfully')
   }
 
   @Patch(':id')
@@ -60,8 +51,8 @@ export class SuperAdminRolesController {
     description: 'Update role name and/or permissions',
   })
   async update(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
-    const role = await this.rolesService.update(id, updateRoleDto);
-    return ResponseUtil.success(role, 'Role updated successfully');
+    const role = await this.rolesService.update(id, updateRoleDto)
+    return ResponseUtil.success(role, 'Role updated successfully')
   }
 
   @Delete(':id')
@@ -70,8 +61,7 @@ export class SuperAdminRolesController {
     description: 'Delete a role if it is not assigned to any users',
   })
   async remove(@Param('id') id: string) {
-    const result = await this.rolesService.remove(id);
-    return ResponseUtil.success(result, result.message);
+    const result = await this.rolesService.remove(id)
+    return ResponseUtil.success(result, result.message)
   }
 }
-

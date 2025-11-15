@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger'
+import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator'
 
 export class SuperAdminLoginDto {
   @ApiProperty({
@@ -8,7 +8,7 @@ export class SuperAdminLoginDto {
   })
   @IsEmail()
   @IsNotEmpty()
-  email: string;
+  email: string
 
   @ApiProperty({
     description: 'Super admin password',
@@ -18,6 +18,5 @@ export class SuperAdminLoginDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(6)
-  password: string;
+  password: string
 }
-

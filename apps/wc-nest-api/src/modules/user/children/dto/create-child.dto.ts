@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsDateString } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger'
+import { IsDateString, IsNotEmpty, IsOptional, IsString } from 'class-validator'
 
 export class CreateChildDto {
   @ApiProperty({
@@ -8,7 +8,7 @@ export class CreateChildDto {
   })
   @IsString()
   @IsNotEmpty()
-  firstName: string;
+  firstName: string
 
   @ApiProperty({
     description: 'Child last name',
@@ -16,7 +16,7 @@ export class CreateChildDto {
   })
   @IsString()
   @IsNotEmpty()
-  lastName: string;
+  lastName: string
 
   @ApiProperty({
     description: 'Date of birth',
@@ -25,7 +25,7 @@ export class CreateChildDto {
   })
   @IsDateString()
   @IsOptional()
-  dateOfBirth?: string;
+  dateOfBirth?: string
 
   @ApiProperty({
     description: 'Grade level',
@@ -34,6 +34,5 @@ export class CreateChildDto {
   })
   @IsString()
   @IsOptional()
-  grade?: string;
+  grade?: string
 }
-
