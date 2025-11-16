@@ -1,0 +1,10 @@
+{
+  "name": "schoolable-utils",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/schoolable-utils/src",
+  "projectType": "library",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project schoolable-utils --web",
+  "targets": {}
+}
+

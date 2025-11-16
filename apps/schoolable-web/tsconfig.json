@@ -6,7 +6,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@world-schools/ui-web": ["../../packages/ui-web/src/index.ts"]
+      "@world-schools/ui-web": ["../../packages/ui-web/src/index.ts"],
+      "@world-schools/schoolable-utils": [
+        "../../packages/schoolable-utils/src/index.ts"
+      ]
     }
   },
   "include": [
