@@ -103,18 +103,20 @@ export class AuthService {
     })
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials')
+      // Use BadRequestException instead of UnauthorizedException for invalid credentials
+      // This prevents the API client from triggering automatic token refresh
+      throw new BadRequestException('Invalid credentials')
     }
 
     // Check if user has a password set
     if (!user.passwordHash) {
-      throw new UnauthorizedException('Invalid credentials')
+      throw new BadRequestException('Invalid credentials')
     }
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash)
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials')
+      throw new BadRequestException('Invalid credentials')
     }
 
     // Generate tokens

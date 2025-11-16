@@ -181,11 +181,13 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     async error => {
       const originalRequest = error.config
 
-      // Prevent infinite loop
+      // Prevent infinite loop and exclude login/refresh endpoints from auto-refresh
+      // Login endpoint should return 400 for invalid credentials, but we exclude it as a safeguard
       if (
         error.response?.status === 401 &&
         !originalRequest._retry &&
-        !originalRequest.url.includes('/auth/refresh')
+        !originalRequest.url.includes('/auth/refresh') &&
+        !originalRequest.url.includes('/auth/login')
       ) {
         if (isRefreshing) {
           // If already refreshing, queue this request
