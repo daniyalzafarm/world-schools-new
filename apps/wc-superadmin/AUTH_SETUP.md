@@ -20,26 +20,32 @@ The wc-superadmin application uses a complete JWT-based authentication system th
    - Supports both cookie-based and request-based authentication
    - Automatic token refresh on 401 errors with request queuing
 
-3. **Auth Store** (`src/stores/auth-store.ts`)
+3. **Auth Service** (`src/services/auth.services.ts`)
+   - Service layer for all authentication-related API calls
+   - Provides clean separation between API layer and state management
+   - Exports service methods: `loginApi`, `logoutApi`, `refreshTokenApi`, `getProfileApi`, `changePasswordApi`
+   - Follows the service layer pattern from sales-pipeline-dashboard
+
+4. **Auth Store** (`src/stores/auth-store.ts`)
    - Zustand store with immer middleware for state management
    - Manages user state, authentication status, and auth actions
-   - Integrates with API client for all auth operations
+   - Uses auth service methods for all API operations
    - Persists user data in sessionStorage
 
-4. **Auth Types** (`src/types/auth.ts`)
+5. **Auth Types** (`src/types/auth.ts`)
    - Re-exports shared types from `@world-schools/wc-types` package
    - Local extensions for wc-superadmin specific needs
 
-5. **Auth Hook** (`src/hooks/use-auth.ts`)
+6. **Auth Hook** (`src/hooks/use-auth.ts`)
    - Convenient hook for accessing auth state and actions
    - Provides `isSuperAdmin` computed property
 
-6. **Auth Provider** (`src/components/auth/auth-provider.tsx`)
+7. **Auth Provider** (`src/components/auth/auth-provider.tsx`)
    - Initializes authentication state on app load
    - Shows loading state while initializing
    - Wraps the entire application
 
-7. **Protected Route** (`src/components/auth/protected-route.tsx`)
+8. **Protected Route** (`src/components/auth/protected-route.tsx`)
    - Guards routes that require authentication
    - Supports both general auth and superadmin-specific protection
    - Handles redirects to signin or not-authorized pages

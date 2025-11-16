@@ -3,6 +3,7 @@ import { immer } from 'zustand/middleware/immer'
 
 import type { AuthState, ChangePasswordData, LoginCredentials, User } from '@/types/auth'
 import * as apiClient from '@/utils/api-client'
+import * as authService from '@/services/auth.services'
 import config from '@/config/config'
 
 interface PendingUser {
@@ -103,12 +104,8 @@ export const useAuthStore = create<AuthStore>()(
       })
 
       try {
-        const response = await apiClient.post<{ user: User }>(
-          'superadmin/auth/login',
-          credentials,
-          undefined,
-          true // Attach response headers to extract tokens
-        )
+        // Use auth service for API call
+        const response = await authService.loginApi(credentials)
 
         if (!response.success) {
           const errorMessage: string =
@@ -175,8 +172,8 @@ export const useAuthStore = create<AuthStore>()(
       })
 
       try {
-        // Call logout endpoint to clear server-side session/cookies
-        await apiClient.post('superadmin/auth/logout', {})
+        // Use auth service for API call to clear server-side session/cookies
+        await authService.logoutApi()
       } catch (error) {
         console.error('Logout API error:', error)
         // Continue with logout even if API call fails
@@ -208,12 +205,8 @@ export const useAuthStore = create<AuthStore>()(
           return false
         }
 
-        const response = await apiClient.post<{ user: User; expiresIn: string }>(
-          'superadmin/auth/refresh',
-          { refreshToken },
-          undefined,
-          true // Attach response headers
-        )
+        // Use auth service for API call
+        const response = await authService.refreshTokenApi(refreshToken)
 
         if (!response.success) {
           return false
@@ -247,7 +240,8 @@ export const useAuthStore = create<AuthStore>()(
 
     getProfile: async () => {
       try {
-        const response = await apiClient.get<User>('superadmin/auth/profile')
+        // Use auth service for API call
+        const response = await authService.getProfileApi()
 
         if (!response.success) {
           const errorMessage =
@@ -274,10 +268,8 @@ export const useAuthStore = create<AuthStore>()(
 
     changePassword: async (data: ChangePasswordData) => {
       try {
-        const response = await apiClient.patch<{ message?: string }>(
-          'superadmin/auth/change-password',
-          data
-        )
+        // Use auth service for API call
+        const response = await authService.changePasswordApi(data)
 
         if (!response.success) {
           const errorMessage: string =
