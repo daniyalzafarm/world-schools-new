@@ -38,7 +38,7 @@ export class ProviderRolesController {
   async create(@CurrentUser() user: any, @Body() createRoleDto: CreateProviderRoleDto) {
     const providerId = await this.getProviderIdForUser(user.id)
     const role = await this.rolesService.create(providerId, createRoleDto)
-    return ResponseUtil.success(role, 'Role created successfully')
+    return ResponseUtil.success(role)
   }
 
   @Get()
@@ -49,7 +49,7 @@ export class ProviderRolesController {
   async findAll(@CurrentUser() user: any) {
     const providerId = await this.getProviderIdForUser(user.id)
     const roles = await this.rolesService.findAll(providerId)
-    return ResponseUtil.success(roles, 'Roles retrieved successfully')
+    return ResponseUtil.success(roles)
   }
 
   @Get(':id')
@@ -60,7 +60,7 @@ export class ProviderRolesController {
   async findOne(@CurrentUser() user: any, @Param('id') id: string) {
     const providerId = await this.getProviderIdForUser(user.id)
     const role = await this.rolesService.findOne(providerId, id)
-    return ResponseUtil.success(role, 'Role retrieved successfully')
+    return ResponseUtil.success(role)
   }
 
   @Patch(':id')
@@ -75,7 +75,7 @@ export class ProviderRolesController {
   ) {
     const providerId = await this.getProviderIdForUser(user.id)
     const role = await this.rolesService.update(providerId, id, updateRoleDto)
-    return ResponseUtil.success(role, 'Role updated successfully')
+    return ResponseUtil.success(role)
   }
 
   @Delete(':id')
@@ -86,12 +86,12 @@ export class ProviderRolesController {
   async remove(@CurrentUser() user: any, @Param('id') id: string) {
     const providerId = await this.getProviderIdForUser(user.id)
     const result = await this.rolesService.remove(providerId, id)
-    return ResponseUtil.success(result, result.message)
+    return ResponseUtil.success(result)
   }
 
   private async getProviderIdForUser(userId: string): Promise<string> {
     const provider = await this.prisma.provider.findUnique({
-      where: { owner_id: userId },
+      where: { ownerId: userId },
       select: { id: true },
     })
 

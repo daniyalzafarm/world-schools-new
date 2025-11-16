@@ -22,7 +22,7 @@ export class SuperAdminProvidersController {
   })
   async create(@Body() createProviderDto: CreateProviderDto) {
     const provider = await this.providersService.create(createProviderDto)
-    return ResponseUtil.success(provider, 'Provider created successfully')
+    return ResponseUtil.success(provider)
   }
 
   @Get()
@@ -32,7 +32,7 @@ export class SuperAdminProvidersController {
   })
   async findAll() {
     const providers = await this.providersService.findAll()
-    return ResponseUtil.success(providers, 'Providers retrieved successfully')
+    return ResponseUtil.success(providers)
   }
 
   @Get(':id')
@@ -42,7 +42,7 @@ export class SuperAdminProvidersController {
   })
   async findOne(@Param('id') id: string) {
     const provider = await this.providersService.findOne(id)
-    return ResponseUtil.success(provider, 'Provider retrieved successfully')
+    return ResponseUtil.success(provider)
   }
 
   @Patch(':id')
@@ -52,7 +52,7 @@ export class SuperAdminProvidersController {
   })
   async update(@Param('id') id: string, @Body() updateProviderDto: UpdateProviderDto) {
     const provider = await this.providersService.update(id, updateProviderDto)
-    return ResponseUtil.success(provider, 'Provider updated successfully')
+    return ResponseUtil.success(provider)
   }
 
   @Delete(':id')
@@ -62,6 +62,6 @@ export class SuperAdminProvidersController {
   })
   async remove(@Param('id') id: string) {
     const result = await this.providersService.remove(id)
-    return ResponseUtil.success(result, result.message)
+    return ResponseUtil.success(result)
   }
 }

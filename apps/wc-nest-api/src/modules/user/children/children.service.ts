@@ -88,8 +88,9 @@ export class UserChildrenService {
 
     // Convert date string to Date if provided
     const updateData: any = { ...updateChildDto }
-    if (updateChildDto.dateOfBirth) {
-      updateData.dateOfBirth = new Date(updateChildDto.dateOfBirth)
+    if (updateChildDto.date_of_birth) {
+      updateData.dateOfBirth = new Date(updateChildDto.date_of_birth)
+      delete updateData.date_of_birth
     }
 
     // Update child

@@ -39,8 +39,8 @@ export class UserAuthController {
     const result = await this.authService.login(loginDto)
 
     // Verify user has Parent role
-    const user = result.data.user
-    const hasParentRole = user.roles?.some(role => role.name === 'Parent')
+    const user = result.user
+    const hasParentRole = user.roles?.some((role: any) => role.name === 'Parent')
 
     if (!hasParentRole) {
       throw new UnauthorizedException('Access denied. Parent role required.')
@@ -50,21 +50,21 @@ export class UserAuthController {
     const accessTokenExpiry = this.configService.getJwtExpiresIn()
     const refreshTokenExpiry = this.configService.getJwtRefreshExpiresIn()
 
-    response.cookie('access_token', result.data.access_token, {
+    response.cookie('access_token', result.accessToken, {
       httpOnly: true,
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: 'strict',
       maxAge: this.parseDuration(accessTokenExpiry),
     })
 
-    response.cookie('refresh_token', result.data.refresh_token, {
+    response.cookie('refresh_token', result.refreshToken, {
       httpOnly: true,
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: 'strict',
       maxAge: this.parseDuration(refreshTokenExpiry),
     })
 
-    return ResponseUtil.success(result.data, 'Parent login successful')
+    return ResponseUtil.success(result)
   }
 
   @Public()
@@ -235,7 +235,7 @@ export class UserAuthController {
       },
     }
 
-    return ResponseUtil.success(authResponse, 'Google sign-in successful')
+    return ResponseUtil.success(authResponse)
   }
 
   private parseDuration(duration: string): number {
@@ -243,9 +243,9 @@ export class UserAuthController {
     if (!match) return 900000 // Default 15 minutes
 
     const value = parseInt(match[1], 10)
-    const unit = match[2]
+    const unit = match[2] as 's' | 'm' | 'h' | 'd'
 
-    const multipliers = {
+    const multipliers: Record<'s' | 'm' | 'h' | 'd', number> = {
       s: 1000,
       m: 60000,
       h: 3600000,

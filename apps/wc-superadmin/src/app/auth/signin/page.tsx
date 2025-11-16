@@ -20,18 +20,21 @@ export default function SignInPage() {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // Clear any auth errors when the signin page mounts
+  useEffect(() => {
+    clearError()
+  }, [clearError])
+
   useEffect(() => {
     if (isAuthenticated) {
       router.replace('/analytics-dashboard')
     }
   }, [isAuthenticated, router])
 
+  // Clear validation errors when user starts typing
   useEffect(() => {
-    if (error) {
-      clearError()
-    }
     setErrors({})
-  }, [formData, error, clearError])
+  }, [formData])
 
   const validateForm = () => {
     const nextErrors: Record<string, string> = {}
@@ -53,10 +56,21 @@ export default function SignInPage() {
 
     if (!validateForm()) return
 
+    // Clear any previous errors before attempting login
+    clearError()
+
     const success = await login(formData)
     if (success) {
       router.replace('/analytics-dashboard')
     }
+  }
+
+  const handleInputChange = (field: 'email' | 'password', value: string) => {
+    // Clear API error when user starts typing
+    if (error) {
+      clearError()
+    }
+    setFormData(prev => ({ ...prev, [field]: value }))
   }
 
   return (
@@ -85,7 +99,7 @@ export default function SignInPage() {
                 type="email"
                 placeholder="Email address"
                 value={formData.email}
-                onValueChange={value => setFormData(prev => ({ ...prev, email: value }))}
+                onValueChange={value => handleInputChange('email', value)}
                 isInvalid={!!errors.email}
                 errorMessage={errors.email}
                 variant="bordered"
@@ -97,7 +111,7 @@ export default function SignInPage() {
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Password"
                 value={formData.password}
-                onValueChange={value => setFormData(prev => ({ ...prev, password: value }))}
+                onValueChange={value => handleInputChange('password', value)}
                 endContent={
                   <button
                     type="button"

@@ -150,6 +150,19 @@ export class ConfigService {
     return this.getString('LOG_LEVEL', 'info')
   }
 
+  // Helper methods for auth controller
+  getNodeEnv(): string {
+    return this.nodeEnv
+  }
+
+  getJwtExpiresIn(): string {
+    return this.jwtConfig.expiresIn
+  }
+
+  getJwtRefreshExpiresIn(): string {
+    return this.jwtConfig.refreshExpiresIn
+  }
+
   private getString(key: string, defaultValue?: string): string {
     const value = this.envConfig[key]
     if (!value && defaultValue === undefined) {

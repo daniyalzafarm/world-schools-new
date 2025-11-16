@@ -18,9 +18,9 @@ export class ProviderRolesService {
     // Check if role with same name already exists for this provider
     const existingRole = await this.prisma.role.findUnique({
       where: {
-        name_provider_id: {
+        name_providerId: {
           name: roleData.name,
-          provider_id: providerId,
+          providerId: providerId,
         },
       },
     })
@@ -35,8 +35,8 @@ export class ProviderRolesService {
     const role = await this.prisma.role.create({
       data: {
         ...roleData,
-        is_system_role: false,
-        provider_id: providerId,
+        isSystemRole: false,
+        providerId: providerId,
       },
       include: {
         permissions: {
@@ -58,7 +58,7 @@ export class ProviderRolesService {
   async findAll(providerId: string) {
     return this.prisma.role.findMany({
       where: {
-        provider_id: providerId,
+        providerId: providerId,
       },
       include: {
         permissions: {
@@ -73,7 +73,7 @@ export class ProviderRolesService {
         },
       },
       orderBy: {
-        created_at: 'desc',
+        createdAt: 'desc',
       },
     })
   }
@@ -100,7 +100,7 @@ export class ProviderRolesService {
     }
 
     // Verify role belongs to this provider
-    if (role.provider_id !== providerId) {
+    if (role.providerId !== providerId) {
       throw new ForbiddenException('You do not have permission to access this role')
     }
 
@@ -118,7 +118,7 @@ export class ProviderRolesService {
       const existingRole = await this.prisma.role.findFirst({
         where: {
           name: roleData.name,
-          provider_id: providerId,
+          providerId: providerId,
           id: { not: id },
         },
       })
@@ -150,7 +150,7 @@ export class ProviderRolesService {
 
     // Check if role is assigned to any users
     const userCount = await this.prisma.userRole.count({
-      where: { role_id: id },
+      where: { roleId: id },
     })
 
     if (userCount > 0) {
@@ -170,15 +170,15 @@ export class ProviderRolesService {
   private async assignPermissions(roleId: string, permissionIds: string[]) {
     // Delete existing permissions
     await this.prisma.rolePermission.deleteMany({
-      where: { role_id: roleId },
+      where: { roleId: roleId },
     })
 
     // Assign new permissions
     if (permissionIds.length > 0) {
       await this.prisma.rolePermission.createMany({
         data: permissionIds.map(permissionId => ({
-          role_id: roleId,
-          permission_id: permissionId,
+          roleId: roleId,
+          permissionId: permissionId,
         })),
         skipDuplicates: true,
       })

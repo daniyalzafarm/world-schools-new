@@ -530,7 +530,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                     if (key === 'settings') {
                       router.push('/settings/profile')
                     } else if (key === 'logout') {
-                      logout()
+                      logout().catch(e => console.error(e))
                       router.push('/auth/signin')
                     }
                   }}

@@ -16,7 +16,7 @@ export class CreateProviderDto {
   })
   @IsUUID()
   @IsNotEmpty()
-  owner_id: string
+  ownerId: string
 
   @ApiProperty({
     description: 'Provider address',

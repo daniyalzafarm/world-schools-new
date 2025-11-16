@@ -15,16 +15,16 @@ export class SuperAdminProvidersService {
   async create(createProviderDto: CreateProviderDto) {
     // Verify owner exists
     const owner = await this.prisma.user.findUnique({
-      where: { id: createProviderDto.owner_id },
+      where: { id: createProviderDto.ownerId },
     })
 
     if (!owner) {
-      throw new NotFoundException(`User with ID '${createProviderDto.owner_id}' not found`)
+      throw new NotFoundException(`User with ID '${createProviderDto.ownerId}' not found`)
     }
 
     // Check if owner already has a provider
     const existingProvider = await this.prisma.provider.findUnique({
-      where: { owner_id: createProviderDto.owner_id },
+      where: { ownerId: createProviderDto.ownerId },
     })
 
     if (existingProvider) {
@@ -39,8 +39,8 @@ export class SuperAdminProvidersService {
           select: {
             id: true,
             email: true,
-            first_name: true,
-            last_name: true,
+            firstName: true,
+            lastName: true,
           },
         },
         _count: {
@@ -61,8 +61,8 @@ export class SuperAdminProvidersService {
           select: {
             id: true,
             email: true,
-            first_name: true,
-            last_name: true,
+            firstName: true,
+            lastName: true,
           },
         },
         _count: {
@@ -72,7 +72,7 @@ export class SuperAdminProvidersService {
         },
       },
       orderBy: {
-        created_at: 'desc',
+        createdAt: 'desc',
       },
     })
   }
@@ -85,8 +85,8 @@ export class SuperAdminProvidersService {
           select: {
             id: true,
             email: true,
-            first_name: true,
-            last_name: true,
+            firstName: true,
+            lastName: true,
           },
         },
         _count: {
@@ -117,8 +117,8 @@ export class SuperAdminProvidersService {
           select: {
             id: true,
             email: true,
-            first_name: true,
-            last_name: true,
+            firstName: true,
+            lastName: true,
           },
         },
         _count: {

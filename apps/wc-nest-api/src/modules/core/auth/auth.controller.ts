@@ -40,14 +40,14 @@ export class AuthController {
     const authResult = await this.authService.register(registerDto)
 
     // Set HTTP-only cookies
-    response.cookie('accessToken', authResult.accessToken, {
+    response.cookie('access_token', authResult.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
     })
 
-    response.cookie('refreshToken', authResult.refreshToken, {
+    response.cookie('refresh_token', authResult.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
@@ -73,14 +73,14 @@ export class AuthController {
     const authResult = await this.authService.login(loginDto)
 
     // Set HTTP-only cookies
-    response.cookie('accessToken', authResult.accessToken, {
+    response.cookie('access_token', authResult.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
     })
 
-    response.cookie('refreshToken', authResult.refreshToken, {
+    response.cookie('refresh_token', authResult.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
@@ -108,7 +108,7 @@ export class AuthController {
   ) {
     // Try to get refresh token from cookie first, then from body
     const refreshToken: string =
-      (response as any).req?.cookies?.refreshToken ?? refreshTokenDto?.refreshToken
+      (response as any).req?.cookies?.refresh_token ?? refreshTokenDto?.refreshToken
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not provided')
@@ -117,14 +117,14 @@ export class AuthController {
     const authResult = await this.authService.refreshToken(refreshToken)
 
     // Set new HTTP-only cookies
-    response.cookie('accessToken', authResult.accessToken, {
+    response.cookie('access_token', authResult.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
     })
 
-    response.cookie('refreshToken', authResult.refreshToken, {
+    response.cookie('refresh_token', authResult.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
@@ -179,13 +179,13 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   logout(@Res({ passthrough: true }) response: Response): { message: string } {
     // Clear HTTP-only cookies
-    response.clearCookie('accessToken', {
+    response.clearCookie('access_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     })
 
-    response.clearCookie('refreshToken', {
+    response.clearCookie('refresh_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',

@@ -151,13 +151,13 @@ async function main() {
 
   // Create a super admin user
   console.log('Creating super admin user...')
-  const hashedPassword = await bcrypt.hash('admin123', 10)
+  const hashedPassword = await bcrypt.hash('Camps@231', 10)
 
   const adminUser = await prisma.user.upsert({
-    where: { email: 'admin@worldschools.com' },
+    where: { email: 'admin@world-camps.org' },
     update: {},
     create: {
-      email: 'admin@worldschools.com',
+      email: 'admin@world-camps.org',
       passwordHash: hashedPassword,
       firstName: 'Super',
       lastName: 'Admin',
@@ -179,14 +179,14 @@ async function main() {
     },
   })
 
-  console.log('✅ Created super admin user: admin@worldschools.com / admin123')
+  console.log('✅ Created super admin user: admin@world-camps.org / Camps@231')
 
   console.log('')
   console.log('🎉 Seeding completed successfully!')
   console.log('')
   console.log('📝 Login credentials:')
-  console.log('   Email: admin@worldschools.com')
-  console.log('   Password: admin123')
+  console.log('   Email: admin@world-camps.org')
+  console.log('   Password: Camps@231')
   console.log('')
   console.log('⚠️  Remember to change the admin password in production!')
 }

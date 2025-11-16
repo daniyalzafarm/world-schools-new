@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 
-import type { AuthState, LoginCredentials, User } from '@/types/auth'
+import type { AuthState, ChangePasswordData, LoginCredentials, User } from '@/types/auth'
+import * as apiClient from '@/utils/api-client'
+import config from '@/config/config'
 
 interface PendingUser {
   email?: string
@@ -11,9 +13,12 @@ interface PendingUser {
 
 interface AuthActions {
   login: (credentials: LoginCredentials) => Promise<boolean>
-  logout: () => void
+  logout: () => Promise<void>
+  refreshToken: () => Promise<boolean>
+  getProfile: () => Promise<void>
+  changePassword: (data: ChangePasswordData) => Promise<boolean>
   clearError: () => void
-  initialize: () => void
+  initialize: () => Promise<void>
 }
 
 type AuthStore = AuthState &
@@ -24,10 +29,7 @@ type AuthStore = AuthState &
 const SESSION_KEYS = {
   USER: 'wc_superadmin_user',
   AUTH_STATUS: 'wc_superadmin_auth',
-  SESSION_EXPIRY: 'wc_superadmin_session_expiry',
 }
-
-const SESSION_TIMEOUT = 24 * 60 * 60 * 1000
 
 export const useAuthStore = create<AuthStore>()(
   immer((set, get) => ({
@@ -35,31 +37,62 @@ export const useAuthStore = create<AuthStore>()(
     isAuthenticated: false,
     isLoading: false,
     error: null,
+    isInitialized: false,
     pendingUser: {},
 
-    initialize: () => {
+    initialize: async () => {
+      const state = get()
+      if (state.isInitialized || state.isLoading) {
+        return
+      }
+
+      set(draft => {
+        draft.isLoading = true
+        draft.error = null
+      })
+
       try {
-        const authStatus = sessionStorage.getItem(SESSION_KEYS.AUTH_STATUS)
-        const userStr = sessionStorage.getItem(SESSION_KEYS.USER)
-        const expiryStr = sessionStorage.getItem(SESSION_KEYS.SESSION_EXPIRY)
+        // If using request-based auth, check if we have stored tokens
+        if (config.auth.usingRequest) {
+          const hasTokens = apiClient.hasValidTokens()
 
-        if (authStatus === 'true' && userStr && expiryStr) {
-          const expiry = parseInt(expiryStr, 10)
-          const now = Date.now()
-
-          if (now < expiry) {
-            const user = JSON.parse(userStr) as User
+          if (!hasTokens) {
+            // No tokens found, user is not authenticated
             set(draft => {
-              draft.user = user
-              draft.isAuthenticated = true
+              draft.user = null
+              draft.isAuthenticated = false
+              draft.isLoading = false
+              draft.isInitialized = true
             })
-          } else {
-            get().logout()
+            return
           }
         }
-      } catch (error) {
-        console.error('Error initializing auth:', error)
-        get().logout()
+
+        // Try to get user profile to check if user is authenticated
+        // For cookie-based auth: cookies are sent automatically
+        // For request-based auth: tokens are added to headers by interceptor
+        await get().getProfile()
+
+        set(draft => {
+          draft.isLoading = false
+          draft.isInitialized = true
+        })
+      } catch (error: any) {
+        // If it's a 401 error, clear tokens if using request auth and mark as not authenticated
+        const is401 = error?.response?.status === 401
+        if (config.auth.usingRequest && is401) {
+          apiClient.clearTokens()
+        }
+
+        // Don't set error in auth store during initialization
+        // Initialization errors are expected when user is not authenticated
+        set(draft => {
+          draft.user = null
+          draft.isAuthenticated = false
+          draft.isLoading = false
+          draft.isInitialized = true
+          draft.error = null
+        })
       }
     },
 
@@ -70,32 +103,42 @@ export const useAuthStore = create<AuthStore>()(
       })
 
       try {
-        await new Promise(resolve => setTimeout(resolve, 300))
+        const response = await apiClient.post<{ user: User }>(
+          'superadmin/auth/login',
+          credentials,
+          undefined,
+          true // Attach response headers to extract tokens
+        )
 
-        const rawEmail = credentials.email?.trim()
-        const email =
-          rawEmail && rawEmail.length > 0 ? rawEmail : `superadmin+${Date.now()}@worldcamps.dev`
-        const password = credentials.password ?? ''
-
-        const user: User = {
-          id: 'user_' + Date.now(),
-          email,
-          firstName: email.split('@')[0] || 'superadmin',
-          lastName: '',
-          role: 'superadmin',
-          orgId: 'wc_superadmin_org',
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+        if (!response.success) {
+          const errorMessage =
+            'data' in response && 'message' in response.data
+              ? response.data.message
+              : 'Login failed'
+          console.error(errorMessage)
+          return false
         }
 
-        const expiry = Date.now() + SESSION_TIMEOUT
-        sessionStorage.setItem(SESSION_KEYS.USER, JSON.stringify(user))
-        sessionStorage.setItem(SESSION_KEYS.AUTH_STATUS, 'true')
-        sessionStorage.setItem(SESSION_KEYS.SESSION_EXPIRY, expiry.toString())
+        const user = response.data.user
 
+        // Handle tokens based on auth mode
+        if (config.auth.usingRequest && response.headers) {
+          // Extract tokens from response headers for request-based auth
+          const accessToken = response.headers['x-access-token']
+          const refreshToken = response.headers['x-refresh-token']
+          if (accessToken) {
+            apiClient.setTokens(accessToken, refreshToken || '')
+          }
+        }
+        // When not using request headers, tokens are set as HTTP-only cookies by backend
+
+        // Store user data from login response
         set(draft => {
           draft.user = user
+        })
+
+        // Setting it separately so that the user is not null when redirecting on isAuthenticated true
+        set(draft => {
           draft.isAuthenticated = true
           draft.isLoading = false
           draft.error = null
@@ -103,12 +146,14 @@ export const useAuthStore = create<AuthStore>()(
 
         // Store the last credentials in memory for potential UX flows
         set(draft => {
-          draft.pendingUser = { email, password }
+          draft.pendingUser = { email: credentials.email, password: credentials.password }
         })
 
         return true
       } catch (error: any) {
         set(draft => {
+          draft.user = null
+          draft.isAuthenticated = false
           draft.isLoading = false
           draft.error = error.message || 'Login failed'
         })
@@ -116,10 +161,27 @@ export const useAuthStore = create<AuthStore>()(
       }
     },
 
-    logout: () => {
+    logout: async () => {
+      set(draft => {
+        draft.isLoading = true
+      })
+
+      try {
+        // Call logout endpoint to clear server-side session/cookies
+        await apiClient.post('superadmin/auth/logout', {})
+      } catch (error) {
+        console.error('Logout API error:', error)
+        // Continue with logout even if API call fails
+      }
+
+      // Clear tokens based on auth mode
+      if (config.auth.usingRequest) {
+        apiClient.clearTokens()
+      }
+
+      // Clear session storage
       sessionStorage.removeItem(SESSION_KEYS.USER)
       sessionStorage.removeItem(SESSION_KEYS.AUTH_STATUS)
-      sessionStorage.removeItem(SESSION_KEYS.SESSION_EXPIRY)
 
       set(draft => {
         draft.user = null
@@ -127,7 +189,104 @@ export const useAuthStore = create<AuthStore>()(
         draft.isLoading = false
         draft.error = null
         draft.pendingUser = {}
+        draft.isInitialized = false
       })
+    },
+
+    refreshToken: async () => {
+      try {
+        const { refreshToken } = apiClient.getTokens()
+        if (!refreshToken) {
+          return false
+        }
+
+        const response = await apiClient.post<{ user: User; expiresIn: string }>(
+          'superadmin/auth/refresh',
+          { refreshToken },
+          undefined,
+          true // Attach response headers
+        )
+
+        if (!response.success) {
+          return false
+        }
+
+        const user = response.data.user
+
+        // Extract new tokens from headers if using request-based auth
+        if (response.headers) {
+          const accessToken = response.headers['x-access-token']
+          const newRefreshToken = response.headers['x-refresh-token']
+          if (accessToken) {
+            apiClient.setTokens(accessToken, newRefreshToken || refreshToken)
+          }
+        }
+
+        // Update user in session
+        sessionStorage.setItem(SESSION_KEYS.USER, JSON.stringify(user))
+
+        set(draft => {
+          draft.user = user
+          draft.isAuthenticated = true
+        })
+
+        return true
+      } catch (error) {
+        console.error('Error refreshing token:', error)
+        return false
+      }
+    },
+
+    getProfile: async () => {
+      try {
+        const response = await apiClient.get<User>('superadmin/auth/profile')
+
+        if (!response.success) {
+          const errorMessage =
+            'data' in response && 'message' in response.data
+              ? response.data.message
+              : 'Failed to get profile'
+          return console.error(errorMessage)
+        }
+
+        const user = response.data
+
+        // Update user in session
+        sessionStorage.setItem(SESSION_KEYS.USER, JSON.stringify(user))
+        sessionStorage.setItem(SESSION_KEYS.AUTH_STATUS, 'true')
+
+        set(draft => {
+          draft.user = user
+          draft.isAuthenticated = true
+        })
+      } catch (error: any) {
+        console.error('Error getting profile:', error)
+      }
+    },
+
+    changePassword: async (data: ChangePasswordData) => {
+      try {
+        const response = await apiClient.patch<{ message?: string }>(
+          'superadmin/auth/change-password',
+          data
+        )
+
+        if (!response.success) {
+          const errorMessage =
+            'data' in response && response.data && 'message' in response.data
+              ? response.data.message
+              : 'Failed to change password'
+          console.error(errorMessage)
+          return false
+        }
+
+        return true
+      } catch (error: any) {
+        set(draft => {
+          draft.error = error.message || 'Failed to change password'
+        })
+        return false
+      }
     },
 
     clearError: () => {

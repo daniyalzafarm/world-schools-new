@@ -23,7 +23,7 @@ export class UserChildrenController {
   })
   async create(@CurrentUser() user: any, @Body() createChildDto: CreateChildDto) {
     const child = await this.childrenService.create(user.id, createChildDto)
-    return ResponseUtil.success(child, 'Child added successfully')
+    return ResponseUtil.success(child)
   }
 
   @Get()
@@ -33,7 +33,7 @@ export class UserChildrenController {
   })
   async findAll(@CurrentUser() user: any) {
     const children = await this.childrenService.findAll(user.id)
-    return ResponseUtil.success(children, 'Children retrieved successfully')
+    return ResponseUtil.success(children)
   }
 
   @Get(':id')
@@ -43,7 +43,7 @@ export class UserChildrenController {
   })
   async findOne(@CurrentUser() user: any, @Param('id') id: string) {
     const child = await this.childrenService.findOne(user.id, id)
-    return ResponseUtil.success(child, 'Child retrieved successfully')
+    return ResponseUtil.success(child)
   }
 
   @Patch(':id')
@@ -57,7 +57,7 @@ export class UserChildrenController {
     @Body() updateChildDto: UpdateChildDto
   ) {
     const child = await this.childrenService.update(user.id, id, updateChildDto)
-    return ResponseUtil.success(child, 'Child updated successfully')
+    return ResponseUtil.success(child)
   }
 
   @Delete(':id')
@@ -67,6 +67,6 @@ export class UserChildrenController {
   })
   async remove(@CurrentUser() user: any, @Param('id') id: string) {
     const result = await this.childrenService.remove(user.id, id)
-    return ResponseUtil.success(result, result.message)
+    return ResponseUtil.success(result)
   }
 }

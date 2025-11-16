@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -9,22 +9,22 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const { initialize } = useAuthStore()
-  const [isInitialized, setIsInitialized] = useState(false)
+  const { initialize, isInitialized } = useAuthStore()
 
   useEffect(() => {
     const init = async () => {
       try {
-        initialize()
+        await initialize()
       } catch (error) {
-        console.error('Error initializing auth:', error)
-      } finally {
-        setIsInitialized(true)
+        console.error('[AuthProvider] Error initializing auth:', error)
       }
     }
 
-    void init()
-  }, [initialize])
+    // Only initialize if not already initialized
+    if (!isInitialized) {
+      void init()
+    }
+  }, [initialize, isInitialized])
 
   if (!isInitialized) {
     return (

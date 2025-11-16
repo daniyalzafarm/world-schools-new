@@ -45,7 +45,7 @@ export class ProviderAuthController {
     }
 
     // Hash password
-    const saltRounds = this.configService.getBcryptSaltRounds()
+    const saltRounds = this.configService.jwtConfig.bcryptSaltRounds
     const passwordHash = await bcrypt.hash(registerDto.password, saltRounds)
 
     // Find Provider Admin role
@@ -99,21 +99,18 @@ export class ProviderAuthController {
       return { user, provider }
     })
 
-    return ResponseUtil.success(
-      {
-        user: {
-          id: result.user.id,
-          email: result.user.email,
-          firstName: result.user.firstName,
-          lastName: result.user.lastName,
-        },
-        provider: {
-          id: result.provider.id,
-          name: result.provider.name,
-        },
+    return ResponseUtil.success({
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        firstName: result.user.firstName,
+        lastName: result.user.lastName,
       },
-      'Provider registered successfully'
-    )
+      provider: {
+        id: result.provider.id,
+        name: result.provider.name,
+      },
+    })
   }
 
   @Public()
@@ -129,9 +126,9 @@ export class ProviderAuthController {
     const result = await this.authService.login(loginDto)
 
     // Verify user has Provider Admin role or a provider-specific role
-    const user = result.data.user
+    const user = result.user
     const hasProviderRole = user.roles?.some(
-      role => role.name === 'Provider Admin' || role.provider_id !== null
+      (role: any) => role.name === 'Provider Admin' || role.provider_id !== null
     )
 
     if (!hasProviderRole) {
@@ -144,21 +141,21 @@ export class ProviderAuthController {
     const accessTokenExpiry = this.configService.getJwtExpiresIn()
     const refreshTokenExpiry = this.configService.getJwtRefreshExpiresIn()
 
-    response.cookie('access_token', result.data.access_token, {
+    response.cookie('access_token', result.accessToken, {
       httpOnly: true,
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: 'strict',
       maxAge: this.parseDuration(accessTokenExpiry),
     })
 
-    response.cookie('refresh_token', result.data.refresh_token, {
+    response.cookie('refresh_token', result.refreshToken, {
       httpOnly: true,
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: 'strict',
       maxAge: this.parseDuration(refreshTokenExpiry),
     })
 
-    return ResponseUtil.success(result.data, 'Provider login successful')
+    return ResponseUtil.success(result)
   }
 
   private parseDuration(duration: string): number {
@@ -166,9 +163,9 @@ export class ProviderAuthController {
     if (!match) return 900000 // Default 15 minutes
 
     const value = parseInt(match[1], 10)
-    const unit = match[2]
+    const unit = match[2] as 's' | 'm' | 'h' | 'd'
 
-    const multipliers = {
+    const multipliers: Record<'s' | 'm' | 'h' | 'd', number> = {
       s: 1000,
       m: 60000,
       h: 3600000,

@@ -17,6 +17,7 @@
     // Strict type checking (enable strictNullChecks for better type safety)
     "strict": true,
     "strictNullChecks": true,
+    "strictPropertyInitialization": false,
 
     // Output
     "outDir": "../../dist/out-tsc",

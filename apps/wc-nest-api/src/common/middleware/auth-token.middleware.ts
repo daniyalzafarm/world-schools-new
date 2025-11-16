@@ -9,14 +9,14 @@ export class AuthTokenMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     const authUsingRequest = this.configService.jwtConfig.authUsingRequest
     if (authUsingRequest) {
-      // Only set if present in headers
+      // Convert request headers to cookies for JWT strategy
       if (req.headers['x-access-token']) {
         if (!req.cookies) req.cookies = {}
-        req.cookies['accessToken'] = req.headers['x-access-token'] as string
+        req.cookies['access_token'] = req.headers['x-access-token'] as string
       }
       if (req.headers['x-refresh-token']) {
         if (!req.cookies) req.cookies = {}
-        req.cookies['refreshToken'] = req.headers['x-refresh-token'] as string
+        req.cookies['refresh_token'] = req.headers['x-refresh-token'] as string
       }
     }
     next()

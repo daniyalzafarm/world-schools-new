@@ -22,7 +22,7 @@ export class SuperAdminRolesController {
   })
   async create(@Body() createRoleDto: CreateRoleDto) {
     const role = await this.rolesService.create(createRoleDto)
-    return ResponseUtil.success(role, 'Role created successfully')
+    return ResponseUtil.success(role)
   }
 
   @Get()
@@ -32,7 +32,7 @@ export class SuperAdminRolesController {
   })
   async findAll() {
     const roles = await this.rolesService.findAll()
-    return ResponseUtil.success(roles, 'Roles retrieved successfully')
+    return ResponseUtil.success(roles)
   }
 
   @Get(':id')
@@ -42,7 +42,7 @@ export class SuperAdminRolesController {
   })
   async findOne(@Param('id') id: string) {
     const role = await this.rolesService.findOne(id)
-    return ResponseUtil.success(role, 'Role retrieved successfully')
+    return ResponseUtil.success(role)
   }
 
   @Patch(':id')
@@ -52,7 +52,7 @@ export class SuperAdminRolesController {
   })
   async update(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
     const role = await this.rolesService.update(id, updateRoleDto)
-    return ResponseUtil.success(role, 'Role updated successfully')
+    return ResponseUtil.success(role)
   }
 
   @Delete(':id')
@@ -62,6 +62,6 @@ export class SuperAdminRolesController {
   })
   async remove(@Param('id') id: string) {
     const result = await this.rolesService.remove(id)
-    return ResponseUtil.success(result, result.message)
+    return ResponseUtil.success(result)
   }
 }

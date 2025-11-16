@@ -324,14 +324,14 @@ export class AuthService {
   } {
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.jwtConfig.secret,
-      expiresIn: this.configService.jwtConfig.expiresIn,
+      expiresIn: this.configService.jwtConfig.expiresIn as any,
     })
 
     const refreshToken = this.jwtService.sign(
       { sub: payload.sub },
       {
         secret: this.configService.jwtConfig.refreshSecret,
-        expiresIn: this.configService.jwtConfig.refreshExpiresIn,
+        expiresIn: this.configService.jwtConfig.refreshExpiresIn as any,
       }
     )
 

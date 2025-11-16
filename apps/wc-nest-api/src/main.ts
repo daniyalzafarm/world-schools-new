@@ -1,9 +1,6 @@
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app/app.module'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
-import { randomUUID } from 'crypto'
-// Add randomUUID to global scope
-;(global as any).crypto = { randomUUID }
 import { ConfigService } from './config/config.service'
 import { HttpExceptionFilter, ResponseInterceptor } from './common'
 import type { NestExpressApplication } from '@nestjs/platform-express'

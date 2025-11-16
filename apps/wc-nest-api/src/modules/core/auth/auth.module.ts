@@ -28,7 +28,7 @@ import { RolesOrPermissionsGuard } from './guards/roles-or-permissions.guard'
       useFactory: (configService: ConfigService) => ({
         secret: configService.jwtConfig.secret,
         signOptions: {
-          expiresIn: configService.jwtConfig.expiresIn,
+          expiresIn: configService.jwtConfig.expiresIn as any,
         },
       }),
     }),
