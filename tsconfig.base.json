@@ -23,6 +23,7 @@
         "packages/schoolable-utils/src/index.ts"
       ],
       "@world-schools/wc-types": ["packages/wc-types/src/index.ts"],
+      "@world-schools/wc-utils": ["packages/wc-utils/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

@@ -1,0 +1,10 @@
+{
+  "name": "wc-utils",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/wc-utils/src",
+  "projectType": "library",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project wc-utils --web",
+  "targets": {}
+}
+
