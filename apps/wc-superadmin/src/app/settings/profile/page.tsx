@@ -2,14 +2,14 @@
 
 import React, { useState } from 'react'
 import { Accordion, AccordionItem, Button } from '@heroui/react'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Eye, EyeOff } from 'lucide-react'
 
 import { useAuthStore } from '@/stores/auth-store'
 import { Input } from '@world-schools/ui-web'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 
 const ProfilePage = () => {
-  const { user } = useAuthStore()
+  const { user, changePassword, error, clearError } = useAuthStore()
 
   // Form state
   const [formData, setFormData] = useState({
@@ -27,6 +27,13 @@ const ProfilePage = () => {
   })
   const [isPasswordDirty, setIsPasswordDirty] = useState(false)
   const [isPasswordSaving, setIsPasswordSaving] = useState(false)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+
+  // Password visibility state
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -36,6 +43,16 @@ const ProfilePage = () => {
   const handlePasswordChange = (field: string, value: string) => {
     setPasswordData(prev => ({ ...prev, [field]: value }))
     setIsPasswordDirty(true)
+    // Clear errors when user starts typing
+    if (passwordError) {
+      setPasswordError(null)
+    }
+    if (passwordSuccess) {
+      setPasswordSuccess(false)
+    }
+    if (error) {
+      clearError()
+    }
   }
 
   const handleSave = async () => {
@@ -48,18 +65,63 @@ const ProfilePage = () => {
   }
 
   const handlePasswordReset = async () => {
+    // Clear previous messages
+    setPasswordError(null)
+    setPasswordSuccess(false)
+    clearError()
+
+    // Validate passwords match
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError("Passwords don't match")
+      return
+    }
+
+    // Validate password length
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters')
+      return
+    }
+
     setIsPasswordSaving(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setIsPasswordSaving(false)
-    setIsPasswordDirty(false)
-    // Clear password fields after successful reset
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    })
-    // Here you would typically call an API to reset the password
+
+    try {
+      // Call the changePassword API with the correct payload
+      const success = await changePassword({
+        oldPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      })
+
+      if (success) {
+        setPasswordSuccess(true)
+        setIsPasswordDirty(false)
+        // Clear password fields after successful reset
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        })
+        // Clear success message after 5 seconds
+        setTimeout(() => {
+          setPasswordSuccess(false)
+        }, 5000)
+      } else {
+        // The error is now set in the auth store by changePassword
+        // We need to read it after the state update
+        setTimeout(() => {
+          const currentError = useAuthStore.getState().error
+          if (currentError) {
+            setPasswordError(currentError)
+            clearError() // Clear from auth store after copying to local state
+          } else {
+            setPasswordError('Failed to change password. Please check your current password.')
+          }
+        }, 0)
+      }
+    } catch (err: any) {
+      setPasswordError(err.message || 'Failed to change password')
+    } finally {
+      setIsPasswordSaving(false)
+    }
   }
 
   const isPasswordValid =
@@ -153,35 +215,83 @@ const ProfilePage = () => {
               indicator={<ChevronLeft size={24} className="text-secondary" />}
             >
               <div className="space-y-6">
+                {/* Success Message */}
+                {passwordSuccess && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-600">
+                    Password changed successfully!
+                  </div>
+                )}
+
+                {/* Error Message */}
+                {passwordError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+                    {passwordError}
+                  </div>
+                )}
+
                 {/* Password Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Input
                     label="Current Password"
-                    type="password"
+                    type={showCurrentPassword ? 'text' : 'password'}
                     labelPlacement="outside"
                     placeholder="Enter current password"
                     value={passwordData.currentPassword}
                     onValueChange={value => handlePasswordChange('currentPassword', value)}
                     variant="bordered"
+                    endContent={
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(prev => !prev)}
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        tabIndex={-1}
+                      >
+                        {showCurrentPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    }
                   />
                   <div></div>
                   <Input
                     label="New Password"
-                    type="password"
+                    type={showNewPassword ? 'text' : 'password'}
                     labelPlacement="outside"
-                    placeholder="Enter new password"
+                    placeholder="Enter new password (min 6 characters)"
                     value={passwordData.newPassword}
                     onValueChange={value => handlePasswordChange('newPassword', value)}
                     variant="bordered"
+                    endContent={
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(prev => !prev)}
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        tabIndex={-1}
+                      >
+                        {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    }
                   />
                   <Input
                     label="Confirm New Password"
-                    type="password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                     labelPlacement="outside"
                     placeholder="Confirm new password"
                     value={passwordData.confirmPassword}
                     onValueChange={value => handlePasswordChange('confirmPassword', value)}
                     variant="bordered"
+                    endContent={
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(prev => !prev)}
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        tabIndex={-1}
+                      >
+                        {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    }
+                    isInvalid={
+                      !!passwordData.confirmPassword &&
+                      passwordData.newPassword !== passwordData.confirmPassword
+                    }
                     errorMessage={
                       passwordData.confirmPassword &&
                       passwordData.newPassword !== passwordData.confirmPassword
@@ -202,7 +312,7 @@ const ProfilePage = () => {
                     disabled={!isPasswordDirty || !isPasswordValid || isPasswordSaving}
                     className="px-8"
                   >
-                    {isPasswordSaving ? 'Resetting...' : 'Reset Password'}
+                    {isPasswordSaving ? 'Changing Password...' : 'Change Password'}
                   </Button>
                 </div>
               </div>

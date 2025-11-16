@@ -111,11 +111,19 @@ export const useAuthStore = create<AuthStore>()(
         )
 
         if (!response.success) {
-          const errorMessage =
+          const errorMessage: string =
             'data' in response && 'message' in response.data
-              ? response.data.message
+              ? response.data.message || 'Login failed'
               : 'Login failed'
-          console.error(errorMessage)
+
+          // Set error in auth store and clear loading state
+          set(draft => {
+            draft.user = null
+            draft.isAuthenticated = false
+            draft.isLoading = false
+            draft.error = errorMessage
+          })
+
           return false
         }
 
@@ -272,13 +280,23 @@ export const useAuthStore = create<AuthStore>()(
         )
 
         if (!response.success) {
-          const errorMessage =
+          const errorMessage: string =
             'data' in response && response.data && 'message' in response.data
-              ? response.data.message
+              ? response.data.message || 'Failed to change password'
               : 'Failed to change password'
-          console.error(errorMessage)
+
+          // Set error in auth store so it can be displayed in the UI
+          set(draft => {
+            draft.error = errorMessage
+          })
+
           return false
         }
+
+        // Clear any previous errors on success
+        set(draft => {
+          draft.error = null
+        })
 
         return true
       } catch (error: any) {

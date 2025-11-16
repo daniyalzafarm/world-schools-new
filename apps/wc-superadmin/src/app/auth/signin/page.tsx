@@ -117,6 +117,7 @@ export default function SignInPage() {
                     type="button"
                     onClick={() => setShowPassword(prev => !prev)}
                     className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                    tabIndex={-1}
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
