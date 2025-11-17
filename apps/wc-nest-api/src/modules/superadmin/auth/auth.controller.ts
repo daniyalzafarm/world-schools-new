@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -48,7 +49,7 @@ export class SuperAdminAuthController {
     const hasSuperAdminRole = user.roles?.some(role => role.name === 'Super Admin')
 
     if (!hasSuperAdminRole) {
-      throw new UnauthorizedException('Access denied. Super Admin role required.')
+      throw new BadRequestException('Access denied. Super Admin role required.')
     }
 
     // Set HTTP-only cookies for tokens
