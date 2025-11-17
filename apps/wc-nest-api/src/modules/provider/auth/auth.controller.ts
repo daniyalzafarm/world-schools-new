@@ -1,22 +1,30 @@
 import {
+  BadRequestException,
   Body,
   ConflictException,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Res,
   UnauthorizedException,
 } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Response } from 'express'
+import { parseDuration } from '@world-schools/wc-utils'
 import { AuthService } from '../../core/auth/auth.service'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { Public } from '../../core/auth/decorators/public.decorator'
+import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 import { RegisterProviderDto } from './dto/register.dto'
 import { ProviderLoginDto } from './dto/login.dto'
+import { ResendVerificationCodeDto, VerifyEmailDto } from './dto/verify-email.dto'
+import { ChangePasswordDto, RefreshTokenDto } from '../../core/auth/dto/auth.dto'
 import { ResponseUtil } from '../../../common/utils/response.util'
 import { ConfigService } from '../../../config/config.service'
+import { EmailVerificationService } from './services/email-verification.service'
 import * as bcrypt from 'bcryptjs'
 
 @ApiTags('Provider Auth')
@@ -25,14 +33,16 @@ export class ProviderAuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly prisma: PrismaService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly emailVerificationService: EmailVerificationService
   ) {}
 
   @Public()
   @Post('register')
   @ApiOperation({
     summary: 'Register new provider owner',
-    description: 'Create a new user account, provider record, and assign Provider Admin role',
+    description:
+      'Create a new user account, provider record, assign Provider Admin role, and send email verification code',
   })
   async register(@Body() registerDto: RegisterProviderDto) {
     // Check if user already exists
@@ -69,6 +79,7 @@ export class ProviderAuthController {
           passwordHash,
           firstName: registerDto.firstName,
           lastName: registerDto.lastName,
+          emailVerified: false,
         },
       })
 
@@ -99,12 +110,20 @@ export class ProviderAuthController {
       return { user, provider }
     })
 
+    // Send verification email
+    await this.emailVerificationService.createAndSendVerificationCode(
+      result.user.id,
+      result.user.email
+    )
+
     return ResponseUtil.success({
+      message: 'Registration successful. Please check your email for verification code.',
       user: {
         id: result.user.id,
         email: result.user.email,
         firstName: result.user.firstName,
         lastName: result.user.lastName,
+        emailVerified: false,
       },
       provider: {
         id: result.provider.id,
@@ -114,12 +133,42 @@ export class ProviderAuthController {
   }
 
   @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Verify email with code',
+    description: 'Verify user email address using the 6-digit code sent to their email',
+  })
+  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
+    await this.emailVerificationService.verifyCode(verifyEmailDto.email, verifyEmailDto.code)
+
+    return ResponseUtil.success({
+      message: 'Email verified successfully. You can now login.',
+    })
+  }
+
+  @Public()
+  @Post('resend-verification-code')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Resend verification code',
+    description: 'Resend verification code to user email',
+  })
+  async resendVerificationCode(@Body() resendDto: ResendVerificationCodeDto) {
+    await this.emailVerificationService.resendVerificationCode(resendDto.email)
+
+    return ResponseUtil.success({
+      message: 'Verification code sent successfully. Please check your email.',
+    })
+  }
+
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Provider login',
     description:
-      'Authenticate provider user and return JWT tokens. User must have Provider Admin role or provider-specific custom role.',
+      'Authenticate provider user and return JWT tokens. User must have Provider Admin role or provider-specific custom role and verified email.',
   })
   async login(@Body() loginDto: ProviderLoginDto, @Res({ passthrough: true }) response: Response) {
     // Validate credentials using central AuthService
@@ -132,46 +181,157 @@ export class ProviderAuthController {
     )
 
     if (!hasProviderRole) {
+      throw new BadRequestException(
+        'Access denied. Provider Admin role or provider-specific role required.'
+      )
+    }
+
+    // Check if email is verified
+    const dbUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { emailVerified: true },
+    })
+
+    if (!dbUser?.emailVerified) {
+      throw new BadRequestException(
+        'Email not verified. Please verify your email before logging in.'
+      )
+    }
+
+    // Set HTTP-only cookies for tokens
+    response.cookie('access_token', result.accessToken, {
+      httpOnly: true,
+      secure: this.configService.getNodeEnv() === 'production',
+      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
+      maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+    })
+
+    response.cookie('refresh_token', result.refreshToken, {
+      httpOnly: true,
+      secure: this.configService.getNodeEnv() === 'production',
+      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
+      maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+    })
+
+    // If authUsingRequest is enabled, also send tokens in headers
+    if (this.configService.jwtConfig.authUsingRequest) {
+      response.setHeader('x-access-token', result.accessToken)
+      response.setHeader('x-refresh-token', result.refreshToken)
+    }
+
+    return ResponseUtil.success({ user: result.user })
+  }
+
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Refresh access token',
+    description: 'Get new access and refresh tokens using a valid refresh token',
+  })
+  async refreshToken(
+    @Body() refreshTokenDto: RefreshTokenDto,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    // Try to get refresh token from cookie first, then from body
+    const refreshToken: string =
+      (response as any).req?.cookies?.refresh_token ?? refreshTokenDto?.refreshToken
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token not provided')
+    }
+
+    const result = await this.authService.refreshToken(refreshToken)
+
+    // Verify user still has Provider Admin role or provider-specific role
+    const user = result.user
+    const hasProviderRole = user.roles?.some(
+      (role: any) => role.name === 'Provider Admin' || role.provider_id !== null
+    )
+
+    if (!hasProviderRole) {
       throw new UnauthorizedException(
         'Access denied. Provider Admin role or provider-specific role required.'
       )
     }
 
     // Set HTTP-only cookies for tokens
-    const accessTokenExpiry = this.configService.getJwtExpiresIn()
-    const refreshTokenExpiry = this.configService.getJwtRefreshExpiresIn()
-
     response.cookie('access_token', result.accessToken, {
       httpOnly: true,
       secure: this.configService.getNodeEnv() === 'production',
-      sameSite: 'strict',
-      maxAge: this.parseDuration(accessTokenExpiry),
+      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
+      maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
     })
 
     response.cookie('refresh_token', result.refreshToken, {
       httpOnly: true,
       secure: this.configService.getNodeEnv() === 'production',
-      sameSite: 'strict',
-      maxAge: this.parseDuration(refreshTokenExpiry),
+      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
+      maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
     })
 
-    return ResponseUtil.success(result)
-  }
-
-  private parseDuration(duration: string): number {
-    const match = duration.match(/^(\d+)([smhd])$/)
-    if (!match) return 900000 // Default 15 minutes
-
-    const value = parseInt(match[1], 10)
-    const unit = match[2] as 's' | 'm' | 'h' | 'd'
-
-    const multipliers: Record<'s' | 'm' | 'h' | 'd', number> = {
-      s: 1000,
-      m: 60000,
-      h: 3600000,
-      d: 86400000,
+    // If authUsingRequest is enabled, also send tokens in headers
+    if (this.configService.jwtConfig.authUsingRequest) {
+      response.setHeader('x-access-token', result.accessToken)
+      response.setHeader('x-refresh-token', result.refreshToken)
     }
 
-    return value * multipliers[unit]
+    return ResponseUtil.success({ user: result.user, expiresIn: result.expiresIn })
+  }
+
+  @Get('profile')
+  @ApiOperation({
+    summary: 'Get current user profile',
+    description: 'Get the profile of the currently authenticated provider user',
+  })
+  getProfile(@CurrentUser() user: any) {
+    // Verify user has Provider Admin role or provider-specific role
+    const hasProviderRole = user.roles?.some(
+      (role: any) => role.name === 'Provider Admin' || role.provider_id !== null
+    )
+
+    if (!hasProviderRole) {
+      throw new UnauthorizedException(
+        'Access denied. Provider Admin role or provider-specific role required.'
+      )
+    }
+
+    return ResponseUtil.success(user)
+  }
+
+  @Patch('change-password')
+  @ApiOperation({
+    summary: 'Change password',
+    description: 'Change the password for the currently authenticated provider user',
+  })
+  async changePassword(@CurrentUser() user: any, @Body() changePasswordDto: ChangePasswordDto) {
+    // Verify user has Provider Admin role or provider-specific role
+    const hasProviderRole = user.roles?.some(
+      (role: any) => role.name === 'Provider Admin' || role.provider_id !== null
+    )
+
+    if (!hasProviderRole) {
+      throw new UnauthorizedException(
+        'Access denied. Provider Admin role or provider-specific role required.'
+      )
+    }
+
+    await this.authService.changePassword(user.id, changePasswordDto)
+
+    return ResponseUtil.success(null)
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Logout',
+    description: 'Clear authentication cookies and logout the provider user',
+  })
+  logout(@Res({ passthrough: true }) response: Response) {
+    // Clear cookies
+    response.clearCookie('access_token')
+    response.clearCookie('refresh_token')
+
+    return ResponseUtil.success({ message: 'Logged out successfully' })
   }
 }

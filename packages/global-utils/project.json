@@ -1,0 +1,10 @@
+{
+  "name": "global-utils",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/global-utils/src",
+  "projectType": "library",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project global-utils --web",
+  "targets": {}
+}
+
