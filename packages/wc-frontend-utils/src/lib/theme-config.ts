@@ -1,0 +1,172 @@
+/**
+ * HeroUI Theme Configuration for World Camps Applications
+ *
+ * This configuration defines the brand colors for all World Camps applications.
+ * It ensures consistent theming across wc-superadmin, wc-provider, wc-booking, etc.
+ *
+ * @example
+ * ```typescript
+ * // In tailwind.config.ts
+ * import { wcThemeConfig } from '@world-schools/wc-utils'
+ *
+ * export default {
+ *   plugins: [wcThemeConfig],
+ * }
+ * ```
+ */
+
+import { heroui } from '@heroui/react'
+
+export const wcThemeConfig = heroui({
+  themes: {
+    light: {
+      colors: {
+        primary: {
+          50: '#dcfeee',
+          100: '#b3fddc',
+          200: '#45f0b5',
+          300: '#22c192',
+          500: '#45f0b5',
+          600: '#22c192',
+          700: '#1a9a75',
+          800: '#137358',
+          900: '#0d4d3b',
+          DEFAULT: '#45f0b5',
+          foreground: '#07153d',
+        },
+        secondary: {
+          50: '#e8eaf0',
+          100: '#d1d5e1',
+          200: '#a3abc3',
+          300: '#7581a5',
+          400: '#475787',
+          500: '#07153d',
+          600: '#061134',
+          700: '#050d2b',
+          800: '#040922',
+          900: '#020519',
+          DEFAULT: '#07153d',
+          foreground: '#ffffff',
+        },
+        success: {
+          50: '#d1f4e0',
+          100: '#a3e9c1',
+          200: '#75dea2',
+          300: '#47d383',
+          400: '#35a866',
+          500: '#23874e',
+          600: '#1c6c3e',
+          700: '#15512f',
+          800: '#0e361f',
+          900: '#071b10',
+          DEFAULT: '#23874e',
+          foreground: '#ffffff',
+        },
+        warning: {
+          50: '#fdedd3',
+          100: '#fbdba7',
+          200: '#f9c97b',
+          300: '#f7b74f',
+          400: '#c48f32',
+          500: '#936316',
+          600: '#764f12',
+          700: '#593b0d',
+          800: '#3c2809',
+          900: '#1f1404',
+          DEFAULT: '#936316',
+          foreground: '#ffffff',
+        },
+        danger: {
+          50: '#fdd0df',
+          100: '#fba1bf',
+          200: '#f9729f',
+          300: '#f7437f',
+          400: '#dc1165',
+          500: '#c20e4d',
+          600: '#9b0b3e',
+          700: '#74082e',
+          800: '#4d051f',
+          900: '#26030f',
+          DEFAULT: '#c20e4d',
+          foreground: '#ffffff',
+        },
+      },
+    },
+    dark: {
+      colors: {
+        primary: {
+          50: '#dcfeee',
+          100: '#b3fddc',
+          200: '#45f0b5',
+          300: '#22c192',
+          500: '#45f0b5',
+          600: '#22c192',
+          700: '#1a9a75',
+          800: '#137358',
+          900: '#0d4d3b',
+          DEFAULT: '#45f0b5',
+          foreground: '#000000',
+        },
+        secondary: {
+          50: '#e8eaf0',
+          100: '#d1d5e1',
+          200: '#a3abc3',
+          300: '#7581a5',
+          400: '#475787',
+          500: '#07153d',
+          600: '#061134',
+          700: '#050d2b',
+          800: '#040922',
+          900: '#020519',
+          DEFAULT: '#07153d',
+          foreground: '#ffffff',
+        },
+        success: {
+          50: '#d1f4e0',
+          100: '#a3e9c1',
+          200: '#75dea2',
+          300: '#47d383',
+          400: '#35a866',
+          500: '#23874e',
+          600: '#1c6c3e',
+          700: '#15512f',
+          800: '#0e361f',
+          900: '#071b10',
+          DEFAULT: '#23874e',
+          foreground: '#ffffff',
+        },
+        warning: {
+          50: '#fdedd3',
+          100: '#fbdba7',
+          200: '#f9c97b',
+          300: '#f7b74f',
+          400: '#c48f32',
+          500: '#936316',
+          600: '#764f12',
+          700: '#593b0d',
+          800: '#3c2809',
+          900: '#1f1404',
+          DEFAULT: '#936316',
+          foreground: '#ffffff',
+        },
+        danger: {
+          50: '#fdd0df',
+          100: '#fba1bf',
+          200: '#f9729f',
+          300: '#f7437f',
+          400: '#dc1165',
+          500: '#c20e4d',
+          600: '#9b0b3e',
+          700: '#74082e',
+          800: '#4d051f',
+          900: '#26030f',
+          DEFAULT: '#c20e4d',
+          foreground: '#ffffff',
+        },
+      },
+    },
+  },
+})
+
+export default wcThemeConfig
+

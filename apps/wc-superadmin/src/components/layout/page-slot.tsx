@@ -1,9 +1,8 @@
-import React from 'react'
+/**
+ * Page Slot for WC Superadmin
+ *
+ * This component re-exports the shared PageSlot from @world-schools/ui-web
+ * for backward compatibility.
+ */
 
-interface PageSlotProps {
-  children: React.ReactNode
-}
-
-export function PageSlot({ children }: PageSlotProps) {
-  return <div className="p-6 lg:p-8">{children}</div>
-}
+export { PageSlot } from '@world-schools/ui-web'

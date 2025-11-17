@@ -1,6 +1,12 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  transpilePackages: [
+    '@world-schools/wc-utils',
+    '@world-schools/wc-frontend-utils',
+    '@world-schools/wc-types',
+    '@world-schools/ui-web',
+  ],
   experimental: {
     optimizePackageImports: ['@heroui/react', '@heroicons/react'],
   },

@@ -33,7 +33,7 @@ import { cn } from '@world-schools/ui-web'
 
 import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
-import eventBus from '@/utils/event-bus'
+import { eventBus } from '@world-schools/wc-utils'
 
 // Custom hook for sidebar expansion state management
 const useSidebarExpansion = (onToggleCollapse: () => void) => {

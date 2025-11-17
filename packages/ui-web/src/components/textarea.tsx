@@ -1,3 +1,5 @@
+'use client'
+
 import React from 'react';
 import { Textarea as HeroTextarea, type TextAreaProps } from '@heroui/react';
 import { cn } from '../utils/cn';

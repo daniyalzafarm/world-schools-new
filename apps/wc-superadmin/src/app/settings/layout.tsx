@@ -7,7 +7,7 @@ import { Menu, X } from 'lucide-react'
 import { MainLayout } from '@/components/layout/main-layout'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { SettingsSidebar } from '@/components/layout/settings-sidebar'
-import eventBus from '@/utils/event-bus'
+import { eventBus } from '@world-schools/wc-utils'
 
 const SettingsLayout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
