@@ -512,7 +512,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                     )}
                   >
                     <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-semibold">{userInitials}</span>
+                      <span className="text-secondary text-sm font-semibold">{userInitials}</span>
                     </div>
                     {!isCollapsed && (
                       <div className="flex-1 min-w-0">
