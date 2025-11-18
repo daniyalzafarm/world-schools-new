@@ -14,28 +14,16 @@ export default function NotFoundPage() {
           <FileQuestion size={32} />
         </div>
         <div className="space-y-2">
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
-            Page not found
-          </h1>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Page not found</h1>
           <p className="text-slate-600 dark:text-slate-300">
             The page you're looking for doesn't exist or you don't have permission to access it.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button
-            color="primary"
-            radius="full"
-            size="lg"
-            onPress={() => router.push('/dashboard')}
-          >
+          <Button color="primary" radius="full" size="lg" onPress={() => router.push('/dashboard')}>
             Go to Dashboard
           </Button>
-          <Button
-            variant="bordered"
-            radius="full"
-            size="lg"
-            onPress={() => router.back()}
-          >
+          <Button variant="bordered" radius="full" size="lg" onPress={() => router.back()}>
             Go Back
           </Button>
         </div>
@@ -43,4 +31,3 @@ export default function NotFoundPage() {
     </div>
   )
 }
-

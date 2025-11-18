@@ -83,9 +83,7 @@ export default function SignInPage() {
           <div className="bg-gray-50 rounded-2xl p-8 space-y-6">
             <div className="space-y-2 text-center">
               <h1 className="text-2xl font-bold text-secondary-500">Welcome back</h1>
-              <p className="text-sm text-gray-500">
-                Sign in to your provider account
-              </p>
+              <p className="text-sm text-gray-500">Sign in to your provider account</p>
             </div>
 
             {error && (
@@ -149,7 +147,10 @@ export default function SignInPage() {
 
               <div className="text-center text-sm text-gray-500">
                 Don't have an account?{' '}
-                <Link href="/auth/signup" className="text-primary-500 hover:text-primary-600 font-medium">
+                <Link
+                  href="/auth/signup"
+                  className="text-primary-500 hover:text-primary-600 font-medium"
+                >
                   Sign up
                 </Link>
               </div>

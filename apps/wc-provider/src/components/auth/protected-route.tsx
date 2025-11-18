@@ -13,7 +13,7 @@
 import React from 'react'
 import { ProtectedRoute as SharedProtectedRoute } from '@world-schools/wc-frontend-utils'
 import { useAuthStore } from '@/stores/auth-store'
-import { isProviderAdmin, isAuthorizedProviderUser } from '@/utils/auth'
+import { isAuthorizedProviderUser, isProviderAdmin } from '@/utils/auth'
 
 interface ProtectedRouteProps {
   children: React.ReactNode

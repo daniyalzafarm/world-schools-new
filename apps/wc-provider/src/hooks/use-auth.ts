@@ -1,5 +1,5 @@
 import { useAuthStore } from '@/stores/auth-store'
-import { isProviderAdmin, hasProviderRole, isAuthorizedProviderUser } from '@/utils/auth'
+import { hasProviderRole, isAuthorizedProviderUser, isProviderAdmin } from '@/utils/auth'
 
 /**
  * Custom hook for accessing authentication state and actions

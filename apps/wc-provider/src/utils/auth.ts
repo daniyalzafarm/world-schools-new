@@ -16,7 +16,9 @@ export function isProviderAdmin(user: User | null): boolean {
 export function hasProviderRole(user: User | null): boolean {
   if (!user) return false
   // Check if user has at least one role with a providerId
-  return user.roles?.some(role => role.providerId !== null && role.providerId !== undefined) ?? false
+  return (
+    user.roles?.some(role => role.providerId !== null && role.providerId !== undefined) ?? false
+  )
 }
 
 /**

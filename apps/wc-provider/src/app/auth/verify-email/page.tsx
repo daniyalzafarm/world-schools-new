@@ -7,7 +7,7 @@ import { CheckCircle } from 'lucide-react'
 
 import { Input } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
-import { verifyEmail, resendVerificationCode } from '@/services/auth.services'
+import { resendVerificationCode, verifyEmail } from '@/services/auth.services'
 
 export default function VerifyEmailPage() {
   const router = useRouter()
@@ -67,7 +67,9 @@ export default function VerifyEmailPage() {
         }, 2000)
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Verification failed. Please check your code and try again.')
+      setError(
+        err.response?.data?.message || 'Verification failed. Please check your code and try again.'
+      )
     } finally {
       setIsLoading(false)
     }
@@ -197,7 +199,10 @@ export default function VerifyEmailPage() {
                 </button>
 
                 <div className="text-sm text-gray-500">
-                  <Link href="/auth/signin" className="text-primary-500 hover:text-primary-600 font-medium">
+                  <Link
+                    href="/auth/signin"
+                    className="text-primary-500 hover:text-primary-600 font-medium"
+                  >
                     Back to sign in
                   </Link>
                 </div>
@@ -209,4 +214,3 @@ export default function VerifyEmailPage() {
     </div>
   )
 }
-
