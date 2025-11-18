@@ -17,8 +17,7 @@
     "**/*.tsx",
     "**/*.js",
     "**/*.jsx",
-    "../../apps/wc-superadmin/.next/types/**/*.ts",
-    "../../dist/apps/wc-superadmin/.next/types/**/*.ts",
+    ".next/types/**/*.ts",
     "next-env.d.ts"
   ],
   "exclude": ["node_modules", "jest.config.ts", "**/*.spec.ts", "**/*.test.ts"]
