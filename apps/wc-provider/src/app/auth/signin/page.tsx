@@ -143,7 +143,7 @@ export default function SignInPage() {
                 Don't have an account?{' '}
                 <Link
                   href="/auth/signup"
-                  className="text-primary-500 hover:text-primary-600 font-medium"
+                  className="text-secondary-500 hover:text-secondary-600 font-medium"
                 >
                   Sign up
                 </Link>
