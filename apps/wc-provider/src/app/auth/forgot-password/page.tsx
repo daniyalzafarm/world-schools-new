@@ -55,15 +55,20 @@ export default function ForgotPasswordPage() {
     setIsLoading(true)
     setError(null)
 
-    try {
-      await forgotPassword({ email })
+    const response = await forgotPassword({ email })
+
+    if (response.success) {
       setSubmitted(true)
-    } catch (err: any) {
-      console.error('Forgot password error:', err)
-      setError(err?.response?.data?.message || 'Failed to send reset email. Please try again.')
-    } finally {
-      setIsLoading(false)
+    } else {
+      // Extract error message from API response
+      const errorMessage =
+        'data' in response && response.data && typeof response.data === 'object' && 'message' in response.data
+          ? (response.data.message as string)
+          : 'Failed to send reset email. Please try again.'
+      setError(errorMessage)
     }
+
+    setIsLoading(false)
   }
 
   const handleOpenGmail = () => {
@@ -164,7 +169,7 @@ export default function ForgotPasswordPage() {
                     className="w-full font-semibold"
                     onPress={() => router.push('/auth/signin')}
                   >
-                    Back to login
+                    Back to signin
                   </Button>
                 </div>
               </>
@@ -203,7 +208,7 @@ export default function ForgotPasswordPage() {
                       className="w-full font-semibold"
                       onPress={() => router.push('/auth/signin')}
                     >
-                      Back to login
+                      Back to signin
                     </Button>
                     <Button
                       type="submit"

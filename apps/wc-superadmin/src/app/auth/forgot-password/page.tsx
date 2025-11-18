@@ -164,7 +164,7 @@ export default function ForgotPasswordPage() {
                     className="w-full font-semibold"
                     onPress={() => router.push('/auth/signin')}
                   >
-                    Back to login
+                    Back to signin
                   </Button>
                 </div>
               </>
@@ -203,7 +203,7 @@ export default function ForgotPasswordPage() {
                       className="w-full font-semibold"
                       onPress={() => router.push('/auth/signin')}
                     >
-                      Back to login
+                      Back to signin
                     </Button>
                     <Button
                       type="submit"

@@ -79,21 +79,24 @@ function ResetPasswordForm() {
     setIsLoading(true)
     setError(null)
 
-    try {
-      await resetPassword({ token, newPassword: formData.newPassword })
+    const response = await resetPassword({ token, newPassword: formData.newPassword })
+
+    if (response.success) {
       setSuccess(true)
       // Redirect to signin after 2 seconds
       setTimeout(() => {
         router.push('/auth/signin')
       }, 2000)
-    } catch (err: any) {
-      console.error('Reset password error:', err)
+    } else {
+      // Extract error message from API response
       const errorMessage =
-        err?.response?.data?.message || 'Failed to reset password. Please try again.'
+        'data' in response && response.data && typeof response.data === 'object' && 'message' in response.data
+          ? (response.data.message as string)
+          : 'Failed to reset password. Please try again.'
       setError(errorMessage)
-    } finally {
-      setIsLoading(false)
     }
+
+    setIsLoading(false)
   }
 
   return (

@@ -87,27 +87,30 @@ export default function SignUpPage() {
     setIsLoading(true)
     setError(null)
 
-    try {
-      const response = await signup({
-        email: formData.email,
-        password: formData.password,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        providerName: formData.providerName,
-        providerPhone: formData.providerPhone || undefined,
-        providerEmail: formData.providerEmail || undefined,
-        website: formData.website || undefined,
-      })
+    const response = await signup({
+      email: formData.email,
+      password: formData.password,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      providerName: formData.providerName,
+      providerPhone: formData.providerPhone || undefined,
+      providerEmail: formData.providerEmail || undefined,
+      website: formData.website || undefined,
+    })
 
-      if (response.success) {
-        // Redirect to email verification page with email in query params
-        router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`)
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.')
-    } finally {
-      setIsLoading(false)
+    if (response.success) {
+      // Redirect to email verification page with email in query params
+      router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`)
+    } else {
+      // Extract error message from API response
+      const errorMessage =
+        'data' in response && response.data && typeof response.data === 'object' && 'message' in response.data
+          ? (response.data.message as string)
+          : 'Registration failed. Please try again.'
+      setError(errorMessage)
     }
+
+    setIsLoading(false)
   }
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {

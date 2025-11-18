@@ -6,16 +6,14 @@ import { Button, Link } from '@heroui/react'
 import { InputOtp } from '@heroui/input-otp'
 import { CheckCircle } from 'lucide-react'
 
-import { Input } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
 import { resendVerificationCode, verifyEmail } from '@/services/auth.services'
 
 export default function VerifyEmailPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const emailFromQuery = searchParams.get('email') || ''
+  const email = searchParams.get('email') || ''
 
-  const [email, setEmail] = useState(emailFromQuery)
   const [code, setCode] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isResending, setIsResending] = useState(false)
@@ -24,11 +22,11 @@ export default function VerifyEmailPage() {
   const [resendMessage, setResendMessage] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // Clear validation errors when user starts typing
+  // Clear validation and API errors when user starts typing
   useEffect(() => {
     setErrors({})
     setError(null)
-  }, [email, code])
+  }, [code])
 
   const validateForm = () => {
     const nextErrors: Record<string, string> = {}
@@ -57,23 +55,27 @@ export default function VerifyEmailPage() {
     setIsLoading(true)
     setError(null)
 
-    try {
-      const response = await verifyEmail({ email, code })
+    const response = await verifyEmail({ email, code })
 
-      if (response.success) {
-        setSuccess(true)
-        // Redirect to signin after 2 seconds
-        setTimeout(() => {
-          router.push('/auth/signin')
-        }, 2000)
-      }
-    } catch (err: any) {
-      setError(
-        err.response?.data?.message || 'Verification failed. Please check your code and try again.'
-      )
-    } finally {
-      setIsLoading(false)
+    if (response.success) {
+      setSuccess(true)
+      // Redirect to signin after 2 seconds
+      setTimeout(() => {
+        router.push('/auth/signin')
+      }, 2000)
+    } else {
+      // Extract error message from API response
+      const errorMessage =
+        'data' in response &&
+        response.data &&
+        typeof response.data === 'object' &&
+        'message' in response.data
+          ? (response.data.message as string)
+          : 'Verification failed. Please check your code and try again.'
+      setError(errorMessage)
     }
+
+    setIsLoading(false)
   }
 
   const handleResendCode = async () => {
@@ -86,17 +88,23 @@ export default function VerifyEmailPage() {
     setError(null)
     setResendMessage(null)
 
-    try {
-      const response = await resendVerificationCode({ email })
+    const response = await resendVerificationCode({ email })
 
-      if (response.success) {
-        setResendMessage('Verification code sent! Please check your email.')
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to resend code. Please try again.')
-    } finally {
-      setIsResending(false)
+    if (response.success) {
+      setResendMessage('Verification code sent! Please check your email.')
+    } else {
+      // Extract error message from API response
+      const errorMessage =
+        'data' in response &&
+        response.data &&
+        typeof response.data === 'object' &&
+        'message' in response.data
+          ? (response.data.message as string)
+          : 'Failed to resend code. Please try again.'
+      setError(errorMessage)
     }
+
+    setIsResending(false)
   }
 
   if (success) {
@@ -135,7 +143,8 @@ export default function VerifyEmailPage() {
             <div className="space-y-2 text-center">
               <h1 className="text-2xl font-bold text-secondary-500">Verify your email</h1>
               <p className="text-sm text-gray-500">
-                We've sent a 6-digit verification code to your email address
+                We've sent a 6-digit verification code to{' '}
+                <span className="font-semibold text-secondary-500">{email}</span>
               </p>
             </div>
 
@@ -152,26 +161,14 @@ export default function VerifyEmailPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              <Input
-                type="email"
-                placeholder="Email address"
-                value={email}
-                onValueChange={setEmail}
-                isInvalid={!!errors.email}
-                errorMessage={errors.email}
-                variant="bordered"
-                radius="lg"
-                size="lg"
-              />
-
-              <div className="space-y-2">
+              <div className="space-y-2 flex justify-center">
                 <InputOtp
                   value={code}
                   onValueChange={setCode}
                   length={6}
                   variant="bordered"
                   size="lg"
-                  color={errors.code ? 'danger' : 'primary'}
+                  color={errors.code || error ? 'danger' : 'default'}
                   radius="md"
                   classNames={{
                     base: 'gap-2',
@@ -194,22 +191,16 @@ export default function VerifyEmailPage() {
               </Button>
 
               <div className="text-center space-y-2">
-                <button
-                  type="button"
-                  onClick={handleResendCode}
-                  disabled={isResending}
-                  className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
-                >
-                  {isResending ? 'Sending...' : "Didn't receive the code? Resend"}
-                </button>
-
-                <div className="text-sm text-gray-500">
-                  <Link
-                    href="/auth/signin"
-                    className="text-primary-500 hover:text-primary-600 font-medium"
+                <div className="text-center text-sm text-gray-500">
+                  Didn't receive the code?{' '}
+                  <button
+                    type="button"
+                    onClick={handleResendCode}
+                    disabled={isResending}
+                    className="cursor-pointer font-bold text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
                   >
-                    Back to sign in
-                  </Link>
+                    {isResending ? 'Sending...' : "Resend"}
+                  </button>
                 </div>
               </div>
             </form>
