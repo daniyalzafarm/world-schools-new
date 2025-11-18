@@ -2,12 +2,18 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, Link } from '@heroui/react'
+import { Button, Link, Progress } from '@heroui/react'
 import { Eye, EyeOff } from 'lucide-react'
 
 import { Input } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
 import { signup } from '@/services/auth.services'
+import {
+  getPasswordStrengthHeroColor,
+  getPasswordStrengthLabel,
+  PasswordRequirementsDisplay,
+  validatePassword,
+} from '@world-schools/wc-frontend-utils'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -46,8 +52,11 @@ export default function SignUpPage() {
 
     if (!formData.password.trim()) {
       nextErrors.password = 'Password is required'
-    } else if (formData.password.length < 8) {
-      nextErrors.password = 'Password must be at least 8 characters'
+    } else {
+      const passwordValidation = validatePassword(formData.password)
+      if (!passwordValidation.isValid) {
+        nextErrors.password = 'Password does not meet all requirements'
+      }
     }
 
     if (formData.password !== formData.confirmPassword) {
@@ -165,50 +174,74 @@ export default function SignUpPage() {
                 size="lg"
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Password"
-                  value={formData.password}
-                  onValueChange={value => handleInputChange('password', value)}
-                  endContent={
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(prev => !prev)}
-                      className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                      tabIndex={-1}
-                    >
-                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                  }
-                  isInvalid={!!errors.password}
-                  errorMessage={errors.password}
-                  variant="bordered"
-                  radius="lg"
-                  size="lg"
-                />
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Password"
+                    value={formData.password}
+                    onValueChange={value => handleInputChange('password', value)}
+                    endContent={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(prev => !prev)}
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    }
+                    isInvalid={!!errors.password}
+                    errorMessage={errors.password}
+                    variant="bordered"
+                    radius="lg"
+                    size="lg"
+                  />
 
-                <Input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="Confirm password"
-                  value={formData.confirmPassword}
-                  onValueChange={value => handleInputChange('confirmPassword', value)}
-                  endContent={
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(prev => !prev)}
-                      className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                      tabIndex={-1}
-                    >
-                      {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                  }
-                  isInvalid={!!errors.confirmPassword}
-                  errorMessage={errors.confirmPassword}
-                  variant="bordered"
-                  radius="lg"
-                  size="lg"
-                />
+                  <Input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Confirm password"
+                    value={formData.confirmPassword}
+                    onValueChange={value => handleInputChange('confirmPassword', value)}
+                    endContent={
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(prev => !prev)}
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                        tabIndex={-1}
+                      >
+                        {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    }
+                    isInvalid={!!errors.confirmPassword}
+                    errorMessage={errors.confirmPassword}
+                    variant="bordered"
+                    radius="lg"
+                    size="lg"
+                  />
+                </div>
+
+                {formData.password && (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Password strength:</span>
+                        <span className="font-medium text-gray-700">
+                          {getPasswordStrengthLabel(validatePassword(formData.password).strength)}
+                        </span>
+                      </div>
+                      <Progress
+                        value={validatePassword(formData.password).strength}
+                        color={getPasswordStrengthHeroColor(
+                          validatePassword(formData.password).strength
+                        )}
+                        size="sm"
+                        aria-label="Password strength"
+                      />
+                    </div>
+                    <PasswordRequirementsDisplay password={formData.password} />
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-gray-200 pt-4">

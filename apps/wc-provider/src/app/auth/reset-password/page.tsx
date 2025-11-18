@@ -2,12 +2,18 @@
 
 import React, { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Button } from '@heroui/react'
+import { Button, Progress } from '@heroui/react'
 import { Eye, EyeOff } from 'lucide-react'
 
 import { Input } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
 import { resetPassword } from '@/services/auth.services'
+import {
+  getPasswordStrengthHeroColor,
+  getPasswordStrengthLabel,
+  PasswordRequirementsDisplay,
+  validatePassword,
+} from '@world-schools/wc-frontend-utils'
 
 function ResetPasswordForm() {
   const router = useRouter()
@@ -35,8 +41,11 @@ function ResetPasswordForm() {
 
     if (!formData.newPassword.trim()) {
       nextErrors.newPassword = 'Please enter a new password.'
-    } else if (formData.newPassword.length < 8) {
-      nextErrors.newPassword = 'Password must be at least 8 characters long.'
+    } else {
+      const passwordValidation = validatePassword(formData.newPassword)
+      if (!passwordValidation.isValid) {
+        nextErrors.newPassword = 'Password does not meet all requirements'
+      }
     }
 
     if (!formData.confirmPassword.trim()) {
@@ -121,27 +130,53 @@ function ResetPasswordForm() {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-5">
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="New Password"
-                    value={formData.newPassword}
-                    onValueChange={value => handleInputChange('newPassword', value)}
-                    endContent={
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(prev => !prev)}
-                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                        tabIndex={-1}
-                      >
-                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </button>
-                    }
-                    isInvalid={!!errors.newPassword}
-                    errorMessage={errors.newPassword}
-                    variant="bordered"
-                    radius="lg"
-                    size="lg"
-                  />
+                  <div className="space-y-4">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="New Password"
+                      value={formData.newPassword}
+                      onValueChange={value => handleInputChange('newPassword', value)}
+                      endContent={
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(prev => !prev)}
+                          className="text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                          tabIndex={-1}
+                        >
+                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                      }
+                      isInvalid={!!errors.newPassword}
+                      errorMessage={errors.newPassword}
+                      variant="bordered"
+                      radius="lg"
+                      size="lg"
+                    />
+
+                    {formData.newPassword && (
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Password strength:</span>
+                            <span className="font-medium text-gray-700">
+                              {getPasswordStrengthLabel(
+                                validatePassword(formData.newPassword).strength
+                              )}
+                            </span>
+                          </div>
+                          <Progress
+                            value={validatePassword(formData.newPassword).strength}
+                            color={getPasswordStrengthHeroColor(
+                              validatePassword(formData.newPassword).strength
+                            )}
+                            size="sm"
+                            aria-label="Password strength"
+                          />
+                        </div>
+                        <PasswordRequirementsDisplay password={formData.newPassword} />
+                      </div>
+                    )}
+                  </div>
 
                   <Input
                     type={showConfirmPassword ? 'text' : 'password'}
@@ -152,7 +187,7 @@ function ResetPasswordForm() {
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(prev => !prev)}
-                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
                         tabIndex={-1}
                       >
                         {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}

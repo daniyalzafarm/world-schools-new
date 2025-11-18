@@ -47,7 +47,7 @@ export function AuthProvider({
   children,
   useAuthStore,
   loadingComponent,
-  loadingMessage = 'Preparing console...',
+  loadingMessage = 'Loading...',
 }: AuthProviderProps) {
   const { initialize, isInitialized } = useAuthStore()
 

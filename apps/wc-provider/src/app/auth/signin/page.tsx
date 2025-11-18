@@ -11,7 +11,7 @@ import { useAuthStore } from '@/stores/auth-store'
 
 export default function SignInPage() {
   const router = useRouter()
-  const { login, isLoading, error, clearError, isAuthenticated } = useAuthStore()
+  const { login, isLoading, error, clearError } = useAuthStore()
 
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
@@ -24,12 +24,6 @@ export default function SignInPage() {
   useEffect(() => {
     clearError()
   }, [clearError])
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.replace('/dashboard')
-    }
-  }, [isAuthenticated, router])
 
   // Clear validation errors when user starts typing
   useEffect(() => {
@@ -114,7 +108,7 @@ export default function SignInPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(prev => !prev)}
-                    className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}

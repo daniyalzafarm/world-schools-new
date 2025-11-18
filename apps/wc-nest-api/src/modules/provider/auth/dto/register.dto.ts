@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator'
+import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator'
+import { IsStrongPassword } from '../../../../common/validators/is-strong-password.validator'
 
 export class RegisterProviderDto {
   @ApiProperty({
@@ -11,13 +12,14 @@ export class RegisterProviderDto {
   email: string
 
   @ApiProperty({
-    description: 'Password',
-    example: 'SecurePassword123',
-    minLength: 6,
+    description:
+      'Password - must be at least 8 characters and contain uppercase, lowercase, number, and special character',
+    example: 'SecurePassword123!',
+    minLength: 8,
   })
   @IsString()
   @IsNotEmpty()
-  @MinLength(6)
+  @IsStrongPassword()
   password: string
 
   @ApiProperty({

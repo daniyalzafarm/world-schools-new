@@ -17,7 +17,7 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   return (
-    <SharedAuthProvider useAuthStore={useAuthStore} loadingMessage="Preparing console...">
+    <SharedAuthProvider useAuthStore={useAuthStore} loadingMessage="Loading...">
       {children}
     </SharedAuthProvider>
   )

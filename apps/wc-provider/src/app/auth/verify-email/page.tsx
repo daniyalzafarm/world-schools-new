@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button, Link } from '@heroui/react'
+import { InputOtp } from '@heroui/input-otp'
 import { CheckCircle } from 'lucide-react'
 
 import { Input } from '@world-schools/ui-web'
@@ -163,18 +164,22 @@ export default function VerifyEmailPage() {
                 size="lg"
               />
 
-              <Input
-                type="text"
-                placeholder="6-digit verification code"
-                value={code}
-                onValueChange={setCode}
-                isInvalid={!!errors.code}
-                errorMessage={errors.code}
-                variant="bordered"
-                radius="lg"
-                size="lg"
-                maxLength={6}
-              />
+              <div className="space-y-2">
+                <InputOtp
+                  value={code}
+                  onValueChange={setCode}
+                  length={6}
+                  variant="bordered"
+                  size="lg"
+                  color={errors.code ? 'danger' : 'primary'}
+                  radius="md"
+                  classNames={{
+                    base: 'gap-2',
+                    input: 'text-center text-lg font-bold',
+                  }}
+                />
+                {errors.code && <p className="text-sm text-red-600">{errors.code}</p>}
+              </div>
 
               <Button
                 type="submit"

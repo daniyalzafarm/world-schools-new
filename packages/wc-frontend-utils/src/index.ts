@@ -15,3 +15,7 @@ export * from './lib/create-auth-store'
 // Theme configuration
 export * from './lib/theme-config'
 
+// Password validation utilities
+export * from './lib/password-validation'
+export * from './lib/password-requirements-display'
+

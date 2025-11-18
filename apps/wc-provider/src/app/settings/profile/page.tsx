@@ -1,12 +1,18 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Accordion, AccordionItem, Button } from '@heroui/react'
+import { Accordion, AccordionItem, Button, Progress } from '@heroui/react'
 import { ChevronLeft, Eye, EyeOff } from 'lucide-react'
 
 import { useAuthStore } from '@/stores/auth-store'
 import { Input } from '@world-schools/ui-web'
 import { ProtectedRoute } from '@/components/auth/protected-route'
+import {
+  getPasswordStrengthHeroColor,
+  getPasswordStrengthLabel,
+  PasswordRequirementsDisplay,
+  validatePassword,
+} from '@world-schools/wc-frontend-utils'
 
 const ProfilePage = () => {
   const { user, changePassword, error, clearError } = useAuthStore()
@@ -70,15 +76,16 @@ const ProfilePage = () => {
     setPasswordSuccess(false)
     clearError()
 
-    // Validate passwords match
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError("Passwords don't match")
+    // Validate password strength
+    const passwordValidation = validatePassword(passwordData.newPassword)
+    if (!passwordValidation.isValid) {
+      setPasswordError('Password does not meet all requirements')
       return
     }
 
-    // Validate password length
-    if (passwordData.newPassword.length < 6) {
-      setPasswordError('New password must be at least 6 characters')
+    // Validate passwords match
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError("Passwords don't match")
       return
     }
 
@@ -243,7 +250,7 @@ const ProfilePage = () => {
                       <button
                         type="button"
                         onClick={() => setShowCurrentPassword(prev => !prev)}
-                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
                         tabIndex={-1}
                       >
                         {showCurrentPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -251,25 +258,51 @@ const ProfilePage = () => {
                     }
                   />
                   <div></div>
-                  <Input
-                    label="New Password"
-                    type={showNewPassword ? 'text' : 'password'}
-                    labelPlacement="outside"
-                    placeholder="Enter new password (min 6 characters)"
-                    value={passwordData.newPassword}
-                    onValueChange={value => handlePasswordChange('newPassword', value)}
-                    variant="bordered"
-                    endContent={
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPassword(prev => !prev)}
-                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                        tabIndex={-1}
-                      >
-                        {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </button>
-                    }
-                  />
+                  <div className="space-y-4">
+                    <Input
+                      label="New Password"
+                      type={showNewPassword ? 'text' : 'password'}
+                      labelPlacement="outside"
+                      placeholder="Enter new password"
+                      value={passwordData.newPassword}
+                      onValueChange={value => handlePasswordChange('newPassword', value)}
+                      variant="bordered"
+                      endContent={
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(prev => !prev)}
+                          className="text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                          tabIndex={-1}
+                        >
+                          {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                      }
+                    />
+
+                    {passwordData.newPassword && (
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Password strength:</span>
+                            <span className="font-medium text-gray-700">
+                              {getPasswordStrengthLabel(
+                                validatePassword(passwordData.newPassword).strength
+                              )}
+                            </span>
+                          </div>
+                          <Progress
+                            value={validatePassword(passwordData.newPassword).strength}
+                            color={getPasswordStrengthHeroColor(
+                              validatePassword(passwordData.newPassword).strength
+                            )}
+                            size="sm"
+                            aria-label="Password strength"
+                          />
+                        </div>
+                        <PasswordRequirementsDisplay password={passwordData.newPassword} />
+                      </div>
+                    )}
+                  </div>
                   <Input
                     label="Confirm New Password"
                     type={showConfirmPassword ? 'text' : 'password'}
@@ -282,7 +315,7 @@ const ProfilePage = () => {
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(prev => !prev)}
-                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
                         tabIndex={-1}
                       >
                         {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}

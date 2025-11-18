@@ -15,3 +15,6 @@ export * from './decorators/api-response.decorator'
 
 // Helpers
 export * from './helpers'
+
+// Validators
+export * from './validators/is-strong-password.validator'
