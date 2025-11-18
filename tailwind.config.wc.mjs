@@ -19,6 +19,19 @@
  * config.theme.extend.colors.custom = { ... }
  * export default config
  * ```
+ *
+ * IMPORTANT: Tailwind CSS v4 @source directive for shared packages
+ * ================================================================
+ * When using shared UI components from packages/ui-web, you MUST add
+ * the @source directive to your app's globals.css file to scan the
+ * shared package directory. Example:
+ *
+ *   @source '../../../../packages/ui-web/src/**\/*.{js,ts,jsx,tsx}';
+ *
+ * This tells Tailwind v4 to scan the shared package for utility classes.
+ * Without this, Tailwind classes from shared components will not be generated.
+ *
+ * See: https://tailwindcss.com/docs/detecting-classes-in-source-files#explicitly-registering-sources
  */
 
 import { heroui } from '@heroui/react'
