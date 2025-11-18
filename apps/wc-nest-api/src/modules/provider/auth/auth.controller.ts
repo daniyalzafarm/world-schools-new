@@ -198,15 +198,18 @@ export class ProviderAuthController {
       )
     }
 
-    // Set HTTP-only cookies for tokens
-    response.cookie('access_token', result.accessToken, {
+    // Generate app-specific tokens with 'provider' claim for token isolation
+    const appTokens = this.authService.generateAppSpecificTokens(user, 'provider')
+
+    // Set HTTP-only cookies for tokens with app-specific names
+    response.cookie('wc_provider_access_token', appTokens.accessToken, {
       httpOnly: true,
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
     })
 
-    response.cookie('refresh_token', result.refreshToken, {
+    response.cookie('wc_provider_refresh_token', appTokens.refreshToken, {
       httpOnly: true,
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
@@ -215,8 +218,8 @@ export class ProviderAuthController {
 
     // If authUsingRequest is enabled, also send tokens in headers
     if (this.configService.jwtConfig.authUsingRequest) {
-      response.setHeader('x-access-token', result.accessToken)
-      response.setHeader('x-refresh-token', result.refreshToken)
+      response.setHeader('x-access-token', appTokens.accessToken)
+      response.setHeader('x-refresh-token', appTokens.refreshToken)
     }
 
     return ResponseUtil.success({ user: result.user })
@@ -233,9 +236,9 @@ export class ProviderAuthController {
     @Body() refreshTokenDto: RefreshTokenDto,
     @Res({ passthrough: true }) response: Response
   ) {
-    // Try to get refresh token from cookie first, then from body
+    // Try to get refresh token from cookie first (app-specific name), then from body
     const refreshToken: string =
-      (response as any).req?.cookies?.refresh_token ?? refreshTokenDto?.refreshToken
+      (response as any).req?.cookies?.wc_provider_refresh_token ?? refreshTokenDto?.refreshToken
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not provided')
@@ -255,15 +258,18 @@ export class ProviderAuthController {
       )
     }
 
-    // Set HTTP-only cookies for tokens
-    response.cookie('access_token', result.accessToken, {
+    // Generate app-specific tokens with 'provider' claim for token isolation
+    const appTokens = this.authService.generateAppSpecificTokens(user, 'provider')
+
+    // Set HTTP-only cookies for tokens with app-specific names
+    response.cookie('wc_provider_access_token', appTokens.accessToken, {
       httpOnly: true,
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
     })
 
-    response.cookie('refresh_token', result.refreshToken, {
+    response.cookie('wc_provider_refresh_token', appTokens.refreshToken, {
       httpOnly: true,
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
@@ -272,11 +278,11 @@ export class ProviderAuthController {
 
     // If authUsingRequest is enabled, also send tokens in headers
     if (this.configService.jwtConfig.authUsingRequest) {
-      response.setHeader('x-access-token', result.accessToken)
-      response.setHeader('x-refresh-token', result.refreshToken)
+      response.setHeader('x-access-token', appTokens.accessToken)
+      response.setHeader('x-refresh-token', appTokens.refreshToken)
     }
 
-    return ResponseUtil.success({ user: result.user, expiresIn: result.expiresIn })
+    return ResponseUtil.success({ user: result.user, expiresIn: appTokens.expiresIn })
   }
 
   @Get('profile')
@@ -328,9 +334,9 @@ export class ProviderAuthController {
     description: 'Clear authentication cookies and logout the provider user',
   })
   logout(@Res({ passthrough: true }) response: Response) {
-    // Clear cookies
-    response.clearCookie('access_token')
-    response.clearCookie('refresh_token')
+    // Clear app-specific cookies
+    response.clearCookie('wc_provider_access_token')
+    response.clearCookie('wc_provider_refresh_token')
 
     return ResponseUtil.success({ message: 'Logged out successfully' })
   }

@@ -1,5 +1,5 @@
 /**
- * ESLint configuration for wc-provider Next.js application
+ * ESLint configuration for wc-superadmin Next.js application
  *
  * This configuration uses the shared Next.js config from the root directory.
  * To add app-specific overrides, add them to the config array before exporting.

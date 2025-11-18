@@ -16,15 +16,46 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromExtractors([
         ExtractJwt.fromAuthHeaderAsBearerToken(), // From Authorization header
         (request: Request) => {
-          return request?.cookies?.access_token // From HTTP-only cookie
+          // Determine which app based on request path
+          const isSuperadmin = request.path.startsWith('/superadmin')
+          const isProvider = request.path.startsWith('/provider')
+
+          // Only extract token from the correct app-specific cookie
+          if (isSuperadmin) {
+            return request?.cookies?.wc_superadmin_access_token
+          } else if (isProvider) {
+            return request?.cookies?.wc_provider_access_token
+          }
+
+          // Fall back to generic cookie for backward compatibility (user endpoints)
+          return request?.cookies?.access_token
         },
       ]),
       ignoreExpiration: false,
       secretOrKey: configService.jwtConfig.secret,
+      passReqToCallback: true, // Pass request to validate method
     })
   }
 
-  async validate(payload: JwtPayload) {
+  async validate(request: Request, payload: JwtPayload) {
+    // Determine which app the request is for
+    const isSuperadmin = request.path.startsWith('/superadmin')
+    const isProvider = request.path.startsWith('/provider')
+
+    // Validate app-specific claim if present
+    if (payload.app) {
+      if (isSuperadmin && payload.app !== 'superadmin') {
+        throw new UnauthorizedException(
+          'Invalid token: This token is not valid for superadmin endpoints'
+        )
+      }
+      if (isProvider && payload.app !== 'provider') {
+        throw new UnauthorizedException(
+          'Invalid token: This token is not valid for provider endpoints'
+        )
+      }
+    }
+
     const user = await this.authService.validateUser(payload.sub)
 
     if (!user) {

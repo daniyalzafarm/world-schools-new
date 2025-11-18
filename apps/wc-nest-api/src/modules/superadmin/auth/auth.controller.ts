@@ -52,18 +52,21 @@ export class SuperAdminAuthController {
       throw new BadRequestException('Access denied. Super Admin role required.')
     }
 
-    // Set HTTP-only cookies for tokens
+    // Generate app-specific tokens with 'superadmin' claim for token isolation
+    const appTokens = this.authService.generateAppSpecificTokens(user, 'superadmin')
+
+    // Set HTTP-only cookies for tokens with app-specific names
     const accessTokenExpiry = this.configService.getJwtExpiresIn()
     const refreshTokenExpiry = this.configService.getJwtRefreshExpiresIn()
 
-    response.cookie('access_token', authResult.accessToken, {
+    response.cookie('wc_superadmin_access_token', appTokens.accessToken, {
       httpOnly: true,
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: 'strict',
       maxAge: parseDuration(accessTokenExpiry),
     })
 
-    response.cookie('refresh_token', authResult.refreshToken, {
+    response.cookie('wc_superadmin_refresh_token', appTokens.refreshToken, {
       httpOnly: true,
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: 'strict',
@@ -72,8 +75,8 @@ export class SuperAdminAuthController {
 
     // If authUsingRequest is enabled, also send tokens in headers
     if (this.configService.jwtConfig.authUsingRequest) {
-      response.setHeader('x-access-token', authResult.accessToken)
-      response.setHeader('x-refresh-token', authResult.refreshToken)
+      response.setHeader('x-access-token', appTokens.accessToken)
+      response.setHeader('x-refresh-token', appTokens.refreshToken)
     }
 
     return ResponseUtil.success({ user: authResult.user })
@@ -90,9 +93,9 @@ export class SuperAdminAuthController {
     @Body() refreshTokenDto: RefreshTokenDto,
     @Res({ passthrough: true }) response: Response
   ) {
-    // Try to get refresh token from cookie first, then from body
+    // Try to get refresh token from cookie first (app-specific name), then from body
     const refreshToken: string =
-      (response as any).req?.cookies?.refresh_token ?? refreshTokenDto?.refreshToken
+      (response as any).req?.cookies?.wc_superadmin_refresh_token ?? refreshTokenDto?.refreshToken
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not provided')
@@ -108,18 +111,21 @@ export class SuperAdminAuthController {
       throw new UnauthorizedException('Access denied. Super Admin role required.')
     }
 
-    // Set new HTTP-only cookies
+    // Generate app-specific tokens with 'superadmin' claim for token isolation
+    const appTokens = this.authService.generateAppSpecificTokens(user, 'superadmin')
+
+    // Set new HTTP-only cookies with app-specific names
     const accessTokenExpiry = this.configService.getJwtExpiresIn()
     const refreshTokenExpiry = this.configService.getJwtRefreshExpiresIn()
 
-    response.cookie('access_token', result.accessToken, {
+    response.cookie('wc_superadmin_access_token', appTokens.accessToken, {
       httpOnly: true,
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: 'strict',
       maxAge: parseDuration(accessTokenExpiry),
     })
 
-    response.cookie('refresh_token', result.refreshToken, {
+    response.cookie('wc_superadmin_refresh_token', appTokens.refreshToken, {
       httpOnly: true,
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: 'strict',
@@ -128,11 +134,11 @@ export class SuperAdminAuthController {
 
     // If authUsingRequest is enabled, also send tokens in headers
     if (this.configService.jwtConfig.authUsingRequest) {
-      response.setHeader('x-access-token', result.accessToken)
-      response.setHeader('x-refresh-token', result.refreshToken)
+      response.setHeader('x-access-token', appTokens.accessToken)
+      response.setHeader('x-refresh-token', appTokens.refreshToken)
     }
 
-    return ResponseUtil.success({ user: result.user, expiresIn: result.expiresIn })
+    return ResponseUtil.success({ user: result.user, expiresIn: appTokens.expiresIn })
   }
 
   @Get('profile')
@@ -176,9 +182,9 @@ export class SuperAdminAuthController {
     description: 'Clear authentication cookies and logout the super admin user',
   })
   logout(@Res({ passthrough: true }) response: Response) {
-    // Clear cookies
-    response.clearCookie('access_token')
-    response.clearCookie('refresh_token')
+    // Clear app-specific cookies
+    response.clearCookie('wc_superadmin_access_token')
+    response.clearCookie('wc_superadmin_refresh_token')
 
     return ResponseUtil.success(null)
   }

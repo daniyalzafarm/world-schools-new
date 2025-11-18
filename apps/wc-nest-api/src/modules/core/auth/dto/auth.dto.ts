@@ -93,6 +93,7 @@ export class AuthResponseDto {
 export class JwtPayload {
   sub: string // user id
   email: string
+  app?: 'superadmin' | 'provider' | 'user' // app-specific claim for token isolation
   iat?: number
   exp?: number
 }

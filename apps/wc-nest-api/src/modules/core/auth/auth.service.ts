@@ -275,6 +275,8 @@ export class AuthService {
       user.roles?.map((ur: any) => ({
         id: ur.role.id,
         name: ur.role.name,
+        providerId: ur.role.providerId ?? null,
+        isSystemRole: ur.role.isSystemRole ?? false,
       })) ?? []
 
     const permissions =
@@ -330,7 +332,7 @@ export class AuthService {
     })
 
     const refreshToken = this.jwtService.sign(
-      { sub: payload.sub },
+      { sub: payload.sub, app: payload.app },
       {
         secret: this.configService.jwtConfig.refreshSecret,
         expiresIn: this.configService.jwtConfig.refreshExpiresIn as any,
@@ -344,7 +346,10 @@ export class AuthService {
     }
   }
 
-  private generateTokensFromUser(user: any): {
+  private generateTokensFromUser(
+    user: any,
+    app?: 'superadmin' | 'provider' | 'user'
+  ): {
     accessToken: string
     refreshToken: string
     expiresIn: number
@@ -352,6 +357,7 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
+      app, // Include app-specific claim for token isolation
     }
 
     const tokens = this.generateTokens(payload)
@@ -361,5 +367,21 @@ export class AuthService {
       refreshToken: tokens.refresh_token,
       expiresIn: tokens.expiresIn,
     }
+  }
+
+  /**
+   * Generate app-specific tokens for a user
+   * This method should be used by app-specific controllers (superadmin, provider)
+   * to ensure tokens are scoped to the correct app
+   */
+  generateAppSpecificTokens(
+    user: any,
+    app: 'superadmin' | 'provider' | 'user'
+  ): {
+    accessToken: string
+    refreshToken: string
+    expiresIn: number
+  } {
+    return this.generateTokensFromUser(user, app)
   }
 }

@@ -12,7 +12,9 @@
 export interface Role {
   id: string
   name: string
-  provider_id?: string | null
+  providerId?: string | null
+  provider_id?: string | null // Deprecated: use providerId instead
+  isSystemRole?: boolean
 }
 
 export interface User {

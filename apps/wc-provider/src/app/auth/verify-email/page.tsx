@@ -1,0 +1,212 @@
+'use client'
+
+import React, { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Button, Link } from '@heroui/react'
+import { CheckCircle } from 'lucide-react'
+
+import { Input } from '@world-schools/ui-web'
+import { Logo } from '@/components/layout/logo'
+import { verifyEmail, resendVerificationCode } from '@/services/auth.services'
+
+export default function VerifyEmailPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const emailFromQuery = searchParams.get('email') || ''
+
+  const [email, setEmail] = useState(emailFromQuery)
+  const [code, setCode] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [isResending, setIsResending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const [resendMessage, setResendMessage] = useState<string | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Clear validation errors when user starts typing
+  useEffect(() => {
+    setErrors({})
+    setError(null)
+  }, [email, code])
+
+  const validateForm = () => {
+    const nextErrors: Record<string, string> = {}
+
+    if (!email.trim()) {
+      nextErrors.email = 'Email is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      nextErrors.email = 'Please enter a valid email address'
+    }
+
+    if (!code.trim()) {
+      nextErrors.code = 'Verification code is required'
+    } else if (!/^\d{6}$/.test(code)) {
+      nextErrors.code = 'Code must be 6 digits'
+    }
+
+    setErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+
+    if (!validateForm()) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await verifyEmail({ email, code })
+
+      if (response.success) {
+        setSuccess(true)
+        // Redirect to signin after 2 seconds
+        setTimeout(() => {
+          router.push('/auth/signin')
+        }, 2000)
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Verification failed. Please check your code and try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleResendCode = async () => {
+    if (!email.trim()) {
+      setError('Please enter your email address')
+      return
+    }
+
+    setIsResending(true)
+    setError(null)
+    setResendMessage(null)
+
+    try {
+      const response = await resendVerificationCode({ email })
+
+      if (response.success) {
+        setResendMessage('Verification code sent! Please check your email.')
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to resend code. Please try again.')
+    } finally {
+      setIsResending(false)
+    }
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col">
+        <main className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+          <div className="w-full max-w-md space-y-6">
+            <div className="flex justify-center mb-4">
+              <Logo size="lg" />
+            </div>
+            <div className="bg-gray-50 rounded-2xl p-8 space-y-6 text-center">
+              <div className="flex justify-center">
+                <CheckCircle className="w-16 h-16 text-green-500" />
+              </div>
+              <div className="space-y-2">
+                <h1 className="text-2xl font-bold text-secondary-500">Email verified!</h1>
+                <p className="text-sm text-gray-500">
+                  Your email has been successfully verified. Redirecting to sign in...
+                </p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-white flex flex-col">
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md space-y-6">
+          <div className="flex justify-center mb-4">
+            <Logo size="lg" />
+          </div>
+          <div className="bg-gray-50 rounded-2xl p-8 space-y-6">
+            <div className="space-y-2 text-center">
+              <h1 className="text-2xl font-bold text-secondary-500">Verify your email</h1>
+              <p className="text-sm text-gray-500">
+                We've sent a 6-digit verification code to your email address
+              </p>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 text-center">
+                {error}
+              </div>
+            )}
+
+            {resendMessage && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-600 text-center">
+                {resendMessage}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <Input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onValueChange={setEmail}
+                isInvalid={!!errors.email}
+                errorMessage={errors.email}
+                variant="bordered"
+                radius="lg"
+                size="lg"
+              />
+
+              <Input
+                type="text"
+                placeholder="6-digit verification code"
+                value={code}
+                onValueChange={setCode}
+                isInvalid={!!errors.code}
+                errorMessage={errors.code}
+                variant="bordered"
+                radius="lg"
+                size="lg"
+                maxLength={6}
+              />
+
+              <Button
+                type="submit"
+                size="lg"
+                radius="full"
+                color="primary"
+                className="w-full font-semibold"
+                isLoading={isLoading}
+                isDisabled={isLoading}
+              >
+                {isLoading ? 'Verifying…' : 'Verify email'}
+              </Button>
+
+              <div className="text-center space-y-2">
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={isResending}
+                  className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                >
+                  {isResending ? 'Sending...' : "Didn't receive the code? Resend"}
+                </button>
+
+                <div className="text-sm text-gray-500">
+                  <Link href="/auth/signin" className="text-primary-500 hover:text-primary-600 font-medium">
+                    Back to sign in
+                  </Link>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
