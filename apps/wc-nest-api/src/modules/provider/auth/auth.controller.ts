@@ -144,13 +144,66 @@ export class ProviderAuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Verify email with code',
-    description: 'Verify user email address using the 6-digit code sent to their email',
+    description:
+      'Verify user email address using the 6-digit code sent to their email. After successful verification, automatically authenticates the user and returns JWT tokens.',
   })
-  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
-    await this.emailVerificationService.verifyCode(verifyEmailDto.email, verifyEmailDto.code)
+  async verifyEmail(
+    @Body() verifyEmailDto: VerifyEmailDto,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    // Verify the email and get the user
+    const verifiedUser = await this.emailVerificationService.verifyCode(
+      verifyEmailDto.email,
+      verifyEmailDto.code
+    )
+
+    // Fetch the full user with roles and permissions for token generation
+    const user = await this.authService.validateUser(verifiedUser.id)
+
+    if (!user) {
+      throw new BadRequestException('User not found')
+    }
+
+    // Verify user has Provider Admin role or a provider-specific role
+    const hasProviderRole = user.roles?.some(
+      (role: any) => role.name === 'Provider Admin' || role.providerId !== null
+    )
+
+    if (!hasProviderRole) {
+      // User verified email but doesn't have provider role
+      // Still return success but don't authenticate
+      return ResponseUtil.success({
+        message: 'Email verified successfully. You can now login.',
+      })
+    }
+
+    // Generate app-specific tokens with 'provider' claim for token isolation
+    const appTokens = this.authService.generateAppSpecificTokens(user, 'provider')
+
+    // Set HTTP-only cookies for tokens with app-specific names
+    response.cookie('wc_provider_access_token', appTokens.accessToken, {
+      httpOnly: true,
+      secure: this.configService.getNodeEnv() === 'production',
+      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
+      maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+    })
+
+    response.cookie('wc_provider_refresh_token', appTokens.refreshToken, {
+      httpOnly: true,
+      secure: this.configService.getNodeEnv() === 'production',
+      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
+      maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+    })
+
+    // If authUsingRequest is enabled, also send tokens in headers
+    if (this.configService.jwtConfig.authUsingRequest) {
+      response.setHeader('x-access-token', appTokens.accessToken)
+      response.setHeader('x-refresh-token', appTokens.refreshToken)
+    }
 
     return ResponseUtil.success({
-      message: 'Email verified successfully. You can now login.',
+      message: 'Email verified successfully. You are now logged in.',
+      user,
     })
   }
 

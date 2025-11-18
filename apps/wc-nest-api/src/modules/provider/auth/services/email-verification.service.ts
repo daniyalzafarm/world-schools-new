@@ -62,9 +62,9 @@ export class EmailVerificationService {
   }
 
   /**
-   * Verify the code provided by user
+   * Verify the code provided by user and return the verified user
    */
-  async verifyCode(email: string, code: string): Promise<boolean> {
+  async verifyCode(email: string, code: string): Promise<{ id: string; email: string }> {
     // Find user by email
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -113,7 +113,7 @@ export class EmailVerificationService {
     ])
 
     this.logger.log(`Email verified for user ${user.email}`)
-    return true
+    return { id: user.id, email: user.email }
   }
 
   /**

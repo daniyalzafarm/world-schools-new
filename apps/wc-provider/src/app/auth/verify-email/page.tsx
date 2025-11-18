@@ -8,6 +8,9 @@ import { CheckCircle } from 'lucide-react'
 
 import { Logo } from '@/components/layout/logo'
 import { resendVerificationCode, verifyEmail } from '@/services/auth.services'
+import { useAuthStore } from '@/stores/auth-store'
+import apiClient from '@/utils/api-client'
+import config from '@/config/config'
 
 export default function VerifyEmailPage() {
   const router = useRouter()
@@ -21,6 +24,9 @@ export default function VerifyEmailPage() {
   const [success, setSuccess] = useState(false)
   const [resendMessage, setResendMessage] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Get auth mode configuration
+  const usingRequest = config.auth.usingRequest
 
   // Clear validation and API errors when user starts typing
   useEffect(() => {
@@ -59,10 +65,46 @@ export default function VerifyEmailPage() {
 
     if (response.success) {
       setSuccess(true)
-      // Redirect to signin after 2 seconds
-      setTimeout(() => {
-        router.push('/auth/signin')
-      }, 2000)
+
+      // Check if the response includes user data (automatic authentication)
+      const hasUserData =
+        'data' in response &&
+        response.data &&
+        typeof response.data === 'object' &&
+        'user' in response.data
+
+      if (hasUserData) {
+        // User was automatically authenticated after email verification
+        const user = (response.data as any).user
+
+        // Handle tokens based on auth mode
+        if (usingRequest && response.headers) {
+          // Extract tokens from response headers for request-based auth
+          const accessToken = response.headers['x-access-token']
+          const refreshToken = response.headers['x-refresh-token']
+          if (accessToken) {
+            apiClient.setTokens(accessToken, refreshToken || '')
+          }
+        }
+        // When not using request headers, tokens are set as HTTP-only cookies by backend
+
+        // Update auth store with user data using the store's setState method
+        useAuthStore.setState({
+          user,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+        })
+
+        // Redirect to dashboard immediately
+        router.replace('/dashboard')
+      } else {
+        // Email verified but user was not authenticated (e.g., doesn't have provider role)
+        // Redirect to signin after 2 seconds
+        setTimeout(() => {
+          router.push('/auth/signin')
+        }, 2000)
+      }
     } else {
       // Extract error message from API response
       const errorMessage =
