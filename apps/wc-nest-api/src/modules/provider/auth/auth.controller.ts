@@ -188,9 +188,8 @@ export class ProviderAuthController {
     )
 
     if (!hasProviderRole) {
-      throw new BadRequestException(
-        'Access denied. Provider Admin role or provider-specific role required.'
-      )
+      // Return generic error to prevent role enumeration
+      throw new BadRequestException('Invalid credentials')
     }
 
     // Check if email is verified

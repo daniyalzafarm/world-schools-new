@@ -56,7 +56,8 @@ export class SuperAdminAuthController {
     const hasSuperAdminRole = user.roles?.some(role => role.name === 'Super Admin')
 
     if (!hasSuperAdminRole) {
-      throw new BadRequestException('Access denied. Super Admin role required.')
+      // Return generic error to prevent role enumeration
+      throw new BadRequestException('Invalid credentials')
     }
 
     // Generate app-specific tokens with 'superadmin' claim for token isolation
