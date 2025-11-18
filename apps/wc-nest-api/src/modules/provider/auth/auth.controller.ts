@@ -199,9 +199,20 @@ export class ProviderAuthController {
     })
 
     if (!dbUser?.emailVerified) {
-      throw new BadRequestException(
-        'Email not verified. Please verify your email before logging in.'
-      )
+      // Send a new verification code to help the user verify their email
+      await this.emailVerificationService.createAndSendVerificationCode(user.id, user.email)
+
+      // Return a specific error response so frontend can redirect to verification page
+      // Using ResponseUtil to return a structured error with additional metadata
+      return {
+        success: false,
+        data: {
+          message: 'Your email is not verified. We have sent a verification code to your email.',
+          emailNotVerified: true,
+          email: user.email,
+          statusCode: HttpStatus.BAD_REQUEST,
+        },
+      }
     }
 
     // Generate app-specific tokens with 'provider' claim for token isolation

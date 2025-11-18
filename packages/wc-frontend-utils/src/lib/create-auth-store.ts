@@ -38,7 +38,7 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import type { AuthState, ChangePasswordData, LoginCredentials, User } from '@world-schools/wc-types'
-import type { ApiClient } from '@world-schools/wc-utils'
+import type { ApiClient, ApiErrorResponse } from '@world-schools/wc-utils'
 import type { AuthService } from '@world-schools/wc-utils'
 
 interface PendingUser {
@@ -48,7 +48,7 @@ interface PendingUser {
 }
 
 interface AuthActions {
-  login: (credentials: LoginCredentials) => Promise<boolean>
+  login: (credentials: LoginCredentials) => Promise<boolean | ApiErrorResponse>
   logout: () => Promise<void>
   refreshToken: () => Promise<boolean>
   getProfile: () => Promise<void>
@@ -193,7 +193,8 @@ export function createAuthStore(config: AuthStoreConfig) {
               draft.error = errorMessage
             })
 
-            return false
+            // Return the full error response so caller can check for emailNotVerified flag
+            return response as any
           }
 
           const user = response.data.user

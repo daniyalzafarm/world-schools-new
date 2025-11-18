@@ -53,8 +53,29 @@ export default function SignInPage() {
     // Clear any previous errors before attempting login
     clearError()
 
-    const success = await login(formData)
-    if (success) {
+    // Use auth store's login method - single API call
+    const result = await login(formData)
+
+    // Check if result is an error response with emailNotVerified flag
+    if (
+      typeof result === 'object' &&
+      result !== null &&
+      'success' in result &&
+      !result.success &&
+      'data' in result &&
+      result.data &&
+      typeof result.data === 'object' &&
+      'emailNotVerified' in result.data &&
+      result.data.emailNotVerified === true &&
+      'email' in result.data
+    ) {
+      // Redirect to email verification page with email in query params
+      router.push(`/auth/verify-email?email=${encodeURIComponent(result.data.email as string)}`)
+      return
+    }
+
+    // If result is true, login was successful
+    if (result === true) {
       router.replace('/dashboard')
     }
   }
