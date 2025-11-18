@@ -18,6 +18,14 @@ export class ConfigService {
     return this.getString('FRONTEND_URL', 'http://localhost:3000')
   }
 
+  get superadminPortalUrl(): string {
+    return this.getString('SUPERADMIN_PORTAL_URL', 'http://localhost:4301')
+  }
+
+  get providerPortalUrl(): string {
+    return this.getString('PROVIDER_PORTAL_URL', 'http://localhost:4302')
+  }
+
   get isDevelopment(): boolean {
     return this.nodeEnv === 'development'
   }

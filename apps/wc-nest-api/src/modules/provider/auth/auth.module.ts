@@ -5,6 +5,7 @@ import { PrismaModule } from '../../../prisma/prisma.module'
 import { ConfigModule } from '../../../config/config.module'
 import { ConfigService } from '../../../config/config.service'
 import { EmailVerificationService } from './services/email-verification.service'
+import { PasswordResetService } from '../../core/auth/services/password-reset.service'
 import { EmailService } from '@world-schools/global-utils'
 
 @Module({
@@ -12,6 +13,7 @@ import { EmailService } from '@world-schools/global-utils'
   controllers: [ProviderAuthController],
   providers: [
     EmailVerificationService,
+    PasswordResetService,
     {
       provide: EmailService,
       useFactory: (configService: ConfigService) => {

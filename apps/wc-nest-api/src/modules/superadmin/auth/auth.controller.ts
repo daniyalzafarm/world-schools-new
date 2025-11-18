@@ -19,14 +19,21 @@ import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 import { SuperAdminLoginDto } from './dto/login.dto'
 import { ResponseUtil } from '../../../common/utils/response.util'
 import { ConfigService } from '../../../config/config.service'
-import { ChangePasswordDto, RefreshTokenDto } from '../../core/auth/dto/auth.dto'
+import {
+  ChangePasswordDto,
+  ForgotPasswordDto,
+  RefreshTokenDto,
+  ResetPasswordDto,
+} from '../../core/auth/dto/auth.dto'
+import { PasswordResetService } from '../../core/auth/services/password-reset.service'
 
 @ApiTags('SuperAdmin Auth')
 @Controller('superadmin/auth')
 export class SuperAdminAuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly passwordResetService: PasswordResetService
   ) {}
 
   @Public()
@@ -187,5 +194,40 @@ export class SuperAdminAuthController {
     response.clearCookie('wc_superadmin_refresh_token')
 
     return ResponseUtil.success(null)
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Request password reset',
+    description:
+      'Send password reset email to the user. Returns success regardless of whether email exists for security.',
+  })
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    await this.passwordResetService.createPasswordResetToken(forgotPasswordDto.email, 'superadmin')
+
+    return ResponseUtil.success({
+      message: 'If your email is registered, you will receive a password reset link shortly.',
+    })
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Reset password',
+    description: 'Reset password using the token received via email',
+  })
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    await this.passwordResetService.resetPassword(
+      resetPasswordDto.token,
+      resetPasswordDto.newPassword,
+      'superadmin'
+    )
+
+    return ResponseUtil.success({
+      message: 'Password reset successful. You can now login with your new password.',
+    })
   }
 }

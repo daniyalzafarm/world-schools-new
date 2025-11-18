@@ -31,6 +31,7 @@ model User {
   parentProfile      Parent?
   ownedProvider      Provider?
   emailVerifications EmailVerification[]
+  passwordResets     PasswordReset[]
 
   @@map("users")
 }
@@ -207,4 +208,25 @@ model EmailVerification {
   @@index([userId])
   @@index([code])
   @@map("email_verifications")
+}
+
+// ============================================
+// Password Reset
+// ============================================
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("password_resets")
 }

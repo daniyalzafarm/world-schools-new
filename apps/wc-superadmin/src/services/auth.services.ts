@@ -17,9 +17,25 @@ const authService = createAuthService({
 // Export the auth service methods
 export const { login, refreshToken, getProfile, changePassword, logout } = authService
 
+/**
+ * Request password reset email
+ */
+export async function forgotPassword(data: { email: string }) {
+  return apiClient.post('superadmin/auth/forgot-password', data)
+}
+
+/**
+ * Reset password using token
+ */
+export async function resetPassword(data: { token: string; newPassword: string }) {
+  return apiClient.post('superadmin/auth/reset-password', data)
+}
+
 // Export legacy method names for backward compatibility
 export const loginApi = login
 export const refreshTokenApi = refreshToken
 export const getProfileApi = getProfile
 export const changePasswordApi = changePassword
 export const logoutApi = logout
+export const forgotPasswordApi = forgotPassword
+export const resetPasswordApi = resetPassword

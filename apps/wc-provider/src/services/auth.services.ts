@@ -54,6 +54,20 @@ export async function resendVerificationCode(data: { email: string }) {
   return apiClient.post('provider/auth/resend-verification-code', data)
 }
 
+/**
+ * Request password reset email
+ */
+export async function forgotPassword(data: { email: string }) {
+  return apiClient.post('provider/auth/forgot-password', data)
+}
+
+/**
+ * Reset password using token
+ */
+export async function resetPassword(data: { token: string; newPassword: string }) {
+  return apiClient.post('provider/auth/reset-password', data)
+}
+
 // Export legacy method names for backward compatibility
 export const loginApi = login
 export const refreshTokenApi = refreshToken
@@ -63,3 +77,5 @@ export const logoutApi = logout
 export const signupApi = signup
 export const verifyEmailApi = verifyEmail
 export const resendVerificationCodeApi = resendVerificationCode
+export const forgotPasswordApi = forgotPassword
+export const resetPasswordApi = resetPassword

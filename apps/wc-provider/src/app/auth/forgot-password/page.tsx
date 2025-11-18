@@ -7,6 +7,7 @@ import { ArrowLeft, Mail } from 'lucide-react'
 
 import { Input } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
+import { forgotPassword } from '@/services/auth.services'
 
 // Detect user's operating system
 const getOperatingSystem = (): 'windows' | 'macos' | 'other' => {
@@ -25,9 +26,12 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setErrors({})
+    setError(null)
   }, [email])
 
   const validateForm = () => {
@@ -43,12 +47,23 @@ export default function ForgotPasswordPage() {
     return Object.keys(nextErrors).length === 0
   }
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
 
     if (!validateForm()) return
 
-    setSubmitted(true)
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      await forgotPassword({ email })
+      setSubmitted(true)
+    } catch (err: any) {
+      console.error('Forgot password error:', err)
+      setError(err?.response?.data?.message || 'Failed to send reset email. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleOpenGmail = () => {
@@ -162,6 +177,12 @@ export default function ForgotPasswordPage() {
                   </p>
                 </div>
 
+                {error && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 text-center">
+                    {error}
+                  </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <Input
                     type="email"
@@ -190,6 +211,8 @@ export default function ForgotPasswordPage() {
                       radius="full"
                       color="primary"
                       className="w-full font-semibold"
+                      isLoading={isLoading}
+                      isDisabled={isLoading}
                     >
                       Send Email
                     </Button>

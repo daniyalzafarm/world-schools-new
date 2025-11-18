@@ -21,10 +21,16 @@ import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 import { RegisterProviderDto } from './dto/register.dto'
 import { ProviderLoginDto } from './dto/login.dto'
 import { ResendVerificationCodeDto, VerifyEmailDto } from './dto/verify-email.dto'
-import { ChangePasswordDto, RefreshTokenDto } from '../../core/auth/dto/auth.dto'
+import {
+  ChangePasswordDto,
+  ForgotPasswordDto,
+  RefreshTokenDto,
+  ResetPasswordDto,
+} from '../../core/auth/dto/auth.dto'
 import { ResponseUtil } from '../../../common/utils/response.util'
 import { ConfigService } from '../../../config/config.service'
 import { EmailVerificationService } from './services/email-verification.service'
+import { PasswordResetService } from '../../core/auth/services/password-reset.service'
 import * as bcrypt from 'bcryptjs'
 
 @ApiTags('Provider Auth')
@@ -34,7 +40,8 @@ export class ProviderAuthController {
     private readonly authService: AuthService,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-    private readonly emailVerificationService: EmailVerificationService
+    private readonly emailVerificationService: EmailVerificationService,
+    private readonly passwordResetService: PasswordResetService
   ) {}
 
   @Public()
@@ -339,5 +346,40 @@ export class ProviderAuthController {
     response.clearCookie('wc_provider_refresh_token')
 
     return ResponseUtil.success({ message: 'Logged out successfully' })
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Request password reset',
+    description:
+      'Send password reset email to the user. Returns success regardless of whether email exists for security.',
+  })
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    await this.passwordResetService.createPasswordResetToken(forgotPasswordDto.email, 'provider')
+
+    return ResponseUtil.success({
+      message: 'If your email is registered, you will receive a password reset link shortly.',
+    })
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Reset password',
+    description: 'Reset password using the token received via email',
+  })
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    await this.passwordResetService.resetPassword(
+      resetPasswordDto.token,
+      resetPasswordDto.newPassword,
+      'provider'
+    )
+
+    return ResponseUtil.success({
+      message: 'Password reset successful. You can now login with your new password.',
+    })
   }
 }

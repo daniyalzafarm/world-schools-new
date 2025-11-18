@@ -1,12 +1,13 @@
 'use client'
 
-import React, { Suspense, useState } from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@heroui/react'
 import { Eye, EyeOff } from 'lucide-react'
 
 import { Input } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
+import { resetPassword } from '@/services/auth.services'
 
 function ResetPasswordForm() {
   const router = useRouter()
@@ -21,6 +22,13 @@ function ResetPasswordForm() {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+
+  // Clear validation errors when user starts typing
+  useEffect(() => {
+    setErrors({})
+  }, [formData])
 
   const validateForm = () => {
     const nextErrors: Record<string, string> = {}
@@ -41,18 +49,42 @@ function ResetPasswordForm() {
     return Object.keys(nextErrors).length === 0
   }
 
+  const handleInputChange = (field: 'newPassword' | 'confirmPassword', value: string) => {
+    // Clear API error when user starts typing
+    if (error) {
+      setError(null)
+    }
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
 
     if (!validateForm()) return
 
-    setIsLoading(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setIsLoading(false)
+    if (!token) {
+      setError('Invalid or missing reset token')
+      return
+    }
 
-    // Redirect to sign in page after successful reset
-    router.push('/auth/signin?reset=success')
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      await resetPassword({ token, newPassword: formData.newPassword })
+      setSuccess(true)
+      // Redirect to signin after 2 seconds
+      setTimeout(() => {
+        router.push('/auth/signin')
+      }, 2000)
+    } catch (err: any) {
+      console.error('Reset password error:', err)
+      const errorMessage =
+        err?.response?.data?.message || 'Failed to reset password. Please try again.'
+      setError(errorMessage)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -63,66 +95,90 @@ function ResetPasswordForm() {
             <Logo size="lg" />
           </div>
           <div className="bg-gray-50 rounded-2xl p-8 space-y-6">
-            <div className="space-y-2 text-center">
-              <h1 className="text-2xl font-bold text-secondary-500">Reset password</h1>
-              <p className="text-sm text-gray-500">Enter your new password</p>
-            </div>
+            {success ? (
+              <>
+                <div className="space-y-2 text-center">
+                  <h1 className="text-2xl font-bold text-secondary-500">
+                    Password reset successful!
+                  </h1>
+                  <p className="text-sm text-gray-500">You can now login with your new password.</p>
+                </div>
+                <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-600 text-center">
+                  Redirecting to sign in page...
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2 text-center">
+                  <h1 className="text-2xl font-bold text-secondary-500">Reset password</h1>
+                  <p className="text-sm text-gray-500">Enter your new password</p>
+                </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="New Password"
-                value={formData.newPassword}
-                onValueChange={value => setFormData(prev => ({ ...prev, newPassword: value }))}
-                endContent={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(prev => !prev)}
-                    className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                {error && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 text-center">
+                    {error}
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="New Password"
+                    value={formData.newPassword}
+                    onValueChange={value => handleInputChange('newPassword', value)}
+                    endContent={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(prev => !prev)}
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    }
+                    isInvalid={!!errors.newPassword}
+                    errorMessage={errors.newPassword}
+                    variant="bordered"
+                    radius="lg"
+                    size="lg"
+                  />
+
+                  <Input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Confirm New Password"
+                    value={formData.confirmPassword}
+                    onValueChange={value => handleInputChange('confirmPassword', value)}
+                    endContent={
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(prev => !prev)}
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        tabIndex={-1}
+                      >
+                        {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    }
+                    isInvalid={!!errors.confirmPassword}
+                    errorMessage={errors.confirmPassword}
+                    variant="bordered"
+                    radius="lg"
+                    size="lg"
+                  />
+
+                  <Button
+                    type="submit"
+                    size="lg"
+                    radius="full"
+                    color="primary"
+                    className="w-full font-semibold"
+                    isLoading={isLoading}
+                    isDisabled={isLoading}
                   >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                }
-                isInvalid={!!errors.newPassword}
-                errorMessage={errors.newPassword}
-                variant="bordered"
-                radius="lg"
-                size="lg"
-              />
-
-              <Input
-                type={showConfirmPassword ? 'text' : 'password'}
-                placeholder="Confirm New Password"
-                value={formData.confirmPassword}
-                onValueChange={value => setFormData(prev => ({ ...prev, confirmPassword: value }))}
-                endContent={
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(prev => !prev)}
-                    className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                  >
-                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                }
-                isInvalid={!!errors.confirmPassword}
-                errorMessage={errors.confirmPassword}
-                variant="bordered"
-                radius="lg"
-                size="lg"
-              />
-
-              <Button
-                type="submit"
-                size="lg"
-                radius="full"
-                color="primary"
-                className="w-full font-semibold"
-                isLoading={isLoading}
-                isDisabled={isLoading}
-              >
-                {isLoading ? 'Resetting...' : 'Reset Password'}
-              </Button>
-            </form>
+                    {isLoading ? 'Resetting...' : 'Reset Password'}
+                  </Button>
+                </form>
+              </>
+            )}
           </div>
         </div>
       </main>
