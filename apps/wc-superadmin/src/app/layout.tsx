@@ -1,13 +1,13 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 
 import { Providers } from './providers'
 import './globals.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://superadmin.worldcamps.com'),
   title: 'World Camps Superadmin',
   description: 'Administrative portal for managing World Camps providers and users',
   manifest: '/site.webmanifest',
-  themeColor: '#45f0b5',
   icons: {
     icon: [
       {
@@ -38,6 +38,10 @@ export const metadata: Metadata = {
       type: 'image/png',
     },
   },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#45f0b5',
 }
 
 export default function RootLayout({

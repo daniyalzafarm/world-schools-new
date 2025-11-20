@@ -54,6 +54,7 @@ export function Logo({ size = 'md', showText = true, className }: LogoProps) {
         width={iconSizes[size]}
         height={iconSizes[size]}
         className={cn('object-contain', iconSizeClasses[size])}
+        style={{ width: 'auto' }}
       />
 
       {/* Logo Text */}
@@ -64,6 +65,7 @@ export function Logo({ size = 'md', showText = true, className }: LogoProps) {
           width={textLogoSizes[size].width}
           height={textLogoSizes[size].height}
           className={cn('object-contain mt-1', textLogoSizeClasses[size])}
+          style={{ width: 'auto' }}
         />
       )}
     </div>

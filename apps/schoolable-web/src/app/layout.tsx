@@ -4,6 +4,9 @@ import './globals.css'
 import 'react-image-gallery/styles/css/image-gallery.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || 'https://schoolable.worldschools.com'
+  ),
   title: 'Schoolable Web',
   description: 'Schoolable AI platform built with Next.js and HeroUI',
 }

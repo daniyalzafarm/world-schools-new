@@ -1,9 +1,10 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 
 import { Providers } from './providers'
 import './globals.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://booking.worldcamps.com'),
   title: {
     default: 'World Camps - Discover Amazing Camp Experiences',
     template: '%s | World Camps',
@@ -22,12 +23,6 @@ export const metadata: Metadata = {
   creator: 'World Camps',
   publisher: 'World Camps',
   manifest: '/site.webmanifest',
-  themeColor: '#45f0b5',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-  },
   openGraph: {
     type: 'website',
     locale: 'en_US',
@@ -83,6 +78,13 @@ export const metadata: Metadata = {
       type: 'image/png',
     },
   },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: '#45f0b5',
 }
 
 export default function RootLayout({
