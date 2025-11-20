@@ -104,7 +104,10 @@ export default function SignUpPage() {
     } else {
       // Extract error message from API response
       const errorMessage =
-        'data' in response && response.data && typeof response.data === 'object' && 'message' in response.data
+        'data' in response &&
+        response.data &&
+        typeof response.data === 'object' &&
+        'message' in response.data
           ? (response.data.message as string)
           : 'Registration failed. Please try again.'
       setError(errorMessage)

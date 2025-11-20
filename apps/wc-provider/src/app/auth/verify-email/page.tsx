@@ -241,7 +241,7 @@ export default function VerifyEmailPage() {
                     disabled={isResending}
                     className="cursor-pointer font-bold text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
                   >
-                    {isResending ? 'Sending...' : "Resend"}
+                    {isResending ? 'Sending...' : 'Resend'}
                   </button>
                 </div>
               </div>

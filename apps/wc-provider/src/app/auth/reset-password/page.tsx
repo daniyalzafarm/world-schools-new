@@ -90,7 +90,10 @@ function ResetPasswordForm() {
     } else {
       // Extract error message from API response
       const errorMessage =
-        'data' in response && response.data && typeof response.data === 'object' && 'message' in response.data
+        'data' in response &&
+        response.data &&
+        typeof response.data === 'object' &&
+        'message' in response.data
           ? (response.data.message as string)
           : 'Failed to reset password. Please try again.'
       setError(errorMessage)

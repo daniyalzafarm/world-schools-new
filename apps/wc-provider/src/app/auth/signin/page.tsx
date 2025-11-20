@@ -161,7 +161,7 @@ export default function SignInPage() {
               </Button>
 
               <div className="text-center text-sm text-gray-500">
-                Don't have an account?{' '}
+                Want to register as a provider?{' '}
                 <Link
                   href="/auth/signup"
                   className="text-secondary-500 hover:text-secondary-600 font-medium"
