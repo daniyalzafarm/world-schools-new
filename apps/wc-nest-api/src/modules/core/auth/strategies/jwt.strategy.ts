@@ -19,15 +19,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           // Determine which app based on request path
           const isSuperadmin = request.path.startsWith('/superadmin')
           const isProvider = request.path.startsWith('/provider')
+          const isUser = request.path.startsWith('/user')
 
           // Only extract token from the correct app-specific cookie
           if (isSuperadmin) {
             return request?.cookies?.wc_superadmin_access_token
           } else if (isProvider) {
             return request?.cookies?.wc_provider_access_token
+          } else if (isUser) {
+            return request?.cookies?.wc_user_access_token
           }
 
-          // Fall back to generic cookie for backward compatibility (user endpoints)
+          // Fall back to generic cookie for backward compatibility
           return request?.cookies?.access_token
         },
       ]),
@@ -41,6 +44,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // Determine which app the request is for
     const isSuperadmin = request.path.startsWith('/superadmin')
     const isProvider = request.path.startsWith('/provider')
+    const isUser = request.path.startsWith('/user')
 
     // Validate app-specific claim if present
     if (payload.app) {
@@ -53,6 +57,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         throw new UnauthorizedException(
           'Invalid token: This token is not valid for provider endpoints'
         )
+      }
+      if (isUser && payload.app !== 'user') {
+        throw new UnauthorizedException('Invalid token: This token is not valid for user endpoints')
       }
     }
 

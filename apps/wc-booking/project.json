@@ -5,5 +5,32 @@
   "projectType": "application",
   "tags": [],
   "// targets": "to see all targets run: nx show project wc-booking --web",
-  "targets": {}
+  "targets": {
+    "dev": {
+      "options": {
+        "port": 4300
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
+        "cwd": "apps/wc-booking"
+      }
+    },
+    "format:check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
+        "cwd": "apps/wc-booking"
+      }
+    },
+    "lint:fix": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["nx lint wc-booking --fix", "nx format wc-booking"],
+        "parallel": false
+      }
+    }
+  }
 }

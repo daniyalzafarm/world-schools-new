@@ -1,0 +1,8 @@
+/**
+ * Page Slot for WC Booking
+ *
+ * This component re-exports the shared PageSlot from @world-schools/ui-web
+ * for backward compatibility.
+ */
+
+export { PageSlot } from '@world-schools/ui-web'

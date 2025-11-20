@@ -10,6 +10,7 @@
  * ```javascript
  * import { createWcNextConfig } from '../../next.config.wc.mjs'
  * export default createWcNextConfig({
+ *   // Only set redirectTo if you want "/" to point somewhere else
  *   redirectTo: '/dashboard',
  *   envVars: { PROVIDER_CUSTOM_KEY: process.env.PROVIDER_CUSTOM_KEY }
  * })
@@ -18,7 +19,7 @@
  * To add app-specific customizations:
  * ```javascript
  * import { createWcNextConfig } from '../../next.config.wc.mjs'
- * const config = createWcNextConfig({ redirectTo: '/dashboard' })
+ * const config = createWcNextConfig()
  * config.experimental.someFeature = true
  * export default config
  * ```
@@ -27,7 +28,8 @@
 /**
  * Creates a complete Next.js configuration for a World Camps application
  * @param {Object} [options] - Configuration options
- * @param {string} [options.redirectTo] - Default redirect destination from root path
+ * @param {string} [options.redirectTo] - Optional redirect destination from the root path.
+ *                                       If omitted, "/" will render normally.
  * @param {Object} [options.envVars] - Environment variables to expose to the app
  * @param {Array} [options.additionalTranspilePackages] - Additional packages to transpile
  * @param {Array} [options.additionalImagePatterns] - Additional remote image patterns
@@ -38,7 +40,7 @@
  */
 export function createWcNextConfig(options = {}) {
   const {
-    redirectTo = '/dashboard',
+    redirectTo,
     envVars = {},
     additionalTranspilePackages = [],
     additionalImagePatterns = [],
@@ -120,13 +122,15 @@ export function createWcNextConfig(options = {}) {
 
     // Redirects
     async redirects() {
-      const defaultRedirects = [
-        {
-          source: '/',
-          destination: redirectTo,
-          permanent: true,
-        },
-      ]
+      const defaultRedirects = redirectTo
+        ? [
+            {
+              source: '/',
+              destination: redirectTo,
+              permanent: true,
+            },
+          ]
+        : []
 
       const customRedirects = await additionalRedirects()
       return [...defaultRedirects, ...customRedirects]

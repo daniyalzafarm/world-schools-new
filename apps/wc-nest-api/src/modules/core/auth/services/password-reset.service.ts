@@ -27,7 +27,10 @@ export class PasswordResetService {
   /**
    * Create and send password reset email
    */
-  async createPasswordResetToken(email: string, role: 'superadmin' | 'provider'): Promise<void> {
+  async createPasswordResetToken(
+    email: string,
+    role: 'superadmin' | 'provider' | 'user'
+  ): Promise<void> {
     // Find user by email
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -50,7 +53,9 @@ export class PasswordResetService {
     const hasRole =
       role === 'superadmin'
         ? user.roles.some(ur => ur.role.name === 'Super Admin')
-        : user.roles.some(ur => ur.role.name === 'Provider Admin' || ur.role.providerId !== null)
+        : role === 'user'
+          ? user.roles.some(ur => ur.role.name === 'Parent')
+          : user.roles.some(ur => ur.role.name === 'Provider Admin' || ur.role.providerId !== null)
 
     if (!hasRole) {
       this.logger.warn(`Password reset requested for user without ${role} role: ${email}`)
@@ -101,7 +106,9 @@ export class PasswordResetService {
     const resetUrl =
       role === 'superadmin'
         ? `${this.configService.superadminPortalUrl}/auth/reset-password?token=${token}`
-        : `${this.configService.providerPortalUrl}/auth/reset-password?token=${token}`
+        : role === 'user'
+          ? `${this.configService.bookingPortalUrl}/auth/reset-password?token=${token}`
+          : `${this.configService.providerPortalUrl}/auth/reset-password?token=${token}`
 
     // Send email
     const emailSent = await this.emailService.sendEmail({
@@ -128,7 +135,7 @@ export class PasswordResetService {
   async resetPassword(
     token: string,
     newPassword: string,
-    role: 'superadmin' | 'provider'
+    role: 'superadmin' | 'provider' | 'user'
   ): Promise<void> {
     // Find the reset token
     const resetRecord = await this.prisma.passwordReset.findUnique({
@@ -164,9 +171,11 @@ export class PasswordResetService {
     const hasRole =
       role === 'superadmin'
         ? resetRecord.user.roles.some(ur => ur.role.name === 'Super Admin')
-        : resetRecord.user.roles.some(
-            ur => ur.role.name === 'Provider Admin' || ur.role.providerId !== null
-          )
+        : role === 'user'
+          ? resetRecord.user.roles.some(ur => ur.role.name === 'Parent')
+          : resetRecord.user.roles.some(
+              ur => ur.role.name === 'Provider Admin' || ur.role.providerId !== null
+            )
 
     if (!hasRole) {
       throw new BadRequestException('Unauthorized access')

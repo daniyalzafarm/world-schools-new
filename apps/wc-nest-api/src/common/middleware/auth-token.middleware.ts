@@ -13,6 +13,7 @@ export class AuthTokenMiddleware implements NestMiddleware {
       // Determine which app based on the request path
       const isSuperadmin = req.path.startsWith('/superadmin')
       const isProvider = req.path.startsWith('/provider')
+      const isUser = req.path.startsWith('/user')
 
       if (req.headers['x-access-token']) {
         if (!req.cookies) req.cookies = {}
@@ -21,6 +22,8 @@ export class AuthTokenMiddleware implements NestMiddleware {
           req.cookies['wc_superadmin_access_token'] = req.headers['x-access-token'] as string
         } else if (isProvider) {
           req.cookies['wc_provider_access_token'] = req.headers['x-access-token'] as string
+        } else if (isUser) {
+          req.cookies['wc_user_access_token'] = req.headers['x-access-token'] as string
         } else {
           req.cookies['access_token'] = req.headers['x-access-token'] as string
         }
@@ -32,6 +35,8 @@ export class AuthTokenMiddleware implements NestMiddleware {
           req.cookies['wc_superadmin_refresh_token'] = req.headers['x-refresh-token'] as string
         } else if (isProvider) {
           req.cookies['wc_provider_refresh_token'] = req.headers['x-refresh-token'] as string
+        } else if (isUser) {
+          req.cookies['wc_user_refresh_token'] = req.headers['x-refresh-token'] as string
         } else {
           req.cookies['refresh_token'] = req.headers['x-refresh-token'] as string
         }

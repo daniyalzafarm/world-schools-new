@@ -67,6 +67,7 @@ export class AuthService {
             },
           },
         },
+        parentProfile: true,
       },
     })
 
@@ -99,6 +100,7 @@ export class AuthService {
             },
           },
         },
+        parentProfile: true,
       },
     })
 
@@ -150,6 +152,7 @@ export class AuthService {
               },
             },
           },
+          parentProfile: true,
         },
       })
 
@@ -284,7 +287,7 @@ export class AuthService {
         (ur: any) => ur.role.permissions?.map((rp: any) => rp.permission.id) ?? []
       ) ?? []
 
-    return {
+    const response: any = {
       id: user.id,
       email: user.email,
       firstName: user.firstName ?? undefined,
@@ -292,6 +295,21 @@ export class AuthService {
       roles,
       permissions,
     }
+
+    // Include parent profile if it exists
+    if (user.parentProfile) {
+      response.parent = {
+        id: user.parentProfile.id,
+        phone: user.parentProfile.phone ?? null,
+        address: user.parentProfile.address ?? null,
+        city: user.parentProfile.city ?? null,
+        state: user.parentProfile.state ?? null,
+        postalCode: user.parentProfile.postalCode ?? null,
+        country: user.parentProfile.country ?? null,
+      }
+    }
+
+    return response
   }
 
   async validateUser(userId: string): Promise<any> {
@@ -311,6 +329,7 @@ export class AuthService {
             },
           },
         },
+        parentProfile: true,
       },
     })
 

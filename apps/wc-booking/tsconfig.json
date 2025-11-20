@@ -1,13 +1,23 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "../../tsconfig.nextjs.json",
+  "compilerOptions": {
+    // App-specific path aliases
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@world-schools/ui-web": ["../../packages/ui-web/src/index.ts"],
+      "@world-schools/wc-types": ["../../packages/wc-types/src/index.ts"],
+      "@world-schools/wc-utils": ["../../packages/wc-utils/src/index.ts"],
+      "@world-schools/wc-frontend-utils": ["../../packages/wc-frontend-utils/src/index.ts"]
+    }
+  },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     "**/*.js",
     "**/*.jsx",
-    "../../apps/wc-booking/.next/types/**/*.ts",
-    "../../dist/apps/wc-booking/.next/types/**/*.ts",
+    ".next/types/**/*.ts",
     "next-env.d.ts"
   ],
   "exclude": ["node_modules", "jest.config.ts", "**/*.spec.ts", "**/*.test.ts"]

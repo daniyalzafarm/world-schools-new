@@ -26,6 +26,10 @@ export class ConfigService {
     return this.getString('PROVIDER_PORTAL_URL', 'http://localhost:4302')
   }
 
+  get bookingPortalUrl(): string {
+    return this.getString('BOOKING_PORTAL_URL', 'http://localhost:4303')
+  }
+
   get isDevelopment(): boolean {
     return this.nodeEnv === 'development'
   }

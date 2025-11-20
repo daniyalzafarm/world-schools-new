@@ -1,23 +1,18 @@
-// const { createGlobPatternsForDependencies } = require('@nx/next/tailwind');
+/**
+ * Tailwind CSS configuration for wc-booking
+ *
+ * This configuration uses the shared World Camps config from the root directory.
+ * To add app-specific customizations, modify the config object before exporting.
+ */
 
-// The above utility import will not work if you are using Next.js' --turbo.
-// Instead you will have to manually add the dependent paths to be included.
-// For example
-// ../libs/buttons/**/*.{ts,tsx,js,jsx,html}',                 <--- Adding a shared lib
-// !../libs/buttons/**/*.{stories,spec}.{ts,tsx,js,jsx,html}', <--- Skip adding spec/stories files from shared lib
+import { createWcTailwindConfig } from '../../tailwind.config.wc.mjs'
 
-// If you are **not** using `--turbo` you can uncomment both lines 1 & 19.
-// A discussion of the issue can be found: https://github.com/nrwl/nx/issues/26510
+// Create the base World Camps Tailwind configuration
+const config = createWcTailwindConfig()
 
-/** @type {import('tailwindcss').Config} */
-module.exports = {
-  content: [
-    './{src,pages,components,app}/**/*.{ts,tsx,js,jsx,html}',
-    '!./{src,pages,components,app}/**/*.{stories,spec}.{ts,tsx,js,jsx,html}',
-    //     ...createGlobPatternsForDependencies(__dirname)
-  ],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-};
+// Add app-specific customizations here if needed
+// Example:
+// config.theme.extend.colors.custom = { ... }
+// config.content.push('./additional-path/**/*.{js,ts,jsx,tsx}')
+
+export default config
