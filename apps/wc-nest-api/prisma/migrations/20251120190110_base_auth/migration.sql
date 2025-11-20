@@ -5,6 +5,8 @@ CREATE TABLE "users" (
     "password_hash" TEXT,
     "first_name" TEXT,
     "last_name" TEXT,
+    "email_verified" BOOLEAN NOT NULL DEFAULT false,
+    "email_verified_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -116,6 +118,32 @@ CREATE TABLE "children" (
     CONSTRAINT "children_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "email_verifications" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "expires_at" TIMESTAMP(3) NOT NULL,
+    "verified" BOOLEAN NOT NULL DEFAULT false,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "email_verifications_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "password_resets" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "expires_at" TIMESTAMP(3) NOT NULL,
+    "used" BOOLEAN NOT NULL DEFAULT false,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "password_resets_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
@@ -158,6 +186,21 @@ CREATE INDEX "parents_user_id_idx" ON "parents"("user_id");
 -- CreateIndex
 CREATE INDEX "children_parent_id_idx" ON "children"("parent_id");
 
+-- CreateIndex
+CREATE INDEX "email_verifications_user_id_idx" ON "email_verifications"("user_id");
+
+-- CreateIndex
+CREATE INDEX "email_verifications_code_idx" ON "email_verifications"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "password_resets_token_key" ON "password_resets"("token");
+
+-- CreateIndex
+CREATE INDEX "password_resets_user_id_idx" ON "password_resets"("user_id");
+
+-- CreateIndex
+CREATE INDEX "password_resets_token_idx" ON "password_resets"("token");
+
 -- AddForeignKey
 ALTER TABLE "user_accounts" ADD CONSTRAINT "user_accounts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -184,3 +227,9 @@ ALTER TABLE "parents" ADD CONSTRAINT "parents_user_id_fkey" FOREIGN KEY ("user_i
 
 -- AddForeignKey
 ALTER TABLE "children" ADD CONSTRAINT "children_parent_id_fkey" FOREIGN KEY ("parent_id") REFERENCES "parents"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "email_verifications" ADD CONSTRAINT "email_verifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "password_resets" ADD CONSTRAINT "password_resets_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
