@@ -44,7 +44,7 @@ export const profileService = {
       throw new Error('Failed to fetch profile')
     }
 
-    return response.data
+    return response.data as any
   },
 
   async updateProfile(data: UpdateProfileDto): Promise<UserProfile> {
@@ -54,6 +54,6 @@ export const profileService = {
       throw new Error('Failed to update profile')
     }
 
-    return response.data
+    return response.data as any
   },
 }

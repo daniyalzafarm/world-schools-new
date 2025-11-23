@@ -28,25 +28,26 @@ export interface UpdateChildDto {
 export const childrenService = {
   async getAll(): Promise<Child[]> {
     const response = await apiClient.get('/user/children')
-    return response.data.data
+    return response.data as any
   },
 
   async getOne(id: string): Promise<Child> {
     const response = await apiClient.get(`/user/children/${id}`)
-    return response.data.data
+    return response.data as any
   },
 
   async create(data: CreateChildDto): Promise<Child> {
     const response = await apiClient.post('/user/children', data)
-    return response.data.data
+    return response.data as any
   },
 
   async update(id: string, data: UpdateChildDto): Promise<Child> {
     const response = await apiClient.patch(`/user/children/${id}`, data)
-    return response.data.data
+    return response.data as any
   },
 
   async delete(id: string): Promise<void> {
-    await apiClient.delete(`/user/children/${id}`)
+    console.log('Deleting child:', id)
+    // await apiClient.delete(`/user/children/${id}`)
   },
 }
