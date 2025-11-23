@@ -57,7 +57,6 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          cd world-schools
           docker build \
             --build-arg VERSION=${{ needs.extract-version.outputs.version }} \
             -t ${{ env.ACR_NAME }}.azurecr.io/wc-nest-api:${{ needs.extract-version.outputs.version }} \
@@ -91,7 +90,7 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_ADMIN_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
-          app_location: 'world-schools'
+          app_location: '.'
           output_location: 'apps/wc-superadmin/.next/standalone'
           app_build_command: 'npx nx build wc-superadmin && cp -r apps/wc-superadmin/.next/static apps/wc-superadmin/.next/standalone/.next/ && cp -r apps/wc-superadmin/public apps/wc-superadmin/.next/standalone/'
           skip_api_build: true
@@ -116,7 +115,7 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_PROVIDER_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
-          app_location: 'world-schools'
+          app_location: '.'
           output_location: 'apps/wc-provider/.next/standalone'
           app_build_command: 'npx nx build wc-provider && cp -r apps/wc-provider/.next/static apps/wc-provider/.next/standalone/.next/ && cp -r apps/wc-provider/public apps/wc-provider/.next/standalone/'
           skip_api_build: true
@@ -141,7 +140,7 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_BOOKING_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
-          app_location: 'world-schools'
+          app_location: '.'
           output_location: 'apps/wc-booking/.next/standalone'
           app_build_command: 'npx nx build wc-booking && cp -r apps/wc-booking/.next/static apps/wc-booking/.next/standalone/.next/ && cp -r apps/wc-booking/public apps/wc-booking/.next/standalone/'
           skip_api_build: true
