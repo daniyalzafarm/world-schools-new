@@ -32,6 +32,10 @@ This document summarizes the CI/CD pipeline setup for deploying World Camps appl
 4. **build-and-deploy-provider**: Builds and deploys provider portal
 5. **build-and-deploy-booking**: Builds and deploys booking portal
 
+**Build Outputs**:
+- **Backend (wc-nest-api)**: `dist/apps/wc-nest-api` (Webpack output)
+- **Frontend Apps**: `apps/{app-name}/.next` (Next.js standard output)
+
 ### 3. Version Display in Frontend Apps
 
 **Modified Files**:

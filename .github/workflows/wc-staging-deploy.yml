@@ -109,7 +109,8 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_ADMIN_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
-          app_location: 'world-schools/dist/apps/wc-superadmin'
+          app_location: 'world-schools/apps/wc-superadmin'
+          output_location: '.next'
           skip_app_build: true
           skip_api_build: true
 
@@ -147,7 +148,8 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_PROVIDER_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
-          app_location: 'world-schools/dist/apps/wc-provider'
+          app_location: 'world-schools/apps/wc-provider'
+          output_location: '.next'
           skip_app_build: true
           skip_api_build: true
 
@@ -185,7 +187,8 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_BOOKING_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
-          app_location: 'world-schools/dist/apps/wc-booking'
+          app_location: 'world-schools/apps/wc-booking'
+          output_location: '.next'
           skip_app_build: true
           skip_api_build: true
 
