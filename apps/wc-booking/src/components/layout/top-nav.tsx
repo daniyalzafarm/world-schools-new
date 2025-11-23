@@ -7,6 +7,7 @@ import { Bell, LogOut, Settings, User as UserIcon } from 'lucide-react'
 import { cn } from '@world-schools/ui-web'
 import { useAuth } from '@/hooks/use-auth'
 import { Logo } from '@/components/layout/logo'
+import config from '@/config/config'
 
 const navigation = [
   { name: 'Home', href: '/' },
@@ -130,6 +131,16 @@ export default function TopNav() {
                       startContent={<LogOut size={16} />}
                     >
                       Logout
+                    </DropdownItem>
+                    <DropdownItem
+                      key="version"
+                      className="cursor-default"
+                      isReadOnly
+                      textValue="Version"
+                    >
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Version {config.app.version}
+                      </div>
                     </DropdownItem>
                   </DropdownMenu>
                 </Dropdown>

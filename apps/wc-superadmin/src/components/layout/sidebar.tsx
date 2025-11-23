@@ -34,6 +34,7 @@ import { cn } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
 import { eventBus } from '@world-schools/wc-utils'
+import config from '@/config/config'
 
 // Custom hook for sidebar expansion state management
 const useSidebarExpansion = (onToggleCollapse: () => void) => {
@@ -548,6 +549,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                     startContent={<LogOut size={16} />}
                   >
                     Logout
+                  </DropdownItem>
+                  <DropdownItem
+                    key="version"
+                    className="cursor-default"
+                    isReadOnly
+                    textValue="Version"
+                  >
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Version {config.app.version}
+                    </div>
                   </DropdownItem>
                 </DropdownMenu>
               </Dropdown>
