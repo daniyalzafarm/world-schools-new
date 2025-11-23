@@ -50,6 +50,9 @@ export function createWcNextConfig(options = {}) {
   } = options
 
   const config = {
+    // Enable standalone output for Azure Static Web Apps deployment
+    output: 'standalone',
+
     // Transpile shared World Camps packages
     transpilePackages: [
       '@world-schools/wc-utils',
