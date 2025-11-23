@@ -23,7 +23,7 @@ export function Logo({ size = 'md', showText = true, className }: LogoProps) {
   const textLogoSizeClasses = {
     sm: 'h-5',
     md: 'h-5',
-    lg: 'h-12',
+    lg: 'h-8',
   }
 
   const iconSizes = {
