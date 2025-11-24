@@ -102,8 +102,8 @@ jobs:
           cp -r apps/wc-superadmin/.next/static apps/wc-superadmin/.next/standalone/.next/
           # Copy public folder
           cp -r apps/wc-superadmin/public apps/wc-superadmin/.next/standalone/
-          # Copy staticwebapp.config.json to .next directory
-          cp apps/wc-superadmin/staticwebapp.config.json apps/wc-superadmin/.next/
+          # Copy staticwebapp.config.json to standalone directory
+          cp apps/wc-superadmin/staticwebapp.config.json apps/wc-superadmin/.next/standalone/
 
       - name: Deploy to Azure Static Web App
         uses: Azure/static-web-apps-deploy@v1
@@ -112,7 +112,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
           skip_app_build: true
-          app_location: 'apps/wc-superadmin'
+          app_location: 'apps/wc-superadmin/.next/standalone'
           api_location: ''
           output_location: ''
 
