@@ -100,8 +100,6 @@ jobs:
           cp -r apps/wc-superadmin/.next/static apps/wc-superadmin/.next/standalone/.next/
           # Copy public folder to standalone directory
           cp -r apps/wc-superadmin/public apps/wc-superadmin/.next/standalone/
-          # Copy staticwebapp.config.json to app root for Azure SWA
-          cp apps/wc-superadmin/staticwebapp.config.json apps/wc-superadmin/
         env:
           NEXT_PUBLIC_API_BASE_URL: ${{ secrets.WC_STAGING_API_URL }}
           NEXT_PUBLIC_AUTH_USING_REQUEST: 'false'
@@ -144,8 +142,6 @@ jobs:
   #         cp -r apps/wc-provider/.next/static apps/wc-provider/.next/standalone/.next/
   #         # Copy public folder to standalone directory
   #         cp -r apps/wc-provider/public apps/wc-provider/.next/standalone/
-  #         # Copy staticwebapp.config.json to app root for Azure SWA
-  #         cp apps/wc-provider/staticwebapp.config.json apps/wc-provider/
   #       env:
   #         NEXT_PUBLIC_API_BASE_URL: ${{ secrets.WC_STAGING_API_URL }}
   #         NEXT_PUBLIC_AUTH_USING_REQUEST: 'false'
@@ -188,8 +184,6 @@ jobs:
   #         cp -r apps/wc-booking/.next/static apps/wc-booking/.next/standalone/.next/
   #         # Copy public folder to standalone directory
   #         cp -r apps/wc-booking/public apps/wc-booking/.next/standalone/
-  #         # Copy staticwebapp.config.json to app root for Azure SWA
-  #         cp apps/wc-booking/staticwebapp.config.json apps/wc-booking/
   #       env:
   #         NEXT_PUBLIC_API_BASE_URL: ${{ secrets.WC_STAGING_API_URL }}
   #         NEXT_PUBLIC_AUTH_USING_REQUEST: 'false'
