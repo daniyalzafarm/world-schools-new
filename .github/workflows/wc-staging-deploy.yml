@@ -93,20 +93,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build wc-superadmin
+        run: |
+          npx nx build wc-superadmin
+          # Copy static assets to standalone directory
+          cp -r apps/wc-superadmin/.next/static apps/wc-superadmin/.next/standalone/.next/
+          # Copy public folder to standalone directory
+          cp -r apps/wc-superadmin/public apps/wc-superadmin/.next/standalone/
+          # Copy staticwebapp.config.json to app root for Azure SWA
+          cp apps/wc-superadmin/staticwebapp.config.json apps/wc-superadmin/
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.WC_STAGING_API_URL }}
+          NEXT_PUBLIC_AUTH_USING_REQUEST: 'false'
+          NEXT_PUBLIC_APP_VERSION: ${{ needs.extract-version.outputs.version }}
+
       - name: Deploy wc-superadmin to Azure Static Web App
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_ADMIN_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
-          app_location: '.'
-          output_location: 'apps/wc-superadmin/.next/standalone'
-          app_build_command: 'npx nx build wc-superadmin && cp -r apps/wc-superadmin/.next/static apps/wc-superadmin/.next/standalone/.next/ && cp -r apps/wc-superadmin/public apps/wc-superadmin/.next/standalone/'
+          app_location: 'apps/wc-superadmin'
+          output_location: '.next/standalone'
+          skip_app_build: true
           skip_api_build: true
-        env:
-          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.WC_STAGING_API_URL }}
-          NEXT_PUBLIC_AUTH_USING_REQUEST: 'false'
-          NEXT_PUBLIC_APP_VERSION: ${{ needs.extract-version.outputs.version }}
 
   # build-and-deploy-provider:
   #   name: Build and Deploy Provider
@@ -127,20 +137,30 @@ jobs:
   #     - name: Install dependencies
   #       run: npm ci
 
+  #     - name: Build wc-provider
+  #       run: |
+  #         npx nx build wc-provider
+  #         # Copy static assets to standalone directory
+  #         cp -r apps/wc-provider/.next/static apps/wc-provider/.next/standalone/.next/
+  #         # Copy public folder to standalone directory
+  #         cp -r apps/wc-provider/public apps/wc-provider/.next/standalone/
+  #         # Copy staticwebapp.config.json to app root for Azure SWA
+  #         cp apps/wc-provider/staticwebapp.config.json apps/wc-provider/
+  #       env:
+  #         NEXT_PUBLIC_API_BASE_URL: ${{ secrets.WC_STAGING_API_URL }}
+  #         NEXT_PUBLIC_AUTH_USING_REQUEST: 'false'
+  #         NEXT_PUBLIC_APP_VERSION: ${{ needs.extract-version.outputs.version }}
+
   #     - name: Deploy wc-provider to Azure Static Web App
   #       uses: Azure/static-web-apps-deploy@v1
   #       with:
   #         azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_PROVIDER_TOKEN }}
   #         repo_token: ${{ secrets.GITHUB_TOKEN }}
   #         action: 'upload'
-  #         app_location: '.'
-  #         output_location: 'apps/wc-provider/.next/standalone'
-  #         app_build_command: 'npx nx build wc-provider && cp -r apps/wc-provider/.next/static apps/wc-provider/.next/standalone/.next/ && cp -r apps/wc-provider/public apps/wc-provider/.next/standalone/'
+  #         app_location: 'apps/wc-provider'
+  #         output_location: '.next/standalone'
+  #         skip_app_build: true
   #         skip_api_build: true
-  #       env:
-  #         NEXT_PUBLIC_API_BASE_URL: ${{ secrets.WC_STAGING_API_URL }}
-  #         NEXT_PUBLIC_AUTH_USING_REQUEST: 'false'
-  #         NEXT_PUBLIC_APP_VERSION: ${{ needs.extract-version.outputs.version }}
 
   # build-and-deploy-booking:
   #   name: Build and Deploy Booking
@@ -161,18 +181,27 @@ jobs:
   #     - name: Install dependencies
   #       run: npm ci
 
+  #     - name: Build wc-booking
+  #       run: |
+  #         npx nx build wc-booking
+  #         # Copy static assets to standalone directory
+  #         cp -r apps/wc-booking/.next/static apps/wc-booking/.next/standalone/.next/
+  #         # Copy public folder to standalone directory
+  #         cp -r apps/wc-booking/public apps/wc-booking/.next/standalone/
+  #         # Copy staticwebapp.config.json to app root for Azure SWA
+  #         cp apps/wc-booking/staticwebapp.config.json apps/wc-booking/
+  #       env:
+  #         NEXT_PUBLIC_API_BASE_URL: ${{ secrets.WC_STAGING_API_URL }}
+  #         NEXT_PUBLIC_AUTH_USING_REQUEST: 'false'
+  #         NEXT_PUBLIC_APP_VERSION: ${{ needs.extract-version.outputs.version }}
+
   #     - name: Deploy wc-booking to Azure Static Web App
   #       uses: Azure/static-web-apps-deploy@v1
   #       with:
   #         azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_BOOKING_TOKEN }}
   #         repo_token: ${{ secrets.GITHUB_TOKEN }}
   #         action: 'upload'
-  #         app_location: '.'
-  #         output_location: 'apps/wc-booking/.next/standalone'
-  #         app_build_command: 'npx nx build wc-booking && cp -r apps/wc-booking/.next/static apps/wc-booking/.next/standalone/.next/ && cp -r apps/wc-booking/public apps/wc-booking/.next/standalone/'
+  #         app_location: 'apps/wc-booking'
+  #         output_location: '.next/standalone'
+  #         skip_app_build: true
   #         skip_api_build: true
-  #       env:
-  #         NEXT_PUBLIC_API_BASE_URL: ${{ secrets.WC_STAGING_API_URL }}
-  #         NEXT_PUBLIC_AUTH_USING_REQUEST: 'false'
-  #         NEXT_PUBLIC_APP_VERSION: ${{ needs.extract-version.outputs.version }}
-
