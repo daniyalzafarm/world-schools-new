@@ -67,11 +67,68 @@ jobs:
             --push \
             .
 
+      - name: Parse API secrets
+        id: api-secrets
+        run: |
+          # Parse comma-separated secrets from GitHub Secrets
+          # Format: KEY1=value1,KEY2=value2,KEY3=value3
+          SECRETS_RAW="${{ secrets.WC_STAGING_API_SECRETS }}"
+
+          if [ -n "$SECRETS_RAW" ]; then
+            echo "Processing API secrets..."
+
+            # Split by comma and process each secret
+            IFS=',' read -ra SECRET_PAIRS <<< "$SECRETS_RAW"
+
+            SECRET_NAMES=""
+            SECRET_REFS=""
+
+            for pair in "${SECRET_PAIRS[@]}"; do
+              # Extract key and value
+              KEY=$(echo "$pair" | cut -d'=' -f1 | xargs)
+              VALUE=$(echo "$pair" | cut -d'=' -f2- | xargs)
+
+              # Convert KEY to lowercase with hyphens for Azure secret name
+              # Example: EMAIL_PASS -> email-pass
+              SECRET_NAME=$(echo "$KEY" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
+
+              echo "Setting secret: $SECRET_NAME (from $KEY)"
+
+              # Set the secret in Azure Container App
+              az containerapp secret set \
+                --name ${{ env.API_CONTAINER_APP_NAME }} \
+                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+                --secrets "$SECRET_NAME=$VALUE" \
+                --output none
+
+              # Build space-separated list of secret references for environment variables
+              # Example: EMAIL_PASS=secretref:email-pass
+              if [ -z "$SECRET_REFS" ]; then
+                SECRET_REFS="${KEY}=secretref:${SECRET_NAME}"
+              else
+                SECRET_REFS="$SECRET_REFS ${KEY}=secretref:${SECRET_NAME}"
+              fi
+            done
+
+            echo "secret_refs=$SECRET_REFS" >> $GITHUB_OUTPUT
+            echo "✅ Secrets configured successfully"
+          else
+            echo "No secrets to configure"
+            echo "secret_refs=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Parse API runtime env
         id: api-env
         run: |
           RAW="$(echo "${{ vars.WC_STAGING_API_ENV }}" | tr '\n' ' ')"
           ENV="APP_VERSION=${{ needs.extract-version.outputs.version }} $RAW"
+
+          # Add secret references to environment variables
+          SECRET_REFS="${{ steps.api-secrets.outputs.secret_refs }}"
+          if [ -n "$SECRET_REFS" ]; then
+            ENV="$ENV $SECRET_REFS"
+          fi
+
           echo "env=$ENV" >> $GITHUB_OUTPUT
 
       - name: Deploy API
