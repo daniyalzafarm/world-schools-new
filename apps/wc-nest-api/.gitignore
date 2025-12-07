@@ -29,3 +29,6 @@ Thumbs.db
 # Prisma
 prisma/migrations/**/migration.sql.bak
 
+# Prisma generated client (Prisma 7)
+# Keep the generated Prisma Client + query engine out of version control
+src/generated/
