@@ -19,5 +19,5 @@ export class UpdateProviderRoleDto {
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
-  permission_ids?: string[]
+  permissionIds?: string[]
 }

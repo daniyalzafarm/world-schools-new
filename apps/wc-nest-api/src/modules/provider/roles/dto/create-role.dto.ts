@@ -18,5 +18,5 @@ export class CreateProviderRoleDto {
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
-  permission_ids?: string[]
+  permissionIds?: string[]
 }

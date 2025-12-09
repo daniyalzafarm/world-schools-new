@@ -4,12 +4,14 @@ export class ResponseUtil {
   /**
    * Creates a successful API response
    * @param data - The data to include in the response
+   * @param meta - Optional metadata (e.g., pagination info)
    * @returns Formatted success response
    */
-  static success<T>(data: T): ApiResponse<T> {
+  static success<T>(data: T, meta?: any): ApiResponse<T> {
     return {
       success: true,
       data,
+      ...(meta && { meta }),
     }
   }
 

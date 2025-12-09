@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 
 import { ProtectedRoute } from '@/components/auth/protected-route'
+import { RouteGuard } from '@/components/auth/route-guard'
 import { Sidebar } from '@/components/layout/sidebar'
 import { MobileHeader } from '@/components/layout/mobile-header'
 
@@ -26,22 +27,27 @@ export function MainLayout({ children }: MainLayoutProps) {
   }, [])
 
   return (
-    <ProtectedRoute requireAuth requireSuperAdmin>
-      <div className="flex h-screen bg-white dark:bg-gray-900">
-        {/* Sidebar */}
-        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+    <ProtectedRoute requireAuth>
+      <RouteGuard>
+        <div className="flex h-screen bg-white dark:bg-gray-900">
+          {/* Sidebar */}
+          <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-        {/* Main content area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Mobile Header */}
-          <MobileHeader menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+          {/* Main content area */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Mobile Header */}
+            <MobileHeader
+              menuOpen={sidebarOpen}
+              onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
+            />
 
-          {/* Main content */}
-          <main className="flex-1 overflow-auto">
-            <div className="h-full pt-14 lg:pt-0">{children}</div>
-          </main>
+            {/* Main content */}
+            <main className="flex-1 overflow-auto">
+              <div className="h-full pt-14 lg:pt-0">{children}</div>
+            </main>
+          </div>
         </div>
-      </div>
+      </RouteGuard>
     </ProtectedRoute>
   )
 }

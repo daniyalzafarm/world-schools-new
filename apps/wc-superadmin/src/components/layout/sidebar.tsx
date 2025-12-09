@@ -35,6 +35,7 @@ import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
 import { eventBus } from '@world-schools/wc-utils'
 import config from '@/config/config'
+import { usePermissions } from '@/hooks/use-permissions'
 
 // Custom hook for sidebar expansion state management
 const useSidebarExpansion = (onToggleCollapse: () => void) => {
@@ -85,6 +86,7 @@ interface NavItem {
   badge?: number
   children?: NavItem[]
   type?: string
+  permission?: string // Required permission to view this item
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -93,12 +95,14 @@ const NAV_ITEMS: NavItem[] = [
     href: '/analytics-dashboard',
     icon: <House size={20} />,
     type: 'regular',
+    // No permission required - available to all authenticated users
   },
   {
     name: 'Financial Dashboard',
     href: '/financial-dashboard',
     icon: <Banknote size={20} />,
     type: 'regular',
+    // No permission required - available to all authenticated users
   },
   {
     name: 'Provider Requests',
@@ -106,6 +110,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: <ListPlus size={20} />,
     badge: 2,
     type: 'regular',
+    permission: 'providers.read',
   },
   {
     name: 'Provider Messages',
@@ -113,6 +118,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: <MessageCircle size={20} />,
     type: 'collapsible',
     badge: 4,
+    permission: 'providers.read',
     children: [
       {
         name: 'My Inbox',
@@ -134,6 +140,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '',
     icon: <MessageCircle size={20} />,
     type: 'collapsible',
+    // No permission required - available to all authenticated users
     children: [
       { name: 'My Inbox', href: '/user-messages/my-inbox', icon: <MessageCircle size={18} /> },
       {
@@ -149,18 +156,21 @@ const NAV_ITEMS: NavItem[] = [
     href: '/all-providers',
     icon: <Building size={20} />,
     type: 'regular',
+    permission: 'providers.read',
   },
   {
     name: 'Users',
     href: '/users',
     icon: <User size={20} />,
     type: 'regular',
+    permission: 'users.read',
   },
   {
     name: 'Roles',
     href: '/roles',
     icon: <ShieldCheck size={20} />,
     type: 'regular',
+    permission: 'roles.read',
   },
   {
     name: 'Notifications',
@@ -168,6 +178,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: <Bell size={20} />,
     badge: 2,
     type: 'regular',
+    // No permission required - available to all authenticated users
   },
 ]
 
@@ -175,6 +186,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   const router = useRouter()
   const pathname = usePathname()
   const { user, logout } = useAuthStore()
+  const { hasPermission } = usePermissions()
 
   // Collapsed state is managed locally within the sidebar
   const [isCollapsed, setIsCollapsed] = React.useState(false) // Start expanded
@@ -338,6 +350,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
     [isCollapsed, router, sidebarOpen, setSidebarOpen]
   )
 
+  /**
+   * Check if a navigation item should be visible based on user permissions
+   */
+  const isNavItemVisible = React.useCallback(
+    (item: NavItem): boolean => {
+      // If no permission is required, item is always visible
+      if (!item.permission) return true
+      // Check if user has the required permission
+      return hasPermission(item.permission)
+    },
+    [hasPermission]
+  )
+
+  /**
+   * Filter navigation items based on user permissions
+   */
+  const visibleNavItems = React.useMemo(() => {
+    return NAV_ITEMS.filter(isNavItemVisible)
+  }, [isNavItemVisible])
+
   const userInitials = user
     ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || 'WC'
     : 'WC'
@@ -383,7 +415,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
           {/* Navigation */}
           <nav className="p-3 space-y-1 overflow-x-hidden">
             {/* Main Navigation Items */}
-            {NAV_ITEMS.map(item => {
+            {visibleNavItems.map(item => {
               const isActive = item.href ? pathname.startsWith(item.href) : false
               const itemType = item.type || 'regular'
               const isCollapsible = itemType === 'collapsible'
@@ -509,7 +541,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                   <div
                     className={cn(
                       'cursor-pointer flex items-center gap-3 hover:bg-gray-200 dark:hover:bg-gray-800/50 rounded-lg p-2',
-                      !isCollapsed && 'w-full'
+                      !isCollapsed && 'w-5/6'
                     )}
                   >
                     <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">

@@ -13,7 +13,7 @@ export class ProviderRolesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(providerId: string, createRoleDto: CreateProviderRoleDto) {
-    const { permission_ids, ...roleData } = createRoleDto
+    const { permissionIds, ...roleData } = createRoleDto
 
     // Check if role with same name already exists for this provider
     const existingRole = await this.prisma.role.findUnique({
@@ -48,8 +48,8 @@ export class ProviderRolesService {
     })
 
     // Assign permissions if provided
-    if (permission_ids && permission_ids.length > 0) {
-      await this.assignPermissions(role.id, permission_ids)
+    if (permissionIds && permissionIds.length > 0) {
+      await this.assignPermissions(role.id, permissionIds)
     }
 
     return this.findOne(providerId, role.id)
@@ -108,7 +108,7 @@ export class ProviderRolesService {
   }
 
   async update(providerId: string, id: string, updateRoleDto: UpdateProviderRoleDto) {
-    const { permission_ids, ...roleData } = updateRoleDto
+    const { permissionIds, ...roleData } = updateRoleDto
 
     // Verify role exists and belongs to provider
     await this.findOne(providerId, id)
@@ -137,8 +137,8 @@ export class ProviderRolesService {
     })
 
     // Update permissions if provided
-    if (permission_ids !== undefined) {
-      await this.assignPermissions(id, permission_ids)
+    if (permissionIds !== undefined) {
+      await this.assignPermissions(id, permissionIds)
     }
 
     return this.findOne(providerId, id)

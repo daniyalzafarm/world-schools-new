@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { CreateRoleDto } from './dto/create-role.dto'
 import { UpdateRoleDto } from './dto/update-role.dto'
@@ -8,15 +13,13 @@ export class SuperAdminRolesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createRoleDto: CreateRoleDto) {
-    const { permission_ids, ...roleData } = createRoleDto
+    const { permissionIds, isSystemRole, ...roleData } = createRoleDto
 
     // Check if role with same name already exists (system-wide)
-    const existingRole = await this.prisma.role.findUnique({
+    const existingRole = await this.prisma.role.findFirst({
       where: {
-        name_providerId: {
-          name: roleData.name,
-          providerId: null as any,
-        },
+        name: roleData.name,
+        providerId: null,
       },
     })
 
@@ -28,7 +31,7 @@ export class SuperAdminRolesService {
     const role = await this.prisma.role.create({
       data: {
         ...roleData,
-        isSystemRole: roleData.is_system_role ?? true,
+        isSystemRole: isSystemRole ?? false,
         providerId: null, // System-wide roles have no provider
       },
       include: {
@@ -41,18 +44,65 @@ export class SuperAdminRolesService {
     })
 
     // Assign permissions if provided
-    if (permission_ids && permission_ids.length > 0) {
-      await this.assignPermissions(role.id, permission_ids)
+    if (permissionIds && permissionIds.length > 0) {
+      await this.assignPermissions(role.id, permissionIds)
     }
 
     return this.findOne(role.id)
   }
 
-  async findAll() {
-    return this.prisma.role.findMany({
-      where: {
-        providerId: null, // Only system-wide roles
+  async findAll(params?: {
+    page?: number
+    limit?: number
+    search?: string
+    isSystemRole?: boolean
+    createdAfter?: Date
+    createdBefore?: Date
+  }) {
+    const page = params?.page ?? 1
+    const limit = params?.limit ?? 10
+    const skip = (page - 1) * limit
+
+    // Build where clause
+    const where: any = {
+      providerId: null, // Only system-wide roles
+      // Exclude ProviderAdmin and Parent roles from superadmin context
+      name: {
+        notIn: ['Provider Admin', 'Parent'],
       },
+    }
+
+    // Add search filter
+    if (params?.search) {
+      where.name = {
+        ...where.name,
+        contains: params.search,
+        mode: 'insensitive',
+      }
+    }
+
+    // Add system role filter
+    if (params?.isSystemRole !== undefined) {
+      where.isSystemRole = params.isSystemRole
+    }
+
+    // Add date range filters
+    if (params?.createdAfter || params?.createdBefore) {
+      where.createdAt = {}
+      if (params.createdAfter) {
+        where.createdAt.gte = params.createdAfter
+      }
+      if (params.createdBefore) {
+        where.createdAt.lte = params.createdBefore
+      }
+    }
+
+    // Get total count for pagination
+    const total = await this.prisma.role.count({ where })
+
+    // Get roles with pagination
+    const roles = await this.prisma.role.findMany({
+      where,
       include: {
         permissions: {
           include: {
@@ -68,7 +118,19 @@ export class SuperAdminRolesService {
       orderBy: {
         createdAt: 'desc',
       },
+      skip,
+      take: limit,
     })
+
+    return {
+      data: roles,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    }
   }
 
   async findOne(id: string) {
@@ -96,10 +158,15 @@ export class SuperAdminRolesService {
   }
 
   async update(id: string, updateRoleDto: UpdateRoleDto) {
-    const { permission_ids, ...roleData } = updateRoleDto
+    const { permissionIds, ...roleData } = updateRoleDto
 
     // Verify role exists
-    await this.findOne(id)
+    const role = await this.findOne(id)
+
+    // Prevent editing Super Admin role
+    if (role.name === 'Super Admin' && role.isSystemRole) {
+      throw new BadRequestException('Cannot edit the Super Admin system role')
+    }
 
     // Check if new name conflicts with existing role
     if (roleData.name) {
@@ -123,8 +190,8 @@ export class SuperAdminRolesService {
     })
 
     // Update permissions if provided
-    if (permission_ids !== undefined) {
-      await this.assignPermissions(id, permission_ids)
+    if (permissionIds !== undefined) {
+      await this.assignPermissions(id, permissionIds)
     }
 
     return this.findOne(id)
@@ -133,6 +200,11 @@ export class SuperAdminRolesService {
   async remove(id: string) {
     // Verify role exists
     const role = await this.findOne(id)
+
+    // Prevent deleting Super Admin role
+    if (role.name === 'Super Admin' && role.isSystemRole) {
+      throw new BadRequestException('Cannot delete the Super Admin system role')
+    }
 
     // Check if role is assigned to any users
     const userCount = await this.prisma.userRole.count({

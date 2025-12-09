@@ -1,0 +1,108 @@
+/**
+ * Permissions Configuration
+ *
+ * This file defines the permission structure for the application.
+ * Permissions are organized into:
+ * 1. Resource-based groups (users, roles, providers)
+ * 2. Context-based main groups (superadmin, provider)
+ *
+ * Note: Children management is allowed to parents by default and doesn't require
+ * explicit permission configuration. It uses role-based access control instead.
+ */
+
+export interface Permission {
+  id: string
+  name: string
+}
+
+export interface PermissionGroup {
+  name: string
+  permissions: Permission[]
+}
+
+export interface PermissionContext {
+  name: string
+  groups: PermissionGroup[]
+}
+
+// Resource-based permission groups
+const usersPermissions: PermissionGroup = {
+  name: 'Users',
+  permissions: [
+    { id: 'users.create', name: 'Create users' },
+    { id: 'users.read', name: 'Read users' },
+    { id: 'users.update', name: 'Update users' },
+    { id: 'users.delete', name: 'Delete users' },
+  ],
+}
+
+const rolesPermissions: PermissionGroup = {
+  name: 'Roles',
+  permissions: [
+    { id: 'roles.create', name: 'Create roles' },
+    { id: 'roles.read', name: 'Read roles' },
+    { id: 'roles.update', name: 'Update roles' },
+    { id: 'roles.delete', name: 'Delete roles' },
+  ],
+}
+
+const providersPermissions: PermissionGroup = {
+  name: 'Providers',
+  permissions: [
+    { id: 'providers.create', name: 'Create providers' },
+    { id: 'providers.read', name: 'Read providers' },
+    { id: 'providers.update', name: 'Update providers' },
+    { id: 'providers.delete', name: 'Delete providers' },
+  ],
+}
+
+// Context-based main groups
+export const superadminContext: PermissionContext = {
+  name: 'SuperAdmin',
+  groups: [usersPermissions, rolesPermissions, providersPermissions],
+}
+
+export const providerContext: PermissionContext = {
+  name: 'Provider',
+  groups: [usersPermissions, rolesPermissions],
+}
+
+/**
+ * Get all unique permissions from all contexts
+ * This is used for seeding the permissions table
+ */
+export function getAllPermissions(): Permission[] {
+  const allPermissions = new Map<string, Permission>()
+
+  const contexts = [superadminContext, providerContext]
+
+  for (const context of contexts) {
+    for (const group of context.groups) {
+      for (const permission of group.permissions) {
+        allPermissions.set(permission.id, permission)
+      }
+    }
+  }
+
+  return Array.from(allPermissions.values())
+}
+
+/**
+ * Get all permissions for a specific context
+ */
+export function getContextPermissions(context: PermissionContext): Permission[] {
+  const permissions: Permission[] = []
+
+  for (const group of context.groups) {
+    permissions.push(...group.permissions)
+  }
+
+  return permissions
+}
+
+/**
+ * Get permission IDs for a specific context
+ */
+export function getContextPermissionIds(context: PermissionContext): string[] {
+  return getContextPermissions(context).map(p => p.id)
+}

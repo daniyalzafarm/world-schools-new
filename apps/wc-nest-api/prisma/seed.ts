@@ -1,6 +1,12 @@
 import { PrismaClient } from '../src/generated/client/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import * as bcrypt from 'bcryptjs'
+import {
+  getAllPermissions,
+  getContextPermissionIds,
+  providerContext,
+  superadminContext,
+} from '../src/config/permissions'
 
 // Get database URL from environment
 const databaseUrl = process.env.DATABASE_URL
@@ -17,28 +23,7 @@ async function main() {
 
   // Create system permissions
   console.log('Creating permissions...')
-  const permissions = [
-    { id: 'users.create', name: 'Create users' },
-    { id: 'users.read', name: 'Read users' },
-    { id: 'users.update', name: 'Update users' },
-    { id: 'users.delete', name: 'Delete users' },
-    { id: 'roles.create', name: 'Create roles' },
-    { id: 'roles.read', name: 'Read roles' },
-    { id: 'roles.update', name: 'Update roles' },
-    { id: 'roles.delete', name: 'Delete roles' },
-    { id: 'providers.create', name: 'Create providers' },
-    { id: 'providers.read', name: 'Read providers' },
-    { id: 'providers.update', name: 'Update providers' },
-    { id: 'providers.delete', name: 'Delete providers' },
-    { id: 'parents.create', name: 'Create parents' },
-    { id: 'parents.read', name: 'Read parents' },
-    { id: 'parents.update', name: 'Update parents' },
-    { id: 'parents.delete', name: 'Delete parents' },
-    { id: 'children.create', name: 'Create children' },
-    { id: 'children.read', name: 'Read children' },
-    { id: 'children.update', name: 'Update children' },
-    { id: 'children.delete', name: 'Delete children' },
-  ]
+  const permissions = getAllPermissions()
 
   for (const permission of permissions) {
     await prisma.permission.upsert({
@@ -66,19 +51,20 @@ async function main() {
     },
   })
 
-  // Assign all permissions to Super Admin
-  for (const permission of permissions) {
+  // Assign superadmin context permissions to Super Admin
+  const superAdminPermissionIds = getContextPermissionIds(superadminContext)
+  for (const permissionId of superAdminPermissionIds) {
     await prisma.rolePermission.upsert({
       where: {
         roleId_permissionId: {
           roleId: superAdminRole.id,
-          permissionId: permission.id,
+          permissionId: permissionId,
         },
       },
       update: {},
       create: {
         roleId: superAdminRole.id,
-        permissionId: permission.id,
+        permissionId: permissionId,
       },
     })
   }
@@ -96,28 +82,20 @@ async function main() {
     },
   })
 
-  // Assign provider-related permissions to Provider Admin
-  const providerAdminPermissions = permissions.filter(
-    p =>
-      p.id.startsWith('providers.') ||
-      p.id.startsWith('parents.') ||
-      p.id.startsWith('children.') ||
-      p.id === 'users.read' ||
-      p.id === 'roles.read'
-  )
-
-  for (const permission of providerAdminPermissions) {
+  // Assign provider context permissions to Provider Admin
+  const providerAdminPermissionIds = getContextPermissionIds(providerContext)
+  for (const permissionId of providerAdminPermissionIds) {
     await prisma.rolePermission.upsert({
       where: {
         roleId_permissionId: {
           roleId: providerAdminRole.id,
-          permissionId: permission.id,
+          permissionId: permissionId,
         },
       },
       update: {},
       create: {
         roleId: providerAdminRole.id,
-        permissionId: permission.id,
+        permissionId: permissionId,
       },
     })
   }
@@ -135,26 +113,7 @@ async function main() {
     },
   })
 
-  // Assign parent-related permissions
-  const parentPermissions = permissions.filter(
-    p => p.id === 'children.read' || p.id === 'parents.read'
-  )
-
-  for (const permission of parentPermissions) {
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: {
-          roleId: parentRole.id,
-          permissionId: permission.id,
-        },
-      },
-      update: {},
-      create: {
-        roleId: parentRole.id,
-        permissionId: permission.id,
-      },
-    })
-  }
+  // Parent role has no permissions assigned (parents access their own data through specific endpoints)
 
   console.log('✅ Created system roles: Super Admin, Provider Admin, Parent')
 

@@ -17,7 +17,7 @@ export class CreateRoleDto {
   })
   @IsBoolean()
   @IsOptional()
-  is_system_role?: boolean
+  isSystemRole?: boolean
 
   @ApiProperty({
     description: 'Permission IDs to assign to this role',
@@ -27,5 +27,5 @@ export class CreateRoleDto {
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
-  permission_ids?: string[]
+  permissionIds?: string[]
 }

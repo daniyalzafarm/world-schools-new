@@ -64,7 +64,7 @@ export function createWcNextConfig(options = {}) {
 
     // Optimize package imports for better performance
     experimental: {
-      optimizePackageImports: ['@heroui/react', '@heroicons/react'],
+      optimizePackageImports: ['@heroui/react', 'lucide-react'],
       ...additionalConfig.experimental,
     },
 

@@ -47,8 +47,8 @@ The wc-superadmin application uses a complete JWT-based authentication system th
 
 8. **Protected Route** (`src/components/auth/protected-route.tsx`)
    - Guards routes that require authentication
-   - Supports both general auth and superadmin-specific protection
-   - Handles redirects to signin or not-authorized pages
+   - Supports both general auth and superadmin-context role protection
+   - Handles redirects to signin or 404 pages for security
 
 ### Backend Endpoints
 
@@ -141,7 +141,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route'
 
 export default function DashboardPage() {
   return (
-    <ProtectedRoute requireAuth requireSuperAdmin>
+    <ProtectedRoute requireAuth>
       <div>Protected Dashboard Content</div>
     </ProtectedRoute>
   )

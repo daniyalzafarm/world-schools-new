@@ -7,11 +7,12 @@ import {
   HttpStatus,
   Patch,
   Post,
+  Req,
   Res,
   UnauthorizedException,
 } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
-import { Response } from 'express'
+import { Request, Response } from 'express'
 import { parseDuration } from '@world-schools/wc-utils'
 import { AuthService } from '../../core/auth/auth.service'
 import { Public } from '../../core/auth/decorators/public.decorator'
@@ -36,13 +37,22 @@ export class SuperAdminAuthController {
     private readonly passwordResetService: PasswordResetService
   ) {}
 
+  /**
+   * Helper function to check if a user has any superadmin-context role.
+   * Superadmin roles are identified by having providerId = null.
+   * This allows both system roles (like "Super Admin") and custom superadmin roles to authenticate.
+   */
+  private hasSuperAdminRole(user: any): boolean {
+    return user.roles?.some((role: any) => role.providerId === null) ?? false
+  }
+
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Super admin login',
     description:
-      'Authenticate super admin user and return JWT tokens. Only users with Super Admin role can login.',
+      'Authenticate super admin user and return JWT tokens. Only users with superadmin-context roles can login.',
   })
   async login(
     @Body() loginDto: SuperAdminLoginDto,
@@ -51,11 +61,9 @@ export class SuperAdminAuthController {
     // Validate credentials using central AuthService
     const authResult = await this.authService.login(loginDto)
 
-    // Verify user has Super Admin role
+    // Verify user has at least one superadmin-context role (providerId = null)
     const user = authResult.user
-    const hasSuperAdminRole = user.roles?.some(role => role.name === 'Super Admin')
-
-    if (!hasSuperAdminRole) {
+    if (!this.hasSuperAdminRole(user)) {
       // Return generic error to prevent role enumeration
       throw new BadRequestException('Invalid credentials')
     }
@@ -98,12 +106,13 @@ export class SuperAdminAuthController {
     description: 'Get new access and refresh tokens using a valid refresh token',
   })
   async refreshToken(
+    @Req() request: Request,
     @Body() refreshTokenDto: RefreshTokenDto,
     @Res({ passthrough: true }) response: Response
   ) {
     // Try to get refresh token from cookie first (app-specific name), then from body
     const refreshToken: string =
-      (response as any).req?.cookies?.wc_superadmin_refresh_token ?? refreshTokenDto?.refreshToken
+      request.cookies?.wc_superadmin_refresh_token ?? refreshTokenDto?.refreshToken
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not provided')
@@ -111,12 +120,10 @@ export class SuperAdminAuthController {
 
     const result = await this.authService.refreshToken(refreshToken)
 
-    // Verify user still has Super Admin role
+    // Verify user still has at least one superadmin-context role (providerId = null)
     const user = result.user
-    const hasSuperAdminRole = user.roles?.some(role => role.name === 'Super Admin')
-
-    if (!hasSuperAdminRole) {
-      throw new UnauthorizedException('Access denied. Super Admin role required.')
+    if (!this.hasSuperAdminRole(user)) {
+      throw new UnauthorizedException('Access denied. Superadmin role required.')
     }
 
     // Generate app-specific tokens with 'superadmin' claim for token isolation
@@ -155,11 +162,9 @@ export class SuperAdminAuthController {
     description: 'Get the profile of the currently authenticated super admin user',
   })
   getProfile(@CurrentUser() user: any) {
-    // Verify user has Super Admin role
-    const hasSuperAdminRole = user.roles?.some((role: any) => role.name === 'Super Admin')
-
-    if (!hasSuperAdminRole) {
-      throw new UnauthorizedException('Access denied. Super Admin role required.')
+    // Verify user has at least one superadmin-context role (providerId = null)
+    if (!this.hasSuperAdminRole(user)) {
+      throw new UnauthorizedException('Access denied. Superadmin role required.')
     }
 
     return ResponseUtil.success(user)
@@ -171,11 +176,9 @@ export class SuperAdminAuthController {
     description: 'Change the password for the currently authenticated super admin user',
   })
   async changePassword(@CurrentUser() user: any, @Body() changePasswordDto: ChangePasswordDto) {
-    // Verify user has Super Admin role
-    const hasSuperAdminRole = user.roles?.some((role: any) => role.name === 'Super Admin')
-
-    if (!hasSuperAdminRole) {
-      throw new UnauthorizedException('Access denied. Super Admin role required.')
+    // Verify user has at least one superadmin-context role (providerId = null)
+    if (!this.hasSuperAdminRole(user)) {
+      throw new UnauthorizedException('Access denied. Superadmin role required.')
     }
 
     await this.authService.changePassword(user.id, changePasswordDto)

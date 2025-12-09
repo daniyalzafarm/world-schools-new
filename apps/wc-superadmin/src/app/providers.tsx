@@ -1,7 +1,8 @@
 'use client'
 
-import { HeroUIProvider } from '@heroui/react'
+import { HeroUIProvider, ToastProvider } from '@heroui/react'
 import { ThemeProvider } from 'next-themes'
+import { ConfirmDialogProvider } from '@world-schools/ui-web'
 
 import { AuthProvider } from '@/components/auth/auth-provider'
 
@@ -15,7 +16,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
         disableTransitionOnChange
         storageKey="wc-superadmin-theme"
       >
-        <AuthProvider>{children}</AuthProvider>
+        <ToastProvider placement="top-right" toastOffset={10} />
+        <ConfirmDialogProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ConfirmDialogProvider>
       </ThemeProvider>
     </HeroUIProvider>
   )

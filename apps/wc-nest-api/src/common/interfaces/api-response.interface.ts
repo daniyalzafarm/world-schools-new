@@ -1,6 +1,7 @@
 export interface ApiResponse<T = any> {
   success: boolean
   data: T
+  meta?: any
 }
 
 export interface ApiErrorResponse {

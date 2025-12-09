@@ -4,18 +4,18 @@ import { SuperAdminProvidersService } from './providers.service'
 import { CreateProviderDto } from './dto/create-provider.dto'
 import { UpdateProviderDto } from './dto/update-provider.dto'
 import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
-import { Roles } from '../../core/auth/decorators/roles.decorator'
+import { Permissions } from '../../core/auth/decorators/permissions.decorator'
 import { ResponseUtil } from '../../../common/utils/response.util'
 
 @ApiTags('SuperAdmin Providers')
 @ApiBearerAuth()
 @Controller('superadmin/providers')
 @UseGuards(RolesOrPermissionsGuard)
-@Roles('Super Admin')
 export class SuperAdminProvidersController {
   constructor(private readonly providersService: SuperAdminProvidersService) {}
 
   @Post()
+  @Permissions('providers.create')
   @ApiOperation({
     summary: 'Create a new provider',
     description: 'Create a new provider (school/organization) with an owner',
@@ -26,6 +26,7 @@ export class SuperAdminProvidersController {
   }
 
   @Get()
+  @Permissions('providers.read')
   @ApiOperation({
     summary: 'Get all providers',
     description: 'Retrieve all providers with their owners and counts',
@@ -36,6 +37,7 @@ export class SuperAdminProvidersController {
   }
 
   @Get(':id')
+  @Permissions('providers.read')
   @ApiOperation({
     summary: 'Get a provider by ID',
     description: 'Retrieve a specific provider with details',
@@ -46,6 +48,7 @@ export class SuperAdminProvidersController {
   }
 
   @Patch(':id')
+  @Permissions('providers.update')
   @ApiOperation({
     summary: 'Update a provider',
     description: 'Update provider information',
@@ -56,6 +59,7 @@ export class SuperAdminProvidersController {
   }
 
   @Delete(':id')
+  @Permissions('providers.delete')
   @ApiOperation({
     summary: 'Delete a provider',
     description: 'Delete a provider if it has no parents or children enrolled',
