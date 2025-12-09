@@ -15,8 +15,8 @@ RUN npm ci
 # Copy the entire monorepo
 COPY . .
 
-# Generate Prisma Client (Prisma 7 requires explicit env loading)
-RUN cd apps/wc-nest-api && node -r dotenv/config ../../node_modules/.bin/prisma generate
+# Generate Prisma Client (Prisma 7 requires explicit env loading and prisma.config.ts at root)
+RUN node -r dotenv/config node_modules/.bin/prisma generate
 
 # Build the wc-nest-api application using Nx
 RUN npx nx build wc-nest-api --configuration=production
@@ -34,8 +34,9 @@ COPY --from=builder /app/dist/apps/wc-nest-api ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 
-# Copy Prisma files for migrations and seeding
-COPY --from=builder /app/apps/wc-nest-api/prisma ./prisma
+# Copy Prisma config and schema files for migrations and seeding
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder /app/apps/wc-nest-api/prisma ./apps/wc-nest-api/prisma
 
 # Copy the startup script
 COPY apps/wc-nest-api/start.sh ./start.sh

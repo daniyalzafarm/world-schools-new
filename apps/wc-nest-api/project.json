@@ -69,36 +69,31 @@
     "prisma:generate": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node -r dotenv/config ../../node_modules/.bin/prisma generate",
-        "cwd": "apps/wc-nest-api"
+        "command": "node -r dotenv/config node_modules/.bin/prisma generate"
       }
     },
     "prisma:migrate": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node -r dotenv/config ../../node_modules/.bin/prisma migrate dev",
-        "cwd": "apps/wc-nest-api"
+        "command": "node -r dotenv/config node_modules/.bin/prisma migrate dev"
       }
     },
     "prisma:migrate:deploy": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node -r dotenv/config ../../node_modules/.bin/prisma migrate deploy",
-        "cwd": "apps/wc-nest-api"
+        "command": "node -r dotenv/config node_modules/.bin/prisma migrate deploy"
       }
     },
     "prisma:seed": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npx prisma db seed",
-        "cwd": "apps/wc-nest-api"
+        "command": "node -r dotenv/config node_modules/.bin/prisma db seed"
       }
     },
     "prisma:studio": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node -r dotenv/config ../../node_modules/.bin/prisma studio",
-        "cwd": "apps/wc-nest-api"
+        "command": "node -r dotenv/config node_modules/.bin/prisma studio"
       }
     },
     "prisma:reset": {
