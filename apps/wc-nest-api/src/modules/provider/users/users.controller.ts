@@ -11,43 +11,46 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger'
-import { ProviderRolesService } from './roles.service'
-import { CreateProviderRoleDto } from './dto/create-role.dto'
-import { UpdateProviderRoleDto } from './dto/update-role.dto'
+import { ProviderUsersService } from './users.service'
+import { CreateUserDto } from '../../common/users/dto/create-user.dto'
+import { UpdateUserDto } from '../../common/users/dto/update-user.dto'
+import { CommonUsersService } from '../../common/users/users.service'
 import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
 import { Permissions } from '../../core/auth/decorators/permissions.decorator'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 import { ResponseUtil } from '../../../common/utils/response.util'
 import { PrismaService } from '../../../prisma/prisma.service'
 
-@ApiTags('Provider Roles')
+@ApiTags('Provider Users')
 @ApiBearerAuth()
-@Controller('provider/roles')
+@Controller('provider/users')
 @UseGuards(RolesOrPermissionsGuard)
-export class ProviderRolesController {
+export class ProviderUsersController {
   constructor(
-    private readonly rolesService: ProviderRolesService,
+    private readonly usersService: CommonUsersService,
+    private readonly providerUsersService: ProviderUsersService,
     private readonly prisma: PrismaService
   ) {}
 
   @Post()
-  @Permissions('roles.create')
+  @Permissions('users.create')
   @ApiOperation({
-    summary: 'Create a new provider-specific role',
-    description: 'Create a custom role for your provider with optional permissions',
+    summary: 'Create a new user',
+    description: 'Create a new user for your provider organization',
   })
-  async create(@CurrentUser() user: any, @Body() createRoleDto: CreateProviderRoleDto) {
+  async create(@CurrentUser() user: any, @Body() createUserDto: CreateUserDto) {
     const providerId = await this.getProviderIdForUser(user)
-    const role = await this.rolesService.create(providerId, createRoleDto)
-    return ResponseUtil.success(role)
+    // Validate that all roleIds belong to this provider
+    await this.validateRolesBelongToProvider(providerId, createUserDto.roleIds)
+    const newUser = await this.usersService.create(createUserDto)
+    return ResponseUtil.success(newUser)
   }
 
   @Get()
-  @Permissions('roles.read', 'users.create', 'users.update')
+  @Permissions('users.read')
   @ApiOperation({
-    summary: 'Get all provider-specific roles',
-    description:
-      'Retrieve all custom roles for your provider with pagination and filtering. Accessible with roles.read OR users.create OR users.update permissions.',
+    summary: 'Get all users',
+    description: 'Retrieve all users in your provider organization with pagination and filtering',
   })
   @ApiQuery({
     name: 'page',
@@ -61,7 +64,19 @@ export class ProviderRolesController {
     type: Number,
     description: 'Items per page (default: 10)',
   })
-  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by role name' })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search by email, first name, or last name',
+  })
+  @ApiQuery({ name: 'roleId', required: false, type: String, description: 'Filter by role ID' })
+  @ApiQuery({
+    name: 'emailVerified',
+    required: false,
+    type: Boolean,
+    description: 'Filter by email verification status',
+  })
   @ApiQuery({
     name: 'createdAfter',
     required: false,
@@ -79,14 +94,19 @@ export class ProviderRolesController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
+    @Query('roleId') roleId?: string,
+    @Query('emailVerified') emailVerified?: string,
     @Query('createdAfter') createdAfter?: string,
     @Query('createdBefore') createdBefore?: string
   ) {
     const providerId = await this.getProviderIdForUser(user)
-    const result = await this.rolesService.findAll(providerId, {
+    const result = await this.providerUsersService.findAll(providerId, {
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
       search,
+      roleId,
+      emailVerified:
+        emailVerified === 'true' ? true : emailVerified === 'false' ? false : undefined,
       createdAfter: createdAfter ? new Date(createdAfter) : undefined,
       createdBefore: createdBefore ? new Date(createdBefore) : undefined,
     })
@@ -94,42 +114,48 @@ export class ProviderRolesController {
   }
 
   @Get(':id')
-  @Permissions('roles.read')
+  @Permissions('users.read')
   @ApiOperation({
-    summary: 'Get a role by ID',
-    description: 'Retrieve a specific role with its permissions',
+    summary: 'Get a user by ID',
+    description: 'Retrieve a specific user with their roles and permissions',
   })
   async findOne(@CurrentUser() user: any, @Param('id') id: string) {
     const providerId = await this.getProviderIdForUser(user)
-    const role = await this.rolesService.findOne(providerId, id)
-    return ResponseUtil.success(role)
+    const foundUser = await this.providerUsersService.findOne(providerId, id)
+    return ResponseUtil.success(foundUser)
   }
 
   @Patch(':id')
-  @Permissions('roles.update')
+  @Permissions('users.update')
   @ApiOperation({
-    summary: 'Update a role',
-    description: 'Update role name and/or permissions',
+    summary: 'Update a user',
+    description: 'Update user information and/or role assignments',
   })
   async update(
     @CurrentUser() user: any,
     @Param('id') id: string,
-    @Body() updateRoleDto: UpdateProviderRoleDto
+    @Body() updateUserDto: UpdateUserDto
   ) {
     const providerId = await this.getProviderIdForUser(user)
-    const role = await this.rolesService.update(providerId, id, updateRoleDto)
-    return ResponseUtil.success(role)
+    // Verify user belongs to this provider
+    await this.providerUsersService.findOne(providerId, id)
+    // Validate that all roleIds belong to this provider
+    await this.validateRolesBelongToProvider(providerId, updateUserDto.roleIds)
+    const updatedUser = await this.usersService.update(id, updateUserDto)
+    return ResponseUtil.success(updatedUser)
   }
 
   @Delete(':id')
-  @Permissions('roles.delete')
+  @Permissions('users.delete')
   @ApiOperation({
-    summary: 'Delete a role',
-    description: 'Delete a role if it is not assigned to any users',
+    summary: 'Delete a user',
+    description: 'Delete a user from your provider organization',
   })
   async remove(@CurrentUser() user: any, @Param('id') id: string) {
     const providerId = await this.getProviderIdForUser(user)
-    const result = await this.rolesService.remove(providerId, id)
+    // Verify user belongs to this provider
+    await this.providerUsersService.findOne(providerId, id)
+    const result = await this.usersService.remove(id)
     return ResponseUtil.success(result)
   }
 
@@ -174,5 +200,29 @@ export class ProviderRolesController {
     throw new NotFoundException(
       'Provider not found for this user. User must be a provider owner or have a provider-scoped role to access provider endpoints.'
     )
+  }
+
+  private async validateRolesBelongToProvider(providerId: string, roleIds?: string[]) {
+    if (!roleIds || roleIds.length === 0) {
+      return
+    }
+
+    const roles = await this.prisma.role.findMany({
+      where: {
+        id: { in: roleIds },
+      },
+      select: {
+        id: true,
+        providerId: true,
+        name: true,
+      },
+    })
+
+    const invalidRoles = roles.filter(role => role.providerId !== providerId)
+    if (invalidRoles.length > 0) {
+      throw new NotFoundException(
+        `The following roles do not belong to your provider: ${invalidRoles.map(r => r.name).join(', ')}`
+      )
+    }
   }
 }

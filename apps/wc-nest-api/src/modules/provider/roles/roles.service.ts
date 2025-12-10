@@ -55,27 +55,76 @@ export class ProviderRolesService {
     return this.findOne(providerId, role.id)
   }
 
-  async findAll(providerId: string) {
-    return this.prisma.role.findMany({
-      where: {
-        providerId: providerId,
-      },
-      include: {
-        permissions: {
-          include: {
-            permission: true,
+  async findAll(
+    providerId: string,
+    params?: {
+      page?: number
+      limit?: number
+      search?: string
+      createdAfter?: Date
+      createdBefore?: Date
+    }
+  ) {
+    const page = params?.page ?? 1
+    const limit = params?.limit ?? 10
+    const skip = (page - 1) * limit
+
+    const where: any = {
+      providerId: providerId,
+    }
+
+    // Add search filter
+    if (params?.search) {
+      where.name = {
+        contains: params.search,
+        mode: 'insensitive',
+      }
+    }
+
+    // Add date filters
+    if (params?.createdAfter || params?.createdBefore) {
+      where.createdAt = {}
+      if (params.createdAfter) {
+        where.createdAt.gte = params.createdAfter
+      }
+      if (params.createdBefore) {
+        where.createdAt.lte = params.createdBefore
+      }
+    }
+
+    const [roles, total] = await Promise.all([
+      this.prisma.role.findMany({
+        where,
+        include: {
+          permissions: {
+            include: {
+              permission: true,
+            },
+          },
+          _count: {
+            select: {
+              users: true,
+            },
           },
         },
-        _count: {
-          select: {
-            users: true,
-          },
+        orderBy: {
+          createdAt: 'desc',
         },
+        skip,
+        take: limit,
+      }),
+      this.prisma.role.count({ where }),
+    ])
+
+    return {
+      data: roles,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    })
+    }
   }
 
   async findOne(providerId: string, id: string) {

@@ -8,11 +8,12 @@ import {
   HttpStatus,
   Patch,
   Post,
+  Req,
   Res,
   UnauthorizedException,
 } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
-import { Response } from 'express'
+import { Request, Response } from 'express'
 import { parseDuration } from '@world-schools/wc-utils'
 import { AuthService } from '../../core/auth/auth.service'
 import { PrismaService } from '../../../prisma/prisma.service'
@@ -303,12 +304,13 @@ export class ProviderAuthController {
     description: 'Get new access and refresh tokens using a valid refresh token',
   })
   async refreshToken(
+    @Req() request: Request,
     @Body() refreshTokenDto: RefreshTokenDto,
     @Res({ passthrough: true }) response: Response
   ) {
     // Try to get refresh token from cookie first (app-specific name), then from body
     const refreshToken: string =
-      (response as any).req?.cookies?.wc_provider_refresh_token ?? refreshTokenDto?.refreshToken
+      request.cookies?.wc_provider_refresh_token ?? refreshTokenDto?.refreshToken
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not provided')
