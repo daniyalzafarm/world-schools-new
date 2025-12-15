@@ -140,12 +140,100 @@ jobs:
             --set-env-vars ${{ steps.api-env.outputs.env }}
 
   # ----------------------------------------------------------
+  # Health Check: Verify API is healthy before deploying frontends
+  # ----------------------------------------------------------
+  verify-api-health:
+    name: Verify API Health
+    runs-on: ubuntu-latest
+    needs: [extract-version, build-and-deploy-api]
+
+    steps:
+      - name: Wait for API to be ready
+        run: |
+          echo "⏳ Waiting for API to be ready..."
+          sleep 30  # Give Container App time to restart
+
+      - name: Get API URL
+        id: api-url
+        run: |
+          # Login to Azure
+          az login --service-principal \
+            -u ${{ fromJson(secrets.AZURE_CREDENTIALS_STAGING).clientId }} \
+            -p ${{ fromJson(secrets.AZURE_CREDENTIALS_STAGING).clientSecret }} \
+            --tenant ${{ fromJson(secrets.AZURE_CREDENTIALS_STAGING).tenantId }}
+
+          # Get the API URL
+          API_FQDN=$(az containerapp show \
+            --name ${{ env.API_CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+
+          API_URL="https://${API_FQDN}"
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "🌐 API URL: $API_URL"
+
+      - name: Health check with retry
+        run: |
+          API_URL="${{ steps.api-url.outputs.api_url }}"
+          EXPECTED_VERSION="${{ needs.extract-version.outputs.version }}"
+          MAX_RETRIES=10
+          RETRY_DELAY=15
+
+          echo "🏥 Checking API health at: ${API_URL}/health"
+          echo "🎯 Expected version: ${EXPECTED_VERSION}"
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i/$MAX_RETRIES..."
+
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}/health" || echo "000")
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ API is responding (HTTP $HTTP_CODE)"
+
+              # Get the full response
+              RESPONSE=$(curl -s "${API_URL}/health")
+              echo "Response: $RESPONSE"
+
+              # Verify response contains expected fields
+              if echo "$RESPONSE" | grep -q '"status":"ok"'; then
+                echo "✅ Status is OK"
+
+                # Extract version from response
+                DEPLOYED_VERSION=$(echo "$RESPONSE" | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+                echo "📦 Deployed version: ${DEPLOYED_VERSION}"
+
+                # Verify version matches expected version
+                if [ "$DEPLOYED_VERSION" = "$EXPECTED_VERSION" ]; then
+                  echo "✅ Version verification passed - API is running v${EXPECTED_VERSION}"
+                  exit 0
+                else
+                  echo "⚠️ Version mismatch: expected v${EXPECTED_VERSION}, got v${DEPLOYED_VERSION}"
+                  echo "   Container App may still be deploying the new version..."
+                fi
+              else
+                echo "⚠️ Unexpected health check response (missing status:ok)"
+              fi
+            else
+              echo "❌ Health check failed (HTTP $HTTP_CODE)"
+            fi
+
+            if [ $i -lt $MAX_RETRIES ]; then
+              echo "⏳ Waiting ${RETRY_DELAY}s before retry..."
+              sleep $RETRY_DELAY
+            fi
+          done
+
+          echo "❌ API health check failed after $MAX_RETRIES attempts"
+          echo "   Either the API is not healthy, or it's not running version ${EXPECTED_VERSION}"
+          exit 1
+
+  # ----------------------------------------------------------
   # Frontends (matrix)
   # ----------------------------------------------------------
   build-and-deploy-frontends:
     name: Build & Deploy Frontend Apps
     runs-on: ubuntu-latest
-    needs: extract-version
+    needs: [extract-version, verify-api-health]  # ✅ Wait for backend to be healthy
 
     strategy:
       fail-fast: false
