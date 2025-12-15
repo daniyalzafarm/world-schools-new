@@ -71,6 +71,10 @@ export class ConfigService {
     }
   }
 
+  get postgresRequireSsl(): boolean {
+    return this.getString('POSTGRES_REQUIRE_SSL', 'false').toLowerCase() === 'true'
+  }
+
   // JWT Configuration
   get jwtConfig() {
     return {

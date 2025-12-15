@@ -1,5 +1,6 @@
 import { PrismaClient } from '../src/generated/client/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { Pool } from 'pg'
 import * as bcrypt from 'bcryptjs'
 import {
   getAllPermissions,
@@ -14,8 +15,25 @@ if (!databaseUrl) {
   throw new Error('DATABASE_URL environment variable is not set')
 }
 
+// Check if SSL is required via explicit environment variable
+// Set POSTGRES_REQUIRE_SSL=true for Azure PostgreSQL or other SSL-required databases
+const requiresSsl = process.env.POSTGRES_REQUIRE_SSL === 'true'
+
+console.log('🔐 Database connection configuration:')
+console.log(`  SSL Required: ${requiresSsl}`)
+
+// Create Pool with explicit SSL configuration
+// PrismaPg adapter does not automatically parse SSL parameters from connection string
+// Azure PostgreSQL Flexible Server requires SSL connections
+const pool = new Pool({
+  connectionString: databaseUrl,
+  ssl: requiresSsl ? {
+    rejectUnauthorized: false  // Azure PostgreSQL uses self-signed certificates
+  } : undefined
+})
+
 // Create adapter and Prisma Client
-const adapter = new PrismaPg({ connectionString: databaseUrl })
+const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
