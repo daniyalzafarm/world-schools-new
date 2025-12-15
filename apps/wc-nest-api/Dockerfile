@@ -15,8 +15,14 @@ RUN npm ci
 # Copy the entire monorepo
 COPY . .
 
+# Accept DATABASE_URL as build arg (only needed for prisma generate, not for actual DB connection)
+# This is a placeholder value since prisma generate doesn't actually connect to the database
+ARG DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder?schema=public"
+
 # Generate Prisma Client (Prisma 7 requires explicit env loading and prisma.config.ts at root)
-RUN node -r dotenv/config node_modules/.bin/prisma generate
+# The DATABASE_URL env var is required by prisma.config.ts but not used during generation
+ENV DATABASE_URL=${DATABASE_URL}
+RUN node_modules/.bin/prisma generate
 
 # Build the wc-nest-api application using Nx
 RUN npx nx build wc-nest-api --configuration=production
