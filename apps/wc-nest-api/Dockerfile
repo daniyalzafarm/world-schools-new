@@ -27,6 +27,21 @@ RUN node_modules/.bin/prisma generate
 # Build the wc-nest-api application using Nx
 RUN npx nx build wc-nest-api --configuration=production
 
+# Bundle the seed file for production using esbuild
+# This creates a standalone JavaScript file that includes all dependencies
+# and can run without tsx/ts-node in production
+RUN npx esbuild apps/wc-nest-api/prisma/seed.ts \
+  --bundle \
+  --platform=node \
+  --target=node20 \
+  --format=cjs \
+  --outfile=dist/apps/wc-nest-api/prisma/seed.js \
+  --external:@prisma/client \
+  --external:@prisma/adapter-pg \
+  --external:bcryptjs \
+  --external:pg \
+  --external:pg-pool
+
 # Stage 2: Production
 FROM node:24-slim
 
@@ -40,9 +55,13 @@ COPY --from=builder /app/dist/apps/wc-nest-api ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 
-# Copy Prisma config and schema files for migrations and seeding
+# Copy Prisma config and schema files for migrations
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
-COPY --from=builder /app/apps/wc-nest-api/prisma ./apps/wc-nest-api/prisma
+COPY --from=builder /app/apps/wc-nest-api/prisma/schema.prisma ./apps/wc-nest-api/prisma/schema.prisma
+COPY --from=builder /app/apps/wc-nest-api/prisma/migrations ./apps/wc-nest-api/prisma/migrations
+
+# Copy the bundled seed file (auto-generated from seed.ts during build)
+COPY --from=builder /app/dist/apps/wc-nest-api/prisma/seed.js ./dist/prisma/seed.js
 
 # Copy the startup script
 COPY apps/wc-nest-api/start.sh ./start.sh

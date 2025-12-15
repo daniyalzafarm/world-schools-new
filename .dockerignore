@@ -1,0 +1,176 @@
+# ============================================
+# Docker Ignore File for World Schools Monorepo
+# ============================================
+# This file optimizes Docker build performance by excluding
+# unnecessary files from the build context.
+#
+# SCOPE: This file applies to ALL Docker builds in the monorepo
+# because all Dockerfiles use the monorepo root (.) as build context:
+#   - apps/wc-nest-api/Dockerfile
+#   - apps/wc-provider/Dockerfile
+#   - apps/wc-booking/Dockerfile
+#   - apps/wc-superadmin/Dockerfile
+#
+# IMPORTANT: Files needed by ANY Dockerfile should NOT be excluded here.
+
+# ============================================
+# Version Control
+# ============================================
+.git
+.gitignore
+.gitattributes
+.github
+
+# ============================================
+# Dependencies (will be installed via npm ci)
+# ============================================
+node_modules
+**/node_modules
+
+# ============================================
+# Build Outputs (will be generated during build)
+# ============================================
+dist
+**/dist
+.next
+**/.next
+out
+**/out
+build
+**/build
+
+# ============================================
+# Nx Cache
+# ============================================
+.nx
+**/.nx
+.nx/cache
+
+# ============================================
+# Testing
+# ============================================
+coverage
+**/coverage
+.nyc_output
+**/.nyc_output
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+**/test
+**/tests
+**/__tests__
+**/__mocks__
+jest.config.js
+jest.config.ts
+**/jest.config.js
+**/jest.config.ts
+
+# ============================================
+# IDE and Editor Files
+# ============================================
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings
+.factorypath
+
+# ============================================
+# Environment Files (should be injected at runtime)
+# ============================================
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.*.local
+**/.env
+**/.env.local
+**/.env.development
+**/.env.test
+**/.env.production
+
+# ============================================
+# Documentation (not needed in Docker image)
+# ============================================
+*.md
+!README.md
+docs
+**/docs
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+CODE_OF_CONDUCT.md
+
+# ============================================
+# CI/CD Configuration
+# ============================================
+.github
+.gitlab-ci.yml
+.travis.yml
+.circleci
+azure-pipelines.yml
+Jenkinsfile
+
+# ============================================
+# Logs
+# ============================================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+error.log
+
+# ============================================
+# Temporary Files
+# ============================================
+tmp
+temp
+*.tmp
+*.temp
+.cache
+**/.cache
+
+# ============================================
+# OS Files
+# ============================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================
+# Nx Specific
+# ============================================
+.nx/cache
+.nx/workspace-data
+
+# ============================================
+# TypeScript
+# ============================================
+*.tsbuildinfo
+.tsbuildinfo
+
+# ============================================
+# ESLint
+# ============================================
+.eslintcache
+
+# ============================================
+# Prettier
+# ============================================
+.prettierignore
+

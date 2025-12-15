@@ -9,6 +9,7 @@ node -r dotenv/config node_modules/.bin/prisma migrate deploy
 echo "✅ Migrations completed"
 
 # Run Prisma seed (Prisma 7 - use npx prisma db seed)
+# The seed command is configured in prisma.config.ts to use the compiled seed file in production
 echo "🌱 Seeding database..."
 node -r dotenv/config node_modules/.bin/prisma db seed
 echo "✅ Seeding completed"
