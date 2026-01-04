@@ -134,6 +134,13 @@ export class ApplicationDetailDto {
   contactRole: string | null
   contactPhone: string | null
   contactPhoneCountryCode: string | null
+  contactEmail: string | null
+
+  // Provider Details
+  providerName: string | null
+  providerPhone: string | null
+  providerEmail: string | null
+  website: string | null
 
   // Legal Info
   legalCompanyName: string | null

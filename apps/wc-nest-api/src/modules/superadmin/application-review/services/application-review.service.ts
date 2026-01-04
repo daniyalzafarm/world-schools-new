@@ -154,7 +154,58 @@ export class ApplicationReviewService {
     }
 
     // Get trust score breakdown
-    const trustScoreBreakdown = await this.trustScoreService.calculateTrustScore(providerId)
+    const trustScoreResult = await this.trustScoreService.calculateTrustScore(providerId)
+
+    // Transform trust score breakdown to match frontend expectations
+    const trustScoreBreakdown =
+      trustScoreResult.score > 0
+        ? {
+            totalScore: trustScoreResult.score,
+            breakdown: {
+              googleBusinessProfile: {
+                score:
+                  (trustScoreResult.breakdown.hasGoogleBusiness || 0) +
+                  (trustScoreResult.breakdown.googleRating || 0) +
+                  (trustScoreResult.breakdown.googleReviews || 0),
+                maxScore: 30,
+                details: {
+                  hasProfile: trustScoreResult.breakdown.hasGoogleBusiness || 0,
+                  rating: trustScoreResult.breakdown.googleRating || 0,
+                  reviews: trustScoreResult.breakdown.googleReviews || 0,
+                },
+              },
+              verificationDocuments: {
+                score:
+                  (trustScoreResult.breakdown.businessRegistration || 0) +
+                  (trustScoreResult.breakdown.insuranceCertificate || 0),
+                maxScore: 40,
+                details: {
+                  businessRegistration: trustScoreResult.breakdown.businessRegistration || 0,
+                  insuranceCertificate: trustScoreResult.breakdown.insuranceCertificate || 0,
+                },
+              },
+              businessAge: {
+                score: trustScoreResult.breakdown.businessAge || 0,
+                maxScore: 15,
+                details: {
+                  yearsInBusiness: trustScoreResult.breakdown.businessAge || 0,
+                },
+              },
+              contactInformation: {
+                score:
+                  (trustScoreResult.breakdown.phoneVerified || 0) +
+                  (trustScoreResult.breakdown.legalInfoComplete || 0),
+                maxScore: 15,
+                details: {
+                  phoneVerified: trustScoreResult.breakdown.phoneVerified || 0,
+                  legalInfoComplete: trustScoreResult.breakdown.legalInfoComplete || 0,
+                },
+              },
+            },
+            recommendedAction: this.trustScoreService.getRecommendedAction(trustScoreResult.score),
+            label: this.trustScoreService.getTrustScoreLabel(trustScoreResult.score),
+          }
+        : null
 
     // Generate SAS URLs for documents
     const documentsWithUrls = await Promise.all(
@@ -197,6 +248,11 @@ export class ApplicationReviewService {
       contactRole: provider.contactRole,
       contactPhone: provider.contactPhone,
       contactPhoneCountryCode: provider.contactPhoneCountryCode,
+      contactEmail: provider.contactEmail,
+      providerName: provider.name,
+      providerPhone: provider.phone,
+      providerEmail: provider.email,
+      website: provider.website,
       legalCompanyName: provider.legalCompanyName,
       legalStreetAddress: provider.legalStreetAddress,
       legalAptSuite: provider.legalAptSuite,

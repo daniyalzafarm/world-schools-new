@@ -91,19 +91,11 @@ export class ProviderAuthController {
         },
       })
 
-      // Create provider
+      // Create provider with placeholder name (will be updated during onboarding)
       const provider = await tx.provider.create({
         data: {
-          name: registerDto.providerName,
+          name: `${registerDto.firstName} ${registerDto.lastName}'s Institute`,
           ownerId: user.id,
-          phone: registerDto.providerPhone,
-          email: registerDto.providerEmail,
-          address: registerDto.providerAddress,
-          city: registerDto.city,
-          state: registerDto.state,
-          postalCode: registerDto.postalCode,
-          country: registerDto.country,
-          website: registerDto.website,
         },
       })
 

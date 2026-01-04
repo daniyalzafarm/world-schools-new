@@ -28,10 +28,6 @@ export default function SignUpPage() {
     confirmPassword: '',
     firstName: '',
     lastName: '',
-    providerName: '',
-    providerPhone: '',
-    providerEmail: '',
-    website: '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -71,10 +67,6 @@ export default function SignUpPage() {
       nextErrors.lastName = 'Last name is required'
     }
 
-    if (!formData.providerName.trim()) {
-      nextErrors.providerName = 'Organization name is required'
-    }
-
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }
@@ -92,10 +84,6 @@ export default function SignUpPage() {
       password: formData.password,
       firstName: formData.firstName,
       lastName: formData.lastName,
-      providerName: formData.providerName,
-      providerPhone: formData.providerPhone || undefined,
-      providerEmail: formData.providerEmail || undefined,
-      website: formData.website || undefined,
     })
 
     if (response.success) {
@@ -248,58 +236,6 @@ export default function SignUpPage() {
                     <PasswordRequirementsDisplay password={formData.password} />
                   </div>
                 )}
-              </div>
-
-              <div className="border-t border-gray-200 pt-4">
-                <p className="text-sm font-medium text-gray-700 mb-4">
-                  Organization Details <span className="text-danger">*</span>
-                </p>
-
-                <div className="space-y-4">
-                  <Input
-                    type="text"
-                    placeholder="Organization name"
-                    value={formData.providerName}
-                    onValueChange={value => handleInputChange('providerName', value)}
-                    isInvalid={!!errors.providerName}
-                    errorMessage={errors.providerName}
-                    variant="bordered"
-                    radius="lg"
-                    size="lg"
-                  />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      type="email"
-                      placeholder="Organization email (optional)"
-                      value={formData.providerEmail}
-                      onValueChange={value => handleInputChange('providerEmail', value)}
-                      variant="bordered"
-                      radius="lg"
-                      size="lg"
-                    />
-
-                    <Input
-                      type="tel"
-                      placeholder="Organization phone (optional)"
-                      value={formData.providerPhone}
-                      onValueChange={value => handleInputChange('providerPhone', value)}
-                      variant="bordered"
-                      radius="lg"
-                      size="lg"
-                    />
-                  </div>
-
-                  <Input
-                    type="url"
-                    placeholder="Website (optional)"
-                    value={formData.website}
-                    onValueChange={value => handleInputChange('website', value)}
-                    variant="bordered"
-                    radius="lg"
-                    size="lg"
-                  />
-                </div>
               </div>
 
               <Button

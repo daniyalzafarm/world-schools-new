@@ -27,15 +27,6 @@ export async function signup(data: {
   password: string
   firstName: string
   lastName: string
-  providerName: string
-  providerPhone?: string
-  providerEmail?: string
-  providerAddress?: string
-  city?: string
-  state?: string
-  postalCode?: string
-  country?: string
-  website?: string
 }) {
   return apiClient.post('provider/auth/register', data)
 }

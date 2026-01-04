@@ -53,6 +53,10 @@ export default function OnboardingStep5Page() {
   // Check if onboarding is completed (read-only mode)
   const isReadOnly = status?.isCompleted ?? false
 
+  // Currency and Timezone
+  const [currency, setCurrency] = useState('USD')
+  const [timezone, setTimezone] = useState('America/New_York')
+
   // Deposit settings
   const [depositType, setDepositType] = useState<DepositType>('percentage')
   const [depositPercentage, setDepositPercentage] = useState('25')
@@ -74,6 +78,10 @@ export default function OnboardingStep5Page() {
     const loadSettings = async () => {
       const savedSettings = await onboardingService.getProviderSettings()
       if (savedSettings) {
+        // Load currency and timezone
+        setCurrency(savedSettings.currency || 'USD')
+        setTimezone(savedSettings.timezone || 'America/New_York')
+
         // Convert backend depositType to frontend format
         // Backend: 'percentage' | 'fixed'
         // Frontend: 'percentage' | 'fixed_amount'
@@ -156,8 +164,8 @@ export default function OnboardingStep5Page() {
 
     // Save current step settings
     const settings: SaveProviderSettingsRequest = {
-      currency: 'USD',
-      timezone: 'America/New_York',
+      currency,
+      timezone,
       depositRequired: true,
       depositType: backendDepositType,
       depositPercentage: depositType === 'percentage' ? parseFloat(depositPercentage) : null,
@@ -223,6 +231,76 @@ export default function OnboardingStep5Page() {
             Configure deposit requirements and cancellation policy for your camp programs
           </p>
         </div>
+
+        {/* Currency and Timezone Section */}
+        <div className="mb-8 space-y-6">
+          <h2 className="text-[20px] font-semibold text-foreground">Regional Settings</h2>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Currency */}
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-foreground">
+                Currency
+                <span className="ml-1 text-danger">*</span>
+              </label>
+              <select
+                value={currency}
+                onChange={e => setCurrency(e.target.value)}
+                disabled={isReadOnly}
+                className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
+              >
+                <option value="USD">USD - US Dollar</option>
+                <option value="EUR">EUR - Euro</option>
+                <option value="GBP">GBP - British Pound</option>
+                <option value="CAD">CAD - Canadian Dollar</option>
+                <option value="AUD">AUD - Australian Dollar</option>
+                <option value="NZD">NZD - New Zealand Dollar</option>
+                <option value="CHF">CHF - Swiss Franc</option>
+                <option value="JPY">JPY - Japanese Yen</option>
+                <option value="CNY">CNY - Chinese Yuan</option>
+                <option value="INR">INR - Indian Rupee</option>
+              </select>
+            </div>
+
+            {/* Timezone */}
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-foreground">
+                Timezone
+                <span className="ml-1 text-danger">*</span>
+              </label>
+              <select
+                value={timezone}
+                onChange={e => setTimezone(e.target.value)}
+                disabled={isReadOnly}
+                className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
+              >
+                <option value="America/New_York">Eastern Time (ET)</option>
+                <option value="America/Chicago">Central Time (CT)</option>
+                <option value="America/Denver">Mountain Time (MT)</option>
+                <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                <option value="America/Anchorage">Alaska Time (AKT)</option>
+                <option value="Pacific/Honolulu">Hawaii Time (HT)</option>
+                <option value="Europe/London">London (GMT/BST)</option>
+                <option value="Europe/Paris">Paris (CET/CEST)</option>
+                <option value="Europe/Berlin">Berlin (CET/CEST)</option>
+                <option value="Europe/Rome">Rome (CET/CEST)</option>
+                <option value="Europe/Madrid">Madrid (CET/CEST)</option>
+                <option value="Europe/Zurich">Zurich (CET/CEST)</option>
+                <option value="Asia/Tokyo">Tokyo (JST)</option>
+                <option value="Asia/Shanghai">Shanghai (CST)</option>
+                <option value="Asia/Hong_Kong">Hong Kong (HKT)</option>
+                <option value="Asia/Singapore">Singapore (SGT)</option>
+                <option value="Asia/Dubai">Dubai (GST)</option>
+                <option value="Australia/Sydney">Sydney (AEDT/AEST)</option>
+                <option value="Australia/Melbourne">Melbourne (AEDT/AEST)</option>
+                <option value="Pacific/Auckland">Auckland (NZDT/NZST)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="my-8 border-t border-default-200"></div>
 
         {/* Deposit Type Selection */}
         <div className="mb-8">

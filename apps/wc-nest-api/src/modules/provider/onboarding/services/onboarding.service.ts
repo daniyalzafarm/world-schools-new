@@ -44,6 +44,8 @@ export class OnboardingService {
         provider.contactRole &&
         provider.contactPhone &&
         provider.contactPhoneCountryCode &&
+        provider.contactEmail &&
+        provider.name &&
         provider.legalCompanyName &&
         provider.legalStreetAddress &&
         provider.legalCity &&
@@ -102,6 +104,11 @@ export class OnboardingService {
         contactRole: true,
         contactPhone: true,
         contactPhoneCountryCode: true,
+        contactEmail: true,
+        name: true,
+        phone: true,
+        email: true,
+        website: true,
         legalCompanyName: true,
         legalStreetAddress: true,
         legalAptSuite: true,
@@ -128,6 +135,11 @@ export class OnboardingService {
       contactRole: provider.contactRole,
       contactPhone: provider.contactPhone,
       contactPhoneCountryCode: provider.contactPhoneCountryCode,
+      contactEmail: provider.contactEmail,
+      providerName: provider.name,
+      providerPhone: provider.phone,
+      providerEmail: provider.email,
+      website: provider.website,
       legalCompanyName: provider.legalCompanyName,
       legalStreetAddress: provider.legalStreetAddress,
       legalAptSuite: provider.legalAptSuite,
@@ -151,6 +163,11 @@ export class OnboardingService {
         contactRole: dto.contactRole,
         contactPhone: dto.contactPhone,
         contactPhoneCountryCode: dto.contactPhoneCountryCode,
+        contactEmail: dto.contactEmail,
+        name: dto.providerName,
+        phone: dto.providerPhone,
+        email: dto.providerEmail,
+        website: dto.website,
         legalCompanyName: dto.legalCompanyName,
         legalStreetAddress: dto.legalStreetAddress,
         legalAptSuite: dto.legalAptSuite,

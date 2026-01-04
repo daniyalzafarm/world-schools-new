@@ -82,6 +82,11 @@ export interface ContactInfo {
   contactRole: string
   contactPhone: string
   contactPhoneCountryCode: string
+  contactEmail: string
+  providerName: string
+  providerPhone?: string
+  providerEmail?: string
+  website?: string
   legalCompanyName: string
   legalStreetAddress: string
   legalAptSuite?: string

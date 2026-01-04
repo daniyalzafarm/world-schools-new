@@ -145,6 +145,7 @@ model Provider {
   contactRole             String?   @map("contact_role")
   contactPhone            String?   @map("contact_phone")
   contactPhoneCountryCode String?   @map("contact_phone_country_code")
+  contactEmail            String?   @map("contact_email")
   phoneVerified           Boolean   @default(false) @map("phone_verified")
   phoneVerifiedAt         DateTime? @map("phone_verified_at")
   legalCompanyName        String?   @map("legal_company_name")

@@ -191,34 +191,142 @@ export default function OnboardingStep2Page() {
               )}
             </div>
 
-            {/* Phone Number */}
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-foreground">
-                Phone Number
-                <span className="ml-1 text-danger">*</span>
-              </label>
-              <div className="flex gap-3">
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Contact Email */}
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-foreground">
+                  Email
+                  <span className="ml-1 text-danger">*</span>
+                </label>
                 <input
-                  type="text"
-                  placeholder="+1"
-                  {...register('contactPhoneCountryCode', {
-                    required: 'Country code is required',
+                  type="email"
+                  placeholder="john.doe@example.com"
+                  {...register('contactEmail', {
+                    required: 'Contact email is required',
+                    pattern: {
+                      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                      message: 'Please enter a valid email address',
+                    },
                   })}
                   disabled={isReadOnly}
-                  className="w-24 rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
+                  className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
                 />
+                {errors.contactEmail && (
+                  <p className="mt-1 text-sm text-danger">{errors.contactEmail.message}</p>
+                )}
+              </div>
+
+              {/* Phone Number */}
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-foreground">
+                  Phone Number
+                  <span className="ml-1 text-danger">*</span>
+                </label>
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    placeholder="+1"
+                    {...register('contactPhoneCountryCode', {
+                      required: 'Country code is required',
+                    })}
+                    disabled={isReadOnly}
+                    className="w-24 rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="(555) 123-4567"
+                    {...register('contactPhone', { required: 'Phone number is required' })}
+                    disabled={isReadOnly}
+                    className="flex-1 rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
+                  />
+                </div>
+                {(errors.contactPhoneCountryCode || errors.contactPhone) && (
+                  <p className="mt-1 text-sm text-danger">
+                    {errors.contactPhoneCountryCode?.message || errors.contactPhone?.message}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Provider Details Section */}
+          <div className="space-y-6">
+            <h2 className="text-[20px] font-semibold text-foreground">Provider Details</h2>
+
+            {/* Provider Name */}
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-foreground">
+                Provider Name
+                <span className="ml-1 text-danger">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Summer Adventures"
+                {...register('providerName', { required: 'Provider name is required' })}
+                disabled={isReadOnly}
+                className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
+              />
+              {errors.providerName && (
+                <p className="mt-1 text-sm text-danger">{errors.providerName.message}</p>
+              )}
+            </div>
+
+            {/* Provider Phone & Email */}
+            <div className="grid gap-6 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-foreground">
+                  Provider Phone (Optional)
+                </label>
                 <input
                   type="tel"
-                  placeholder="(555) 123-4567"
-                  {...register('contactPhone', { required: 'Phone number is required' })}
+                  placeholder="+1 (555) 123-4567"
+                  {...register('providerPhone')}
                   disabled={isReadOnly}
-                  className="flex-1 rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
+                  className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
                 />
               </div>
-              {(errors.contactPhoneCountryCode || errors.contactPhone) && (
-                <p className="mt-1 text-sm text-danger">
-                  {errors.contactPhoneCountryCode?.message || errors.contactPhone?.message}
-                </p>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-foreground">
+                  Provider Email (Optional)
+                </label>
+                <input
+                  type="email"
+                  placeholder="info@example.com"
+                  {...register('providerEmail', {
+                    pattern: {
+                      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                      message: 'Please enter a valid email address',
+                    },
+                  })}
+                  disabled={isReadOnly}
+                  className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
+                />
+                {errors.providerEmail && (
+                  <p className="mt-1 text-sm text-danger">{errors.providerEmail.message}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Website */}
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-foreground">
+                Website (Optional)
+              </label>
+              <input
+                type="url"
+                placeholder="https://example.com"
+                {...register('website', {
+                  pattern: {
+                    value: /^https?:\/\/.+/,
+                    message: 'Please enter a valid URL starting with http:// or https://',
+                  },
+                })}
+                disabled={isReadOnly}
+                className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
+              />
+              {errors.website && (
+                <p className="mt-1 text-sm text-danger">{errors.website.message}</p>
               )}
             </div>
           </div>

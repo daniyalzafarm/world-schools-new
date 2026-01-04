@@ -43,6 +43,49 @@ export class SaveContactInfoDto {
   contactPhoneCountryCode: string
 
   @ApiProperty({
+    description: 'Contact email address',
+    example: 'john.doe@summeradventures.com',
+  })
+  @IsString()
+  @IsNotEmpty()
+  contactEmail: string
+
+  @ApiProperty({
+    description: 'Provider/Organization name',
+    example: 'Summer Adventures Camp',
+  })
+  @IsString()
+  @IsNotEmpty()
+  providerName: string
+
+  @ApiProperty({
+    description: 'Provider phone number',
+    example: '+14165551234',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  providerPhone?: string
+
+  @ApiProperty({
+    description: 'Provider email address',
+    example: 'info@summeradventures.com',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  providerEmail?: string
+
+  @ApiProperty({
+    description: 'Provider website URL',
+    example: 'https://summeradventures.com',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  website?: string
+
+  @ApiProperty({
     description: 'Legal company name',
     example: 'Summer Adventures Inc.',
   })

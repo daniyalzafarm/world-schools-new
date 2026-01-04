@@ -136,11 +136,11 @@ export default function ProviderRequestDetailPage() {
 
             <Tab
               key="documents"
-              title={`${EMOJI.SHIELD} Documents (${selectedApplication.documents.length})`}
+              title={`${EMOJI.SHIELD} Documents (${selectedApplication.verificationDocuments.length})`}
             >
               <div className="py-4">
                 <DocumentsSection
-                  documents={selectedApplication.documents}
+                  documents={selectedApplication.verificationDocuments}
                   providerId={selectedApplication.id}
                 />
               </div>

@@ -27,8 +27,8 @@ export function ContactInfoSection({ application }: ContactInfoSectionProps) {
             <div className="text-foreground">{application.contactRole ?? 'N/A'}</div>
           </div>
           <div>
-            <div className="text-sm text-default-600">Email</div>
-            <div className="text-foreground">{application.email}</div>
+            <div className="text-sm text-default-600">Contact Email</div>
+            <div className="text-foreground">{application.contactEmail ?? 'N/A'}</div>
           </div>
           <div>
             <div className="text-sm text-default-600">Phone</div>
@@ -36,6 +36,44 @@ export function ContactInfoSection({ application }: ContactInfoSectionProps) {
               {application.contactPhoneCountryCode && application.contactPhone
                 ? `${application.contactPhoneCountryCode} ${application.contactPhone}`
                 : 'N/A'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Provider Details */}
+      <div className="rounded-lg border border-default-200 p-6">
+        <h3 className="mb-4 text-lg font-semibold text-foreground">
+          {EMOJI.TENT} Provider Details
+        </h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="text-sm text-default-600">Provider Name</div>
+            <div className="text-foreground">{application.providerName ?? 'N/A'}</div>
+          </div>
+          <div>
+            <div className="text-sm text-default-600">Provider Phone</div>
+            <div className="text-foreground">{application.providerPhone ?? 'N/A'}</div>
+          </div>
+          <div>
+            <div className="text-sm text-default-600">Provider Email</div>
+            <div className="text-foreground">{application.providerEmail ?? 'N/A'}</div>
+          </div>
+          <div>
+            <div className="text-sm text-default-600">Website</div>
+            <div className="text-foreground">
+              {application.website ? (
+                <a
+                  href={application.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  {application.website}
+                </a>
+              ) : (
+                'N/A'
+              )}
             </div>
           </div>
         </div>

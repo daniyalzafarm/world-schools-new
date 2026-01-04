@@ -125,6 +125,11 @@ export interface ApplicationDetail {
   contactRole?: string
   contactPhone?: string
   contactPhoneCountryCode?: string
+  contactEmail?: string
+  providerName?: string
+  providerPhone?: string
+  providerEmail?: string
+  website?: string
   legalCompanyName?: string
   legalStreetAddress?: string
   legalAptSuite?: string
@@ -134,7 +139,7 @@ export interface ApplicationDetail {
   legalCountry?: string
   yearFounded?: number
   googleBusinessProfile?: GoogleBusinessProfile | null
-  documents: VerificationDocument[]
+  verificationDocuments: VerificationDocument[]
   settings?: ProviderSettings | null
 }
 
