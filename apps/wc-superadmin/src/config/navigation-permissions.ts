@@ -47,6 +47,27 @@ export const NAVIGATION_PERMISSIONS: Record<string, NavigationPermissionConfig> 
       'providers.delete',
     ],
   },
+  provider_applications: {
+    navigationPermission: 'provider_applications.read',
+    label: 'Provider Applications',
+    groupPermissions: [
+      'provider_applications.read',
+      'provider_applications.review',
+      'provider_applications.approve',
+      'provider_applications.reject',
+      'provider_applications.request_info',
+    ],
+  },
+  provider_documents: {
+    navigationPermission: 'provider_documents.read',
+    label: 'Provider Documents',
+    groupPermissions: [
+      'provider_documents.read',
+      'provider_documents.review',
+      'provider_documents.approve',
+      'provider_documents.reject',
+    ],
+  },
 }
 
 /**

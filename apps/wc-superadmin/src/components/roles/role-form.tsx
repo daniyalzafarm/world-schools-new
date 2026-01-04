@@ -263,7 +263,7 @@ export function RoleForm({
             {permissionGroups.map(group => {
               const hasNavPermissions = hasNavigationPermissions(group)
               const groupKey = group.name.toLowerCase().replace(/\s+/g, '_')
-              const navPermission = getNavigationPermission(groupKey)
+              const _navPermission = getNavigationPermission(groupKey)
               const navError = getNavigationError(group)
 
               return (

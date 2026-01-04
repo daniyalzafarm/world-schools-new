@@ -1,0 +1,189 @@
+import { BadRequestException, Injectable, Logger } from '@nestjs/common'
+import { PrismaService } from '../../../../prisma/prisma.service'
+import { ConfigService } from '../../../../config/config.service'
+import { TrustScoreService } from './trust-score.service'
+import { AzureStorageService } from '@world-schools/wc-utils/backend'
+
+@Injectable()
+export class DocumentProcessingService {
+  private readonly logger = new Logger(DocumentProcessingService.name)
+  private readonly azureStorage: AzureStorageService
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+    private readonly trustScoreService: TrustScoreService
+  ) {
+    // Initialize Azure Storage Service
+    this.azureStorage = new AzureStorageService(this.configService.azureStorageConfig)
+  }
+
+  /**
+   * Upload and process a document
+   * If a document of the same type already exists, it will be replaced
+   */
+  async uploadDocument(
+    providerId: string,
+    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    documentType: string
+  ): Promise<any> {
+    // Validate file
+    if (!file) {
+      throw new BadRequestException('No file provided')
+    }
+
+    // Validate file using Azure Storage service
+    const validation = this.azureStorage.validateFile(
+      { size: file.size, mimetype: file.mimetype },
+      {
+        maxSizeBytes: 10 * 1024 * 1024, // 10MB
+        allowedMimeTypes: ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'],
+      }
+    )
+
+    if (!validation.isValid) {
+      throw new BadRequestException(validation.error)
+    }
+
+    try {
+      // Check if a document of this type already exists
+      const existingDocument = await this.prisma.verificationDocument.findFirst({
+        where: {
+          providerId,
+          documentType,
+        },
+      })
+
+      // If exists, delete the old document from storage
+      if (existingDocument) {
+        try {
+          await this.azureStorage.deleteFile(existingDocument.fileUrl)
+          this.logger.log(
+            `Deleted old document ${existingDocument.id} from storage for replacement`
+          )
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+          this.logger.warn(`Failed to delete old file from Azure Storage: ${errorMessage}`)
+          // Continue with upload even if deletion fails
+        }
+      }
+
+      // Upload file to Azure Blob Storage
+      const uploadResult = await this.azureStorage.uploadFile({
+        buffer: file.buffer,
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        fileSizeBytes: file.size,
+        folderPath: `providers/${providerId}/verification`,
+        documentType: documentType,
+        metadata: {
+          providerId,
+          documentType,
+          uploadedAt: new Date().toISOString(),
+        },
+      })
+
+      // If document exists, update it; otherwise create new
+      const document = existingDocument
+        ? await this.prisma.verificationDocument.update({
+            where: { id: existingDocument.id },
+            data: {
+              fileUrl: uploadResult.blobName,
+              fileName: file.originalname,
+              fileSizeBytes: uploadResult.fileSizeBytes,
+              mimeType: uploadResult.mimeType,
+              reviewStatus: 'pending',
+              uploadedAt: new Date(),
+            },
+          })
+        : await this.prisma.verificationDocument.create({
+            data: {
+              providerId,
+              documentType,
+              fileUrl: uploadResult.blobName,
+              fileName: file.originalname,
+              fileSizeBytes: uploadResult.fileSizeBytes,
+              mimeType: uploadResult.mimeType,
+              reviewStatus: 'pending',
+            },
+          })
+
+      // Update trust score
+      await this.trustScoreService.updateTrustScore(providerId)
+
+      this.logger.log(
+        `${existingDocument ? 'Replaced' : 'Uploaded'} document ${document.id} for provider ${providerId}`
+      )
+
+      return document
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const errorStack = error instanceof Error ? error.stack : undefined
+      this.logger.error(`Failed to upload document: ${errorMessage}`, errorStack)
+      throw new BadRequestException('Failed to upload document')
+    }
+  }
+
+  /**
+   * Get all documents for a provider with SAS URLs
+   */
+  async getDocuments(providerId: string): Promise<any[]> {
+    const documents = await this.prisma.verificationDocument.findMany({
+      where: { providerId },
+      orderBy: { uploadedAt: 'desc' },
+    })
+
+    // Generate SAS URLs for each document
+    const documentsWithUrls = await Promise.all(
+      documents.map(async doc => {
+        try {
+          // Generate SAS URL for secure access (24 hours expiry)
+          const sasUrl = await this.azureStorage.generateSasUrl(doc.fileUrl, 24)
+          return {
+            ...doc,
+            fileUrl: sasUrl, // Replace blob name with SAS URL
+          }
+        } catch {
+          this.logger.warn(`Failed to generate SAS URL for document ${doc.id}`)
+          return doc
+        }
+      })
+    )
+
+    return documentsWithUrls
+  }
+
+  /**
+   * Delete a document
+   */
+  async deleteDocument(providerId: string, documentId: string): Promise<void> {
+    const document = await this.prisma.verificationDocument.findFirst({
+      where: {
+        id: documentId,
+        providerId,
+      },
+    })
+
+    if (!document) {
+      throw new BadRequestException('Document not found')
+    }
+
+    // Delete file from Azure Blob Storage
+    try {
+      await this.azureStorage.deleteFile(document.fileUrl)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      this.logger.warn(`Failed to delete file from Azure Storage: ${errorMessage}`)
+    }
+
+    // Delete document record
+    await this.prisma.verificationDocument.delete({
+      where: { id: documentId },
+    })
+
+    // Update trust score
+    await this.trustScoreService.updateTrustScore(providerId)
+
+    this.logger.log(`Deleted document ${documentId} for provider ${providerId}`)
+  }
+}

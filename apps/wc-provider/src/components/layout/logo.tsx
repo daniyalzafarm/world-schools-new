@@ -4,6 +4,8 @@ import React from 'react'
 import Image from 'next/image'
 import { cn } from '@world-schools/ui-web'
 import { useRouter } from 'next/navigation'
+import { useAuthStore } from '@/stores/auth-store'
+import { useOnboardingStore } from '@/stores/onboarding-store'
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg'
@@ -13,6 +15,22 @@ interface LogoProps {
 
 export function Logo({ size = 'md', showText = true, className }: LogoProps) {
   const router = useRouter()
+  const { isAuthenticated } = useAuthStore()
+  const { status } = useOnboardingStore()
+
+  // Determine if logo should be clickable
+  // Only clickable for approved providers or non-authenticated users
+  const isClickable = !isAuthenticated || status?.approvalStatus === 'approved'
+
+  const handleClick = () => {
+    if (!isClickable) return
+
+    if (isAuthenticated && status?.approvalStatus === 'approved') {
+      router.push('/dashboard')
+    } else {
+      router.push('/')
+    }
+  }
 
   const iconSizeClasses = {
     sm: 'h-8',
@@ -40,12 +58,14 @@ export function Logo({ size = 'md', showText = true, className }: LogoProps) {
 
   return (
     <div
-      onClick={() => router.push('/')}
+      onClick={handleClick}
       className={cn(
-        'flex items-center cursor-pointer',
+        'flex items-center',
+        isClickable ? 'cursor-pointer' : 'cursor-default opacity-90',
         className,
         size == 'lg' ? 'gap-2' : 'gap-2'
       )}
+      title={isClickable ? (isAuthenticated ? 'Go to Dashboard' : 'Go to Home') : undefined}
     >
       {/* Logo Icon */}
       <Image

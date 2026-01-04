@@ -110,7 +110,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: <ListPlus size={20} />,
     badge: 2,
     type: 'regular',
-    permission: 'providers.read',
+    permission: 'provider_applications.read',
   },
   {
     name: 'Provider Messages',
@@ -199,7 +199,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
     isHovered,
     isManuallyExpanded,
     setIsManuallyExpanded,
-    isExpandedFully,
     setIsExpandedFully,
     hoverTimeout,
     setHoverTimeout,

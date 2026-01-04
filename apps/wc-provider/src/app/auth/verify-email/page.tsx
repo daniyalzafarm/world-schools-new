@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Button, Link } from '@heroui/react'
+import { Button } from '@heroui/react'
 import { InputOtp } from '@heroui/input-otp'
 import { CheckCircle } from 'lucide-react'
 

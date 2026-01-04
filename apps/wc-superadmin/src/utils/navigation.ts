@@ -46,7 +46,7 @@ export const ROUTES: RouteConfig[] = [
   },
   {
     path: '/provider-requests',
-    permission: 'providers.read',
+    permission: 'provider_applications.read',
     label: 'Provider Requests',
   },
   {

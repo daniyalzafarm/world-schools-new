@@ -26,12 +26,15 @@ model User {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  userAccounts       UserAccount[]
-  roles              UserRole[]
-  parentProfile      Parent?
-  ownedProvider      Provider?
-  emailVerifications EmailVerification[]
-  passwordResets     PasswordReset[]
+  userAccounts         UserAccount[]
+  roles                UserRole[]
+  parentProfile        Parent?
+  ownedProvider        Provider?
+  approvedProviders    Provider[]             @relation("ApprovedProviders")
+  reviewedApplications Provider[]             @relation("ReviewedApplications")
+  emailVerifications   EmailVerification[]
+  passwordResets       PasswordReset[]
+  reviewedDocuments    VerificationDocument[] @relation("ReviewedDocuments")
 
   @@map("users")
 }
@@ -136,11 +139,68 @@ model Provider {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
+  // Contact & Account (Step 2)
+  contactFirstName        String?   @map("contact_first_name")
+  contactLastName         String?   @map("contact_last_name")
+  contactRole             String?   @map("contact_role")
+  contactPhone            String?   @map("contact_phone")
+  contactPhoneCountryCode String?   @map("contact_phone_country_code")
+  phoneVerified           Boolean   @default(false) @map("phone_verified")
+  phoneVerifiedAt         DateTime? @map("phone_verified_at")
+  legalCompanyName        String?   @map("legal_company_name")
+  legalStreetAddress      String?   @map("legal_street_address")
+  legalAptSuite           String?   @map("legal_apt_suite")
+  legalCity               String?   @map("legal_city")
+  legalStateProvince      String?   @map("legal_state_province")
+  legalPostalCode         String?   @map("legal_postal_code")
+  legalCountry            String?   @map("legal_country")
+  yearFounded             Int?      @map("year_founded")
+
+  // Camp Details (Step 3)
+  description String? @db.Text
+  campType    String? @map("camp_type")
+  minAge      Int?    @map("min_age")
+  maxAge      Int?    @map("max_age")
+
+  // Approval Status
+  trustScore          Int?           @map("trust_score")
+  trustScoreBreakdown Json?          @map("trust_score_breakdown")
+  approvalStatus      ApprovalStatus @default(pending) @map("approval_status")
+  approvalDecisionAt  DateTime?      @map("approval_decision_at")
+  approvedByAdminId   String?        @map("approved_by_admin_id")
+  rejectionReason     String?        @map("rejection_reason") @db.Text
+  rejectionCategory   String?        @map("rejection_category")
+
+  // Application Review
+  applicationSubmittedAt DateTime? @map("application_submitted_at")
+  applicationReviewedAt  DateTime? @map("application_reviewed_at")
+  applicationReviewedBy  String?   @map("application_reviewed_by")
+
+  // Onboarding Progress
+  onboardingStartedAt   DateTime? @map("onboarding_started_at")
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at")
+  onboardingCurrentStep Int       @default(1) @map("onboarding_current_step")
+  lastLoginAt           DateTime? @map("last_login_at")
+
+  // Terms & Conditions Acceptance
+  termsAcceptedAt             DateTime? @map("terms_accepted_at")
+  termsVersion                String?   @map("terms_version")
+  providerAgreementAcceptedAt DateTime? @map("provider_agreement_accepted_at")
+  providerAgreementVersion    String?   @map("provider_agreement_version")
+
   // Relations
-  owner User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  roles Role[]
+  owner                 User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  approvedByAdmin       User?                  @relation("ApprovedProviders", fields: [approvedByAdminId], references: [id])
+  reviewedByUser        User?                  @relation("ReviewedApplications", fields: [applicationReviewedBy], references: [id])
+  roles                 Role[]
+  googleBusinessProfile GoogleBusinessProfile?
+  settings              ProviderSettings?
+  verificationDocuments VerificationDocument[]
 
   @@index([ownerId])
+  @@index([approvalStatus])
+  @@index([approvedByAdminId])
+  @@index([applicationReviewedBy])
   @@map("providers")
 }
 
@@ -229,4 +289,123 @@ model PasswordReset {
   @@index([userId])
   @@index([token])
   @@map("password_resets")
+}
+
+// ============================================
+// Provider Onboarding
+// ============================================
+
+model GoogleBusinessProfile {
+  id         String @id @default(uuid())
+  providerId String @unique @map("provider_id")
+
+  // Google Places Data
+  placeId          String @unique @map("place_id")
+  businessName     String @map("business_name")
+  formattedAddress String @map("formatted_address")
+
+  // Address Components
+  streetNumber String? @map("street_number")
+  streetName   String? @map("street_name")
+  city         String?
+  state        String?
+  postalCode   String? @map("postal_code")
+  country      String?
+
+  // Location
+  lat Decimal @db.Decimal(10, 8)
+  lng Decimal @db.Decimal(11, 8)
+
+  // Business Info
+  rating       Decimal? @db.Decimal(2, 1)
+  reviewsCount Int?     @map("reviews_count")
+  phone        String?
+  website      String?
+
+  // Additional Data
+  photos  Json? // Array of photo references
+  types   Json? // Array of business types
+  dataRaw Json? @map("data_raw") // Full API response
+
+  fetchedAt DateTime @default(now()) @map("fetched_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([placeId])
+  @@map("google_business_profiles")
+}
+
+model ProviderSettings {
+  id         String @id @default(uuid())
+  providerId String @unique @map("provider_id")
+
+  // Regional Settings
+  currency String // ISO 4217 currency code
+  timezone String // IANA timezone
+
+  // Deposit Settings
+  depositRequired    Boolean  @default(false) @map("deposit_required")
+  depositType        String?  @map("deposit_type") // 'percentage' | 'fixed'
+  depositPercentage  Int?     @map("deposit_percentage")
+  depositFixedAmount Decimal? @map("deposit_fixed_amount") @db.Decimal(10, 2)
+
+  // Cancellation Policy
+  cancellationPolicy       String @default("moderate") @map("cancellation_policy") // 'flexible' | 'moderate' | 'strict' | 'custom'
+  cancellationPolicyCustom Json?  @map("cancellation_policy_custom")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@map("provider_settings")
+}
+
+model VerificationDocument {
+  id            String  @id @default(uuid())
+  providerId    String  @map("provider_id")
+  documentType  String  @map("document_type") // 'business_registration' | 'insurance_certificate'
+  fileUrl       String  @map("file_url")
+  fileName      String? @map("file_name")
+  fileSizeBytes Int?    @map("file_size_bytes")
+  mimeType      String? @map("mime_type")
+
+  // Review & Verification
+  reviewStatus      DocumentReviewStatus @default(pending) @map("review_status")
+  reviewedByAdminId String?              @map("reviewed_by_admin_id")
+  reviewedAt        DateTime?            @map("reviewed_at")
+  reviewChecklist   Json?                @map("review_checklist")
+  reviewNotes       String?              @map("review_notes") @db.Text
+  rejectionReason   String?              @map("rejection_reason") @db.Text
+
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  provider        Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  reviewedByAdmin User?    @relation("ReviewedDocuments", fields: [reviewedByAdminId], references: [id])
+
+  @@index([providerId])
+  @@index([documentType])
+  @@map("verification_documents")
+}
+
+// ============================================
+// Enums
+// ============================================
+
+enum ApprovalStatus {
+  pending
+  under_review
+  info_requested
+  approved
+  rejected
+  suspended
+}
+
+enum DocumentReviewStatus {
+  pending
+  approved
+  rejected
+  needs_reupload
 }

@@ -191,7 +191,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
     isHovered,
     isManuallyExpanded,
     setIsManuallyExpanded,
-    isExpandedFully,
     setIsExpandedFully,
     hoverTimeout,
     setHoverTimeout,

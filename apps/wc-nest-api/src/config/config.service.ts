@@ -115,6 +115,16 @@ export class ConfigService {
     }
   }
 
+  // Azure Storage Configuration
+  get azureStorageConfig() {
+    return {
+      accountName: this.getString('AZURE_STORAGE_ACCOUNT_NAME', ''),
+      accountKey: this.getString('AZURE_STORAGE_ACCOUNT_KEY', ''),
+      containerName: this.getString('AZURE_STORAGE_CONTAINER_NAME', ''),
+      sasTokenExpiryHours: this.getNumber('AZURE_STORAGE_SAS_EXPIRY_HOURS', 24),
+    }
+  }
+
   // File Upload Configuration
   get maxFileSize(): string {
     return this.getString('MAX_FILE_SIZE', '5MB')
@@ -166,6 +176,11 @@ export class ConfigService {
     return this.getString('LOG_LEVEL', 'info')
   }
 
+  // Google APIs Configuration
+  get googlePlacesApiKey(): string {
+    return this.getString('GOOGLE_PLACES_API_KEY', '')
+  }
+
   // Helper methods for auth controller
   getNodeEnv(): string {
     return this.nodeEnv
@@ -179,7 +194,7 @@ export class ConfigService {
     return this.jwtConfig.refreshExpiresIn
   }
 
-  private getString(key: string, defaultValue?: string): string {
+  public getString(key: string, defaultValue?: string): string {
     const value = this.envConfig[key]
     if (!value && defaultValue === undefined) {
       throw new Error(`Config error - missing ${key}`)

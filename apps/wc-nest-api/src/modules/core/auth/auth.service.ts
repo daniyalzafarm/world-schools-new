@@ -68,6 +68,11 @@ export class AuthService {
           },
         },
         parentProfile: true,
+        ownedProvider: {
+          select: {
+            id: true,
+          },
+        },
       },
     })
 
@@ -101,6 +106,11 @@ export class AuthService {
           },
         },
         parentProfile: true,
+        ownedProvider: {
+          select: {
+            id: true,
+          },
+        },
       },
     })
 
@@ -153,6 +163,11 @@ export class AuthService {
             },
           },
           parentProfile: true,
+          ownedProvider: {
+            select: {
+              id: true,
+            },
+          },
         },
       })
 
@@ -296,6 +311,11 @@ export class AuthService {
       permissions,
     }
 
+    // Include provider ID if user owns a provider
+    if (user.ownedProvider) {
+      response.providerId = user.ownedProvider.id
+    }
+
     // Include parent profile if it exists
     if (user.parentProfile) {
       response.parent = {
@@ -330,6 +350,11 @@ export class AuthService {
           },
         },
         parentProfile: true,
+        ownedProvider: {
+          select: {
+            id: true,
+          },
+        },
       },
     })
 

@@ -4,6 +4,7 @@ import { SuperAdminRolesModule } from './roles/roles.module'
 import { SuperAdminProvidersModule } from './providers/providers.module'
 import { SuperAdminUsersModule } from './users/users.module'
 import { SuperAdminPermissionsModule } from './permissions/permissions.module'
+import { ApplicationReviewModule } from './application-review/application-review.module'
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { SuperAdminPermissionsModule } from './permissions/permissions.module'
     SuperAdminProvidersModule,
     SuperAdminUsersModule,
     SuperAdminPermissionsModule,
+    ApplicationReviewModule,
   ],
 })
 export class SuperAdminModule {}

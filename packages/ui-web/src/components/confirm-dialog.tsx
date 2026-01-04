@@ -106,7 +106,11 @@ const ConfirmDialog: React.FC<{
       isOpen={open}
       onOpenChange={onCancel}
       size="sm"
-      classNames={{ base: 'bg-white dark:bg-slate-800' }}
+      classNames={{
+        base: 'bg-white dark:bg-slate-800',
+        wrapper: 'z-[9999]',
+        backdrop: 'z-[9998] bg-black/50',
+      }}
     >
       <ModalContent>
         <ModalHeader className="flex items-center gap-2">

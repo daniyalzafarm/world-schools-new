@@ -27,9 +27,11 @@ console.log(`  SSL Required: ${requiresSsl}`)
 // Azure PostgreSQL Flexible Server requires SSL connections
 const pool = new Pool({
   connectionString: databaseUrl,
-  ssl: requiresSsl ? {
-    rejectUnauthorized: false  // Azure PostgreSQL uses self-signed certificates
-  } : undefined
+  ssl: requiresSsl
+    ? {
+        rejectUnauthorized: false, // Azure PostgreSQL uses self-signed certificates
+      }
+    : undefined,
 })
 
 // Create adapter and Prisma Client

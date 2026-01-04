@@ -56,10 +56,37 @@ const providersPermissions: PermissionGroup = {
   ],
 }
 
+const providerApplicationsPermissions: PermissionGroup = {
+  name: 'Provider Applications',
+  permissions: [
+    { id: 'provider_applications.read', name: 'Read provider applications' },
+    { id: 'provider_applications.review', name: 'Review provider applications' },
+    { id: 'provider_applications.approve', name: 'Approve provider applications' },
+    { id: 'provider_applications.reject', name: 'Reject provider applications' },
+    { id: 'provider_applications.request_info', name: 'Request additional information' },
+  ],
+}
+
+const providerDocumentsPermissions: PermissionGroup = {
+  name: 'Provider Documents',
+  permissions: [
+    { id: 'provider_documents.read', name: 'Read provider documents' },
+    { id: 'provider_documents.review', name: 'Review provider documents' },
+    { id: 'provider_documents.approve', name: 'Approve provider documents' },
+    { id: 'provider_documents.reject', name: 'Reject provider documents' },
+  ],
+}
+
 // Context-based main groups
 export const superadminContext: PermissionContext = {
   name: 'SuperAdmin',
-  groups: [usersPermissions, rolesPermissions, providersPermissions],
+  groups: [
+    usersPermissions,
+    rolesPermissions,
+    providersPermissions,
+    providerApplicationsPermissions,
+    providerDocumentsPermissions,
+  ],
 }
 
 export const providerContext: PermissionContext = {

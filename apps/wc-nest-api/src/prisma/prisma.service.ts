@@ -20,9 +20,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     // Azure PostgreSQL Flexible Server requires SSL connections
     const pool = new Pool({
       connectionString: databaseUrl,
-      ssl: requiresSsl ? {
-        rejectUnauthorized: false  // Azure PostgreSQL uses self-signed certificates
-      } : undefined
+      ssl: requiresSsl
+        ? {
+            rejectUnauthorized: false, // Azure PostgreSQL uses self-signed certificates
+          }
+        : undefined,
     })
 
     const adapter = new PrismaPg(pool)

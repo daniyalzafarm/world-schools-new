@@ -19,3 +19,6 @@ export * from './lib/theme-config'
 export * from './lib/password-validation'
 export * from './lib/password-requirements-display'
 
+// Emoji constants
+export * from './lib/emoji'
+

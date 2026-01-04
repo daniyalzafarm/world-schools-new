@@ -251,7 +251,9 @@ export default function SignUpPage() {
               </div>
 
               <div className="border-t border-gray-200 pt-4">
-                <p className="text-sm font-medium text-gray-700 mb-4">Organization Details</p>
+                <p className="text-sm font-medium text-gray-700 mb-4">
+                  Organization Details <span className="text-danger">*</span>
+                </p>
 
                 <div className="space-y-4">
                   <Input

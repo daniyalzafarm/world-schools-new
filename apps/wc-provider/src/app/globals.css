@@ -200,3 +200,113 @@
     box-shadow: var(--box-shadow-soft);
   }
 }
+
+/* Google Places Autocomplete Custom Styling */
+@layer components {
+  /* Main autocomplete container */
+  .pac-container {
+    background-color: white;
+    border: none;
+    border-radius: 1.5rem;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+    margin-top: 8px;
+    font-family: 'Figtree', system-ui, sans-serif;
+    z-index: 9999;
+    padding: 8px 0;
+  }
+
+  /* After the search input */
+  .pac-container:after {
+    display: none;
+  }
+
+  /* Individual autocomplete items */
+  .pac-item {
+    padding: 16px 20px;
+    cursor: pointer;
+    border: none;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--color-secondary-500);
+    transition: background-color 0.15s ease;
+  }
+
+  /* Hover state for items */
+  .pac-item:hover {
+    background-color: var(--color-primary-50);
+  }
+
+  /* Selected/focused item */
+  .pac-item-selected,
+  .pac-item-selected:hover {
+    background-color: var(--color-primary-50);
+  }
+
+  /* Icon styling */
+  .pac-icon {
+    background-image: none;
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+    margin-top: 2px;
+  }
+
+  /* Add a custom location pin icon */
+  .pac-icon:before {
+    content: '📍';
+    font-size: 16px;
+  }
+
+  /* Main text (business name) */
+  .pac-item-query {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-secondary-500);
+    padding-right: 4px;
+  }
+
+  /* Secondary text (address) */
+  .pac-matched {
+    font-weight: 600;
+    color: var(--color-secondary-500);
+  }
+
+  /* Unmatched text in address */
+  .pac-item-query + span {
+    font-size: 13px;
+    color: #717171;
+  }
+
+  /* Logo container at bottom */
+  .pac-logo:after {
+    display: none;
+  }
+
+  /* Dark mode support */
+  .dark .pac-container {
+    background-color: #1f2937;
+    border: none;
+  }
+
+  .dark .pac-item {
+    color: #f9fafb;
+  }
+
+  .dark .pac-item:hover,
+  .dark .pac-item-selected,
+  .dark .pac-item-selected:hover {
+    background-color: rgba(69, 240, 181, 0.1);
+  }
+
+  .dark .pac-item-query {
+    color: #f9fafb;
+  }
+
+  .dark .pac-matched {
+    color: #f9fafb;
+  }
+
+  .dark .pac-item-query + span {
+    color: #9ca3af;
+  }
+}
