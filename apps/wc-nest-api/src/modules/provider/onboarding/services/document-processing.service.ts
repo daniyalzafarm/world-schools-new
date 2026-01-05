@@ -7,15 +7,30 @@ import { AzureStorageService } from '@world-schools/wc-utils/backend'
 @Injectable()
 export class DocumentProcessingService {
   private readonly logger = new Logger(DocumentProcessingService.name)
-  private readonly azureStorage: AzureStorageService
+  private azureStorage: AzureStorageService | null = null
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly trustScoreService: TrustScoreService
   ) {
-    // Initialize Azure Storage Service
-    this.azureStorage = new AzureStorageService(this.configService.azureStorageConfig)
+    // Azure Storage Service will be initialized lazily when needed
+  }
+
+  /**
+   * Get or initialize Azure Storage Service
+   */
+  private getAzureStorage(): AzureStorageService {
+    if (!this.azureStorage) {
+      const config = this.configService.azureStorageConfig
+      if (!config.accountName || !config.accountKey || !config.containerName) {
+        throw new BadRequestException(
+          'Azure Storage is not configured. Please contact the administrator to enable document uploads.'
+        )
+      }
+      this.azureStorage = new AzureStorageService(config)
+    }
+    return this.azureStorage
   }
 
   /**
@@ -32,8 +47,11 @@ export class DocumentProcessingService {
       throw new BadRequestException('No file provided')
     }
 
+    // Get Azure Storage service (will throw error if not configured)
+    const azureStorage = this.getAzureStorage()
+
     // Validate file using Azure Storage service
-    const validation = this.azureStorage.validateFile(
+    const validation = azureStorage.validateFile(
       { size: file.size, mimetype: file.mimetype },
       {
         maxSizeBytes: 10 * 1024 * 1024, // 10MB
@@ -57,7 +75,7 @@ export class DocumentProcessingService {
       // If exists, delete the old document from storage
       if (existingDocument) {
         try {
-          await this.azureStorage.deleteFile(existingDocument.fileUrl)
+          await azureStorage.deleteFile(existingDocument.fileUrl)
           this.logger.log(
             `Deleted old document ${existingDocument.id} from storage for replacement`
           )
@@ -69,7 +87,7 @@ export class DocumentProcessingService {
       }
 
       // Upload file to Azure Blob Storage
-      const uploadResult = await this.azureStorage.uploadFile({
+      const uploadResult = await azureStorage.uploadFile({
         buffer: file.buffer,
         fileName: file.originalname,
         mimeType: file.mimetype,
@@ -133,12 +151,15 @@ export class DocumentProcessingService {
       orderBy: { uploadedAt: 'desc' },
     })
 
+    // Get Azure Storage service (will throw error if not configured)
+    const azureStorage = this.getAzureStorage()
+
     // Generate SAS URLs for each document
     const documentsWithUrls = await Promise.all(
       documents.map(async doc => {
         try {
           // Generate SAS URL for secure access (24 hours expiry)
-          const sasUrl = await this.azureStorage.generateSasUrl(doc.fileUrl, 24)
+          const sasUrl = await azureStorage.generateSasUrl(doc.fileUrl, 24)
           return {
             ...doc,
             fileUrl: sasUrl, // Replace blob name with SAS URL
@@ -168,9 +189,12 @@ export class DocumentProcessingService {
       throw new BadRequestException('Document not found')
     }
 
+    // Get Azure Storage service (will throw error if not configured)
+    const azureStorage = this.getAzureStorage()
+
     // Delete file from Azure Blob Storage
     try {
-      await this.azureStorage.deleteFile(document.fileUrl)
+      await azureStorage.deleteFile(document.fileUrl)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       this.logger.warn(`Failed to delete file from Azure Storage: ${errorMessage}`)

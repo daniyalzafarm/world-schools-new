@@ -8,15 +8,30 @@ import { ReviewDocumentDto } from '../dto/application-review.dto'
 @Injectable()
 export class DocumentReviewService {
   private readonly logger = new Logger(DocumentReviewService.name)
-  private readonly azureStorage: AzureStorageService
+  private azureStorage: AzureStorageService | null = null
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly trustScoreService: TrustScoreService
   ) {
-    // Initialize Azure Storage Service
-    this.azureStorage = new AzureStorageService(this.configService.azureStorageConfig)
+    // Azure Storage Service will be initialized lazily when needed
+  }
+
+  /**
+   * Get or initialize Azure Storage Service
+   */
+  private getAzureStorage(): AzureStorageService {
+    if (!this.azureStorage) {
+      const config = this.configService.azureStorageConfig
+      if (!config.accountName || !config.accountKey || !config.containerName) {
+        throw new BadRequestException(
+          'Azure Storage is not configured. Please contact the administrator to enable document access.'
+        )
+      }
+      this.azureStorage = new AzureStorageService(config)
+    }
+    return this.azureStorage
   }
 
   /**
@@ -38,12 +53,15 @@ export class DocumentReviewService {
       },
     })
 
+    // Get Azure Storage service (will throw error if not configured)
+    const azureStorage = this.getAzureStorage()
+
     // Generate SAS URLs for each document
     const documentsWithUrls = await Promise.all(
       documents.map(async doc => {
         try {
           // Generate SAS URL for secure access (24 hours expiry)
-          const sasUrl = await this.azureStorage.generateSasUrl(doc.fileUrl, 24)
+          const sasUrl = await azureStorage.generateSasUrl(doc.fileUrl, 24)
           return {
             ...doc,
             fileUrl: sasUrl, // Replace blob name with SAS URL
@@ -87,9 +105,12 @@ export class DocumentReviewService {
       throw new NotFoundException('Document not found')
     }
 
+    // Get Azure Storage service (will throw error if not configured)
+    const azureStorage = this.getAzureStorage()
+
     // Generate SAS URL for secure access
     try {
-      const sasUrl = await this.azureStorage.generateSasUrl(document.fileUrl, 24)
+      const sasUrl = await azureStorage.generateSasUrl(document.fileUrl, 24)
       return {
         ...document,
         fileUrl: sasUrl,
@@ -162,12 +183,15 @@ export class DocumentReviewService {
       },
     })
 
+    // Get Azure Storage service (will throw error if not configured)
+    const azureStorage = this.getAzureStorage()
+
     // Generate SAS URLs for each document
     const documentsWithUrls = await Promise.all(
       documents.map(async doc => {
         try {
           // Generate SAS URL for secure access (24 hours expiry)
-          const sasUrl = await this.azureStorage.generateSasUrl(doc.fileUrl, 24)
+          const sasUrl = await azureStorage.generateSasUrl(doc.fileUrl, 24)
           return {
             ...doc,
             fileUrl: sasUrl, // Replace blob name with SAS URL

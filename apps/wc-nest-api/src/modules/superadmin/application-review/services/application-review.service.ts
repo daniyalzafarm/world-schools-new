@@ -16,7 +16,7 @@ import { ApplicationNotificationService } from '../../../common/email-templates/
 @Injectable()
 export class ApplicationReviewService {
   private readonly logger = new Logger(ApplicationReviewService.name)
-  private readonly azureStorage: AzureStorageService
+  private azureStorage: AzureStorageService | null = null
 
   constructor(
     private readonly prisma: PrismaService,
@@ -24,8 +24,23 @@ export class ApplicationReviewService {
     private readonly trustScoreService: TrustScoreService,
     private readonly applicationNotificationService: ApplicationNotificationService
   ) {
-    // Initialize Azure Storage Service
-    this.azureStorage = new AzureStorageService(this.configService.azureStorageConfig)
+    // Azure Storage Service will be initialized lazily when needed
+  }
+
+  /**
+   * Get or initialize Azure Storage Service
+   */
+  private getAzureStorage(): AzureStorageService {
+    if (!this.azureStorage) {
+      const config = this.configService.azureStorageConfig
+      if (!config.accountName || !config.accountKey || !config.containerName) {
+        throw new BadRequestException(
+          'Azure Storage is not configured. Please contact the administrator to enable document access.'
+        )
+      }
+      this.azureStorage = new AzureStorageService(config)
+    }
+    return this.azureStorage
   }
 
   /**
@@ -209,12 +224,15 @@ export class ApplicationReviewService {
           }
         : null
 
+    // Get Azure Storage service (will throw error if not configured)
+    const azureStorage = this.getAzureStorage()
+
     // Generate SAS URLs for documents
     const documentsWithUrls = await Promise.all(
       provider.verificationDocuments.map(async doc => {
         try {
           // Generate SAS URL for secure access (24 hours expiry)
-          const sasUrl = await this.azureStorage.generateSasUrl(doc.fileUrl, 24)
+          const sasUrl = await azureStorage.generateSasUrl(doc.fileUrl, 24)
           return {
             ...doc,
             fileUrl: sasUrl, // Replace blob name with SAS URL
@@ -249,7 +267,6 @@ export class ApplicationReviewService {
       contactLastName: provider.contactLastName,
       contactRole: provider.contactRole,
       contactPhone: provider.contactPhone,
-      contactPhoneCountryCode: provider.contactPhoneCountryCode,
       contactEmail: provider.contactEmail,
       providerName: provider.name,
       providerPhone: provider.phone,
