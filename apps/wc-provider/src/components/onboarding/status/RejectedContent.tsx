@@ -9,47 +9,45 @@ export function RejectedContent({ status }: RejectedContentProps) {
   return (
     <div className="mx-auto w-full max-w-3xl">
       {/* Main Status Card */}
-      <div className="mb-8 rounded-xl border border-[#FF385C] bg-white p-12 text-center">
+      <div className="mb-8 rounded-xl border border-danger bg-white p-12 text-center">
         <div className="mb-6 text-7xl">❌</div>
-        <h1 className="mb-4 text-[36px] font-bold leading-tight text-[#222222]">
+        <h1 className="mb-4 text-[36px] font-bold leading-tight text-foreground">
           Application Not Approved
         </h1>
-        <p className="mb-8 text-[18px] text-[#717171]">
+        <p className="mb-8 text-[18px] text-default-600">
           Unfortunately, we're unable to approve your application at this time.
         </p>
 
         {/* Status Badge */}
-        <div className="inline-flex items-center gap-2 rounded-full bg-[#FFF5F5] px-6 py-3">
-          <span className="font-semibold text-[#FF385C]">Rejected</span>
+        <div className="inline-flex items-center gap-2 rounded-full bg-danger-50 px-6 py-3">
+          <span className="font-semibold text-danger">Rejected</span>
         </div>
       </div>
 
       {/* Rejection Reason */}
       {status.rejectionReason && (
-        <div className="mb-8 rounded-xl border-2 border-[#FF385C] bg-[#FFF5F5] p-8">
-          <h2 className="mb-4 flex items-center gap-2 text-[24px] font-semibold text-[#FF385C]">
+        <div className="mb-8 rounded-xl border-2 border-danger bg-danger-50 p-8">
+          <h2 className="mb-4 flex items-center gap-2 text-[24px] font-semibold text-danger">
             ⚠️ Reason for Rejection
           </h2>
           {status.rejectionCategory && (
-            <div className="mb-2 text-sm font-semibold text-[#FF385C]">
-              Category: {status.rejectionCategory}
-            </div>
+            <div className="mb-2 text-sm font-semibold text-danger">{status.rejectionCategory}</div>
           )}
-          <p className="text-[#717171]">{status.rejectionReason}</p>
+          <p className="text-default-600">{status.rejectionReason}</p>
         </div>
       )}
 
       {/* What Can You Do */}
-      <div className="mb-8 rounded-xl border border-[#E5E5E5] bg-white p-8">
-        <h2 className="mb-6 text-[24px] font-semibold text-[#222222]">What can you do?</h2>
+      <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
+        <h2 className="mb-6 text-[24px] font-semibold text-foreground">What can you do?</h2>
         <div className="space-y-6">
           <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#E8FDF7] text-2xl">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success-50 text-2xl">
               📧
             </div>
             <div className="flex-1">
-              <div className="mb-1 font-semibold text-[#222222]">Contact Support</div>
-              <div className="text-sm text-[#717171]">
+              <div className="mb-1 font-semibold text-foreground">Contact Support</div>
+              <div className="text-sm text-default-600">
                 Reach out to our support team for more details about the rejection and how to
                 address the issues.
               </div>
@@ -57,24 +55,24 @@ export function RejectedContent({ status }: RejectedContentProps) {
           </div>
 
           <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#E8FDF7] text-2xl">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success-50 text-2xl">
               📄
             </div>
             <div className="flex-1">
-              <div className="mb-1 font-semibold text-[#222222]">Review Requirements</div>
-              <div className="text-sm text-[#717171]">
+              <div className="mb-1 font-semibold text-foreground">Review Requirements</div>
+              <div className="text-sm text-default-600">
                 Make sure you meet all the requirements for becoming a World Camps provider.
               </div>
             </div>
           </div>
 
           <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#E8FDF7] text-2xl">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success-50 text-2xl">
               🔄
             </div>
             <div className="flex-1">
-              <div className="mb-1 font-semibold text-[#222222]">Reapply</div>
-              <div className="text-sm text-[#717171]">
+              <div className="mb-1 font-semibold text-foreground">Reapply</div>
+              <div className="text-sm text-default-600">
                 Once you've addressed the issues, you can submit a new application.
               </div>
             </div>
@@ -83,22 +81,22 @@ export function RejectedContent({ status }: RejectedContentProps) {
       </div>
 
       {/* Need Help */}
-      <div className="mb-8 rounded-xl border border-[#E5E5E5] bg-white p-8">
-        <h2 className="mb-4 text-[24px] font-semibold text-[#222222]">❓ Need Help?</h2>
-        <p className="mb-6 text-[#717171]">
+      <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
+        <h2 className="mb-4 text-[24px] font-semibold text-foreground">❓ Need Help?</h2>
+        <p className="mb-6 text-default-600">
           Our support team is here to help you understand the rejection and guide you through the
           process of reapplying.
         </p>
         <div className="flex flex-col gap-3 text-sm">
           <div className="flex items-center gap-2">
             <span>📧</span>
-            <a href="mailto:support@worldcamps.com" className="text-[#45F0B5] hover:underline">
+            <a href="mailto:support@worldcamps.com" className="text-primary hover:underline">
               support@worldcamps.com
             </a>
           </div>
           <div className="flex items-center gap-2">
             <span>📞</span>
-            <a href="tel:+1-555-123-4567" className="text-[#45F0B5] hover:underline">
+            <a href="tel:+1-555-123-4567" className="text-primary hover:underline">
               +1 (555) 123-4567
             </a>
           </div>
@@ -108,7 +106,8 @@ export function RejectedContent({ status }: RejectedContentProps) {
       {/* Action Button */}
       <div className="flex justify-center">
         <Button
-          className="bg-[#45F0B5] font-semibold text-[#222222] hover:bg-[#3de0a5]"
+          color="primary"
+          className="font-semibold"
           size="lg"
           onPress={() => (window.location.href = 'mailto:support@worldcamps.com')}
         >

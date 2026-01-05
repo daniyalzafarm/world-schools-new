@@ -379,8 +379,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
       <aside
         ref={asideRef}
         className={cn(
-          'h-full bg-[#F9F9F9] dark:bg-gray-900/95 backdrop-blur-md z-40',
-          'border-r border-gray-200 dark:border-gray-700',
+          'h-full bg-default-50 dark:bg-gray-900/95 backdrop-blur-md z-40',
+          'border-r border-default-200 dark:border-gray-700',
           'fixed lg:static z-20',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
           'transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
@@ -418,7 +418,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                     onClick={() => handleNavigation(item)}
                     className={cn(
                       'flex h-10 items-center p-2 rounded-lg cursor-pointer whitespace-nowrap overflow-hidden',
-                      isActive ? 'bg-primary-100' : 'hover:bg-gray-200 dark:hover:bg-gray-800'
+                      isActive ? 'bg-primary-100' : 'hover:bg-default-100 dark:hover:bg-gray-800'
                     )}
                   >
                     <span className="flex justify-center min-w-6">
@@ -460,7 +460,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                                 'flex h-9 items-center p-2 rounded-lg cursor-pointer text-sm',
                                 childIsActive
                                   ? 'bg-primary-100 dark:bg-primary-900/30'
-                                  : 'hover:bg-gray-200 dark:hover:bg-gray-800'
+                                  : 'hover:bg-default-100 dark:hover:bg-gray-800'
                               )}
                               onClick={() => {
                                 if (sidebarOpen) setSidebarOpen(false)
@@ -518,7 +518,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
           {/* User Section */}
           <div
             ref={userSectionRef}
-            className="p-4 border-t border-gray-200 dark:border-gray-700 shadow-[0_-24px_16px_-2px_rgba(249,249,249,0.8)] dark:shadow-[0_-24px_16px_-2px_rgba(17,24,39,0.8)]"
+            className="p-4 border-t border-default-200 dark:border-gray-700 shadow-[0_-24px_16px_-2px_rgba(249,249,249,0.8)] dark:shadow-[0_-24px_16px_-2px_rgba(17,24,39,0.8)]"
           >
             <div
               className={cn(
@@ -530,7 +530,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                 <DropdownTrigger>
                   <div
                     className={cn(
-                      'cursor-pointer flex items-center gap-3 hover:bg-gray-200 dark:hover:bg-gray-800/50 rounded-lg p-2',
+                      'cursor-pointer flex items-center gap-3 hover:bg-default-100 dark:hover:bg-gray-800/50 rounded-lg p-2',
                       !isCollapsed && 'flex-1 min-w-0'
                     )}
                   >

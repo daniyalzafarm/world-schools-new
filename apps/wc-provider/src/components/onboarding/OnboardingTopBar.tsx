@@ -13,22 +13,22 @@ export function OnboardingTopBar({ breadcrumb, showAutoSave = true }: Onboarding
   const isSubmitted = status?.isCompleted ?? false
 
   return (
-    <div className="flex min-h-[61px] items-center justify-between border-b border-[#F0F0F0] bg-white px-12 py-5">
+    <div className="flex min-h-[61px] items-center justify-between border-b border-default-200 bg-white px-12 py-5">
       {/* Breadcrumb */}
-      <div className="text-[13px] text-[#717171]">{breadcrumb}</div>
+      <div className="text-[13px] text-default-500">{breadcrumb}</div>
 
       {/* Status indicator */}
       {showAutoSave && (
         <div className="flex items-center gap-2 text-[13px]">
           {isSubmitted ? (
             <>
-              <CheckCircle className="h-4 w-4 text-[#45F0B5]" />
-              <span className="font-medium text-[#45F0B5]">Submitted</span>
+              <CheckCircle className="h-4 w-4 text-primary" />
+              <span className="font-medium text-primary">Submitted</span>
             </>
           ) : (
             <>
-              <FileEdit className="h-4 w-4 text-[#717171]" />
-              <span className="font-medium text-[#717171]">Draft</span>
+              <FileEdit className="h-4 w-4 text-default-500" />
+              <span className="font-medium text-default-500">Draft</span>
             </>
           )}
         </div>

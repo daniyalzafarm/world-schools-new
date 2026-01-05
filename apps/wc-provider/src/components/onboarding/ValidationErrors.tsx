@@ -17,13 +17,13 @@ export function ValidationErrors({ errors }: ValidationErrorsProps) {
   }
 
   return (
-    <div className="rounded-xl border-2 border-[#FF385C] bg-[#FFF5F7] p-6">
+    <div className="rounded-xl border-2 border-danger bg-danger-50 p-6">
       <div className="mb-4 flex items-center gap-2">
-        <AlertCircle className="h-6 w-6 text-[#FF385C]" />
-        <h3 className="text-lg font-semibold text-[#222222]">Application Incomplete</h3>
+        <AlertCircle className="h-6 w-6 text-danger" />
+        <h3 className="text-lg font-semibold text-foreground">Application Incomplete</h3>
       </div>
 
-      <p className="mb-4 text-sm text-[#717171]">
+      <p className="mb-4 text-sm text-default-500">
         Please complete the following required items before submitting your application:
       </p>
 
@@ -35,17 +35,17 @@ export function ValidationErrors({ errors }: ValidationErrorsProps) {
           >
             <div className="flex-1">
               <div className="mb-1 flex items-center gap-2">
-                <span className="rounded-full bg-[#FF385C] px-2 py-0.5 text-xs font-semibold text-white">
+                <span className="rounded-full bg-danger px-2 py-0.5 text-xs font-semibold text-white">
                   Step {error.step}
                 </span>
-                <span className="text-sm font-semibold text-[#222222]">{error.stepName}</span>
+                <span className="text-sm font-semibold text-foreground">{error.stepName}</span>
               </div>
-              <p className="text-sm text-[#717171]">{error.message}</p>
+              <p className="text-sm text-default-500">{error.message}</p>
             </div>
             <Button
               size="sm"
               variant="bordered"
-              className="border-[#45F0B5] text-[#222222] hover:bg-[#E8FDF7]"
+              color="primary"
               onPress={() => router.push(error.path)}
             >
               Fix Now

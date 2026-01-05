@@ -211,7 +211,7 @@ export default function OnboardingStep6Page() {
             {/* Validation Summary */}
             {validationResult?.isValid ? (
               <div className="mb-8 rounded-xl bg-primary-50 p-4">
-                <h3 className="mb-3 text-sm font-semibold text-[#222222]">
+                <h3 className="mb-3 text-sm font-semibold text-foreground">
                   All Requirements Complete
                 </h3>
                 <div className="space-y-2">
