@@ -8,9 +8,10 @@ import { TrustScoreService } from './services/trust-score.service'
 import { PrismaModule } from '../../../prisma/prisma.module'
 import { ConfigModule } from '../../../config/config.module'
 import { AuthModule } from '../../core/auth/auth.module'
+import { EmailTemplatesModule } from '../../common/email-templates/email-templates.module'
 
 @Module({
-  imports: [PrismaModule, ConfigModule, AuthModule],
+  imports: [PrismaModule, ConfigModule, AuthModule, EmailTemplatesModule],
   controllers: [OnboardingController],
   providers: [
     OnboardingService,

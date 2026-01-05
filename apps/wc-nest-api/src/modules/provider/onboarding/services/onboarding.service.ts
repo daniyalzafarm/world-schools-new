@@ -8,6 +8,7 @@ import {
   CURRENT_PROVIDER_AGREEMENT_VERSION,
   CURRENT_TERMS_VERSION,
 } from '../constants/terms-versions'
+import { ApplicationNotificationService } from '../../../common/email-templates/application-notification.service'
 
 @Injectable()
 export class OnboardingService {
@@ -15,7 +16,8 @@ export class OnboardingService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly trustScoreService: TrustScoreService
+    private readonly trustScoreService: TrustScoreService,
+    private readonly applicationNotificationService: ApplicationNotificationService
   ) {}
 
   /**
@@ -500,6 +502,9 @@ export class OnboardingService {
     this.logger.log(
       `Completed onboarding for provider ${providerId} - Terms v${CURRENT_TERMS_VERSION} and Provider Agreement v${CURRENT_PROVIDER_AGREEMENT_VERSION} accepted at ${now.toISOString()}`
     )
+
+    // Send application submitted confirmation email
+    await this.applicationNotificationService.sendApplicationSubmittedEmail(providerId)
   }
 
   /**

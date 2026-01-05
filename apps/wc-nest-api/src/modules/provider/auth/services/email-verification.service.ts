@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '../../../../prisma/prisma.service'
 import { EmailService } from '@world-schools/global-utils'
+import { EmailTemplateService } from '../../../common/email-templates/email-template.service'
 
 @Injectable()
 export class EmailVerificationService {
@@ -10,7 +11,8 @@ export class EmailVerificationService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailService: EmailService
+    private readonly emailService: EmailService,
+    private readonly emailTemplateService: EmailTemplateService
   ) {}
 
   /**
@@ -49,8 +51,8 @@ export class EmailVerificationService {
     // Send email
     const emailSent = await this.emailService.sendEmail({
       to: email,
-      subject: 'Email Verification - World Schools',
-      html: this.getVerificationEmailTemplate(code),
+      subject: 'Email Verification - World-Camps',
+      html: this.emailTemplateService.getVerificationEmailTemplate(code, this.CODE_EXPIRY_MINUTES),
     })
 
     if (!emailSent) {
@@ -150,43 +152,5 @@ export class EmailVerificationService {
 
     // Create and send new code
     await this.createAndSendVerificationCode(user.id, user.email)
-  }
-
-  /**
-   * Email template for verification code
-   */
-  private getVerificationEmailTemplate(code: string): string {
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; }
-            .content { background-color: #f9f9f9; padding: 30px; }
-            .code { font-size: 32px; font-weight: bold; color: #4F46E5; text-align: center; letter-spacing: 5px; margin: 20px 0; }
-            .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Email Verification</h1>
-            </div>
-            <div class="content">
-              <p>Thank you for registering with World Schools!</p>
-              <p>Please use the following verification code to complete your registration:</p>
-              <div class="code">${code}</div>
-              <p>This code will expire in ${this.CODE_EXPIRY_MINUTES} minutes.</p>
-              <p>If you didn't request this code, please ignore this email.</p>
-            </div>
-            <div class="footer">
-              <p>&copy; ${new Date().getFullYear()} World Schools. All rights reserved.</p>
-            </div>
-          </div>
-        </body>
-      </html>
-    `
   }
 }

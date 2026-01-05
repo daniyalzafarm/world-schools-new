@@ -11,6 +11,7 @@ import {
   RejectApplicationDto,
   RequestInfoDto,
 } from '../dto/application-review.dto'
+import { ApplicationNotificationService } from '../../../common/email-templates/application-notification.service'
 
 @Injectable()
 export class ApplicationReviewService {
@@ -20,7 +21,8 @@ export class ApplicationReviewService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-    private readonly trustScoreService: TrustScoreService
+    private readonly trustScoreService: TrustScoreService,
+    private readonly applicationNotificationService: ApplicationNotificationService
   ) {
     // Initialize Azure Storage Service
     this.azureStorage = new AzureStorageService(this.configService.azureStorageConfig)
@@ -300,6 +302,9 @@ export class ApplicationReviewService {
     })
 
     this.logger.log(`Approved provider application ${providerId} by reviewer ${reviewerId}`)
+
+    // Send application approved email
+    await this.applicationNotificationService.sendApplicationApprovedEmail(providerId)
   }
 
   /**
@@ -330,6 +335,9 @@ export class ApplicationReviewService {
     })
 
     this.logger.log(`Rejected provider application ${providerId} by reviewer ${reviewerId}`)
+
+    // Send application rejected email
+    await this.applicationNotificationService.sendApplicationRejectedEmail(providerId)
   }
 
   /**

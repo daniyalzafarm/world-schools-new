@@ -7,9 +7,10 @@ import { ConfigService } from '../../../config/config.service'
 import { EmailVerificationService } from './services/email-verification.service'
 import { PasswordResetService } from '../../core/auth/services/password-reset.service'
 import { EmailService } from '@world-schools/global-utils'
+import { EmailTemplatesModule } from '../../common/email-templates/email-templates.module'
 
 @Module({
-  imports: [AuthModule, PrismaModule, ConfigModule],
+  imports: [AuthModule, PrismaModule, ConfigModule, EmailTemplatesModule],
   controllers: [ProviderAuthController],
   providers: [
     EmailVerificationService,
