@@ -1,7 +1,10 @@
 import { create } from 'zustand'
+import { immer } from 'zustand/middleware/immer'
+import { devtools } from 'zustand/middleware'
 import type {
   ApplicationDetail,
   ApplicationListItem,
+  ApprovalStatus,
   ApproveApplicationRequest,
   GetApplicationsQuery,
   RejectApplicationRequest,
@@ -11,20 +14,32 @@ import type {
 } from '../types/application-review'
 import { applicationReviewService } from '../services/application-review.services'
 
-interface ApplicationReviewStore {
+export interface ApplicationFilters {
+  search?: string
+  status?: ApprovalStatus
+  minTrustScore?: number
+  maxTrustScore?: number
+}
+
+interface ApplicationReviewState {
   // State
   applications: ApplicationListItem[]
   selectedApplication: ApplicationDetail | null
   pendingDocuments: VerificationDocument[]
-  total: number
-  page: number
-  limit: number
-  totalPages: number
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+  filters: ApplicationFilters
   isLoading: boolean
   error: string | null
+}
 
+interface ApplicationReviewStore extends ApplicationReviewState {
   // Actions
-  fetchApplications: (query: GetApplicationsQuery) => Promise<void>
+  fetchApplications: () => Promise<void>
   fetchApplicationDetail: (providerId: string) => Promise<void>
   approveApplication: (providerId: string, data: ApproveApplicationRequest) => Promise<void>
   rejectApplication: (providerId: string, data: RejectApplicationRequest) => Promise<void>
@@ -32,128 +47,258 @@ interface ApplicationReviewStore {
   fetchProviderDocuments: (providerId: string) => Promise<VerificationDocument[]>
   reviewDocument: (documentId: string, data: ReviewDocumentRequest) => Promise<void>
   fetchPendingDocuments: () => Promise<void>
+  setPage: (page: number) => void
+  setLimit: (limit: number) => void
+  setFilters: (filters: Partial<ApplicationFilters>) => void
+  clearFilters: () => void
   clearError: () => void
   reset: () => void
 }
 
-const initialState = {
+const initialState: ApplicationReviewState = {
   applications: [],
   selectedApplication: null,
   pendingDocuments: [],
-  total: 0,
-  page: 1,
-  limit: 20,
-  totalPages: 0,
+  pagination: {
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  },
+  filters: {},
   isLoading: false,
   error: null,
 }
 
-export const useApplicationReviewStore = create<ApplicationReviewStore>((set, get) => ({
-  ...initialState,
+export const useApplicationReviewStore = create<ApplicationReviewStore>()(
+  devtools(
+    immer((set, get) => ({
+      ...initialState,
 
-  fetchApplications: async (query: GetApplicationsQuery) => {
-    set({ isLoading: true, error: null })
-    try {
-      const response = await applicationReviewService.getApplications(query)
-      set({
-        applications: response.data,
-        total: response.total,
-        page: response.page,
-        limit: response.limit,
-        totalPages: response.totalPages,
-        isLoading: false,
-      })
-    } catch (error: any) {
-      set({
-        applications: [], // Reset to empty array on error
-        total: 0,
-        totalPages: 0,
-        error: error.message || 'Failed to fetch applications',
-        isLoading: false,
-      })
-    }
-  },
+      fetchApplications: async () => {
+        set(draft => {
+          draft.isLoading = true
+          draft.error = null
+        })
 
-  fetchApplicationDetail: async (providerId: string) => {
-    set({ isLoading: true, error: null })
-    try {
-      const application = await applicationReviewService.getApplicationDetail(providerId)
-      set({ selectedApplication: application, isLoading: false })
-    } catch (error: any) {
-      set({ error: error.message || 'Failed to fetch application detail', isLoading: false })
-    }
-  },
+        // Get current state values (not draft proxies)
+        const currentState = get()
+        const currentPage = currentState.pagination.page
+        const currentLimit = currentState.pagination.limit
+        const currentFilters = { ...currentState.filters }
 
-  approveApplication: async (providerId: string, data: ApproveApplicationRequest) => {
-    set({ isLoading: true, error: null })
-    try {
-      await applicationReviewService.approveApplication(providerId, data)
-      await get().fetchApplicationDetail(providerId)
-      set({ isLoading: false })
-    } catch (error: any) {
-      set({ error: error.message || 'Failed to approve application', isLoading: false })
-    }
-  },
+        try {
+          const query: GetApplicationsQuery = {
+            page: currentPage,
+            limit: currentLimit,
+            sortBy: 'createdAt',
+            sortOrder: 'desc',
+            ...currentFilters,
+          }
 
-  rejectApplication: async (providerId: string, data: RejectApplicationRequest) => {
-    set({ isLoading: true, error: null })
-    try {
-      await applicationReviewService.rejectApplication(providerId, data)
-      await get().fetchApplicationDetail(providerId)
-      set({ isLoading: false })
-    } catch (error: any) {
-      set({ error: error.message || 'Failed to reject application', isLoading: false })
-    }
-  },
+          const response = await applicationReviewService.getApplications(query)
 
-  requestInfo: async (providerId: string, data: RequestInfoRequest) => {
-    set({ isLoading: true, error: null })
-    try {
-      await applicationReviewService.requestInfo(providerId, data)
-      await get().fetchApplicationDetail(providerId)
-      set({ isLoading: false })
-    } catch (error: any) {
-      set({ error: error.message || 'Failed to request information', isLoading: false })
-    }
-  },
+          set(draft => {
+            draft.applications = response.data
+            draft.pagination = {
+              page: response.page,
+              limit: response.limit,
+              total: response.total,
+              totalPages: response.totalPages,
+            }
+            draft.isLoading = false
+          })
+        } catch (error: any) {
+          set(draft => {
+            draft.applications = []
+            draft.pagination.total = 0
+            draft.pagination.totalPages = 0
+            draft.error = error.message || 'Failed to fetch applications'
+            draft.isLoading = false
+          })
+        }
+      },
 
-  fetchProviderDocuments: async (providerId: string) => {
-    set({ isLoading: true, error: null })
-    try {
-      const documents = await applicationReviewService.getProviderDocuments(providerId)
-      set({ isLoading: false })
-      return documents
-    } catch (error: any) {
-      set({ error: error.message || 'Failed to fetch documents', isLoading: false })
-      return []
-    }
-  },
+      fetchApplicationDetail: async (providerId: string) => {
+        set(draft => {
+          draft.isLoading = true
+          draft.error = null
+        })
 
-  reviewDocument: async (documentId: string, data: ReviewDocumentRequest) => {
-    set({ isLoading: true, error: null })
-    try {
-      await applicationReviewService.reviewDocument(documentId, data)
-      // Refresh application detail if one is selected
-      if (get().selectedApplication) {
-        await get().fetchApplicationDetail(get().selectedApplication!.id)
-      }
-      set({ isLoading: false })
-    } catch (error: any) {
-      set({ error: error.message || 'Failed to review document', isLoading: false })
-    }
-  },
+        try {
+          const application = await applicationReviewService.getApplicationDetail(providerId)
+          set(draft => {
+            draft.selectedApplication = application
+            draft.isLoading = false
+          })
+        } catch (error: any) {
+          set(draft => {
+            draft.error = error.message || 'Failed to fetch application detail'
+            draft.isLoading = false
+          })
+        }
+      },
 
-  fetchPendingDocuments: async () => {
-    set({ isLoading: true, error: null })
-    try {
-      const documents = await applicationReviewService.getPendingDocuments()
-      set({ pendingDocuments: documents, isLoading: false })
-    } catch (error: any) {
-      set({ error: error.message || 'Failed to fetch pending documents', isLoading: false })
-    }
-  },
+      approveApplication: async (providerId: string, data: ApproveApplicationRequest) => {
+        set(draft => {
+          draft.isLoading = true
+          draft.error = null
+        })
 
-  clearError: () => set({ error: null }),
+        try {
+          await applicationReviewService.approveApplication(providerId, data)
+          await get().fetchApplicationDetail(providerId)
+          set(draft => {
+            draft.isLoading = false
+          })
+        } catch (error: any) {
+          set(draft => {
+            draft.error = error.message || 'Failed to approve application'
+            draft.isLoading = false
+          })
+        }
+      },
 
-  reset: () => set(initialState),
-}))
+      rejectApplication: async (providerId: string, data: RejectApplicationRequest) => {
+        set(draft => {
+          draft.isLoading = true
+          draft.error = null
+        })
+
+        try {
+          await applicationReviewService.rejectApplication(providerId, data)
+          await get().fetchApplicationDetail(providerId)
+          set(draft => {
+            draft.isLoading = false
+          })
+        } catch (error: any) {
+          set(draft => {
+            draft.error = error.message || 'Failed to reject application'
+            draft.isLoading = false
+          })
+        }
+      },
+
+      requestInfo: async (providerId: string, data: RequestInfoRequest) => {
+        set(draft => {
+          draft.isLoading = true
+          draft.error = null
+        })
+
+        try {
+          await applicationReviewService.requestInfo(providerId, data)
+          await get().fetchApplicationDetail(providerId)
+          set(draft => {
+            draft.isLoading = false
+          })
+        } catch (error: any) {
+          set(draft => {
+            draft.error = error.message || 'Failed to request information'
+            draft.isLoading = false
+          })
+        }
+      },
+
+      fetchProviderDocuments: async (providerId: string) => {
+        set(draft => {
+          draft.isLoading = true
+          draft.error = null
+        })
+
+        try {
+          const documents = await applicationReviewService.getProviderDocuments(providerId)
+          set(draft => {
+            draft.isLoading = false
+          })
+          return documents
+        } catch (error: any) {
+          set(draft => {
+            draft.error = error.message || 'Failed to fetch documents'
+            draft.isLoading = false
+          })
+          return []
+        }
+      },
+
+      reviewDocument: async (documentId: string, data: ReviewDocumentRequest) => {
+        set(draft => {
+          draft.isLoading = true
+          draft.error = null
+        })
+
+        try {
+          await applicationReviewService.reviewDocument(documentId, data)
+          // Refresh application detail if one is selected
+          const currentState = get()
+          if (currentState.selectedApplication) {
+            await get().fetchApplicationDetail(currentState.selectedApplication.id)
+          }
+          set(draft => {
+            draft.isLoading = false
+          })
+        } catch (error: any) {
+          set(draft => {
+            draft.error = error.message || 'Failed to review document'
+            draft.isLoading = false
+          })
+        }
+      },
+
+      fetchPendingDocuments: async () => {
+        set(draft => {
+          draft.isLoading = true
+          draft.error = null
+        })
+
+        try {
+          const documents = await applicationReviewService.getPendingDocuments()
+          set(draft => {
+            draft.pendingDocuments = documents
+            draft.isLoading = false
+          })
+        } catch (error: any) {
+          set(draft => {
+            draft.error = error.message || 'Failed to fetch pending documents'
+            draft.isLoading = false
+          })
+        }
+      },
+
+      setPage: (page: number) => {
+        set(draft => {
+          draft.pagination.page = page
+        })
+      },
+
+      setLimit: (limit: number) => {
+        set(draft => {
+          draft.pagination.limit = limit
+          draft.pagination.page = 1 // Reset to first page when changing limit
+        })
+      },
+
+      setFilters: filters => {
+        set(draft => {
+          draft.filters = { ...draft.filters, ...filters }
+          draft.pagination.page = 1 // Reset to first page when filtering
+        })
+      },
+
+      clearFilters: () => {
+        set(draft => {
+          draft.filters = {}
+          draft.pagination.page = 1
+        })
+      },
+
+      clearError: () => {
+        set(draft => {
+          draft.error = null
+        })
+      },
+
+      reset: () => set(initialState),
+    })),
+    { name: 'ApplicationReviewStore' }
+  )
+)

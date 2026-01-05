@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { PageSlot } from '@/components/layout/page-slot'
 import {
   Button,
   Card,
@@ -11,7 +12,6 @@ import {
   Pagination,
   Select,
   SelectItem,
-  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -19,9 +19,10 @@ import {
   TableHeader,
   TableRow,
 } from '@heroui/react'
-import { EMOJI } from '@world-schools/wc-frontend-utils'
-import { useApplicationReviewStore } from '../../../stores/application-review-store'
-import type { ApprovalStatus } from '../../../types/application-review'
+import { Building, Eye, FilterX, Search } from 'lucide-react'
+import { useDebounce } from '@world-schools/ui-web'
+import { useApplicationReviewStore } from '@/stores/application-review-store'
+import type { ApprovalStatus } from '@/types/application-review'
 
 const STATUS_OPTIONS: { value: ApprovalStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All Statuses' },
@@ -35,40 +36,44 @@ const STATUS_OPTIONS: { value: ApprovalStatus | 'all'; label: string }[] = [
 
 export default function ProviderRequestsPage() {
   const router = useRouter()
-  const { applications, totalPages, isLoading, fetchApplications } = useApplicationReviewStore()
+  const {
+    applications,
+    pagination,
+    filters,
+    isLoading,
+    error,
+    fetchApplications,
+    setPage,
+    setLimit,
+    setFilters,
+    clearFilters,
+  } = useApplicationReviewStore()
 
-  const [search, setSearch] = useState('')
-  const [status, setStatus] = useState<ApprovalStatus | 'all'>('all')
-  const [currentPage, setCurrentPage] = useState(1)
+  const [searchInput, setSearchInput] = useState('')
 
+  // Debounce the search input with 500ms delay
+  const debouncedSearch = useDebounce(searchInput, 500)
+
+  // Update filters when debounced search changes
   useEffect(() => {
-    loadApplications()
-  }, [currentPage, status])
+    setFilters({ search: debouncedSearch || undefined })
+  }, [debouncedSearch, setFilters])
 
-  const loadApplications = () => {
-    const query: any = {
-      page: Math.max(1, Math.floor(currentPage)), // Ensure page is at least 1 and an integer
-      limit: 20, // Fixed limit of 20 items per page
-      sortBy: 'createdAt',
-      sortOrder: 'desc' as const,
-    }
+  // Load applications when filters or pagination changes
+  useEffect(() => {
+    void fetchApplications()
+  }, [fetchApplications, pagination.page, pagination.limit, filters])
 
-    if (status !== 'all') {
-      query.status = status
-    }
-
-    if (search?.trim()) {
-      query.search = search.trim()
-    }
-
-    fetchApplications(query).catch(error => {
-      console.error('Failed to fetch applications:', error)
-    })
+  const handleClearAllFilters = () => {
+    setSearchInput('') // Clear the search input immediately
+    clearFilters()
   }
 
-  const handleSearch = () => {
-    setCurrentPage(1)
-    loadApplications()
+  const hasActiveFilters = () => {
+    return (
+      searchInput !== '' ||
+      (Object.keys(filters).length > 0 && Object.values(filters).some(v => v !== undefined))
+    )
   }
 
   const getStatusColor = (status: ApprovalStatus) => {
@@ -107,142 +112,196 @@ export default function ProviderRequestsPage() {
 
   const getTrustScoreColor = (score?: number | null) => {
     if (!score) return 'default'
-    if (score >= 70) return 'success'
+    if (score >= 80) return 'success'
     if (score >= 50) return 'warning'
     return 'danger'
   }
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  }
+
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="mb-2 text-3xl font-bold text-foreground">
-          {EMOJI.DOCUMENT} Provider Requests
-        </h1>
-        <p className="text-default-600">Review and manage provider onboarding applications</p>
-      </div>
-
-      {/* Filters */}
-      <Card className="mb-6">
-        <CardBody>
-          <div className="flex gap-4">
-            <Input
-              placeholder="Search by business name, email, or legal name..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyPress={e => e.key === 'Enter' && handleSearch()}
-              className="flex-1"
-              startContent={<span>{EMOJI.SEARCH}</span>}
-            />
-            <Select
-              placeholder="Filter by status"
-              selectedKeys={[status]}
-              onChange={e => setStatus(e.target.value as any)}
-              className="w-64"
-            >
-              {STATUS_OPTIONS.map(option => (
-                <SelectItem key={option.value} textValue={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </Select>
-            <Button color="primary" onPress={handleSearch}>
-              {EMOJI.SEARCH} Search
-            </Button>
+    <PageSlot>
+      <section className="space-y-6">
+        {/* Header */}
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Provider Requests</h1>
+            <p className="text-slate-500 mt-1">
+              Review and manage provider onboarding applications
+            </p>
           </div>
-        </CardBody>
-      </Card>
+        </header>
 
-      {/* Applications Table */}
-      <Card>
-        <CardBody>
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Spinner size="lg" color="primary" />
-            </div>
-          ) : !applications || applications.length === 0 ? (
-            <div className="py-8 text-center text-default-400">
-              <p>{EMOJI.DOCUMENT} No applications found</p>
-            </div>
-          ) : (
-            <>
-              <Table aria-label="Applications table">
-                <TableHeader>
-                  <TableColumn>BUSINESS NAME</TableColumn>
-                  <TableColumn>CONTACT</TableColumn>
-                  <TableColumn>STATUS</TableColumn>
-                  <TableColumn>TRUST SCORE</TableColumn>
-                  <TableColumn>SUBMITTED</TableColumn>
-                  <TableColumn>ACTIONS</TableColumn>
-                </TableHeader>
-                <TableBody>
-                  {applications.map(app => (
-                    <TableRow key={app.id}>
-                      <TableCell>
+        {/* Error Alert */}
+        {error && (
+          <Card className="bg-danger-50 border-danger-200">
+            <CardBody>
+              <p className="text-danger">{error}</p>
+            </CardBody>
+          </Card>
+        )}
+
+        {/* Search and Filters */}
+        <div className="flex gap-4 flex-wrap items-end">
+          <Input
+            label="Search"
+            labelPlacement="outside"
+            placeholder="Search by business name, email, or legal name..."
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            className="w-[280px]"
+            startContent={<Search className="h-5 w-5 text-gray-400" />}
+          />
+          <Select
+            label="Status"
+            labelPlacement="outside"
+            placeholder="Select status"
+            className="w-[180px]"
+            selectedKeys={filters.status ? [filters.status] : ['all']}
+            onSelectionChange={keys => {
+              const value = Array.from(keys)[0] as string | undefined
+              setFilters({ status: value === 'all' ? undefined : (value as ApprovalStatus) })
+            }}
+          >
+            {STATUS_OPTIONS.map(option => (
+              <SelectItem key={option.value}>{option.label}</SelectItem>
+            ))}
+          </Select>
+          <Button
+            variant="flat"
+            color="default"
+            startContent={<FilterX className="h-4 w-4" />}
+            onPress={handleClearAllFilters}
+            isDisabled={!hasActiveFilters()}
+          >
+            Clear Filters
+          </Button>
+        </div>
+
+        {/* Provider Requests Table */}
+        <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
+          <CardBody className="p-0">
+            <Table
+              aria-label="Provider requests table"
+              classNames={{
+                wrapper: 'rounded-3xl',
+              }}
+              bottomContent={
+                <div className="flex w-full justify-between items-center px-4 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Rows per page:</span>
+                    <Select
+                      aria-label="Rows per page"
+                      size="sm"
+                      className="w-20"
+                      selectedKeys={[String(pagination.limit)]}
+                      onSelectionChange={keys => {
+                        const value = Array.from(keys)[0] as string
+                        setLimit(Number(value))
+                      }}
+                    >
+                      <SelectItem key="5">5</SelectItem>
+                      <SelectItem key="10">10</SelectItem>
+                      <SelectItem key="20">20</SelectItem>
+                      <SelectItem key="50">50</SelectItem>
+                    </Select>
+                  </div>
+                  {pagination.totalPages > 1 ? (
+                    <Pagination
+                      showControls
+                      total={pagination.totalPages}
+                      page={pagination.page}
+                      onChange={setPage}
+                    />
+                  ) : (
+                    <div />
+                  )}
+                  <div className="text-sm text-gray-500">
+                    Total: {pagination.total} applications
+                  </div>
+                </div>
+              }
+            >
+              <TableHeader>
+                <TableColumn>BUSINESS</TableColumn>
+                <TableColumn>CONTACT</TableColumn>
+                <TableColumn>STATUS</TableColumn>
+                <TableColumn>TRUST SCORE</TableColumn>
+                <TableColumn>SUBMITTED</TableColumn>
+                <TableColumn>ACTIONS</TableColumn>
+              </TableHeader>
+              <TableBody
+                items={applications}
+                isLoading={isLoading}
+                emptyContent={isLoading ? 'Loading...' : 'No provider requests found'}
+              >
+                {app => (
+                  <TableRow key={app.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="bg-primary text-white text-sm font-medium min-w-10 min-h-10 rounded-full flex items-center justify-center">
+                          <Building className="h-5 w-5" />
+                        </div>
                         <div>
-                          <div className="font-medium text-foreground">{app.businessName}</div>
+                          <div className="font-semibold">{app.businessName}</div>
                           {app.legalCompanyName && (
-                            <div className="text-sm text-default-500">{app.legalCompanyName}</div>
+                            <div className="text-sm text-gray-500">{app.legalCompanyName}</div>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="text-sm text-foreground">
-                            {app.contactFirstName} {app.contactLastName}
-                          </div>
-                          <div className="text-sm text-default-500">{app.email}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">
+                          {app.contactFirstName} {app.contactLastName}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Chip size="sm" color={getStatusColor(app.approvalStatus)} variant="flat">
-                          {getStatusLabel(app.approvalStatus)}
+                        <div className="text-sm text-gray-500">{app.email}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Chip size="sm" color={getStatusColor(app.approvalStatus)} variant="flat">
+                        {getStatusLabel(app.approvalStatus)}
+                      </Chip>
+                    </TableCell>
+                    <TableCell>
+                      {app.trustScore !== null && app.trustScore !== undefined ? (
+                        <Chip size="sm" color={getTrustScoreColor(app.trustScore)} variant="flat">
+                          {app.trustScore}/100
                         </Chip>
-                      </TableCell>
-                      <TableCell>
-                        {app.trustScore !== null && app.trustScore !== undefined ? (
-                          <Chip size="sm" color={getTrustScoreColor(app.trustScore)} variant="flat">
-                            {app.trustScore}/100
-                          </Chip>
-                        ) : (
-                          <span className="text-sm text-default-400">N/A</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm text-default-600">
-                          {app.onboardingCompletedAt
-                            ? new Date(app.onboardingCompletedAt).toLocaleDateString()
-                            : 'In Progress'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          color="primary"
-                          variant="flat"
-                          onClick={() => router.push(`/provider-requests/${app.id}`)}
-                        >
-                          Review
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              {totalPages > 1 && (
-                <div className="mt-4 flex justify-center">
-                  <Pagination
-                    total={totalPages}
-                    page={currentPage}
-                    onChange={setCurrentPage}
-                    showControls
-                  />
-                </div>
-              )}
-            </>
-          )}
-        </CardBody>
-      </Card>
-    </div>
+                      ) : (
+                        <span className="text-sm text-gray-500">N/A</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-gray-500">
+                        {app.onboardingCompletedAt
+                          ? formatDate(app.onboardingCompletedAt)
+                          : 'In Progress'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="light"
+                        onPress={() => router.push(`/provider-requests/${app.id}`)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardBody>
+        </Card>
+      </section>
+    </PageSlot>
   )
 }
