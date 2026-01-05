@@ -9,13 +9,22 @@ export class TrustScoreService {
 
   /**
    * Calculate trust score for a provider
-   * Score is 0-100 based on multiple factors
+   * Score is 0-100 based on provider-controlled factors (no admin approval dependencies)
+   *
+   * Breakdown:
+   * - Step 1 (Google Business): 30 pts
+   * - Step 2 (Legal Info + Business Age): 30 pts
+   * - Step 3 (Camp Profile): 10 pts
+   * - Step 4 (Document Verification): 20 pts
+   * - Step 5 (Payment & Policies): 10 pts
+   * Total: 100 pts
    */
   async calculateTrustScore(providerId: string): Promise<{ score: number; breakdown: any }> {
     const provider = await this.prisma.provider.findUnique({
       where: { id: providerId },
       include: {
         googleBusinessProfile: true,
+        settings: true,
         verificationDocuments: true,
       },
     })
@@ -54,37 +63,7 @@ export class TrustScoreService {
       score += gbpScore
     }
 
-    // 2. Verification Documents (40 points)
-    const documents = provider.verificationDocuments || []
-    let docScore = 0
-
-    // Business registration: 20 points
-    const businessReg = documents.find(d => d.documentType === 'business_registration')
-    if (businessReg) {
-      if (businessReg.reviewStatus === 'approved') {
-        docScore += 20
-        breakdown.businessRegistration = 20
-      } else if (businessReg.reviewStatus === 'pending') {
-        docScore += 10
-        breakdown.businessRegistration = 10
-      }
-    }
-
-    // Insurance certificate: 20 points
-    const insurance = documents.find(d => d.documentType === 'insurance_certificate')
-    if (insurance) {
-      if (insurance.reviewStatus === 'approved') {
-        docScore += 20
-        breakdown.insuranceCertificate = 20
-      } else if (insurance.reviewStatus === 'pending') {
-        docScore += 10
-        breakdown.insuranceCertificate = 10
-      }
-    }
-
-    score += docScore
-
-    // 3. Business Age (15 points)
+    // 2. Business Age (15 points)
     if (provider.yearFounded) {
       const currentYear = new Date().getFullYear()
       const yearsInBusiness = currentYear - provider.yearFounded
@@ -101,20 +80,97 @@ export class TrustScoreService {
       }
     }
 
-    // 4. Contact Information Completeness (15 points)
-    let contactScore = 0
-
-    if (provider.contactPhone && provider.phoneVerified) {
-      contactScore += 5
-      breakdown.phoneVerified = 5
-    }
-
+    // 3. Legal Information Completeness (15 points)
     if (provider.legalCompanyName && provider.legalStreetAddress && provider.legalCity) {
-      contactScore += 10
-      breakdown.legalInfoComplete = 10
+      score += 15
+      breakdown.legalInfoComplete = 15
     }
 
-    score += contactScore
+    // 4. Camp Profile Completeness (10 points) - Step 3
+    let campProfileScore = 0
+
+    // Description quality: 4 points
+    if (provider.description) {
+      const descLength = provider.description.length
+      if (descLength >= 100 && descLength <= 300) {
+        campProfileScore += 4
+        breakdown.descriptionComplete = 4
+      }
+    }
+
+    // Camp type selected: 2 points
+    if (provider.campType) {
+      campProfileScore += 2
+      breakdown.campTypeSelected = 2
+    }
+
+    // Age range defined: 4 points
+    if (provider.minAge !== null && provider.maxAge !== null && provider.minAge < provider.maxAge) {
+      campProfileScore += 4
+      breakdown.ageRangeDefined = 4
+    }
+
+    score += campProfileScore
+
+    // 5. Document Verification (20 points) - Step 4
+    let documentScore = 0
+
+    // Business registration: 10 points
+    const businessReg = provider.verificationDocuments.find(
+      d => d.documentType === 'business_registration'
+    )
+    if (businessReg) {
+      documentScore += 10
+      breakdown.businessRegistration = 10
+    }
+
+    // Insurance certificate: 10 points
+    const insurance = provider.verificationDocuments.find(
+      d => d.documentType === 'insurance_certificate'
+    )
+    if (insurance) {
+      documentScore += 10
+      breakdown.insuranceCertificate = 10
+    }
+
+    score += documentScore
+
+    // 6. Payment & Policies Configuration (10 points) - Step 5
+    let policiesScore = 0
+
+    if (provider.settings) {
+      const settings = provider.settings
+
+      // Deposit configured: 5 points
+      if (settings.depositRequired && settings.depositType) {
+        if (settings.depositType === 'percentage' && settings.depositPercentage) {
+          policiesScore += 5
+          breakdown.depositConfigured = 5
+        } else if (settings.depositType === 'fixed' && settings.depositFixedAmount) {
+          policiesScore += 5
+          breakdown.depositConfigured = 5
+        }
+      }
+
+      // Cancellation policy: up to 5 points
+      // Flexible policy (most customer-friendly) = 5 pts
+      // Moderate policy = 3 pts
+      // Strict policy = 2 pts
+      if (settings.cancellationPolicy) {
+        let policyScore = 0
+        if (settings.cancellationPolicy === 'flexible') {
+          policyScore = 5
+        } else if (settings.cancellationPolicy === 'moderate') {
+          policyScore = 3
+        } else if (settings.cancellationPolicy === 'strict') {
+          policyScore = 2
+        }
+        policiesScore += policyScore
+        breakdown.cancellationPolicy = policyScore
+      }
+    }
+
+    score += policiesScore
 
     // Ensure score is between 0 and 100
     score = Math.min(100, Math.max(0, score))

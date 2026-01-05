@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button, Spinner } from '@heroui/react'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
+import { TrustScoreBadge } from '../../../components/onboarding/TrustScoreBadge'
 import type {
   CancellationPolicy,
   DepositType,
@@ -54,8 +55,8 @@ export default function OnboardingStep5Page() {
   const isReadOnly = status?.isCompleted ?? false
 
   // Currency and Timezone
-  const [currency, setCurrency] = useState('USD')
-  const [timezone, setTimezone] = useState('America/New_York')
+  const [currency, setCurrency] = useState('CHF')
+  const [timezone, setTimezone] = useState('Europe/Zurich')
 
   // Deposit settings
   const [depositType, setDepositType] = useState<DepositType>('percentage')
@@ -224,9 +225,12 @@ export default function OnboardingStep5Page() {
     >
       <div>
         <div className="mb-8">
-          <h1 className="mb-2 text-[32px] font-bold leading-tight text-foreground">
-            Payment & Cancellation Settings
-          </h1>
+          <div className="mb-2 flex items-center gap-3">
+            <h1 className="text-[32px] font-bold leading-tight text-foreground">
+              Payment & Cancellation Settings
+            </h1>
+            <TrustScoreBadge section="step5" maxPoints={10} />
+          </div>
           <p className="text-[16px] text-default-500">
             Configure deposit requirements and cancellation policy for your camp programs
           </p>

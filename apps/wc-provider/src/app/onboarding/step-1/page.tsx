@@ -7,6 +7,7 @@ import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
 import { GoogleMapsLoader } from '../../../components/onboarding/GoogleMapsLoader'
 import { GoogleMapWithSearch } from '../../../components/onboarding/GoogleMapWithSearch'
+import { TrustScoreBadge } from '../../../components/onboarding/TrustScoreBadge'
 import type { GoogleBusinessSearchResult } from '../../../types/onboarding'
 
 /* eslint-disable no-undef */
@@ -154,7 +155,6 @@ export default function OnboardingStep1Page() {
           })
 
           autocompleteRefObj.current = autocomplete
-          console.log(`Autocomplete initialized successfully for ${label}`)
           return true
         } catch (error) {
           console.error(`Error initializing autocomplete (${label}):`, error)
@@ -297,9 +297,12 @@ export default function OnboardingStep1Page() {
         <div>
           {/* Header */}
           <div className="mb-8">
-            <h1 className="mb-2 text-[32px] font-bold leading-tight text-foreground">
-              Find your camp on Google
-            </h1>
+            <div className="mb-2 flex items-center gap-3">
+              <h1 className="text-[32px] font-bold leading-tight text-foreground">
+                Find your camp on Google
+              </h1>
+              <TrustScoreBadge section="step1" maxPoints={30} />
+            </div>
             <p className="text-[16px] text-default-500">
               Help us understand your programs so we can review your application
             </p>
@@ -481,9 +484,19 @@ export default function OnboardingStep1Page() {
                     <div className="mb-1 text-base font-semibold text-foreground">
                       {selectedBusiness.businessName}
                     </div>
-                    <div className="text-sm text-default-500">
+                    <div className="mb-1 text-sm text-default-500">
                       {selectedBusiness.formattedAddress}
                     </div>
+                    {selectedBusiness.rating && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-foreground">⭐ {selectedBusiness.rating}</span>
+                        {selectedBusiness.reviewsCount && (
+                          <span className="text-default-500">
+                            ({selectedBusiness.reviewsCount} reviews)
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <Button
                     variant="bordered"

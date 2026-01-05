@@ -18,6 +18,30 @@ export type DepositType = 'percentage' | 'fixed_amount'
 
 export type CancellationPolicy = 'flexible' | 'moderate' | 'strict' | 'super_strict' | 'custom'
 
+export interface TrustScoreBreakdown {
+  // Step 1: Google Business Profile (max 30 pts)
+  hasGoogleBusiness?: number // 10 pts
+  googleRating?: number // 0-15 pts
+  googleReviews?: number // 0-5 pts
+
+  // Step 2: Legal Info + Business Age (max 30 pts)
+  legalInfoComplete?: number // 15 pts
+  businessAge?: number // 0-15 pts
+
+  // Step 3: Camp Profile (max 10 pts)
+  descriptionComplete?: number // 4 pts
+  campTypeSelected?: number // 2 pts
+  ageRangeDefined?: number // 4 pts
+
+  // Step 4: Document Verification (max 20 pts)
+  businessRegistration?: number // 10 pts
+  insuranceCertificate?: number // 10 pts
+
+  // Step 5: Payment & Policies (max 10 pts)
+  depositConfigured?: number // 5 pts
+  cancellationPolicy?: number // 0-5 pts
+}
+
 export interface OnboardingStatus {
   currentStep: number
   isCompleted: boolean
@@ -25,6 +49,7 @@ export interface OnboardingStatus {
   onboardingCompletedAt?: string | null
   approvalStatus: ApprovalStatus
   trustScore?: number | null
+  trustScoreBreakdown?: TrustScoreBreakdown | null
   rejectionReason?: string | null
   rejectionCategory?: string | null
   stepCompletion: {
@@ -80,11 +105,10 @@ export interface ContactInfo {
   contactFirstName: string
   contactLastName: string
   contactRole: string
-  contactPhone: string
-  contactPhoneCountryCode: string
+  contactPhone: string // E.164 format phone number (e.g., "+12133734253")
   contactEmail: string
   providerName: string
-  providerPhone?: string
+  providerPhone?: string // E.164 format phone number (optional)
   providerEmail?: string
   website?: string
   legalCompanyName: string

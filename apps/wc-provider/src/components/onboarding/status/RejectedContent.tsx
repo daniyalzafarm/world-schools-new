@@ -9,19 +9,14 @@ export function RejectedContent({ status }: RejectedContentProps) {
   return (
     <div className="mx-auto w-full max-w-3xl">
       {/* Main Status Card */}
-      <div className="mb-8 rounded-xl border border-danger bg-white p-12 text-center">
-        <div className="mb-6 text-7xl">❌</div>
-        <h1 className="mb-4 text-[36px] font-bold leading-tight text-foreground">
+      <div className="p-12 text-center">
+        <div className="mb-6 text-6xl">❌</div>
+        <h1 className="mb-4 text-3xl font-bold leading-tight text-foreground">
           Application Not Approved
         </h1>
-        <p className="mb-8 text-[18px] text-default-600">
+        <p className="mb-8 text-lg text-default-600">
           Unfortunately, we're unable to approve your application at this time.
         </p>
-
-        {/* Status Badge */}
-        <div className="inline-flex items-center gap-2 rounded-full bg-danger-50 px-6 py-3">
-          <span className="font-semibold text-danger">Rejected</span>
-        </div>
       </div>
 
       {/* Rejection Reason */}

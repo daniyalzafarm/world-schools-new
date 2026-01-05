@@ -133,7 +133,6 @@ export class ApplicationDetailDto {
   contactLastName: string | null
   contactRole: string | null
   contactPhone: string | null
-  contactPhoneCountryCode: string | null
   contactEmail: string | null
 
   // Provider Details

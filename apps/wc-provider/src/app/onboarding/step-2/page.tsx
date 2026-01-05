@@ -2,10 +2,13 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { Button, Spinner } from '@heroui/react'
+import { PhoneInput } from '@world-schools/ui-web'
+import { isValidPhoneNumber } from 'react-phone-number-input'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
+import { TrustScoreBadge } from '../../../components/onboarding/TrustScoreBadge'
 import type { ContactInfo } from '../../../types/onboarding'
 import { canAccessStep, getNextAccessibleStep } from '../../../utils/onboarding-access'
 import { onboardingService } from '../../../services/onboarding.services'
@@ -20,6 +23,7 @@ export default function OnboardingStep2Page() {
     formState: { errors },
     setValue,
     reset,
+    control,
   } = useForm<ContactInfo>()
 
   // Check if onboarding is completed (read-only mode)
@@ -54,7 +58,7 @@ export default function OnboardingStep2Page() {
         'input[name="legalCompanyName"]'
       )?.value
       if (!currentLegalName) {
-        setValue('legalCompanyName', googleBusinessProfile.businessName || '')
+        setValue('legalCompanyName' as any, googleBusinessProfile.businessName || '')
 
         // Auto-fill address fields
         const streetAddress = [googleBusinessProfile.streetNumber, googleBusinessProfile.streetName]
@@ -62,25 +66,25 @@ export default function OnboardingStep2Page() {
           .join(' ')
 
         if (streetAddress) {
-          setValue('legalStreetAddress', streetAddress)
+          setValue('legalStreetAddress' as any, streetAddress)
         } else if (googleBusinessProfile.formattedAddress) {
-          setValue('legalStreetAddress', googleBusinessProfile.formattedAddress)
+          setValue('legalStreetAddress' as any, googleBusinessProfile.formattedAddress)
         }
 
         if (googleBusinessProfile.city) {
-          setValue('legalCity', googleBusinessProfile.city)
+          setValue('legalCity' as any, googleBusinessProfile.city)
         }
 
         if (googleBusinessProfile.state) {
-          setValue('legalStateProvince', googleBusinessProfile.state)
+          setValue('legalStateProvince' as any, googleBusinessProfile.state)
         }
 
         if (googleBusinessProfile.postalCode) {
-          setValue('legalPostalCode', googleBusinessProfile.postalCode)
+          setValue('legalPostalCode' as any, googleBusinessProfile.postalCode)
         }
 
         if (googleBusinessProfile.country) {
-          setValue('legalCountry', googleBusinessProfile.country)
+          setValue('legalCountry' as any, googleBusinessProfile.country)
         }
       }
     }
@@ -134,7 +138,10 @@ export default function OnboardingStep2Page() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           {/* Contact Information Section */}
           <div className="space-y-6">
-            <h2 className="text-[20px] font-semibold text-foreground">Contact Information</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-[20px] font-semibold text-foreground">Contact Information</h2>
+              <TrustScoreBadge section="step2" maxPoints={30} />
+            </div>
 
             {/* First Name & Last Name */}
             <div className="grid gap-6 md:grid-cols-2">
@@ -222,29 +229,24 @@ export default function OnboardingStep2Page() {
                   Phone Number
                   <span className="ml-1 text-danger">*</span>
                 </label>
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    placeholder="+1"
-                    {...register('contactPhoneCountryCode', {
-                      required: 'Country code is required',
-                    })}
-                    disabled={isReadOnly}
-                    className="w-24 rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-                  />
-                  <input
-                    type="tel"
-                    placeholder="(555) 123-4567"
-                    {...register('contactPhone', { required: 'Phone number is required' })}
-                    disabled={isReadOnly}
-                    className="flex-1 rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-                  />
-                </div>
-                {(errors.contactPhoneCountryCode || errors.contactPhone) && (
-                  <p className="mt-1 text-sm text-danger">
-                    {errors.contactPhoneCountryCode?.message || errors.contactPhone?.message}
-                  </p>
-                )}
+                <Controller
+                  name="contactPhone"
+                  control={control}
+                  rules={{
+                    required: 'Phone number is required',
+                    validate: value =>
+                      !value || isValidPhoneNumber(value) || 'Please enter a valid phone number',
+                  }}
+                  render={({ field }) => (
+                    <PhoneInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={isReadOnly}
+                      error={errors.contactPhone?.message}
+                      placeholder="(555) 123-4567"
+                    />
+                  )}
+                />
               </div>
             </div>
           </div>
@@ -277,12 +279,22 @@ export default function OnboardingStep2Page() {
                 <label className="mb-2 block text-sm font-semibold text-foreground">
                   Provider Phone (Optional)
                 </label>
-                <input
-                  type="tel"
-                  placeholder="+1 (555) 123-4567"
-                  {...register('providerPhone')}
-                  disabled={isReadOnly}
-                  className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
+                <Controller
+                  name="providerPhone"
+                  control={control}
+                  rules={{
+                    validate: value =>
+                      !value || isValidPhoneNumber(value) || 'Please enter a valid phone number',
+                  }}
+                  render={({ field }) => (
+                    <PhoneInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={isReadOnly}
+                      error={errors.providerPhone?.message}
+                      placeholder="+1 (555) 123-4567"
+                    />
+                  )}
                 />
               </div>
 

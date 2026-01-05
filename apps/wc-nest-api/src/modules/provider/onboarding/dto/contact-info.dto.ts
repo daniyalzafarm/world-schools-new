@@ -27,20 +27,12 @@ export class SaveContactInfoDto {
   contactRole: string
 
   @ApiProperty({
-    description: 'Contact phone number',
+    description: 'Contact phone number in E.164 format',
     example: '+14165551234',
   })
   @IsString()
   @IsNotEmpty()
   contactPhone: string
-
-  @ApiProperty({
-    description: 'Contact phone country code',
-    example: '+1',
-  })
-  @IsString()
-  @IsNotEmpty()
-  contactPhoneCountryCode: string
 
   @ApiProperty({
     description: 'Contact email address',

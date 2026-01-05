@@ -8,6 +8,7 @@ import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
 import { ValidationErrors } from '../../../components/onboarding/ValidationErrors'
 import { SubmitConfirmationDialog } from '../../../components/onboarding/SubmitConfirmationDialog'
+import { TrustScoreDisplay } from '../../../components/onboarding/TrustScoreDisplay'
 import { canAccessStep, getNextAccessibleStep } from '../../../utils/onboarding-access'
 import {
   validateOnboardingCompletion,
@@ -24,8 +25,7 @@ const COMPLETION_ITEMS = [
 
 export default function OnboardingStep6Page() {
   const router = useRouter()
-  const { status, documents, isLoading, validateOnboarding, completeOnboarding, fetchDocuments } =
-    useOnboardingStore()
+  const { status, validateOnboarding, completeOnboarding, fetchDocuments } = useOnboardingStore()
 
   // Terms agreement - set to true if already completed
   const [agreedToTerms, setAgreedToTerms] = useState(false)
@@ -149,13 +149,6 @@ export default function OnboardingStep6Page() {
     )
   }
 
-  const allStepsCompleted =
-    status.stepCompletion.step1 &&
-    status.stepCompletion.step2 &&
-    status.stepCompletion.step3 &&
-    status.stepCompletion.step4 &&
-    status.stepCompletion.step5
-
   return (
     <OnboardingPageLayout
       breadcrumb="Provider Onboarding / Review & Submit"
@@ -197,6 +190,19 @@ export default function OnboardingStep6Page() {
             Please review your application details before final submission
           </p>
         </div>
+
+        {/* Trust Score Section */}
+        {status?.trustScore !== undefined && status?.trustScore !== null && (
+          <div className="mb-8 rounded-xl border-2 border-primary-200 bg-primary-50 p-6">
+            <h2 className="mb-4 text-lg font-semibold text-foreground">Your Trust Score</h2>
+            <TrustScoreDisplay
+              score={status.trustScore}
+              breakdown={status.trustScoreBreakdown}
+              showBreakdown={true}
+              size="lg"
+            />
+          </div>
+        )}
 
         {/* Validation Status Section */}
         {isValidating ? (

@@ -6,6 +6,7 @@ import { OnboardingTopBar } from './OnboardingTopBar'
 interface OnboardingPageLayoutProps {
   breadcrumb: string
   showAutoSave?: boolean
+  showTrustScore?: boolean
   children: React.ReactNode
   footer?: React.ReactNode
 }
@@ -34,14 +35,18 @@ interface OnboardingPageLayoutProps {
 export function OnboardingPageLayout({
   breadcrumb,
   showAutoSave = true,
+  showTrustScore = true,
   children,
   footer,
 }: OnboardingPageLayoutProps) {
+  // For backward compatibility: if showAutoSave is explicitly set to false, hide trust score
+  const displayTrustScore = showAutoSave !== false && showTrustScore
+
   return (
     <div className="flex h-full flex-col">
       {/* Top Bar - Sticky with reserved space */}
       <div className="sticky top-0 z-40 shrink-0">
-        <OnboardingTopBar breadcrumb={breadcrumb} showAutoSave={showAutoSave} />
+        <OnboardingTopBar breadcrumb={breadcrumb} showTrustScore={displayTrustScore} />
       </div>
 
       {/* Scrollable Content Area - fills remaining space */}

@@ -22,6 +22,7 @@ import { OnboardingService } from './services/onboarding.service'
 import { GoogleBusinessService } from './services/google-business.service'
 import { ProviderSettingsService } from './services/provider-settings.service'
 import { DocumentProcessingService } from './services/document-processing.service'
+import { TrustScoreService } from './services/trust-score.service'
 
 // DTOs
 import { SaveGoogleBusinessProfileDto } from './dto/google-business.dto'
@@ -39,7 +40,8 @@ export class OnboardingController {
     private readonly onboardingService: OnboardingService,
     private readonly googleBusinessService: GoogleBusinessService,
     private readonly providerSettingsService: ProviderSettingsService,
-    private readonly documentProcessingService: DocumentProcessingService
+    private readonly documentProcessingService: DocumentProcessingService,
+    private readonly trustScoreService: TrustScoreService
   ) {}
 
   /**
@@ -52,6 +54,18 @@ export class OnboardingController {
     const providerId = req.user.providerId
     const status = await this.onboardingService.getOnboardingStatus(providerId)
     return ResponseUtil.success(status)
+  }
+
+  /**
+   * Get trust score breakdown (debug endpoint)
+   */
+  @Get('trust-score/breakdown')
+  @Roles('Provider Admin')
+  @ApiOperation({ summary: 'Get detailed trust score breakdown' })
+  async getTrustScoreBreakdown(@Request() req: any) {
+    const providerId = req.user.providerId
+    const { score, breakdown } = await this.trustScoreService.calculateTrustScore(providerId)
+    return ResponseUtil.success({ score, breakdown })
   }
 
   /**
@@ -77,6 +91,10 @@ export class OnboardingController {
     const providerId = req.user.providerId
     const profile = await this.googleBusinessService.saveBusinessProfile(providerId, dto.placeId)
     await this.onboardingService.updateCurrentStep(providerId, 2)
+
+    // Update trust score after saving Google Business Profile
+    await this.trustScoreService.updateTrustScore(providerId)
+
     return ResponseUtil.success(profile)
   }
 
@@ -127,6 +145,10 @@ export class OnboardingController {
     const providerId = req.user.providerId
     await this.onboardingService.saveCampInfo(providerId, dto)
     await this.onboardingService.updateCurrentStep(providerId, 4)
+
+    // Update trust score after saving camp information
+    await this.trustScoreService.updateTrustScore(providerId)
+
     return ResponseUtil.success({ message: 'Camp information saved successfully' })
   }
 
@@ -165,6 +187,10 @@ export class OnboardingController {
       dto.documentType
     )
     await this.onboardingService.updateCurrentStep(providerId, 4)
+
+    // Update trust score after uploading document
+    await this.trustScoreService.updateTrustScore(providerId)
+
     return ResponseUtil.success(document)
   }
 
@@ -203,6 +229,10 @@ export class OnboardingController {
   async deleteDocument(@Request() req: any, @Param('documentId') documentId: string) {
     const providerId = req.user.providerId
     await this.documentProcessingService.deleteDocument(providerId, documentId)
+
+    // Update trust score after deleting document
+    await this.trustScoreService.updateTrustScore(providerId)
+
     return ResponseUtil.success({ message: 'Document deleted successfully' })
   }
 
@@ -228,6 +258,10 @@ export class OnboardingController {
     const providerId = req.user.providerId
     const settings = await this.providerSettingsService.saveSettings(providerId, dto)
     await this.onboardingService.updateCurrentStep(providerId, 6)
+
+    // Update trust score after saving payment & policy settings
+    await this.trustScoreService.updateTrustScore(providerId)
+
     return ResponseUtil.success(settings)
   }
 

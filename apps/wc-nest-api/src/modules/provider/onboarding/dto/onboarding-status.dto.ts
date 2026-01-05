@@ -42,6 +42,22 @@ export class OnboardingStatusDto {
   trustScore?: number | null
 
   @ApiProperty({
+    description: 'Trust score breakdown by category',
+    example: {
+      hasGoogleBusiness: 10,
+      googleRating: 12,
+      googleReviews: 3,
+      businessRegistration: 20,
+      insuranceCertificate: 20,
+      businessAge: 10,
+      phoneVerified: 5,
+      legalInfoComplete: 10,
+    },
+    required: false,
+  })
+  trustScoreBreakdown?: Record<string, number> | null
+
+  @ApiProperty({
     description: 'Rejection reason',
     example: null,
     required: false,

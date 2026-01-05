@@ -33,9 +33,7 @@ export function ContactInfoSection({ application }: ContactInfoSectionProps) {
           <div>
             <div className="text-sm text-default-600">Phone</div>
             <div className="text-foreground">
-              {application.contactPhoneCountryCode && application.contactPhone
-                ? `${application.contactPhoneCountryCode} ${application.contactPhone}`
-                : 'N/A'}
+              {application.contactPhone ? `${application.contactPhone}` : 'N/A'}
             </div>
           </div>
         </div>

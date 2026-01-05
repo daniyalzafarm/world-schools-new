@@ -1,36 +1,60 @@
 'use client'
 
 import { useOnboardingStore } from '../../stores/onboarding-store'
-import { CheckCircle, FileEdit } from 'lucide-react'
+import { Progress } from '@heroui/react'
+import { HowScoringWorks } from './HowScoringWorks'
 
 interface OnboardingTopBarProps {
   breadcrumb: string
-  showAutoSave?: boolean
+  showTrustScore?: boolean
 }
 
-export function OnboardingTopBar({ breadcrumb, showAutoSave = true }: OnboardingTopBarProps) {
+export function OnboardingTopBar({ breadcrumb, showTrustScore = true }: OnboardingTopBarProps) {
   const { status } = useOnboardingStore()
-  const isSubmitted = status?.isCompleted ?? false
+  const trustScore = status?.trustScore ?? 0
+
+  // Determine color based on score
+  const getScoreColor = (score: number): 'success' | 'warning' | 'danger' => {
+    if (score >= 70) return 'success'
+    if (score >= 40) return 'warning'
+    return 'danger'
+  }
+
+  const color = getScoreColor(trustScore)
 
   return (
     <div className="flex min-h-[61px] items-center justify-between border-b border-default-200 bg-white px-12 py-5">
       {/* Breadcrumb */}
       <div className="text-[13px] text-default-500">{breadcrumb}</div>
 
-      {/* Status indicator */}
-      {showAutoSave && (
-        <div className="flex items-center gap-2 text-[13px]">
-          {isSubmitted ? (
-            <>
-              <CheckCircle className="h-4 w-4 text-primary" />
-              <span className="font-medium text-primary">Submitted</span>
-            </>
-          ) : (
-            <>
-              <FileEdit className="h-4 w-4 text-default-500" />
-              <span className="font-medium text-default-500">Draft</span>
-            </>
-          )}
+      {/* Trust Score indicator */}
+      {showTrustScore && (
+        <div className="flex items-center gap-2">
+          <HowScoringWorks />
+          <div className="flex flex-col items-center gap-1">
+            <div className="flex w-full justify-between items-center">
+              <p className="text-sm font-medium text-default-500">Trust Score</p>
+              <div
+                className={`text-sm font-bold ${
+                  color === 'success'
+                    ? 'text-success'
+                    : color === 'warning'
+                      ? 'text-warning'
+                      : 'text-danger'
+                }`}
+              >
+                {trustScore}/100
+              </div>
+            </div>
+            <Progress
+              value={trustScore}
+              maxValue={100}
+              color={color}
+              size="md"
+              className="w-32"
+              aria-label="Trust score progress"
+            />
+          </div>
         </div>
       )}
     </div>

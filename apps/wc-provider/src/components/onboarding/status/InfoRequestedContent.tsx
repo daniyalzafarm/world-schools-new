@@ -9,19 +9,14 @@ export function InfoRequestedContent({ status: _status }: InfoRequestedContentPr
   return (
     <div className="mx-auto w-full max-w-3xl">
       {/* Main Status Card */}
-      <div className="mb-8 rounded-xl border border-warning bg-white p-12 text-center">
-        <div className="mb-6 text-7xl">❓</div>
-        <h1 className="mb-4 text-[36px] font-bold leading-tight text-foreground">
+      <div className="p-12 text-center">
+        <div className="mb-6 text-6xl">❓</div>
+        <h1 className="mb-4 text-3xl font-bold leading-tight text-foreground">
           Additional Information Needed
         </h1>
-        <p className="mb-8 text-[18px] text-default-500">
+        <p className="mb-8 text-lg text-default-500">
           We need some additional information to complete your application review.
         </p>
-
-        {/* Status Badge */}
-        <div className="inline-flex items-center gap-2 rounded-full bg-warning-50 px-6 py-3">
-          <span className="font-semibold text-warning">Info Requested</span>
-        </div>
       </div>
 
       {/* Information Request */}

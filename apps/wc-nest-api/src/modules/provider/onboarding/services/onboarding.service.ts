@@ -45,7 +45,6 @@ export class OnboardingService {
         provider.contactLastName &&
         provider.contactRole &&
         provider.contactPhone &&
-        provider.contactPhoneCountryCode &&
         provider.contactEmail &&
         provider.name &&
         provider.legalCompanyName &&
@@ -69,6 +68,7 @@ export class OnboardingService {
       onboardingCompletedAt: provider.onboardingCompletedAt?.toISOString() || null,
       approvalStatus: provider.approvalStatus,
       trustScore: provider.trustScore,
+      trustScoreBreakdown: provider.trustScoreBreakdown as Record<string, number> | null,
       rejectionReason: provider.rejectionReason,
       rejectionCategory: provider.rejectionCategory,
       stepCompletion,
@@ -105,7 +105,6 @@ export class OnboardingService {
         contactLastName: true,
         contactRole: true,
         contactPhone: true,
-        contactPhoneCountryCode: true,
         contactEmail: true,
         name: true,
         phone: true,
@@ -136,7 +135,6 @@ export class OnboardingService {
       contactLastName: provider.contactLastName,
       contactRole: provider.contactRole,
       contactPhone: provider.contactPhone,
-      contactPhoneCountryCode: provider.contactPhoneCountryCode,
       contactEmail: provider.contactEmail,
       providerName: provider.name,
       providerPhone: provider.phone,
@@ -164,7 +162,6 @@ export class OnboardingService {
         contactLastName: dto.contactLastName,
         contactRole: dto.contactRole,
         contactPhone: dto.contactPhone,
-        contactPhoneCountryCode: dto.contactPhoneCountryCode,
         contactEmail: dto.contactEmail,
         name: dto.providerName,
         phone: dto.providerPhone,
@@ -178,7 +175,7 @@ export class OnboardingService {
         legalPostalCode: dto.legalPostalCode,
         legalCountry: dto.legalCountry,
         yearFounded: dto.yearFounded,
-        onboardingCurrentStep: Math.max(2, (await this.getCurrentStep(providerId)) || 2),
+        onboardingCurrentStep: Math.max(3, (await this.getCurrentStep(providerId)) || 3),
       },
     })
 
@@ -324,7 +321,6 @@ export class OnboardingService {
       !provider.contactLastName ||
       !provider.contactRole ||
       !provider.contactPhone ||
-      !provider.contactPhoneCountryCode ||
       !provider.legalCompanyName ||
       !provider.legalStreetAddress ||
       !provider.legalCity ||

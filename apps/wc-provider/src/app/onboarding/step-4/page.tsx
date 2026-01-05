@@ -7,6 +7,7 @@ import { Trash2 } from 'lucide-react'
 import { useConfirmDialog } from '@world-schools/ui-web'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
+import { TrustScoreBadge } from '../../../components/onboarding/TrustScoreBadge'
 import type { DocumentType } from '../../../types/onboarding'
 import { canAccessStep, getNextAccessibleStep } from '../../../utils/onboarding-access'
 
@@ -198,9 +199,12 @@ export default function OnboardingStep4Page() {
       <div>
         {/* Header */}
         <div className="mb-8">
-          <h1 className="mb-2 text-[32px] font-bold leading-tight text-foreground">
-            Verification Documents
-          </h1>
+          <div className="mb-2 flex items-center gap-3">
+            <h1 className="text-[32px] font-bold leading-tight text-foreground">
+              Verification Documents
+            </h1>
+            <TrustScoreBadge section="step4" maxPoints={20} />
+          </div>
           <p className="text-[16px] text-default-500">
             Upload documents to verify your camp and build trust with families
           </p>

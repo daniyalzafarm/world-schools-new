@@ -1,3 +1,4 @@
+import { Progress } from '@heroui/react'
 import type { OnboardingStatus } from '../../../types/onboarding'
 
 interface UnderReviewContentProps {
@@ -8,21 +9,15 @@ export function UnderReviewContent({ status }: UnderReviewContentProps) {
   return (
     <div className="mx-auto w-full max-w-3xl">
       {/* Main Status Card */}
-      <div className="mb-8 rounded-xl border border-default-300 bg-white p-12 text-center">
-        <div className="mb-6 text-7xl">⏳</div>
-        <h1 className="mb-4 text-[36px] font-bold leading-tight text-foreground">
+      <div className="p-12 text-center">
+        <div className="mb-6 text-6xl">⏳</div>
+        <h1 className="mb-4 text-3xl font-bold leading-tight text-foreground">
           Application Under Review
         </h1>
-        <p className="mb-8 text-[18px] text-default-500">
+        <p className="mb-8 text-lg text-default-500">
           Thank you for submitting your application! Our team is currently reviewing your
           information.
         </p>
-
-        {/* Status Badge */}
-        <div className="inline-flex items-center gap-2 rounded-full bg-warning-50 px-6 py-3">
-          <div className="h-2 w-2 animate-pulse rounded-full bg-warning"></div>
-          <span className="font-semibold text-warning">Under Review</span>
-        </div>
       </div>
 
       {/* What's Being Reviewed */}
@@ -75,12 +70,12 @@ export function UnderReviewContent({ status }: UnderReviewContentProps) {
             <div className="text-5xl font-bold text-primary">{status.trustScore}</div>
             <div className="text-default-500">out of 100</div>
           </div>
-          <div className="mb-4 h-3 w-full overflow-hidden rounded-full bg-default-300">
-            <div
-              className="h-full rounded-full bg-primary"
-              style={{ width: `${status.trustScore}%` }}
-            ></div>
-          </div>
+          <Progress
+            value={status.trustScore}
+            maxValue={100}
+            size="md"
+            aria-label="Trust score progress"
+          />
           <p className="text-sm text-default-500">
             {status.trustScore >= 70
               ? 'Excellent! Your application looks great.'
@@ -107,7 +102,7 @@ export function UnderReviewContent({ status }: UnderReviewContentProps) {
           <div className="text-sm text-default-500">
             <strong>Need to make changes?</strong> If you need to update any information, please
             contact our support team at{' '}
-            <a href="mailto:support@worldcamps.com" className="text-primary hover:underline">
+            <a href="mailto:support@worldcamps.com" className="text-primary-700 hover:underline">
               support@worldcamps.com
             </a>
           </div>

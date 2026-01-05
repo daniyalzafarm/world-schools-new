@@ -124,7 +124,6 @@ export interface ApplicationDetail {
   contactLastName?: string
   contactRole?: string
   contactPhone?: string
-  contactPhoneCountryCode?: string
   contactEmail?: string
   providerName?: string
   providerPhone?: string

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button, Spinner, Textarea } from '@heroui/react'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
+import { TrustScoreBadge } from '../../../components/onboarding/TrustScoreBadge'
 import { canAccessStep, getNextAccessibleStep } from '../../../utils/onboarding-access'
 import { onboardingService } from '../../../services/onboarding.services'
 
@@ -97,9 +98,10 @@ export default function OnboardingStep3Page() {
       <div>
         {/* Header */}
         <div className="mb-8">
-          <h1 className="mb-2 text-[32px] font-bold leading-tight text-foreground">
-            About your camp
-          </h1>
+          <div className="mb-2 flex items-center gap-3">
+            <h1 className="text-[32px] font-bold leading-tight text-foreground">About your camp</h1>
+            <TrustScoreBadge section="step3" maxPoints={10} />
+          </div>
           <p className="text-[16px] text-default-500">
             Help us understand your programs so we can review your application
           </p>
@@ -163,7 +165,7 @@ export default function OnboardingStep3Page() {
                 type="button"
                 onClick={() => toggleCampType('day')}
                 disabled={isReadOnly}
-                className={`flex items-center gap-4 rounded-xl border-2 p-5 text-left transition-all ${
+                className={`cursor-pointer flex items-center gap-4 rounded-xl border-2 p-5 text-left transition-all ${
                   campTypes.includes('day')
                     ? 'border-primary bg-primary-50'
                     : 'border-default-200 hover:border-default-500'
@@ -181,7 +183,7 @@ export default function OnboardingStep3Page() {
                 type="button"
                 onClick={() => toggleCampType('overnight')}
                 disabled={isReadOnly}
-                className={`flex items-center gap-4 rounded-xl border-2 p-5 text-left transition-all ${
+                className={`cursor-pointer flex items-center gap-4 rounded-xl border-2 p-5 text-left transition-all ${
                   campTypes.includes('overnight')
                     ? 'border-primary bg-primary-50'
                     : 'border-default-200 hover:border-default-500'

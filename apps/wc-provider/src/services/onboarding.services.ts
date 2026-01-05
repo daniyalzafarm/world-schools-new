@@ -198,4 +198,14 @@ export const onboardingService = {
   async completeOnboarding(): Promise<void> {
     await apiClient.post('/provider/onboarding/complete', {})
   },
+
+  /**
+   * Get trust score breakdown (debug)
+   */
+  async getTrustScoreBreakdown(): Promise<{ score: number; breakdown: any }> {
+    const response = await apiClient.get<{ score: number; breakdown: any }>(
+      '/provider/onboarding/trust-score/breakdown'
+    )
+    return response.data as { score: number; breakdown: any }
+  },
 }
