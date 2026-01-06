@@ -74,9 +74,9 @@ export function ApprovalActions({ application }: ApprovalActionsProps) {
   return (
     <>
       <div className="flex gap-2">
-        <Button color="warning" variant="flat" onPress={requestInfoModal.onOpen}>
+        {/* <Button color="warning" variant="flat" onPress={requestInfoModal.onOpen}>
           Request Info
-        </Button>
+        </Button> */}
         <Button color="danger" variant="flat" onPress={rejectModal.onOpen}>
           {EMOJI.CROSS_MARK} Reject
         </Button>
