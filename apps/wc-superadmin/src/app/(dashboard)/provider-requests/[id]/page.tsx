@@ -75,7 +75,7 @@ export default function ProviderRequestDetailPage() {
     <div className="p-6">
       {/* Header */}
       <div className="mb-6">
-        <Button variant="light" onClick={() => router.push('/provider-requests')} className="mb-4">
+        <Button variant="light" onPress={() => router.push('/provider-requests')} className="mb-4">
           {EMOJI.ARROW_LEFT} Back to Provider Requests
         </Button>
 
