@@ -132,6 +132,13 @@ export const onboardingService = {
         },
       }
     )
+
+    // Check if the upload was successful
+    if (!response.success) {
+      const errorMessage = (response.data as any)?.message || 'Failed to upload document'
+      throw new Error(errorMessage)
+    }
+
     return response.data as VerificationDocument
   },
 
@@ -149,7 +156,13 @@ export const onboardingService = {
    * Delete document (Step 4)
    */
   async deleteDocument(documentId: string): Promise<void> {
-    await apiClient.del(`/provider/onboarding/step-4/documents/${documentId}`)
+    const response = await apiClient.del(`/provider/onboarding/step-4/documents/${documentId}`)
+
+    // Check if the deletion was successful
+    if (!response.success) {
+      const errorMessage = (response.data as any)?.message || 'Failed to delete document'
+      throw new Error(errorMessage)
+    }
   },
 
   /**
