@@ -47,7 +47,7 @@ export function GoogleBusinessSection({ profile }: GoogleBusinessSectionProps) {
               href={profile.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary hover:underline"
+              className="text-primary-700 hover:underline"
             >
               {profile.website}
             </a>
