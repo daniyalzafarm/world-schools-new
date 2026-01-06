@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { Button, Card, CardBody, Chip, Spinner, Tab, Tabs } from '@heroui/react'
+import { useParams } from 'next/navigation'
+import { Card, CardBody, Chip, Spinner, Tab, Tabs } from '@heroui/react'
 import { EMOJI, formatSnakeCaseToTitleCase } from '@world-schools/wc-frontend-utils'
+import { Breadcrumb } from '../../../../components/ui/breadcrumb'
 import { useApplicationReviewStore } from '../../../../stores/application-review-store'
 import { ApprovalActions } from '../../../../components/application-review/ApprovalActions'
+import { SubmittedBySection } from '../../../../components/application-review/SubmittedBySection'
 import { ContactInfoSection } from '../../../../components/application-review/ContactInfoSection'
 import { GoogleBusinessSection } from '../../../../components/application-review/GoogleBusinessSection'
 import { DocumentsSection } from '../../../../components/application-review/DocumentsSection'
@@ -14,7 +16,6 @@ import { TrustScoreSection } from '../../../../components/application-review/Tru
 import type { ApprovalStatus } from '../../../../types/application-review'
 
 export default function ProviderRequestDetailPage() {
-  const router = useRouter()
   const params = useParams()
   const providerId = params.id as string
 
@@ -73,32 +74,36 @@ export default function ProviderRequestDetailPage() {
 
   return (
     <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <Button variant="light" onPress={() => router.push('/provider-requests')} className="mb-4">
-          {EMOJI.ARROW_LEFT} Back to Provider Requests
-        </Button>
+      <div className="space-y-6">
+        {/* Breadcrumb */}
+        <Breadcrumb
+          items={[
+            { label: 'Provider Requests', href: '/provider-requests' },
+            { label: selectedApplication.businessName },
+          ]}
+        />
 
+        {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="mb-2 text-3xl font-bold text-foreground">
+            <h1 className="mb-3 text-3xl font-bold text-foreground">
               {selectedApplication.businessName}
             </h1>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Chip
-                size="lg"
+                size="md"
                 color={getStatusColor(selectedApplication.approvalStatus)}
                 variant="flat"
               >
                 {getStatusLabel(selectedApplication.approvalStatus)}
               </Chip>
               {selectedApplication.emailVerified && (
-                <Chip size="sm" color="success" variant="flat">
+                <Chip size="md" color="success" variant="flat">
                   {EMOJI.CHECK_MARK} Email Verified
                 </Chip>
               )}
               {selectedApplication.phoneVerified && (
-                <Chip size="sm" color="success" variant="flat">
+                <Chip size="md" color="success" variant="flat">
                   {EMOJI.CHECK_MARK} Phone Verified
                 </Chip>
               )}
@@ -124,6 +129,7 @@ export default function ProviderRequestDetailPage() {
           >
             <Tab key="overview" title={`${EMOJI.DOCUMENT} Overview`}>
               <div className="space-y-6 py-4">
+                <SubmittedBySection application={selectedApplication} />
                 <ContactInfoSection application={selectedApplication} />
                 {selectedApplication.googleBusinessProfile && (
                   <GoogleBusinessSection profile={selectedApplication.googleBusinessProfile} />
@@ -189,7 +195,8 @@ export default function ProviderRequestDetailPage() {
                     <h3 className="mb-2 font-semibold text-danger">Rejection Details</h3>
                     {selectedApplication.rejectionCategory && (
                       <div className="mb-2 text-sm font-medium text-danger">
-                        Category: {formatSnakeCaseToTitleCase(selectedApplication.rejectionCategory)}
+                        Category:{' '}
+                        {formatSnakeCaseToTitleCase(selectedApplication.rejectionCategory)}
                       </div>
                     )}
                     <p className="text-sm text-default-600">

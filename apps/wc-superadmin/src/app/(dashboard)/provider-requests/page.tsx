@@ -59,7 +59,6 @@ export default function ProviderRequestsPage() {
       setFilters({ status: 'under_review' })
       hasSetInitialFilter.current = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Update filters when debounced search changes

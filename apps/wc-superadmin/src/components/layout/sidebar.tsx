@@ -201,9 +201,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
     void fetchUnderReviewCount()
 
     // Refresh every 5 minutes
-    const interval = setInterval(() => {
-      void fetchUnderReviewCount()
-    }, 5 * 60 * 1000)
+    const interval = setInterval(
+      () => {
+        void fetchUnderReviewCount()
+      },
+      5 * 60 * 1000
+    )
 
     return () => clearInterval(interval)
   }, [fetchUnderReviewCount])

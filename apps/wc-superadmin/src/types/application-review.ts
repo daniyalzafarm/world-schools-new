@@ -84,7 +84,7 @@ export interface TrustScoreBreakdown {
       maxScore: number
       details: any
     }
-    verificationDocuments: {
+    legalInformation: {
       score: number
       maxScore: number
       details: any
@@ -94,7 +94,17 @@ export interface TrustScoreBreakdown {
       maxScore: number
       details: any
     }
-    contactInformation: {
+    campProfile: {
+      score: number
+      maxScore: number
+      details: any
+    }
+    verificationDocuments: {
+      score: number
+      maxScore: number
+      details: any
+    }
+    paymentPolicies: {
       score: number
       maxScore: number
       details: any
@@ -120,6 +130,9 @@ export interface ApplicationDetail {
   onboardingStartedAt?: string
   onboardingCompletedAt?: string | null
   createdAt: string
+  ownerFirstName?: string | null
+  ownerLastName?: string | null
+  ownerEmail?: string
   contactFirstName?: string
   contactLastName?: string
   contactRole?: string

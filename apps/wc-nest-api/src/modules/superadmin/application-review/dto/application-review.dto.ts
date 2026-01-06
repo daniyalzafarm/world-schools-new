@@ -128,6 +128,11 @@ export class ApplicationDetailDto {
   onboardingStartedAt: string | null
   approvalDecisionAt: string | null
 
+  // Owner Info
+  ownerFirstName: string | null
+  ownerLastName: string | null
+  ownerEmail: string
+
   // Contact Info
   contactFirstName: string | null
   contactLastName: string | null

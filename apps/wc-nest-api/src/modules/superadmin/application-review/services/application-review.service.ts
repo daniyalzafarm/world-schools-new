@@ -147,6 +147,10 @@ export class ApplicationReviewService {
       include: {
         owner: {
           select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
             emailVerified: true,
           },
         },
@@ -191,14 +195,11 @@ export class ApplicationReviewService {
                   reviews: trustScoreResult.breakdown.googleReviews || 0,
                 },
               },
-              verificationDocuments: {
-                score:
-                  (trustScoreResult.breakdown.businessRegistration || 0) +
-                  (trustScoreResult.breakdown.insuranceCertificate || 0),
-                maxScore: 40,
+              legalInformation: {
+                score: trustScoreResult.breakdown.legalInfoComplete || 0,
+                maxScore: 15,
                 details: {
-                  businessRegistration: trustScoreResult.breakdown.businessRegistration || 0,
-                  insuranceCertificate: trustScoreResult.breakdown.insuranceCertificate || 0,
+                  legalInfoComplete: trustScoreResult.breakdown.legalInfoComplete || 0,
                 },
               },
               businessAge: {
@@ -208,14 +209,36 @@ export class ApplicationReviewService {
                   yearsInBusiness: trustScoreResult.breakdown.businessAge || 0,
                 },
               },
-              contactInformation: {
+              campProfile: {
                 score:
-                  (trustScoreResult.breakdown.phoneVerified || 0) +
-                  (trustScoreResult.breakdown.legalInfoComplete || 0),
-                maxScore: 15,
+                  (trustScoreResult.breakdown.descriptionComplete || 0) +
+                  (trustScoreResult.breakdown.campTypeSelected || 0) +
+                  (trustScoreResult.breakdown.ageRangeDefined || 0),
+                maxScore: 10,
                 details: {
-                  phoneVerified: trustScoreResult.breakdown.phoneVerified || 0,
-                  legalInfoComplete: trustScoreResult.breakdown.legalInfoComplete || 0,
+                  description: trustScoreResult.breakdown.descriptionComplete || 0,
+                  campType: trustScoreResult.breakdown.campTypeSelected || 0,
+                  ageRange: trustScoreResult.breakdown.ageRangeDefined || 0,
+                },
+              },
+              verificationDocuments: {
+                score:
+                  (trustScoreResult.breakdown.businessRegistration || 0) +
+                  (trustScoreResult.breakdown.insuranceCertificate || 0),
+                maxScore: 20,
+                details: {
+                  businessRegistration: trustScoreResult.breakdown.businessRegistration || 0,
+                  insuranceCertificate: trustScoreResult.breakdown.insuranceCertificate || 0,
+                },
+              },
+              paymentPolicies: {
+                score:
+                  (trustScoreResult.breakdown.depositConfigured || 0) +
+                  (trustScoreResult.breakdown.cancellationPolicy || 0),
+                maxScore: 10,
+                details: {
+                  deposit: trustScoreResult.breakdown.depositConfigured || 0,
+                  cancellation: trustScoreResult.breakdown.cancellationPolicy || 0,
                 },
               },
             },
@@ -284,6 +307,9 @@ export class ApplicationReviewService {
       verificationDocuments: documentsWithUrls,
       settings: provider.settings,
       trustScoreBreakdown,
+      ownerFirstName: provider.owner.firstName,
+      ownerLastName: provider.owner.lastName,
+      ownerEmail: provider.owner.email,
     }
   }
 

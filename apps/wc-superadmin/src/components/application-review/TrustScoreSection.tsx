@@ -1,6 +1,6 @@
 'use client'
 
-import { Card, CardBody, Chip, Progress } from '@heroui/react'
+import { Card, CardBody, Progress } from '@heroui/react'
 import { EMOJI } from '@world-schools/wc-frontend-utils'
 import type { ApplicationDetail } from '../../types/application-review'
 
@@ -13,175 +13,234 @@ export function TrustScoreSection({ application }: TrustScoreSectionProps) {
   const breakdown = application.trustScoreBreakdown
 
   const getScoreColor = (score: number) => {
-    if (score >= 70) return 'success'
-    if (score >= 50) return 'warning'
+    if (score >= 80) return 'success'
+    if (score >= 60) return 'warning'
     return 'danger'
   }
 
-  const getRecommendationColor = (action: string) => {
-    if (action === 'auto_approve') return 'success'
-    if (action === 'manual_review') return 'warning'
-    return 'danger'
+  const getScoreLabel = (score: number) => {
+    if (score >= 80) return 'Excellent'
+    if (score >= 60) return 'Good'
+    if (score >= 40) return 'Fair'
+    return 'Needs Review'
   }
 
   return (
-    <Card className="mb-6">
-      <CardBody>
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h2 className="mb-4 text-xl font-semibold text-foreground">
+    <Card className="my-6">
+      <CardBody className="p-6">
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-foreground">
               {EMOJI.STAR} Trust Score Assessment
             </h2>
-
-            <div className="mb-6 flex items-center gap-6">
-              <div>
-                <div className="mb-1 text-sm text-default-600">Overall Score</div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-primary">{trustScore}</span>
-                  <span className="text-lg text-default-500">/ 100</span>
-                </div>
+            <div className="text-right">
+              <div className="text-sm text-default-600">Status</div>
+              <div
+                className={`text-sm font-semibold ${
+                  trustScore >= 80
+                    ? 'text-success'
+                    : trustScore >= 60
+                      ? 'text-warning'
+                      : 'text-danger'
+                }`}
+              >
+                {getScoreLabel(trustScore)}
               </div>
-
-              <div className="flex-1">
-                <Progress
-                  value={trustScore}
-                  color={getScoreColor(trustScore)}
-                  size="lg"
-                  className="mb-2"
-                  aria-label="Trust score"
-                />
-                <div className="text-sm text-default-600">
-                  {breakdown?.label || 'Calculating...'}
-                </div>
-              </div>
-
-              {breakdown?.recommendedAction && (
-                <Chip
-                  size="lg"
-                  color={getRecommendationColor(breakdown.recommendedAction)}
-                  variant="flat"
-                >
-                  {breakdown.recommendedAction === 'auto_approve'
-                    ? 'Recommended: Approve'
-                    : breakdown.recommendedAction === 'manual_review'
-                      ? 'Recommended: Manual Review'
-                      : 'Recommended: Reject'}
-                </Chip>
-              )}
             </div>
+          </div>
 
-            {breakdown && (
-              <div className="grid grid-cols-2 gap-4">
-                {/* Google Business Profile */}
-                <div className="rounded-lg border border-default-200 p-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">
-                      {EMOJI.SEARCH} Google Business Profile
-                    </span>
-                    <span className="text-sm text-default-600">
-                      {breakdown.breakdown.googleBusinessProfile.score} /{' '}
-                      {breakdown.breakdown.googleBusinessProfile.maxScore}
+          {/* Score Breakdown */}
+          {breakdown && (
+            <div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Overall Trust Score */}
+                <div className="rounded-xl border-2 border-primary/30 bg-linear-to-br from-primary/5 to-primary/10 p-4 hover:border-primary/50 transition-colors">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{EMOJI.STAR}</span>
+                      <span className="text-sm font-semibold text-foreground">
+                        Overall Trust Score
+                      </span>
+                    </div>
+                    <span
+                      className={`text-sm font-bold ${
+                        trustScore >= 80
+                          ? 'text-success'
+                          : trustScore >= 60
+                            ? 'text-warning'
+                            : 'text-danger'
+                      }`}
+                    >
+                      {trustScore} / 100
                     </span>
                   </div>
                   <Progress
-                    value={
-                      (breakdown.breakdown.googleBusinessProfile.score /
-                        breakdown.breakdown.googleBusinessProfile.maxScore) *
-                      100
-                    }
-                    color={
-                      breakdown.breakdown.googleBusinessProfile.score >=
-                      breakdown.breakdown.googleBusinessProfile.maxScore * 0.7
-                        ? 'success'
-                        : 'warning'
-                    }
+                    value={trustScore}
+                    color={getScoreColor(trustScore)}
                     size="sm"
+                    className="mb-2"
                   />
+                  <div className="text-xs text-default-500">
+                    {getScoreLabel(trustScore)} - Combined score from all categories
+                  </div>
                 </div>
 
-                {/* Verification Documents */}
-                <div className="rounded-lg border border-default-200 p-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">
-                      {EMOJI.SHIELD} Verification Documents
-                    </span>
-                    <span className="text-sm text-default-600">
-                      {breakdown.breakdown.verificationDocuments.score} /{' '}
-                      {breakdown.breakdown.verificationDocuments.maxScore}
+                {/* Google Business Profile - 30 points */}
+                <div className="rounded-xl border border-default-200 bg-default-50/50 p-4 hover:border-primary/30 transition-colors">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{EMOJI.SEARCH}</span>
+                      <span className="text-sm font-semibold text-foreground">
+                        Google Business Profile
+                      </span>
+                    </div>
+                    <span className="text-sm font-bold text-primary-700">
+                      {breakdown.breakdown.googleBusinessProfile.score} / 30
                     </span>
                   </div>
                   <Progress
-                    value={
-                      (breakdown.breakdown.verificationDocuments.score /
-                        breakdown.breakdown.verificationDocuments.maxScore) *
-                      100
-                    }
+                    value={(breakdown.breakdown.googleBusinessProfile.score / 30) * 100}
                     color={
-                      breakdown.breakdown.verificationDocuments.score >=
-                      breakdown.breakdown.verificationDocuments.maxScore * 0.7
+                      breakdown.breakdown.googleBusinessProfile.score >= 21
                         ? 'success'
-                        : 'warning'
+                        : breakdown.breakdown.googleBusinessProfile.score > 0
+                          ? 'warning'
+                          : 'danger'
                     }
                     size="sm"
+                    className="mb-2"
                   />
+                  <div className="text-xs text-default-500">
+                    Profile verification, rating & reviews
+                  </div>
                 </div>
 
-                {/* Business Age */}
-                <div className="rounded-lg border border-default-200 p-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">
-                      {EMOJI.CALENDAR} Business Age
-                    </span>
-                    <span className="text-sm text-default-600">
-                      {breakdown.breakdown.businessAge.score} /{' '}
-                      {breakdown.breakdown.businessAge.maxScore}
+                {/* Legal Info + Business Age - 30 points */}
+                <div className="rounded-xl border border-default-200 bg-default-50/50 p-4 hover:border-primary/30 transition-colors">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{EMOJI.DOCUMENT}</span>
+                      <span className="text-sm font-semibold text-foreground">
+                        Legal Info + Business Age
+                      </span>
+                    </div>
+                    <span className="text-sm font-bold text-primary-700">
+                      {breakdown.breakdown.legalInformation.score +
+                        breakdown.breakdown.businessAge.score}{' '}
+                      / 30
                     </span>
                   </div>
                   <Progress
                     value={
-                      (breakdown.breakdown.businessAge.score /
-                        breakdown.breakdown.businessAge.maxScore) *
+                      ((breakdown.breakdown.legalInformation.score +
+                        breakdown.breakdown.businessAge.score) /
+                        30) *
                       100
                     }
                     color={
-                      breakdown.breakdown.businessAge.score >=
-                      breakdown.breakdown.businessAge.maxScore * 0.7
+                      breakdown.breakdown.legalInformation.score +
+                        breakdown.breakdown.businessAge.score >=
+                      21
                         ? 'success'
-                        : 'warning'
+                        : breakdown.breakdown.legalInformation.score +
+                              breakdown.breakdown.businessAge.score >
+                            0
+                          ? 'warning'
+                          : 'danger'
                     }
                     size="sm"
+                    className="mb-2"
                   />
+                  <div className="text-xs text-default-500">
+                    Legal info complete & years in business
+                  </div>
                 </div>
 
-                {/* Contact Information */}
-                <div className="rounded-lg border border-default-200 p-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">
-                      {EMOJI.USER} Contact Information
-                    </span>
-                    <span className="text-sm text-default-600">
-                      {breakdown.breakdown.contactInformation.score} /{' '}
-                      {breakdown.breakdown.contactInformation.maxScore}
+                {/* Camp Profile - 10 points */}
+                <div className="rounded-xl border border-default-200 bg-default-50/50 p-4 hover:border-primary/30 transition-colors">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{EMOJI.TENT}</span>
+                      <span className="text-sm font-semibold text-foreground">Camp Profile</span>
+                    </div>
+                    <span className="text-sm font-bold text-primary-700">
+                      {breakdown.breakdown.campProfile.score} / 10
                     </span>
                   </div>
                   <Progress
-                    value={
-                      (breakdown.breakdown.contactInformation.score /
-                        breakdown.breakdown.contactInformation.maxScore) *
-                      100
-                    }
+                    value={(breakdown.breakdown.campProfile.score / 10) * 100}
                     color={
-                      breakdown.breakdown.contactInformation.score >=
-                      breakdown.breakdown.contactInformation.maxScore * 0.7
+                      breakdown.breakdown.campProfile.score >= 7
                         ? 'success'
-                        : 'warning'
+                        : breakdown.breakdown.campProfile.score > 0
+                          ? 'warning'
+                          : 'danger'
                     }
                     size="sm"
+                    className="mb-2"
                   />
+                  <div className="text-xs text-default-500">Description, camp type & age range</div>
+                </div>
+
+                {/* Document Verification - 20 points */}
+                <div className="rounded-xl border border-default-200 bg-default-50/50 p-4 hover:border-primary/30 transition-colors">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{EMOJI.SHIELD}</span>
+                      <span className="text-sm font-semibold text-foreground">
+                        Document Verification
+                      </span>
+                    </div>
+                    <span className="text-sm font-bold text-primary-700">
+                      {breakdown.breakdown.verificationDocuments.score} / 20
+                    </span>
+                  </div>
+                  <Progress
+                    value={(breakdown.breakdown.verificationDocuments.score / 20) * 100}
+                    color={
+                      breakdown.breakdown.verificationDocuments.score >= 14
+                        ? 'success'
+                        : breakdown.breakdown.verificationDocuments.score > 0
+                          ? 'warning'
+                          : 'danger'
+                    }
+                    size="sm"
+                    className="mb-2"
+                  />
+                  <div className="text-xs text-default-500">Business registration & insurance</div>
+                </div>
+
+                {/* Payment & Policies - 10 points */}
+                <div className="rounded-xl border border-default-200 bg-default-50/50 p-4 hover:border-primary/30 transition-colors">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{EMOJI.CREDIT_CARD}</span>
+                      <span className="text-sm font-semibold text-foreground">
+                        Payment & Policies
+                      </span>
+                    </div>
+                    <span className="text-sm font-bold text-primary-700">
+                      {breakdown.breakdown.paymentPolicies.score} / 10
+                    </span>
+                  </div>
+                  <Progress
+                    value={(breakdown.breakdown.paymentPolicies.score / 10) * 100}
+                    color={
+                      breakdown.breakdown.paymentPolicies.score >= 7
+                        ? 'success'
+                        : breakdown.breakdown.paymentPolicies.score > 0
+                          ? 'warning'
+                          : 'danger'
+                    }
+                    size="sm"
+                    className="mb-2"
+                  />
+                  <div className="text-xs text-default-500">Deposit & cancellation policy</div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </CardBody>
     </Card>
