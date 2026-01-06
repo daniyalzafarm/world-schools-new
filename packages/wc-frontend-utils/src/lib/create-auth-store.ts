@@ -267,7 +267,9 @@ export function createAuthStore(config: AuthStoreConfig) {
           draft.isLoading = false
           draft.error = null
           draft.pendingUser = {}
-          draft.isInitialized = false
+          // Keep isInitialized as true to prevent re-initialization after logout
+          // This prevents the AuthProvider from triggering initialize() again
+          draft.isInitialized = true
         })
       },
 
