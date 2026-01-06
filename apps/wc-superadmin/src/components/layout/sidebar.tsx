@@ -33,6 +33,7 @@ import { cn } from '@world-schools/ui-web'
 
 import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
+import { useApplicationReviewStore } from '@/stores/application-review-store'
 import { eventBus } from '@world-schools/wc-utils'
 import config from '@/config/config'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -108,7 +109,6 @@ const NAV_ITEMS: NavItem[] = [
     name: 'Provider Requests',
     href: '/provider-requests',
     icon: <ListPlus size={20} />,
-    badge: 2,
     type: 'regular',
     permission: 'provider_applications.read',
   },
@@ -187,12 +187,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   const pathname = usePathname()
   const { user, logout } = useAuthStore()
   const { hasPermission } = usePermissions()
+  const { underReviewCount, fetchUnderReviewCount } = useApplicationReviewStore()
 
   // Collapsed state is managed locally within the sidebar
   const [isCollapsed, setIsCollapsed] = React.useState(false) // Start expanded
   const toggleCollapsed = () => {
     setIsCollapsed(prev => !prev)
   }
+
+  // Fetch badge count on mount and periodically
+  React.useEffect(() => {
+    // Initial fetch
+    void fetchUnderReviewCount()
+
+    // Refresh every 5 minutes
+    const interval = setInterval(() => {
+      void fetchUnderReviewCount()
+    }, 5 * 60 * 1000)
+
+    return () => clearInterval(interval)
+  }, [fetchUnderReviewCount])
 
   // Custom hook for state management
   const {
@@ -421,6 +435,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
               const isExpanded = isCollapsible ? expandedSections[item.name] : false
               const hasChildren = item.children && item.children.length > 0
 
+              // Get dynamic badge count for Provider Requests
+              const badgeCount =
+                item.name === 'Provider Requests' && underReviewCount > 0
+                  ? underReviewCount
+                  : item.badge
+
               const NavigationItem = (
                 <div key={item.name} className="w-full">
                   <div
@@ -431,10 +451,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                     )}
                   >
                     <span className="flex justify-center min-w-6">
-                      {item.badge ? (
+                      {badgeCount ? (
                         <Badge
                           color="primary"
-                          content={item.badge}
+                          content={badgeCount}
                           size="sm"
                           placement="top-right"
                           showOutline={false}

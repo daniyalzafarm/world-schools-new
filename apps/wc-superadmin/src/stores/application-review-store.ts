@@ -33,6 +33,7 @@ interface ApplicationReviewState {
     totalPages: number
   }
   filters: ApplicationFilters
+  underReviewCount: number
   isLoading: boolean
   error: string | null
 }
@@ -47,6 +48,7 @@ interface ApplicationReviewStore extends ApplicationReviewState {
   fetchProviderDocuments: (providerId: string) => Promise<VerificationDocument[]>
   reviewDocument: (documentId: string, data: ReviewDocumentRequest) => Promise<void>
   fetchPendingDocuments: () => Promise<void>
+  fetchUnderReviewCount: () => Promise<void>
   setPage: (page: number) => void
   setLimit: (limit: number) => void
   setFilters: (filters: Partial<ApplicationFilters>) => void
@@ -66,6 +68,7 @@ const initialState: ApplicationReviewState = {
     totalPages: 0,
   },
   filters: {},
+  underReviewCount: 0,
   isLoading: false,
   error: null,
 }
@@ -148,6 +151,8 @@ export const useApplicationReviewStore = create<ApplicationReviewStore>()(
         try {
           await applicationReviewService.approveApplication(providerId, data)
           await get().fetchApplicationDetail(providerId)
+          // Refresh badge count after status change
+          await get().fetchUnderReviewCount()
           set(draft => {
             draft.isLoading = false
           })
@@ -168,6 +173,8 @@ export const useApplicationReviewStore = create<ApplicationReviewStore>()(
         try {
           await applicationReviewService.rejectApplication(providerId, data)
           await get().fetchApplicationDetail(providerId)
+          // Refresh badge count after status change
+          await get().fetchUnderReviewCount()
           set(draft => {
             draft.isLoading = false
           })
@@ -188,6 +195,8 @@ export const useApplicationReviewStore = create<ApplicationReviewStore>()(
         try {
           await applicationReviewService.requestInfo(providerId, data)
           await get().fetchApplicationDetail(providerId)
+          // Refresh badge count after status change
+          await get().fetchUnderReviewCount()
           set(draft => {
             draft.isLoading = false
           })
@@ -261,6 +270,26 @@ export const useApplicationReviewStore = create<ApplicationReviewStore>()(
             draft.error = error.message || 'Failed to fetch pending documents'
             draft.isLoading = false
           })
+        }
+      },
+
+      fetchUnderReviewCount: async () => {
+        try {
+          // Fetch applications with under_review status without pagination limit
+          const response = await applicationReviewService.getApplications({
+            status: 'under_review',
+            page: 1,
+            limit: 1, // We only need the total count, not the data
+            sortBy: 'createdAt',
+            sortOrder: 'desc',
+          })
+
+          set(draft => {
+            draft.underReviewCount = response.total
+          })
+        } catch (error: any) {
+          // Silently fail - don't update error state for badge count
+          console.error('Failed to fetch under review count:', error)
         }
       },
 

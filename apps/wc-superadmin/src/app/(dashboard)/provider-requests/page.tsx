@@ -43,6 +43,7 @@ export default function ProviderRequestsPage() {
     isLoading,
     error,
     fetchApplications,
+    fetchUnderReviewCount,
     setPage,
     setLimit,
     setFilters,
@@ -62,7 +63,9 @@ export default function ProviderRequestsPage() {
   // Load applications when filters or pagination changes
   useEffect(() => {
     void fetchApplications()
-  }, [fetchApplications, pagination.page, pagination.limit, filters])
+    // Also refresh badge count when applications are fetched
+    void fetchUnderReviewCount()
+  }, [fetchApplications, fetchUnderReviewCount, pagination.page, pagination.limit, filters])
 
   const handleClearAllFilters = () => {
     setSearchInput('') // Clear the search input immediately
