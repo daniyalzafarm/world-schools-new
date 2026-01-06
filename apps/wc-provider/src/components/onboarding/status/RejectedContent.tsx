@@ -1,4 +1,5 @@
 import { Button } from '@heroui/react'
+import { formatSnakeCaseToTitleCase } from '@world-schools/wc-frontend-utils'
 import type { OnboardingStatus } from '../../../types/onboarding'
 
 interface RejectedContentProps {
@@ -6,6 +7,11 @@ interface RejectedContentProps {
 }
 
 export function RejectedContent({ status }: RejectedContentProps) {
+  // Format rejection category from snake_case to Title Case
+  const formattedCategory = status.rejectionCategory
+    ? formatSnakeCaseToTitleCase(status.rejectionCategory)
+    : undefined
+
   return (
     <div className="mx-auto w-full max-w-3xl">
       {/* Main Status Card */}
@@ -25,8 +31,8 @@ export function RejectedContent({ status }: RejectedContentProps) {
           <h2 className="mb-4 flex items-center gap-2 text-[24px] font-semibold text-danger">
             ⚠️ Reason for Rejection
           </h2>
-          {status.rejectionCategory && (
-            <div className="mb-2 text-sm font-semibold text-danger">{status.rejectionCategory}</div>
+          {formattedCategory && (
+            <div className="mb-2 text-sm font-semibold text-danger">{formattedCategory}</div>
           )}
           <p className="text-default-600">{status.rejectionReason}</p>
         </div>
@@ -77,7 +83,7 @@ export function RejectedContent({ status }: RejectedContentProps) {
 
       {/* Need Help */}
       <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
-        <h2 className="mb-4 text-[24px] font-semibold text-foreground">❓ Need Help?</h2>
+        <h2 className="mb-4 text-[24px] font-semibold text-foreground">Need Help?</h2>
         <p className="mb-6 text-default-600">
           Our support team is here to help you understand the rejection and guide you through the
           process of reapplying.
@@ -85,13 +91,13 @@ export function RejectedContent({ status }: RejectedContentProps) {
         <div className="flex flex-col gap-3 text-sm">
           <div className="flex items-center gap-2">
             <span>📧</span>
-            <a href="mailto:support@worldcamps.com" className="text-primary hover:underline">
+            <a href="mailto:support@worldcamps.com" className="text-primary-700 hover:underline">
               support@worldcamps.com
             </a>
           </div>
           <div className="flex items-center gap-2">
             <span>📞</span>
-            <a href="tel:+1-555-123-4567" className="text-primary hover:underline">
+            <a href="tel:+1-555-123-4567" className="text-primary-700 hover:underline">
               +1 (555) 123-4567
             </a>
           </div>

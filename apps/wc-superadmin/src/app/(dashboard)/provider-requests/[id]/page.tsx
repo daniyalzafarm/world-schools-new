@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button, Card, CardBody, Chip, Spinner, Tab, Tabs } from '@heroui/react'
-import { EMOJI } from '@world-schools/wc-frontend-utils'
+import { EMOJI, formatSnakeCaseToTitleCase } from '@world-schools/wc-frontend-utils'
 import { useApplicationReviewStore } from '../../../../stores/application-review-store'
 import { ApprovalActions } from '../../../../components/application-review/ApprovalActions'
 import { ContactInfoSection } from '../../../../components/application-review/ContactInfoSection'
@@ -189,7 +189,7 @@ export default function ProviderRequestDetailPage() {
                     <h3 className="mb-2 font-semibold text-danger">Rejection Details</h3>
                     {selectedApplication.rejectionCategory && (
                       <div className="mb-2 text-sm font-medium text-danger">
-                        Category: {selectedApplication.rejectionCategory}
+                        Category: {formatSnakeCaseToTitleCase(selectedApplication.rejectionCategory)}
                       </div>
                     )}
                     <p className="text-sm text-default-600">

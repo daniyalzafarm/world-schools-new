@@ -22,3 +22,5 @@ export * from './lib/password-requirements-display'
 // Emoji constants
 export * from './lib/emoji'
 
+// String formatting utilities
+export * from './lib/string-format'

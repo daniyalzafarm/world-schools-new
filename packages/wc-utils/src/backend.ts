@@ -9,3 +9,5 @@
 export * from './services/azure-storage.service'
 export * from './services/azure-storage.types'
 
+// String formatting utilities
+export * from './lib/string-format'

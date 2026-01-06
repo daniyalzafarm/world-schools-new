@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { formatSnakeCaseToTitleCase } from '@world-schools/wc-utils/backend'
 
 /**
  * Email Template Service
@@ -307,6 +308,11 @@ export class EmailTemplateService {
     rejectionReason?: string
     reapplyUrl: string
   }): string {
+    // Format rejection category from snake_case to Title Case
+    const formattedCategory = params.rejectionCategory
+      ? formatSnakeCaseToTitleCase(params.rejectionCategory)
+      : undefined
+
     const content = `
       <div class="email-header">
         <div class="logo">World-Camps</div>
@@ -318,11 +324,11 @@ export class EmailTemplateService {
         <p>Thank you for your interest in becoming a World-Camps provider. After careful review, we regret to inform you that we are unable to approve your application at this time.</p>
 
         ${
-          params.rejectionCategory || params.rejectionReason
+          formattedCategory || params.rejectionReason
             ? `
         <div class="danger-box">
-          ${params.rejectionCategory ? `<p style="margin: 0;"><strong>Category:</strong> ${params.rejectionCategory}</p>` : ''}
-          ${params.rejectionReason ? `<p style="margin: ${params.rejectionCategory ? '8px' : '0'} 0 0 0;"><strong>Reason:</strong> ${params.rejectionReason}</p>` : ''}
+          ${formattedCategory ? `<p style="margin: 0;"><strong>Category:</strong> ${formattedCategory}</p>` : ''}
+          ${params.rejectionReason ? `<p style="margin: ${formattedCategory ? '8px' : '0'} 0 0 0;"><strong>Reason:</strong> ${params.rejectionReason}</p>` : ''}
         </div>
         `
             : ''
