@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageSlot } from '@/components/layout/page-slot'
 import {
@@ -26,12 +26,9 @@ import type { ApprovalStatus } from '@/types/application-review'
 
 const STATUS_OPTIONS: { value: ApprovalStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All Statuses' },
-  { value: 'pending', label: 'Pending' },
   { value: 'under_review', label: 'Under Review' },
-  { value: 'info_requested', label: 'Info Requested' },
   { value: 'approved', label: 'Approved' },
   { value: 'rejected', label: 'Rejected' },
-  { value: 'suspended', label: 'Suspended' },
 ]
 
 export default function ProviderRequestsPage() {
@@ -51,9 +48,19 @@ export default function ProviderRequestsPage() {
   } = useApplicationReviewStore()
 
   const [searchInput, setSearchInput] = useState('')
+  const hasSetInitialFilter = useRef(false)
 
   // Debounce the search input with 500ms delay
   const debouncedSearch = useDebounce(searchInput, 500)
+
+  // Set default status filter to "under_review" on initial mount only
+  useEffect(() => {
+    if (!hasSetInitialFilter.current && !filters.status) {
+      setFilters({ status: 'under_review' })
+      hasSetInitialFilter.current = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Update filters when debounced search changes
   useEffect(() => {
@@ -166,7 +173,7 @@ export default function ProviderRequestsPage() {
             labelPlacement="outside"
             placeholder="Select status"
             className="w-[180px]"
-            selectedKeys={filters.status ? [filters.status] : ['all']}
+            selectedKeys={[filters.status || 'all']}
             onSelectionChange={keys => {
               const value = Array.from(keys)[0] as string | undefined
               setFilters({ status: value === 'all' ? undefined : (value as ApprovalStatus) })
