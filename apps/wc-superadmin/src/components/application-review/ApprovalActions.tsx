@@ -74,13 +74,13 @@ export function ApprovalActions({ application }: ApprovalActionsProps) {
   return (
     <>
       <div className="flex gap-2">
-        <Button color="warning" variant="flat" onClick={requestInfoModal.onOpen}>
-          {EMOJI.QUESTION} Request Info
+        <Button color="warning" variant="flat" onPress={requestInfoModal.onOpen}>
+          Request Info
         </Button>
-        <Button color="danger" variant="flat" onClick={rejectModal.onOpen}>
+        <Button color="danger" variant="flat" onPress={rejectModal.onOpen}>
           {EMOJI.CROSS_MARK} Reject
         </Button>
-        <Button color="success" onClick={approveModal.onOpen}>
+        <Button color="success" onPress={approveModal.onOpen}>
           {EMOJI.CHECK_MARK} Approve
         </Button>
       </div>
@@ -102,10 +102,10 @@ export function ApprovalActions({ application }: ApprovalActionsProps) {
             />
           </ModalBody>
           <ModalFooter>
-            <Button variant="light" onClick={approveModal.onClose}>
+            <Button variant="light" onPress={approveModal.onClose}>
               Cancel
             </Button>
-            <Button color="success" onClick={handleApprove} isLoading={isLoading}>
+            <Button color="success" onPress={handleApprove} isLoading={isLoading}>
               {EMOJI.CHECK_MARK} Approve
             </Button>
           </ModalFooter>
@@ -141,12 +141,12 @@ export function ApprovalActions({ application }: ApprovalActionsProps) {
             />
           </ModalBody>
           <ModalFooter>
-            <Button variant="light" onClick={rejectModal.onClose}>
+            <Button variant="light" onPress={rejectModal.onClose}>
               Cancel
             </Button>
             <Button
               color="danger"
-              onClick={handleReject}
+              onPress={handleReject}
               isLoading={isLoading}
               isDisabled={!rejectionReason || !rejectionCategory}
             >
@@ -174,12 +174,12 @@ export function ApprovalActions({ application }: ApprovalActionsProps) {
             />
           </ModalBody>
           <ModalFooter>
-            <Button variant="light" onClick={requestInfoModal.onClose}>
+            <Button variant="light" onPress={requestInfoModal.onClose}>
               Cancel
             </Button>
             <Button
               color="warning"
-              onClick={handleRequestInfo}
+              onPress={handleRequestInfo}
               isLoading={isLoading}
               isDisabled={!infoMessage}
             >
