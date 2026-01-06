@@ -55,7 +55,9 @@ export function ContactInfoSection({ application }: ContactInfoSectionProps) {
           </div>
           <div>
             <div className="text-sm text-default-600">Provider Email</div>
-            <div className="text-foreground">{application.providerEmail ?? 'N/A'}</div>
+            <div className="text-foreground">
+              {application.providerEmail ? application.providerEmail : 'N/A'}
+            </div>
           </div>
           <div>
             <div className="text-sm text-default-600">Website</div>
