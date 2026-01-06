@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { devtools } from 'zustand/middleware'
+import { addToast } from '@heroui/react'
 import type {
   ApplicationDetail,
   ApplicationListItem,
@@ -157,9 +158,17 @@ export const useApplicationReviewStore = create<ApplicationReviewStore>()(
             draft.isLoading = false
           })
         } catch (error: any) {
+          const errorMessage = error.message || 'Failed to approve application'
           set(draft => {
-            draft.error = error.message || 'Failed to approve application'
+            draft.error = errorMessage
             draft.isLoading = false
+          })
+          // Show toast notification for backend errors
+          addToast({
+            title: 'Error',
+            description: errorMessage,
+            color: 'danger',
+            timeout: 5000,
           })
         }
       },
