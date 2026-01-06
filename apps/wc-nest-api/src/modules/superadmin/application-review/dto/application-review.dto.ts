@@ -97,12 +97,12 @@ export class RequestInfoDto {
 export class ReviewDocumentDto {
   @ApiProperty({ description: 'Review status' })
   @IsEnum(['approved', 'rejected', 'needs_reupload'])
-  status: string
+  reviewStatus: string
 
   @ApiPropertyOptional({ description: 'Review notes' })
   @IsOptional()
   @IsString()
-  notes?: string
+  reviewNotes?: string
 
   @ApiPropertyOptional({ description: 'Rejection reason (if rejected)' })
   @IsOptional()

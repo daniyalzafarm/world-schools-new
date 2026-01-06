@@ -61,7 +61,7 @@ export class ApplicationReviewController {
     @Request() req: any,
     @Body() dto: ApproveApplicationDto
   ) {
-    const reviewerId = req.user.userId
+    const reviewerId = req.user.id
     await this.applicationReviewService.approveApplication(providerId, reviewerId, dto)
     return ResponseUtil.success({ message: 'Application approved successfully' })
   }
@@ -77,7 +77,7 @@ export class ApplicationReviewController {
     @Request() req: any,
     @Body() dto: RejectApplicationDto
   ) {
-    const reviewerId = req.user.userId
+    const reviewerId = req.user.id
     await this.applicationReviewService.rejectApplication(providerId, reviewerId, dto)
     return ResponseUtil.success({ message: 'Application rejected successfully' })
   }
@@ -93,7 +93,7 @@ export class ApplicationReviewController {
     @Request() req: any,
     @Body() dto: RequestInfoDto
   ) {
-    const reviewerId = req.user.userId
+    const reviewerId = req.user.id
     await this.applicationReviewService.requestInfo(providerId, reviewerId, dto)
     return ResponseUtil.success({ message: 'Information request sent successfully' })
   }
@@ -120,7 +120,7 @@ export class ApplicationReviewController {
     @Request() req: any,
     @Body() dto: ReviewDocumentDto
   ) {
-    const reviewerId = req.user.userId
+    const reviewerId = req.user.id
     await this.documentReviewService.reviewDocument(documentId, reviewerId, dto)
     return ResponseUtil.success({ message: 'Document reviewed successfully' })
   }

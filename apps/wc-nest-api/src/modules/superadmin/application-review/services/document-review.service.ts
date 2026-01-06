@@ -138,15 +138,15 @@ export class DocumentReviewService {
     }
 
     // Validate rejection reason is provided if status is rejected
-    if (dto.status === 'rejected' && !dto.rejectionReason) {
+    if (dto.reviewStatus === 'rejected' && !dto.rejectionReason) {
       throw new BadRequestException('Rejection reason is required when rejecting a document')
     }
 
     await this.prisma.verificationDocument.update({
       where: { id: documentId },
       data: {
-        reviewStatus: dto.status as 'approved' | 'rejected' | 'needs_reupload',
-        reviewNotes: dto.notes,
+        reviewStatus: dto.reviewStatus as 'approved' | 'rejected' | 'needs_reupload',
+        reviewNotes: dto.reviewNotes,
         rejectionReason: dto.rejectionReason,
         reviewedAt: new Date(),
         reviewedByAdminId: reviewerId,
@@ -157,7 +157,7 @@ export class DocumentReviewService {
     await this.trustScoreService.updateTrustScore(document.providerId)
 
     this.logger.log(
-      `Reviewed document ${documentId} with status ${dto.status} by reviewer ${reviewerId}`
+      `Reviewed document ${documentId} with status ${dto.reviewStatus} by reviewer ${reviewerId}`
     )
   }
 

@@ -191,6 +191,6 @@ export interface RequestInfoRequest {
 
 export interface ReviewDocumentRequest {
   reviewStatus: DocumentReviewStatus
-  notes?: string
+  reviewNotes?: string
   rejectionReason?: string
 }

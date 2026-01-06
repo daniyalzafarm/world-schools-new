@@ -52,7 +52,7 @@ export function DocumentsSection({ documents, providerId: _providerId }: Documen
 
     await reviewDocument(selectedDocument.id, {
       reviewStatus,
-      notes: reviewNotes || undefined,
+      reviewNotes: reviewNotes || undefined,
       rejectionReason: reviewStatus === 'rejected' ? rejectionReason : undefined,
     })
 
@@ -147,7 +147,7 @@ export function DocumentsSection({ documents, providerId: _providerId }: Documen
                 {EMOJI.DOWNLOAD} View
               </Button>
               {doc.reviewStatus === 'pending' && (
-                <Button size="sm" color="primary" onClick={() => handleReviewClick(doc)}>
+                <Button size="sm" color="primary" onPress={() => handleReviewClick(doc)}>
                   Review
                 </Button>
               )}
@@ -174,11 +174,14 @@ export function DocumentsSection({ documents, providerId: _providerId }: Documen
                 <Select
                   label="Review Decision"
                   selectedKeys={[reviewStatus]}
-                  onChange={e => setReviewStatus(e.target.value as DocumentReviewStatus)}
+                  onSelectionChange={keys => {
+                    const selected = Array.from(keys)[0] as DocumentReviewStatus
+                    setReviewStatus(selected)
+                  }}
                 >
-                  <SelectItem key="approved">{EMOJI.CHECK_MARK} Approve</SelectItem>
-                  <SelectItem key="rejected">{EMOJI.CROSS_MARK} Reject</SelectItem>
-                  <SelectItem key="needs_reupload">{EMOJI.WARNING} Request Reupload</SelectItem>
+                  <SelectItem key="approved">Approved</SelectItem>
+                  <SelectItem key="rejected">Rejected</SelectItem>
+                  <SelectItem key="needs_reupload">Request Reupload</SelectItem>
                 </Select>
 
                 {reviewStatus === 'rejected' && (
@@ -203,12 +206,12 @@ export function DocumentsSection({ documents, providerId: _providerId }: Documen
             )}
           </ModalBody>
           <ModalFooter>
-            <Button variant="light" onClick={reviewModal.onClose}>
+            <Button variant="light" onPress={reviewModal.onClose}>
               Cancel
             </Button>
             <Button
               color="primary"
-              onClick={handleSubmitReview}
+              onPress={handleSubmitReview}
               isLoading={isLoading}
               isDisabled={reviewStatus === 'rejected' && !rejectionReason}
             >
