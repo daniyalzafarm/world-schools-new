@@ -77,13 +77,13 @@ export default function OnboardingStep3Page() {
       breadcrumb="Provider Onboarding / About Your Camp"
       footer={
         <div className="flex items-center justify-between">
-          <Button variant="light" onClick={() => router.push('/onboarding/step-2')}>
+          <Button variant="light" onPress={() => router.push('/onboarding/step-2')}>
             ← Back
           </Button>
           <Button
-            className="bg-primary font-semibold text-foreground hover:bg-primary-600"
+            color="primary"
             size="lg"
-            onClick={isReadOnly ? () => router.push('/onboarding/step-4') : handleContinue}
+            onPress={isReadOnly ? () => router.push('/onboarding/step-4') : handleContinue}
             isDisabled={
               !isReadOnly && (!isDescriptionValid || campTypes.length === 0 || !minAge || !maxAge)
             }

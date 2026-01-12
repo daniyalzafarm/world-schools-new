@@ -108,13 +108,15 @@ export default function OnboardingStep2Page() {
       breadcrumb="Provider Onboarding / Contact & Account"
       footer={
         <div className="flex items-center justify-between">
-          <Button variant="light" onClick={() => router.push('/onboarding/step-1')}>
+          <Button variant="light" onPress={() => router.push('/onboarding/step-1')}>
             ← Back
           </Button>
           <Button
-            className="bg-primary font-semibold text-foreground hover:bg-primary-600"
+            color="primary"
             size="lg"
-            onClick={isReadOnly ? () => router.push('/onboarding/step-3') : handleSubmit(onSubmit)}
+            onPress={() =>
+              isReadOnly ? router.push('/onboarding/step-3') : handleSubmit(onSubmit)
+            }
             isLoading={isLoading}
           >
             {isReadOnly ? 'Next →' : 'Save & Continue →'}

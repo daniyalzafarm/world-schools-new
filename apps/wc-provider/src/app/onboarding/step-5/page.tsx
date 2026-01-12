@@ -208,13 +208,13 @@ export default function OnboardingStep5Page() {
       breadcrumb="Provider Onboarding / Payment & Cancellation Settings"
       footer={
         <div className="flex items-center justify-between">
-          <Button variant="light" onClick={() => router.push('/onboarding/step-4')}>
+          <Button variant="light" onPress={() => router.push('/onboarding/step-4')}>
             ← Back
           </Button>
           <Button
-            className="bg-primary font-semibold text-foreground hover:bg-primary-600"
+            color="primary"
             size="lg"
-            onClick={isReadOnly ? () => router.push('/onboarding/step-6') : handleSaveAndContinue}
+            onPress={isReadOnly ? () => router.push('/onboarding/step-6') : handleSaveAndContinue}
             isDisabled={!isReadOnly && (!!depositPercentageError || !!depositFixedAmountError)}
             isLoading={isLoading || isSaving}
           >

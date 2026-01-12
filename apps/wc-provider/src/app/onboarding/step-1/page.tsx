@@ -272,20 +272,11 @@ export default function OnboardingStep1Page() {
               {!isEditing && !selectedBusiness && googleBusinessProfile && <div />}
 
               {selectedBusiness && !isReadOnly ? (
-                <Button
-                  className="bg-primary font-semibold text-foreground hover:bg-primary-600"
-                  size="lg"
-                  onPress={handleConfirm}
-                  isLoading={isConfirming}
-                >
+                <Button color="primary" size="lg" onPress={handleConfirm} isLoading={isConfirming}>
                   Save & Continue →
                 </Button>
               ) : googleBusinessProfile && !isEditing ? (
-                <Button
-                  className="bg-primary font-semibold text-foreground hover:bg-primary-600"
-                  size="lg"
-                  onPress={() => router.push('/onboarding/step-2')}
-                >
+                <Button color="primary" size="lg" onPress={() => router.push('/onboarding/step-2')}>
                   {isReadOnly ? 'Next →' : 'Continue →'}
                 </Button>
               ) : null}
