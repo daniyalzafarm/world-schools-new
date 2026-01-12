@@ -140,21 +140,21 @@ model Provider {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   // Contact & Account (Step 2)
-  contactFirstName String?   @map("contact_first_name")
-  contactLastName  String?   @map("contact_last_name")
-  contactRole      String?   @map("contact_role")
-  contactPhone     String?   @map("contact_phone")
-  contactEmail     String?   @map("contact_email")
-  phoneVerified    Boolean   @default(false) @map("phone_verified")
-  phoneVerifiedAt  DateTime? @map("phone_verified_at")
-  legalCompanyName        String?   @map("legal_company_name")
-  legalStreetAddress      String?   @map("legal_street_address")
-  legalAptSuite           String?   @map("legal_apt_suite")
-  legalCity               String?   @map("legal_city")
-  legalStateProvince      String?   @map("legal_state_province")
-  legalPostalCode         String?   @map("legal_postal_code")
-  legalCountry            String?   @map("legal_country")
-  yearFounded             Int?      @map("year_founded")
+  contactFirstName   String?   @map("contact_first_name")
+  contactLastName    String?   @map("contact_last_name")
+  contactRole        String?   @map("contact_role")
+  contactPhone       String?   @map("contact_phone")
+  contactEmail       String?   @map("contact_email")
+  phoneVerified      Boolean   @default(false) @map("phone_verified")
+  phoneVerifiedAt    DateTime? @map("phone_verified_at")
+  legalCompanyName   String?   @map("legal_company_name")
+  legalStreetAddress String?   @map("legal_street_address")
+  legalAptSuite      String?   @map("legal_apt_suite")
+  legalCity          String?   @map("legal_city")
+  legalStateProvince String?   @map("legal_state_province")
+  legalPostalCode    String?   @map("legal_postal_code")
+  legalCountry       String?   @map("legal_country")
+  yearFounded        Int?      @map("year_founded")
 
   // Camp Details (Step 3)
   description String? @db.Text
@@ -196,6 +196,8 @@ model Provider {
   googleBusinessProfile GoogleBusinessProfile?
   settings              ProviderSettings?
   verificationDocuments VerificationDocument[]
+  camps                 Camp[]
+  addOns                AddOn[]
 
   @@index([ownerId])
   @@index([approvalStatus])
@@ -391,6 +393,73 @@ model VerificationDocument {
 }
 
 // ============================================
+// Camps Management
+// ============================================
+
+model Camp {
+  id         String @id @default(uuid())
+  providerId String @map("provider_id")
+
+  // Basic Info (Step 1 - Wizard & Editor)
+  name        String   @db.VarChar(120)
+  type        CampType
+  description String   @db.Text
+
+  // Location
+  locationType    LocationType
+  locationPlaceId String?      @map("location_place_id")
+  locationName    String?      @map("location_name")
+  locationAddress String?      @map("location_address") @db.Text
+  locationLat     Decimal?     @map("location_lat") @db.Decimal(10, 8)
+  locationLng     Decimal?     @map("location_lng") @db.Decimal(11, 8)
+
+  // Audience (Step 2 - Wizard & Editor)
+  ageGroups Json // [{min: 6, max: 17}, ...]
+  languages String[] // ['english', 'french', ...]
+  gender    Gender
+
+  // Programs (Step 3 - Wizard & Editor)
+  activities String[] // ['sports', 'water', 'arts', ...]
+
+  // Photos (Step 4 - Wizard, Editor has separate section)
+  photos Json? // [{id, url, thumbnail, isPrimary}, ...]
+
+  // Editor-only fields
+  whatsIncluded           Json? // {items: string[], customItems: string[]}
+  dailySchedule           Json? // [{time, activity, description}, ...]
+  meals                   Json? // {breakfast, lunch, dinner, snacks, dietary}
+  sportsActivities        Json? // {selected: string[], details: {...}}
+  languagePrograms        Json? // {selected: string[], details: {...}}
+  artsAndCrafts           Json? // {selected: string[], details: {...}}
+  adventureActivities     Json?
+  waterActivities         Json?
+  environmentalActivities Json?
+  academics               Json?
+  religionPrograms        Json?
+  excursionsTrips         Json?
+  campusFacilities        Json? // {facilities: string[], description}
+  accommodation           Json? // {type, rooms, amenities}
+  gettingThere            Json? // {directions, transportation}
+  campFocus               Json? // {focus: string[], description}
+
+  // Publishing
+  status      CampStatus @default(draft)
+  publishedAt DateTime?  @map("published_at")
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  provider   Provider    @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  campAddOns CampAddOn[]
+
+  @@index([providerId])
+  @@index([status])
+  @@map("camps")
+}
+
+// ============================================
 // Enums
 // ============================================
 
@@ -408,4 +477,107 @@ enum DocumentReviewStatus {
   approved
   rejected
   needs_reupload
+}
+
+enum CampType {
+  day
+  residential
+}
+
+enum LocationType {
+  provider
+  different
+}
+
+enum Gender {
+  coed
+  boys
+  girls
+}
+
+enum CampStatus {
+  draft
+  published
+  archived
+}
+
+// ============================================
+// Add-ons
+// ============================================
+
+model AddOn {
+  id         String @id @default(uuid())
+  providerId String @map("provider_id")
+
+  // Basic Info
+  name        String    @db.VarChar(120)
+  description String?   @db.Text
+  icon        String?   @db.VarChar(10) // Emoji
+  type        AddOnType
+
+  // Pricing
+  price       Decimal     @db.Decimal(10, 2)
+  currency    String      @default("CHF") @db.VarChar(3)
+  pricingUnit PricingUnit
+
+  // Quantity Limits
+  maxQuantity  Int?    @map("max_quantity")
+  quantityUnit String? @map("quantity_unit") @db.VarChar(50) // e.g., "per week"
+
+  // Age Restrictions
+  minAge Int? @map("min_age")
+  maxAge Int? @map("max_age")
+
+  // Status & Ordering
+  isActive  Boolean @default(true) @map("is_active")
+  sortOrder Int     @default(0) @map("sort_order")
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  provider   Provider    @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  campAddOns CampAddOn[]
+
+  @@index([providerId])
+  @@index([type])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("add_ons")
+}
+
+// Junction table for many-to-many relationship between Camps and AddOns
+model CampAddOn {
+  campId    String  @map("camp_id")
+  addOnId   String  @map("add_on_id")
+  isEnabled Boolean @default(true) @map("is_enabled") // Toggle on/off for specific camp
+  sortOrder Int     @default(0) @map("sort_order") // Camp-specific ordering
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  camp  Camp  @relation(fields: [campId], references: [id], onDelete: Cascade)
+  addOn AddOn @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+
+  @@id([campId, addOnId])
+  @@index([campId])
+  @@index([addOnId])
+  @@map("camp_add_ons")
+}
+
+enum AddOnType {
+  activity
+  service
+  equipment
+  language
+}
+
+enum PricingUnit {
+  per_child
+  per_hour
+  per_session
+  per_week
+  per_bag
+  one_time
 }

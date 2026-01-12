@@ -24,6 +24,7 @@
     "@tailwindcss/typography": "^0.5.19",
     "@types/nodemailer": "^7.0.3",
     "@types/react-image-gallery": "1.2.4",
+    "@types/uuid": "^10.0.0",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
     "chart.js": "^4.5.1",
@@ -54,6 +55,7 @@
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",
     "tailwind-merge": "^3.3.1",
+    "uuid": "^13.0.0",
     "world-countries": "^5.1.0",
     "zustand": "^5.0.8"
   },
