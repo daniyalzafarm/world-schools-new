@@ -27,6 +27,7 @@ import {
   UpdateWaterDto,
   UpdateWhatsIncludedDto,
 } from './dto/update-camp.dto'
+import { UpdateCampAddOnsDto } from './dto/update-camp-addons.dto'
 import { PhotoUploadService } from './services/photo-upload.service'
 import { GetCampsFiltersDto } from './dto/get-camps-filters.dto'
 
@@ -404,9 +405,14 @@ export class CampsService {
   async updateMeals(campId: string, providerId: string, dto: UpdateMealsDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Validate structured data
+    if (dto.meals) {
+      this.validateActivityData(dto.meals, 'meals')
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { meals: dto.meals },
+      data: { meals: dto.meals as any },
     })
 
     return camp
@@ -418,9 +424,17 @@ export class CampsService {
   async updateSports(campId: string, providerId: string, dto: UpdateSportsDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Validate structured data
+    if (dto.sportsActivities) {
+      this.validateActivityData(dto.sportsActivities, 'sports')
+      this.validateArrayField(dto.sportsActivities.selectedSports, 'selectedSports')
+      this.validateArrayField(dto.sportsActivities.customSports, 'customSports')
+      this.validateArrayField(dto.sportsActivities.facilities, 'facilities')
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { sportsActivities: dto.sportsActivities },
+      data: { sportsActivities: dto.sportsActivities as any },
     })
 
     return camp
@@ -432,9 +446,17 @@ export class CampsService {
   async updateLanguages(campId: string, providerId: string, dto: UpdateLanguagesDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Validate structured data
+    if (dto.languagePrograms) {
+      this.validateActivityData(dto.languagePrograms, 'languages')
+      this.validateArrayField(dto.languagePrograms.selectedLanguages, 'selectedLanguages')
+      this.validateArrayField(dto.languagePrograms.customLanguages, 'customLanguages')
+      this.validateArrayField(dto.languagePrograms.certificates, 'certificates')
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { languagePrograms: dto.languagePrograms },
+      data: { languagePrograms: dto.languagePrograms as any },
     })
 
     return camp
@@ -446,9 +468,17 @@ export class CampsService {
   async updateArts(campId: string, providerId: string, dto: UpdateArtsDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Validate structured data
+    if (dto.artsAndCrafts) {
+      this.validateActivityData(dto.artsAndCrafts, 'arts')
+      this.validateArrayField(dto.artsAndCrafts.selectedArts, 'selectedArts')
+      this.validateArrayField(dto.artsAndCrafts.customArts, 'customArts')
+      this.validateArrayField(dto.artsAndCrafts.supplies, 'supplies')
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { artsAndCrafts: dto.artsAndCrafts },
+      data: { artsAndCrafts: dto.artsAndCrafts as any },
     })
 
     return camp
@@ -460,9 +490,17 @@ export class CampsService {
   async updateAdventure(campId: string, providerId: string, dto: UpdateAdventureDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Validate structured data
+    if (dto.adventureActivities) {
+      this.validateActivityData(dto.adventureActivities, 'adventure')
+      this.validateArrayField(dto.adventureActivities.selectedActivities, 'selectedActivities')
+      this.validateArrayField(dto.adventureActivities.customActivities, 'customActivities')
+      this.validateArrayField(dto.adventureActivities.certifications, 'certifications')
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { adventureActivities: dto.adventureActivities },
+      data: { adventureActivities: dto.adventureActivities as any },
     })
 
     return camp
@@ -474,9 +512,17 @@ export class CampsService {
   async updateWater(campId: string, providerId: string, dto: UpdateWaterDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Validate structured data
+    if (dto.waterActivities) {
+      this.validateActivityData(dto.waterActivities, 'water')
+      this.validateArrayField(dto.waterActivities.selectedActivities, 'selectedActivities')
+      this.validateArrayField(dto.waterActivities.customActivities, 'customActivities')
+      this.validateArrayField(dto.waterActivities.facilities, 'facilities')
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { waterActivities: dto.waterActivities },
+      data: { waterActivities: dto.waterActivities as any },
     })
 
     return camp
@@ -488,9 +534,17 @@ export class CampsService {
   async updateEnvironmental(campId: string, providerId: string, dto: UpdateEnvironmentalDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Validate structured data
+    if (dto.environmentalActivities) {
+      this.validateActivityData(dto.environmentalActivities, 'environmental')
+      this.validateArrayField(dto.environmentalActivities.selectedActivities, 'selectedActivities')
+      this.validateArrayField(dto.environmentalActivities.customActivities, 'customActivities')
+      this.validateArrayField(dto.environmentalActivities.certifications, 'certifications')
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { environmentalActivities: dto.environmentalActivities },
+      data: { environmentalActivities: dto.environmentalActivities as any },
     })
 
     return camp
@@ -502,9 +556,16 @@ export class CampsService {
   async updateAcademics(campId: string, providerId: string, dto: UpdateAcademicsDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Validate structured data
+    if (dto.academics) {
+      this.validateActivityData(dto.academics, 'academics')
+      this.validateArrayField(dto.academics.selectedSubjects, 'selectedSubjects')
+      this.validateArrayField(dto.academics.customSubjects, 'customSubjects')
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { academics: dto.academics },
+      data: { academics: dto.academics as any },
     })
 
     return camp
@@ -516,9 +577,16 @@ export class CampsService {
   async updateReligion(campId: string, providerId: string, dto: UpdateReligionDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Validate structured data
+    if (dto.religionPrograms) {
+      this.validateActivityData(dto.religionPrograms, 'religion')
+      this.validateArrayField(dto.religionPrograms.selectedPrograms, 'selectedPrograms')
+      this.validateArrayField(dto.religionPrograms.customPrograms, 'customPrograms')
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { religionPrograms: dto.religionPrograms },
+      data: { religionPrograms: dto.religionPrograms as any },
     })
 
     return camp
@@ -530,9 +598,16 @@ export class CampsService {
   async updateExcursions(campId: string, providerId: string, dto: UpdateExcursionsDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Validate structured data
+    if (dto.excursionsTrips) {
+      this.validateActivityData(dto.excursionsTrips, 'excursions')
+      this.validateArrayField(dto.excursionsTrips.selectedTrips, 'selectedTrips')
+      this.validateArrayField(dto.excursionsTrips.customTrips, 'customTrips')
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { excursionsTrips: dto.excursionsTrips },
+      data: { excursionsTrips: dto.excursionsTrips as any },
     })
 
     return camp
@@ -544,9 +619,16 @@ export class CampsService {
   async updateLocationCampus(campId: string, providerId: string, dto: UpdateLocationCampusDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Validate structured data
+    if (dto.campusFacilities) {
+      this.validateActivityData(dto.campusFacilities, 'location')
+      this.validateArrayField(dto.campusFacilities.selectedFacilities, 'selectedFacilities')
+      this.validateArrayField(dto.campusFacilities.customFacilities, 'customFacilities')
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { campusFacilities: dto.campusFacilities },
+      data: { campusFacilities: dto.campusFacilities as any },
     })
 
     return camp
@@ -558,9 +640,17 @@ export class CampsService {
   async updateAccommodation(campId: string, providerId: string, dto: UpdateAccommodationDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Validate structured data
+    if (dto.accommodation) {
+      this.validateActivityData(dto.accommodation, 'accommodation')
+      this.validateArrayField(dto.accommodation.selectedTypes, 'selectedTypes')
+      this.validateArrayField(dto.accommodation.customTypes, 'customTypes')
+      this.validateArrayField(dto.accommodation.amenities, 'amenities')
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { accommodation: dto.accommodation },
+      data: { accommodation: dto.accommodation as any },
     })
 
     return camp
@@ -572,9 +662,16 @@ export class CampsService {
   async updateGettingThere(campId: string, providerId: string, dto: UpdateGettingThereDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Validate structured data
+    if (dto.gettingThere) {
+      this.validateActivityData(dto.gettingThere, 'transport')
+      this.validateArrayField(dto.gettingThere.selectedOptions, 'selectedOptions')
+      this.validateArrayField(dto.gettingThere.customOptions, 'customOptions')
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { gettingThere: dto.gettingThere },
+      data: { gettingThere: dto.gettingThere as any },
     })
 
     return camp
@@ -586,9 +683,16 @@ export class CampsService {
   async updateCampFocus(campId: string, providerId: string, dto: UpdateCampFocusDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Validate structured data
+    if (dto.campFocus) {
+      this.validateActivityData(dto.campFocus, 'focus')
+      this.validateArrayField(dto.campFocus.selectedFocusAreas, 'selectedFocusAreas')
+      this.validateArrayField(dto.campFocus.customFocusAreas, 'customFocusAreas')
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { campFocus: dto.campFocus },
+      data: { campFocus: dto.campFocus as any },
     })
 
     return camp
@@ -692,5 +796,143 @@ export class CampsService {
     }
 
     return camp
+  }
+
+  /**
+   * Helper: Validate activity data structure
+   */
+  private validateActivityData(data: any, activityType: string) {
+    if (!data || typeof data !== 'object') {
+      throw new BadRequestException(`Invalid ${activityType} data structure`)
+    }
+
+    // Validate description length if present
+    if (data.description && typeof data.description === 'string') {
+      if (data.description.length > 1200) {
+        throw new BadRequestException(`${activityType} description must not exceed 1200 characters`)
+      }
+    }
+
+    // Validate that data is a plain object
+    if (Array.isArray(data)) {
+      throw new BadRequestException(`${activityType} data must be an object, not an array`)
+    }
+  }
+
+  /**
+   * Helper: Validate array field
+   */
+  private validateArrayField(field: any, fieldName: string) {
+    if (field !== undefined && field !== null) {
+      if (!Array.isArray(field)) {
+        throw new BadRequestException(`${fieldName} must be an array`)
+      }
+
+      // Validate each item is a string
+      for (const item of field) {
+        if (typeof item !== 'string') {
+          throw new BadRequestException(`All items in ${fieldName} must be strings`)
+        }
+      }
+    }
+  }
+
+  /**
+   * Helper: Validate string field
+   */
+  private validateStringField(field: any, fieldName: string) {
+    if (field !== undefined && field !== null) {
+      if (typeof field !== 'string') {
+        throw new BadRequestException(`${fieldName} must be a string`)
+      }
+    }
+  }
+
+  /**
+   * Get camp add-ons with their enabled status
+   */
+  async getCampAddOns(campId: string, providerId: string) {
+    await this.verifyCampOwnership(campId, providerId)
+
+    // Get all provider's add-ons
+    const allAddOns = await this.prisma.addOn.findMany({
+      where: { providerId },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+    })
+
+    // Get camp-specific add-on relationships
+    const campAddOns = await this.prisma.campAddOn.findMany({
+      where: { campId },
+      include: {
+        addOn: true,
+      },
+      orderBy: { sortOrder: 'asc' },
+    })
+
+    // Create a map of add-on ID to camp-specific settings
+    const campAddOnMap = new Map(
+      campAddOns.map(ca => [
+        ca.addOnId,
+        {
+          isEnabled: ca.isEnabled,
+          sortOrder: ca.sortOrder,
+        },
+      ])
+    )
+
+    // Merge provider add-ons with camp-specific settings
+    const addOnsWithStatus = allAddOns.map(addOn => {
+      const campSettings = campAddOnMap.get(addOn.id)
+      return {
+        ...addOn,
+        price: typeof addOn.price === 'object' ? parseFloat(addOn.price.toString()) : addOn.price,
+        isEnabled: campSettings?.isEnabled ?? false,
+        campSortOrder: campSettings?.sortOrder ?? 0,
+      }
+    })
+
+    return addOnsWithStatus
+  }
+
+  /**
+   * Update camp add-ons (enable/disable and reorder)
+   */
+  async updateCampAddOns(campId: string, providerId: string, dto: UpdateCampAddOnsDto) {
+    await this.verifyCampOwnership(campId, providerId)
+
+    // Verify all add-ons belong to the provider
+    const addOnIds = dto.addOns.map(a => a.addOnId)
+    const providerAddOns = await this.prisma.addOn.findMany({
+      where: {
+        id: { in: addOnIds },
+        providerId,
+      },
+    })
+
+    if (providerAddOns.length !== addOnIds.length) {
+      throw new BadRequestException('One or more add-ons do not belong to this provider')
+    }
+
+    // Use transaction to update all camp add-ons
+    await this.prisma.$transaction(async tx => {
+      // Delete all existing camp add-ons for this camp
+      await tx.campAddOn.deleteMany({
+        where: { campId },
+      })
+
+      // Create new camp add-ons
+      if (dto.addOns.length > 0) {
+        await tx.campAddOn.createMany({
+          data: dto.addOns.map((addOn, index) => ({
+            campId,
+            addOnId: addOn.addOnId,
+            isEnabled: addOn.isEnabled,
+            sortOrder: addOn.sortOrder ?? index,
+          })),
+        })
+      }
+    })
+
+    return { message: 'Camp add-ons updated successfully' }
   }
 }

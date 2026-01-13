@@ -1,0 +1,163 @@
+'use client'
+
+import { useState } from 'react'
+import { Button, Input, Textarea } from '@heroui/react'
+
+export interface TimeSlot {
+  id: string
+  time: string
+  activity: string
+  description?: string
+}
+
+export interface Schedule {
+  id: string
+  type: 'daily' | 'weekly'
+  ageGroup?: string
+  day?: string
+  timeSlots: TimeSlot[]
+}
+
+interface TimelineBuilderProps {
+  schedule: Schedule
+  onChange: (schedule: Schedule) => void
+}
+
+export function TimelineBuilder({ schedule, onChange }: TimelineBuilderProps) {
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+
+  const addTimeSlot = () => {
+    const newSlot: TimeSlot = {
+      id: `slot-${Date.now()}`,
+      time: '',
+      activity: '',
+      description: '',
+    }
+
+    onChange({
+      ...schedule,
+      timeSlots: [...schedule.timeSlots, newSlot],
+    })
+  }
+
+  const updateTimeSlot = (index: number, updates: Partial<TimeSlot>) => {
+    const updated = schedule.timeSlots.map((slot, i) =>
+      i === index ? { ...slot, ...updates } : slot
+    )
+
+    onChange({
+      ...schedule,
+      timeSlots: updated,
+    })
+  }
+
+  const deleteTimeSlot = (index: number) => {
+    onChange({
+      ...schedule,
+      timeSlots: schedule.timeSlots.filter((_, i) => i !== index),
+    })
+  }
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index)
+  }
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+
+    if (draggedIndex === null || draggedIndex === index) return
+
+    const items = [...schedule.timeSlots]
+    const draggedItem = items[draggedIndex]
+    items.splice(draggedIndex, 1)
+    items.splice(index, 0, draggedItem)
+
+    onChange({
+      ...schedule,
+      timeSlots: items,
+    })
+
+    setDraggedIndex(index)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null)
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Time Slots */}
+      <div className="space-y-3">
+        {schedule.timeSlots.map((slot, index) => (
+          <div
+            key={slot.id}
+            draggable
+            onDragStart={() => handleDragStart(index)}
+            onDragOver={e => handleDragOver(e, index)}
+            onDragEnd={handleDragEnd}
+            className={`
+              flex gap-3 rounded-lg border-2 border-default-200 bg-white p-3 transition-all dark:bg-default-50
+              ${draggedIndex === index ? 'opacity-50' : ''}
+            `}
+          >
+            {/* Drag Handle */}
+            <div className="flex cursor-grab items-start pt-2 text-default-400 active:cursor-grabbing">
+              ⋮⋮
+            </div>
+
+            {/* Timeline Dot */}
+            <div className="relative flex flex-col items-center">
+              <div className="h-3 w-3 rounded-full border-2 border-primary bg-white" />
+              {index < schedule.timeSlots.length - 1 && (
+                <div className="h-full w-0.5 bg-default-200" />
+              )}
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  type="time"
+                  value={slot.time}
+                  onValueChange={value => updateTimeSlot(index, { time: value })}
+                  className="w-32"
+                  size="sm"
+                />
+                <Input
+                  value={slot.activity}
+                  onValueChange={value => updateTimeSlot(index, { activity: value })}
+                  placeholder="Activity name (e.g., Breakfast, Morning Activities)"
+                  className="flex-1"
+                  size="sm"
+                />
+              </div>
+
+              <Textarea
+                value={slot.description || ''}
+                onValueChange={value => updateTimeSlot(index, { description: value })}
+                placeholder="Optional description..."
+                minRows={1}
+                className="text-sm"
+              />
+            </div>
+
+            {/* Delete Button */}
+            <button
+              type="button"
+              onClick={() => deleteTimeSlot(index)}
+              className="text-default-400 hover:text-danger-600"
+              title="Delete time slot"
+            >
+              🗑️
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Add Time Slot Button */}
+      <Button onPress={addTimeSlot} variant="bordered" className="w-full">
+        + Add Time Slot
+      </Button>
+    </div>
+  )
+}

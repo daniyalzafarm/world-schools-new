@@ -17,7 +17,15 @@ export default function BasicInfoEditorPage() {
   const params = useParams()
   const campId = params.id as string
 
-  const { updateBasicInfo, fetchCamp, currentCamp, isLoading } = useCampsStore()
+  const {
+    updateBasicInfo,
+    fetchCamp,
+    currentCamp,
+    isLoading,
+    setHasUnsavedChanges,
+    setWizardFormValid,
+    setWizardFormSubmit,
+  } = useCampsStore()
 
   const { googleBusinessProfile, fetchGoogleBusinessProfile } = useOnboardingStore()
 
@@ -32,6 +40,9 @@ export default function BasicInfoEditorPage() {
     locationLat: undefined,
     locationLng: undefined,
   })
+
+  // Store original data for comparison
+  const [originalData, setOriginalData] = useState<CreateCampDto | null>(null)
 
   // Google Maps state
   const [searchQuery, setSearchQuery] = useState('')
@@ -72,12 +83,27 @@ export default function BasicInfoEditorPage() {
 
     // Fetch Google Business Profile for provider address display
     void fetchGoogleBusinessProfile()
-  }, [campId, fetchCamp, router, fetchGoogleBusinessProfile])
+
+    // Cleanup on unmount
+    return () => {
+      setHasUnsavedChanges(false)
+      setWizardFormValid(false)
+      setWizardFormSubmit(null)
+    }
+  }, [
+    campId,
+    fetchCamp,
+    router,
+    fetchGoogleBusinessProfile,
+    setHasUnsavedChanges,
+    setWizardFormValid,
+    setWizardFormSubmit,
+  ])
 
   useEffect(() => {
     // Populate form with existing data
     if (currentCamp) {
-      setFormData({
+      const campData = {
         name: currentCamp.name,
         type: currentCamp.type,
         description: currentCamp.description,
@@ -87,7 +113,10 @@ export default function BasicInfoEditorPage() {
         locationAddress: currentCamp.locationAddress,
         locationLat: currentCamp.locationLat,
         locationLng: currentCamp.locationLng,
-      })
+      }
+
+      setFormData(campData)
+      setOriginalData(campData)
 
       // Set map location and cache if different location is selected
       if (
@@ -118,6 +147,58 @@ export default function BasicInfoEditorPage() {
       }
     }
   }, [currentCamp])
+
+  // Detect form changes and update store state
+  useEffect(() => {
+    if (!originalData) return
+
+    // Compare current form data with original data
+    const hasChanges =
+      formData.name !== originalData.name ||
+      formData.type !== originalData.type ||
+      formData.description !== originalData.description ||
+      formData.locationType !== originalData.locationType ||
+      formData.locationPlaceId !== originalData.locationPlaceId ||
+      formData.locationName !== originalData.locationName ||
+      formData.locationAddress !== originalData.locationAddress ||
+      formData.locationLat !== originalData.locationLat ||
+      formData.locationLng !== originalData.locationLng
+
+    setHasUnsavedChanges(hasChanges)
+  }, [formData, originalData, setHasUnsavedChanges])
+
+  // Update form validity in store
+  useEffect(() => {
+    const isValid =
+      formData.name.trim() !== '' &&
+      formData.description.trim() !== '' &&
+      (formData.locationType === 'provider' || formData.locationPlaceId !== '')
+
+    setWizardFormValid(isValid)
+  }, [formData, setWizardFormValid])
+
+  // Register submit handler for footer
+  useEffect(() => {
+    const handleFormSubmit = async () => {
+      if (!campId) return
+
+      try {
+        await updateBasicInfo(campId, formData)
+        // Refresh the camp data
+        await fetchCamp(campId)
+      } catch (error) {
+        console.error('Failed to save basic info:', error)
+        throw error
+      }
+    }
+
+    setWizardFormSubmit(handleFormSubmit)
+
+    // Cleanup
+    return () => {
+      setWizardFormSubmit(null)
+    }
+  }, [campId, formData, updateBasicInfo, fetchCamp, setWizardFormSubmit])
 
   // Initialize Google Places Autocomplete
   useEffect(() => {
@@ -244,9 +325,7 @@ export default function BasicInfoEditorPage() {
       <div>
         {/* Header */}
         <div className="mb-8">
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">
-            Edit Basic Information
-          </h1>
+          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Edit Basic Information</h1>
           <p className="text-base leading-normal text-default-500">
             Update your camp's name, type, location, and description
           </p>
@@ -417,8 +496,16 @@ export default function BasicInfoEditorPage() {
                       setIsEditingLocation(false)
                       setPreviousLocation(null)
                     } else {
-                      // No cached location, just update location type
-                      setFormData({ ...formData, locationType: e.target.value as LocationType })
+                      // No cached location, clear location fields to show map
+                      setFormData({
+                        ...formData,
+                        locationType: e.target.value as LocationType,
+                        locationPlaceId: '',
+                        locationName: '',
+                        locationAddress: '',
+                        locationLat: undefined,
+                        locationLng: undefined,
+                      })
                       // Make sure we're not in edit mode
                       setIsEditingLocation(false)
                       setPreviousLocation(null)
@@ -603,17 +690,6 @@ export default function BasicInfoEditorPage() {
             <div className="mt-1.5 text-right text-xs text-default-400">
               {formData.description.length} / 500 characters
             </div>
-          </div>
-
-          {/* Save Button */}
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={!isFormValid}
-              className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Save Changes
-            </button>
           </div>
         </form>
       </div>

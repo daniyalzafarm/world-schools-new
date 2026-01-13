@@ -48,6 +48,8 @@ interface CampsState {
   setWizardCamp: (camp: Camp | null) => void
   setWizardStep: (step: number) => void
   setHasUnsavedChanges: (hasChanges: boolean) => void
+  setWizardFormValid: (isValid: boolean) => void
+  setWizardFormSubmit: (submitFn: (() => Promise<void>) | null) => void
   resetWizard: () => void
 
   // General helpers
@@ -85,7 +87,7 @@ export const useCampsStore = create<CampsState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const camp = await campsService.updateCampAudience(campId, data)
-      set({ wizardCamp: camp, isLoading: false })
+      set({ wizardCamp: camp, currentCamp: camp, isLoading: false, hasUnsavedChanges: false })
       return camp
     } catch (error: any) {
       set({ error: error.message, isLoading: false })
@@ -97,7 +99,7 @@ export const useCampsStore = create<CampsState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const camp = await campsService.updateCampPrograms(campId, data)
-      set({ wizardCamp: camp, isLoading: false })
+      set({ wizardCamp: camp, currentCamp: camp, isLoading: false, hasUnsavedChanges: false })
       return camp
     } catch (error: any) {
       set({ error: error.message, isLoading: false })
@@ -200,6 +202,9 @@ export const useCampsStore = create<CampsState>((set, get) => ({
         camps: camps.map(c => (c.id === campId ? { ...c, status: 'archived' as const } : c)),
         isLoading: false,
       })
+
+      // Refresh statistics to update counts
+      await get().fetchStatistics()
     } catch (error: any) {
       set({ error: error.message, isLoading: false })
       throw error
@@ -212,6 +217,10 @@ export const useCampsStore = create<CampsState>((set, get) => ({
       const newCamp = await campsService.duplicateCamp(campId)
       const { camps } = get()
       set({ camps: [newCamp, ...camps], isLoading: false })
+
+      // Refresh statistics to update counts
+      await get().fetchStatistics()
+
       return newCamp
     } catch (error: any) {
       set({ error: error.message, isLoading: false })
@@ -225,6 +234,9 @@ export const useCampsStore = create<CampsState>((set, get) => ({
       await campsService.deleteCamp(campId)
       const { camps } = get()
       set({ camps: camps.filter(c => c.id !== campId), isLoading: false })
+
+      // Refresh statistics to update counts
+      await get().fetchStatistics()
     } catch (error: any) {
       set({ error: error.message, isLoading: false })
       throw error
@@ -236,7 +248,7 @@ export const useCampsStore = create<CampsState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const camp = await campsService.updateBasicInfo(campId, data)
-      set({ currentCamp: camp, isLoading: false })
+      set({ currentCamp: camp, isLoading: false, hasUnsavedChanges: false })
       return camp
     } catch (error: any) {
       set({ error: error.message, isLoading: false })
@@ -250,55 +262,55 @@ export const useCampsStore = create<CampsState>((set, get) => ({
       let camp: Camp
       switch (section) {
         case 'photos':
-          camp = await campsService.updatePhotos(campId, data)
+          camp = await campsService.updatePhotos(campId, data.photos)
           break
         case 'whats-included':
-          camp = await campsService.updateWhatsIncluded(campId, data)
+          camp = await campsService.updateWhatsIncluded(campId, data.whatsIncluded)
           break
         case 'daily-schedule':
-          camp = await campsService.updateDailySchedule(campId, data)
+          camp = await campsService.updateDailySchedule(campId, data.dailySchedule)
           break
         case 'meals':
-          camp = await campsService.updateMeals(campId, data)
+          camp = await campsService.updateMeals(campId, data.meals)
           break
         case 'sports':
-          camp = await campsService.updateSports(campId, data)
+          camp = await campsService.updateSports(campId, data.sportsActivities)
           break
         case 'languages':
-          camp = await campsService.updateLanguages(campId, data)
+          camp = await campsService.updateLanguages(campId, data.languagePrograms)
           break
         case 'arts':
-          camp = await campsService.updateArts(campId, data)
+          camp = await campsService.updateArts(campId, data.artsAndCrafts)
           break
         case 'adventure':
-          camp = await campsService.updateAdventure(campId, data)
+          camp = await campsService.updateAdventure(campId, data.adventureActivities)
           break
         case 'water':
-          camp = await campsService.updateWater(campId, data)
+          camp = await campsService.updateWater(campId, data.waterActivities)
           break
         case 'environmental':
-          camp = await campsService.updateEnvironmental(campId, data)
+          camp = await campsService.updateEnvironmental(campId, data.environmentalActivities)
           break
         case 'academics':
-          camp = await campsService.updateAcademics(campId, data)
+          camp = await campsService.updateAcademics(campId, data.academics)
           break
         case 'religion':
-          camp = await campsService.updateReligion(campId, data)
+          camp = await campsService.updateReligion(campId, data.religionPrograms)
           break
         case 'excursions':
-          camp = await campsService.updateExcursions(campId, data)
+          camp = await campsService.updateExcursions(campId, data.excursions)
           break
         case 'location-campus':
-          camp = await campsService.updateLocationCampus(campId, data)
+          camp = await campsService.updateLocationCampus(campId, data.campusFacilities)
           break
         case 'accommodation':
-          camp = await campsService.updateAccommodation(campId, data)
+          camp = await campsService.updateAccommodation(campId, data.accommodation)
           break
         case 'getting-there':
-          camp = await campsService.updateGettingThere(campId, data)
+          camp = await campsService.updateGettingThere(campId, data.gettingThere)
           break
         case 'camp-focus':
-          camp = await campsService.updateCampFocus(campId, data)
+          camp = await campsService.updateCampFocus(campId, data.campFocus)
           break
         default:
           throw new Error(`Unknown section: ${section}`)
@@ -315,6 +327,9 @@ export const useCampsStore = create<CampsState>((set, get) => ({
   setWizardCamp: (camp: Camp | null) => set({ wizardCamp: camp }),
   setWizardStep: (step: number) => set({ wizardStep: step }),
   setHasUnsavedChanges: (hasChanges: boolean) => set({ hasUnsavedChanges: hasChanges }),
+  setWizardFormValid: (isValid: boolean) => set({ wizardFormValid: isValid }),
+  setWizardFormSubmit: (submitFn: (() => Promise<void>) | null) =>
+    set({ wizardFormSubmit: submitFn }),
   resetWizard: () => set({ wizardCamp: null, wizardStep: 1, hasUnsavedChanges: false }),
 
   // General helpers

@@ -34,7 +34,9 @@ export default function PhotosEditorPage() {
   useEffect(() => {
     if (currentCamp?.photos) {
       // Sort photos by order and set them
-      const sortedPhotos = [...(currentCamp.photos as CampPhoto[])].sort((a, b) => a.order - b.order)
+      const sortedPhotos = [...(currentCamp.photos as CampPhoto[])].sort(
+        (a, b) => a.order - b.order
+      )
       setPhotos(sortedPhotos)
     }
   }, [currentCamp])
@@ -184,9 +186,7 @@ export default function PhotosEditorPage() {
     <div>
       {/* Header - matching reference design */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold leading-tight text-foreground">
-          Edit Camp Photos
-        </h1>
+        <h1 className="text-2xl font-bold leading-tight text-foreground">Edit Camp Photos</h1>
         <p className="text-base text-default-500">
           Parents want to see your facilities and activities. Upload at least 5 photos.
         </p>

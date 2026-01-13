@@ -6,6 +6,7 @@ import { useCampsStore } from '../../../../stores/camps-store'
 import { CampEditorSidebar } from '../../../../components/camps/CampEditorSidebar'
 import { CampEditorTopBar } from '../../../../components/camps/CampEditorTopBar'
 import { CampEditorFooter } from '../../../../components/camps/CampEditorFooter'
+import Image from 'next/image'
 
 export default function CampEditorLayout({ children }: { children: React.ReactNode }) {
   const params = useParams()
@@ -22,11 +23,24 @@ export default function CampEditorLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="flex h-screen overflow-hidden bg-white">
-      {/* Editor Sidebar */}
-      <CampEditorSidebar campId={campId} />
+      {/* Mobile Header */}
+      <div className="fixed left-0 right-0 top-0 z-50 flex h-[60px] items-center bg-white px-6 md:hidden">
+        <Image
+          src="/images/logo-mobile.svg"
+          alt="World-Camps"
+          width={36}
+          height={36}
+          className="h-9 w-auto"
+        />
+      </div>
 
-      {/* Main Content Area */}
-      <main className="flex h-full flex-1 flex-col md:ml-[280px]">
+      {/* Sidebar - Hidden on mobile */}
+      <div className="hidden md:block">
+        <CampEditorSidebar campId={campId} />
+      </div>
+
+      {/* Main Content - Full height with flex column layout */}
+      <main className="flex h-full flex-1 flex-col pt-[60px] md:ml-[280px] md:pt-0">
         {/* Top Bar - Sticky with reserved space */}
         <div className="sticky top-0 z-40 shrink-0">
           <CampEditorTopBar campId={campId} />

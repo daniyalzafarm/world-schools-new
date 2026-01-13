@@ -23,11 +23,21 @@ export default function ProgramsEditorPage() {
   const params = useParams()
   const campId = params.id as string
 
-  const { updateCampPrograms, fetchCamp, currentCamp } = useCampsStore()
+  const {
+    updateCampPrograms,
+    fetchCamp,
+    currentCamp,
+    isLoading,
+    setHasUnsavedChanges,
+    setWizardFormValid,
+    setWizardFormSubmit,
+  } = useCampsStore()
 
   const [formData, setFormData] = useState<UpdateCampProgramsDto>({
     activities: [],
   })
+
+  const [originalData, setOriginalData] = useState<UpdateCampProgramsDto | null>(null)
 
   useEffect(() => {
     if (campId) {
@@ -36,16 +46,63 @@ export default function ProgramsEditorPage() {
         router.push('/camps')
       })
     }
-  }, [campId, fetchCamp, router])
+
+    // Cleanup on unmount
+    return () => {
+      setHasUnsavedChanges(false)
+      setWizardFormValid(false)
+      setWizardFormSubmit(null)
+    }
+  }, [campId, fetchCamp, router, setHasUnsavedChanges, setWizardFormValid, setWizardFormSubmit])
 
   useEffect(() => {
     if (currentCamp) {
-      setFormData({
+      const programsData = {
         activities:
           currentCamp.activities && currentCamp.activities.length > 0 ? currentCamp.activities : [],
-      })
+      }
+      setFormData(programsData)
+      setOriginalData(programsData)
     }
   }, [currentCamp])
+
+  // Detect form changes
+  useEffect(() => {
+    if (!originalData) return
+
+    const hasChanges =
+      JSON.stringify(formData.activities.sort()) !== JSON.stringify(originalData.activities.sort())
+
+    setHasUnsavedChanges(hasChanges)
+  }, [formData, originalData, setHasUnsavedChanges])
+
+  // Update form validity
+  useEffect(() => {
+    const isValid = formData.activities.length > 0
+
+    setWizardFormValid(isValid)
+  }, [formData, setWizardFormValid])
+
+  // Register submit handler
+  useEffect(() => {
+    const handleFormSubmit = async () => {
+      if (!campId) return
+
+      try {
+        await updateCampPrograms(campId, formData)
+        await fetchCamp(campId)
+      } catch (error) {
+        console.error('Failed to save programs:', error)
+        throw error
+      }
+    }
+
+    setWizardFormSubmit(handleFormSubmit)
+
+    return () => {
+      setWizardFormSubmit(null)
+    }
+  }, [campId, formData, updateCampPrograms, fetchCamp, setWizardFormSubmit])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -110,19 +167,7 @@ export default function ProgramsEditorPage() {
             ))}
           </div>
         </div>
-
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={!isFormValid}
-            className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Save Changes
-          </button>
-        </div>
       </form>
     </div>
   )
 }
-

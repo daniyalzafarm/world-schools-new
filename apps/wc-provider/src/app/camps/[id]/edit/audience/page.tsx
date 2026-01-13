@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { useCampsStore } from '../../../../../stores/camps-store'
 import type { AgeGroup, Gender, UpdateCampAudienceDto } from '../../../../../types/camps'
 import { LanguageChip, RadioButton } from '@world-schools/ui-web'
+import { Button } from '@heroui/react'
+import { Trash, Trash2 } from 'lucide-react'
 
 const LANGUAGE_OPTIONS = [
   { value: 'english', label: 'English' },
@@ -22,13 +24,23 @@ export default function AudienceEditorPage() {
   const params = useParams()
   const campId = params.id as string
 
-  const { updateCampAudience, fetchCamp, currentCamp } = useCampsStore()
+  const {
+    updateCampAudience,
+    fetchCamp,
+    currentCamp,
+    isLoading,
+    setHasUnsavedChanges,
+    setWizardFormValid,
+    setWizardFormSubmit,
+  } = useCampsStore()
 
   const [formData, setFormData] = useState<UpdateCampAudienceDto>({
     ageGroups: [{ min: 6, max: 12 }],
     languages: ['english'],
     gender: 'coed',
   })
+
+  const [originalData, setOriginalData] = useState<UpdateCampAudienceDto | null>(null)
 
   useEffect(() => {
     if (campId) {
@@ -37,11 +49,18 @@ export default function AudienceEditorPage() {
         router.push('/camps')
       })
     }
-  }, [campId, fetchCamp, router])
+
+    // Cleanup on unmount
+    return () => {
+      setHasUnsavedChanges(false)
+      setWizardFormValid(false)
+      setWizardFormSubmit(null)
+    }
+  }, [campId, fetchCamp, router, setHasUnsavedChanges, setWizardFormValid, setWizardFormSubmit])
 
   useEffect(() => {
     if (currentCamp) {
-      setFormData({
+      const audienceData = {
         ageGroups:
           currentCamp.ageGroups && currentCamp.ageGroups.length > 0
             ? (currentCamp.ageGroups as AgeGroup[])
@@ -51,9 +70,54 @@ export default function AudienceEditorPage() {
             ? currentCamp.languages
             : ['english'],
         gender: currentCamp.gender || 'coed',
-      })
+      }
+      setFormData(audienceData)
+      setOriginalData(audienceData)
     }
   }, [currentCamp])
+
+  // Detect form changes
+  useEffect(() => {
+    if (!originalData) return
+
+    const hasChanges =
+      JSON.stringify(formData.ageGroups) !== JSON.stringify(originalData.ageGroups) ||
+      JSON.stringify(formData.languages) !== JSON.stringify(originalData.languages) ||
+      formData.gender !== originalData.gender
+
+    setHasUnsavedChanges(hasChanges)
+  }, [formData, originalData, setHasUnsavedChanges])
+
+  // Update form validity
+  useEffect(() => {
+    const isValid =
+      formData.ageGroups.length > 0 &&
+      formData.languages.length > 0 &&
+      formData.gender !== undefined
+
+    setWizardFormValid(isValid)
+  }, [formData, setWizardFormValid])
+
+  // Register submit handler
+  useEffect(() => {
+    const handleFormSubmit = async () => {
+      if (!campId) return
+
+      try {
+        await updateCampAudience(campId, formData)
+        await fetchCamp(campId)
+      } catch (error) {
+        console.error('Failed to save audience:', error)
+        throw error
+      }
+    }
+
+    setWizardFormSubmit(handleFormSubmit)
+
+    return () => {
+      setWizardFormSubmit(null)
+    }
+  }, [campId, formData, updateCampAudience, fetchCamp, setWizardFormSubmit])
 
   const handleAddAgeGroup = () => {
     setFormData({
@@ -151,26 +215,27 @@ export default function AudienceEditorPage() {
                   onChange={e => handleAgeGroupChange(index, 'max', e.target.value)}
                   className="h-10 rounded-lg border-2 border-default-200 bg-background px-3 text-sm text-foreground transition-colors focus:border-primary focus:outline-none"
                 />
-                <button
-                  type="button"
-                  onClick={() => handleRemoveAgeGroup(index)}
-                  className="flex h-9 w-9 items-center justify-center rounded-md border border-default-200 bg-background text-xl font-semibold text-default-500 transition-all hover:border-danger hover:bg-danger-50 hover:text-danger"
-                  style={{
-                    visibility: formData.ageGroups.length === 1 ? 'hidden' : 'visible',
-                  }}
+                <Button
+                  size="sm"
+                  color="danger"
+                  isIconOnly
+                  variant="light"
+                  onPress={() => handleRemoveAgeGroup(index)}
+                  isDisabled={formData.ageGroups.length === 1}
                 >
-                  ×
-                </button>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={handleAddAgeGroup}
-            className="mt-3 w-full rounded-lg border-[1.5px] border-dashed border-default-200 bg-background px-4 py-2.5 text-sm font-semibold text-default-500 transition-all hover:border-foreground hover:bg-default-50 hover:text-foreground"
+          <Button
+            size="md"
+            variant="bordered"
+            onPress={handleAddAgeGroup}
+            className="mt-3 w-full py-2.5 border-dashed"
           >
             + Add age group
-          </button>
+          </Button>
         </div>
 
         {/* Languages */}
@@ -242,20 +307,7 @@ export default function AudienceEditorPage() {
             />
           </div>
         </div>
-
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={!isFormValid}
-            className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Save Changes
-          </button>
-        </div>
       </form>
     </div>
   )
 }
-
-

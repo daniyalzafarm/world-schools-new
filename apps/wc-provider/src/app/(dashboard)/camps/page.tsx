@@ -347,6 +347,7 @@ export default function CampsPage() {
           <div className="flex gap-2">
             {/* Location Filter */}
             <Select
+              aria-label="location"
               placeholder="Select location"
               className="w-[280px]"
               selectedKeys={activeFilters.location ? [activeFilters.location] : []}
@@ -363,6 +364,7 @@ export default function CampsPage() {
 
             {/* Type Filter */}
             <Select
+              aria-label="type"
               placeholder="Select type"
               className="w-[180px]"
               selectedKeys={activeFilters.type ? [activeFilters.type] : []}

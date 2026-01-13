@@ -11,18 +11,8 @@ interface CampEditorTopBarProps {
 
 export function CampEditorTopBar({ campId }: CampEditorTopBarProps) {
   const router = useRouter()
-  const { publishCamp, currentCamp, isLoading, hasUnsavedChanges } = useCampsStore()
+  const { publishCamp, currentCamp, hasUnsavedChanges } = useCampsStore()
   const [isPublishing, setIsPublishing] = useState(false)
-
-  const handleDiscard = () => {
-    if (hasUnsavedChanges) {
-      if (confirm('You have unsaved changes. Are you sure you want to discard them?')) {
-        router.push('/camps')
-      }
-    } else {
-      router.push('/camps')
-    }
-  }
 
   const handlePublish = async () => {
     if (!campId) return
@@ -48,7 +38,11 @@ export function CampEditorTopBar({ campId }: CampEditorTopBarProps) {
     }
   }
 
-  const canPublish = currentCamp?.status === 'draft'
+  const canPublish = currentCamp?.status !== 'published'
+
+  const handleExit = () => {
+    router.push('/camps')
+  }
 
   return (
     <div className="flex h-18 items-center justify-between border-b border-gray-200 bg-white px-6">
@@ -68,30 +62,17 @@ export function CampEditorTopBar({ campId }: CampEditorTopBarProps) {
 
       {/* Actions */}
       <div className="flex items-center gap-3">
-        {/* Unsaved Changes Indicator */}
-        {hasUnsavedChanges && <span className="text-xs text-gray-500">Unsaved changes</span>}
-
-        {/* Discard Button */}
-        <Button variant="light" onPress={handleDiscard} isDisabled={isLoading || isPublishing}>
-          Discard
+        {/* Exit Button */}
+        <Button color="danger" variant="flat" onPress={handleExit}>
+          Exit
         </Button>
 
-        {/* Save Button */}
-        <Button
-          color="primary"
-          variant="flat"
-          isDisabled={!hasUnsavedChanges || isLoading || isPublishing}
-          isLoading={isLoading}
-        >
-          Save
-        </Button>
-
-        {/* Publish Button */}
+        {/* Publish Button - Only show if not published */}
         {canPublish && (
           <Button
             color="primary"
             onPress={handlePublish}
-            isDisabled={isLoading || isPublishing || hasUnsavedChanges}
+            isDisabled={isPublishing || hasUnsavedChanges}
             isLoading={isPublishing}
           >
             Publish

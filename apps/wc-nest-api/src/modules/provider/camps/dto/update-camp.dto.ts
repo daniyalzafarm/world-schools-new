@@ -1,4 +1,13 @@
-import { IsArray, IsEnum, IsObject, IsOptional, IsString } from 'class-validator'
+import {
+  IsArray,
+  IsEnum,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator'
+import { Type } from 'class-transformer'
 
 export class UpdateBasicInfoDto {
   @IsOptional()
@@ -70,88 +79,507 @@ export class UpdateDailyScheduleDto {
   dailySchedule?: any
 }
 
+// Meals DTO
+class MealsDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  description?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  mealTypes?: string[]
+
+  @IsOptional()
+  @IsString()
+  mealStyle?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  dietaryOptions?: string[]
+}
+
 export class UpdateMealsDto {
   @IsOptional()
   @IsObject()
-  meals?: any
+  @ValidateNested()
+  @Type(() => MealsDataDto)
+  meals?: MealsDataDto
+}
+
+// Sports DTO
+class SportsDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  description?: string
+
+  @IsOptional()
+  @IsString()
+  skillLevel?: string
+
+  @IsOptional()
+  @IsString()
+  coachingType?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedSports?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  customSports?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  facilities?: string[]
 }
 
 export class UpdateSportsDto {
   @IsOptional()
   @IsObject()
-  sportsActivities?: any
+  @ValidateNested()
+  @Type(() => SportsDataDto)
+  sportsActivities?: SportsDataDto
+}
+
+// Languages DTO
+class LanguagesDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  description?: string
+
+  @IsOptional()
+  @IsString()
+  proficiency?: string
+
+  @IsOptional()
+  @IsString()
+  methodology?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedLanguages?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  customLanguages?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  certificates?: string[]
 }
 
 export class UpdateLanguagesDto {
   @IsOptional()
   @IsObject()
-  languagePrograms?: any
+  @ValidateNested()
+  @Type(() => LanguagesDataDto)
+  languagePrograms?: LanguagesDataDto
+}
+
+// Arts DTO
+class ArtsDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  description?: string
+
+  @IsOptional()
+  @IsString()
+  skillLevel?: string
+
+  @IsOptional()
+  @IsString()
+  instructionType?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedArts?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  customArts?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  supplies?: string[]
 }
 
 export class UpdateArtsDto {
   @IsOptional()
   @IsObject()
-  artsAndCrafts?: any
+  @ValidateNested()
+  @Type(() => ArtsDataDto)
+  artsAndCrafts?: ArtsDataDto
+}
+
+// Adventure DTO
+class AdventureDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  description?: string
+
+  @IsOptional()
+  @IsString()
+  difficultyLevel?: string
+
+  @IsOptional()
+  @IsString()
+  supervisionRatio?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedActivities?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  customActivities?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  certifications?: string[]
 }
 
 export class UpdateAdventureDto {
   @IsOptional()
   @IsObject()
-  adventureActivities?: any
+  @ValidateNested()
+  @Type(() => AdventureDataDto)
+  adventureActivities?: AdventureDataDto
+}
+
+// Water Activities DTO
+class WaterDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  description?: string
+
+  @IsOptional()
+  @IsString()
+  swimLevel?: string
+
+  @IsOptional()
+  @IsString()
+  lifeguardCertification?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedActivities?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  customActivities?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  facilities?: string[]
 }
 
 export class UpdateWaterDto {
   @IsOptional()
   @IsObject()
-  waterActivities?: any
+  @ValidateNested()
+  @Type(() => WaterDataDto)
+  waterActivities?: WaterDataDto
+}
+
+// Environmental DTO
+class EnvironmentalDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  description?: string
+
+  @IsOptional()
+  @IsString()
+  sustainabilityFocus?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedActivities?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  customActivities?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  certifications?: string[]
 }
 
 export class UpdateEnvironmentalDto {
   @IsOptional()
   @IsObject()
-  environmentalActivities?: any
+  @ValidateNested()
+  @Type(() => EnvironmentalDataDto)
+  environmentalActivities?: EnvironmentalDataDto
+}
+
+// Academics DTO
+class AcademicsDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  description?: string
+
+  @IsOptional()
+  @IsString()
+  academicLevel?: string
+
+  @IsOptional()
+  @IsString()
+  teachingApproach?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedSubjects?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  customSubjects?: string[]
 }
 
 export class UpdateAcademicsDto {
   @IsOptional()
   @IsObject()
-  academics?: any
+  @ValidateNested()
+  @Type(() => AcademicsDataDto)
+  academics?: AcademicsDataDto
+}
+
+// Religion DTO
+class ReligionDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  description?: string
+
+  @IsOptional()
+  @IsString()
+  denomination?: string
+
+  @IsOptional()
+  @IsString()
+  observance?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedPrograms?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  customPrograms?: string[]
 }
 
 export class UpdateReligionDto {
   @IsOptional()
   @IsObject()
-  religionPrograms?: any
+  @ValidateNested()
+  @Type(() => ReligionDataDto)
+  religionPrograms?: ReligionDataDto
+}
+
+// Excursions DTO
+class ExcursionsDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  description?: string
+
+  @IsOptional()
+  @IsString()
+  transportIncluded?: string
+
+  @IsOptional()
+  @IsString()
+  frequency?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedTrips?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  customTrips?: string[]
 }
 
 export class UpdateExcursionsDto {
   @IsOptional()
   @IsObject()
-  excursionsTrips?: any
+  @ValidateNested()
+  @Type(() => ExcursionsDataDto)
+  excursionsTrips?: ExcursionsDataDto
+}
+
+// Location & Campus DTO
+class LocationCampusDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  description?: string
+
+  @IsOptional()
+  @IsString()
+  campusSize?: string
+
+  @IsOptional()
+  @IsString()
+  campusSetting?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedFacilities?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  customFacilities?: string[]
 }
 
 export class UpdateLocationCampusDto {
   @IsOptional()
   @IsObject()
-  campusFacilities?: any
+  @ValidateNested()
+  @Type(() => LocationCampusDataDto)
+  campusFacilities?: LocationCampusDataDto
+}
+
+// Accommodation DTO
+class AccommodationDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  description?: string
+
+  @IsOptional()
+  @IsString()
+  roomCapacity?: string
+
+  @IsOptional()
+  @IsString()
+  supervision?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedTypes?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  customTypes?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  amenities?: string[]
 }
 
 export class UpdateAccommodationDto {
   @IsOptional()
   @IsObject()
-  accommodation?: any
+  @ValidateNested()
+  @Type(() => AccommodationDataDto)
+  accommodation?: AccommodationDataDto
+}
+
+// Getting There DTO
+class GettingThereDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  description?: string
+
+  @IsOptional()
+  @IsString()
+  transportIncluded?: string
+
+  @IsOptional()
+  @IsString()
+  pickupLocations?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedOptions?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  customOptions?: string[]
 }
 
 export class UpdateGettingThereDto {
   @IsOptional()
   @IsObject()
-  gettingThere?: any
+  @ValidateNested()
+  @Type(() => GettingThereDataDto)
+  gettingThere?: GettingThereDataDto
+}
+
+// Camp Focus DTO
+class CampFocusDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  description?: string
+
+  @IsOptional()
+  @IsString()
+  philosophy?: string
+
+  @IsOptional()
+  @IsString()
+  learningApproach?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedFocusAreas?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  customFocusAreas?: string[]
 }
 
 export class UpdateCampFocusDto {
   @IsOptional()
   @IsObject()
-  campFocus?: any
+  @ValidateNested()
+  @Type(() => CampFocusDataDto)
+  campFocus?: CampFocusDataDto
 }
 
 export class UpdateCampStatusDto {

@@ -44,6 +44,7 @@ import {
   UpdateWhatsIncludedDto,
 } from './dto/update-camp.dto'
 import { GetCampsFiltersDto } from './dto/get-camps-filters.dto'
+import { UpdateCampAddOnsDto } from './dto/update-camp-addons.dto'
 
 @Controller('provider/camps')
 @UseGuards(RolesOrPermissionsGuard)
@@ -449,6 +450,36 @@ export class CampsController {
     const providerId = await this.getProviderIdForUser(user)
     const camp = await this.campsService.updateCampStatus(campId, providerId, dto)
     return ResponseUtil.success({ camp })
+  }
+
+  // ============================================
+  // Camp Add-ons Endpoints
+  // ============================================
+
+  /**
+   * Get camp add-ons with enabled status
+   */
+  @Get(':id/addons')
+  @HttpCode(HttpStatus.OK)
+  async getCampAddOns(@Param('id') campId: string, @CurrentUser() user: any) {
+    const providerId = await this.getProviderIdForUser(user)
+    const addOns = await this.campsService.getCampAddOns(campId, providerId)
+    return ResponseUtil.success({ addOns })
+  }
+
+  /**
+   * Update camp add-ons (enable/disable and reorder)
+   */
+  @Patch(':id/addons')
+  @HttpCode(HttpStatus.OK)
+  async updateCampAddOns(
+    @Param('id') campId: string,
+    @CurrentUser() user: any,
+    @Body() dto: UpdateCampAddOnsDto
+  ) {
+    const providerId = await this.getProviderIdForUser(user)
+    const result = await this.campsService.updateCampAddOns(campId, providerId, dto)
+    return ResponseUtil.success(result)
   }
 
   /**

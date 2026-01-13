@@ -20,28 +20,108 @@ const editorSections: EditorSection[] = [
   { id: 'photos', label: 'Photos & Media', path: 'photos', category: 'CAMP OVERVIEW' },
 
   // SESSIONS & BOOKING
-  { id: 'whats-included', label: "What's Included", path: 'whats-included', category: 'SESSIONS & BOOKING' },
+  {
+    id: 'whats-included',
+    label: "What's Included",
+    path: 'whats-included',
+    category: 'SESSIONS & BOOKING',
+  },
+  { id: 'addons', label: 'Optional Add-ons', path: 'addons', category: 'SESSIONS & BOOKING' },
 
   // PROGRAM & ACTIVITIES
   { id: 'camp-focus', label: 'Camp Focus', path: 'camp-focus', category: 'PROGRAM & ACTIVITIES' },
-  { id: 'sports', label: 'Sports', path: 'sports', category: 'PROGRAM & ACTIVITIES', activityKey: 'sports' },
-  { id: 'languages', label: 'Languages', path: 'languages', category: 'PROGRAM & ACTIVITIES', activityKey: 'languages' },
-  { id: 'arts', label: 'Arts & Creativity', path: 'arts', category: 'PROGRAM & ACTIVITIES', activityKey: 'arts' },
-  { id: 'adventure', label: 'Adventure & Outdoors', path: 'adventure', category: 'PROGRAM & ACTIVITIES', activityKey: 'adventure' },
-  { id: 'water', label: 'Water Activities', path: 'water', category: 'PROGRAM & ACTIVITIES', activityKey: 'water' },
-  { id: 'environmental', label: 'Nature & Environment', path: 'environmental', category: 'PROGRAM & ACTIVITIES', activityKey: 'environment' },
-  { id: 'academics', label: 'Academics', path: 'academics', category: 'PROGRAM & ACTIVITIES', activityKey: 'academics' },
-  { id: 'religion', label: 'Religion Programs', path: 'religion', category: 'PROGRAM & ACTIVITIES', activityKey: 'religion' },
-  { id: 'excursions', label: 'Excursions & Trips', path: 'excursions', category: 'PROGRAM & ACTIVITIES', activityKey: 'excursions' },
+  {
+    id: 'sports',
+    label: 'Sports',
+    path: 'sports',
+    category: 'PROGRAM & ACTIVITIES',
+    activityKey: 'sports',
+  },
+  {
+    id: 'languages',
+    label: 'Languages',
+    path: 'languages',
+    category: 'PROGRAM & ACTIVITIES',
+    activityKey: 'languages',
+  },
+  {
+    id: 'arts',
+    label: 'Arts & Creativity',
+    path: 'arts',
+    category: 'PROGRAM & ACTIVITIES',
+    activityKey: 'arts',
+  },
+  {
+    id: 'adventure',
+    label: 'Adventure & Outdoors',
+    path: 'adventure',
+    category: 'PROGRAM & ACTIVITIES',
+    activityKey: 'adventure',
+  },
+  {
+    id: 'water',
+    label: 'Water Activities',
+    path: 'water',
+    category: 'PROGRAM & ACTIVITIES',
+    activityKey: 'water',
+  },
+  {
+    id: 'environmental',
+    label: 'Nature & Environment',
+    path: 'environmental',
+    category: 'PROGRAM & ACTIVITIES',
+    activityKey: 'environment',
+  },
+  {
+    id: 'academics',
+    label: 'Academics',
+    path: 'academics',
+    category: 'PROGRAM & ACTIVITIES',
+    activityKey: 'academics',
+  },
+  {
+    id: 'religion',
+    label: 'Religion Programs',
+    path: 'religion',
+    category: 'PROGRAM & ACTIVITIES',
+    activityKey: 'religion',
+  },
+  {
+    id: 'excursions',
+    label: 'Excursions & Trips',
+    path: 'excursions',
+    category: 'PROGRAM & ACTIVITIES',
+    activityKey: 'excursions',
+  },
 
   // ACCOMMODATION & CARE
-  { id: 'accommodation', label: 'Accommodation', path: 'accommodation', category: 'ACCOMMODATION & CARE' },
+  {
+    id: 'accommodation',
+    label: 'Accommodation',
+    path: 'accommodation',
+    category: 'ACCOMMODATION & CARE',
+  },
   { id: 'meals', label: 'Meals & Dietary', path: 'meals', category: 'ACCOMMODATION & CARE' },
-  { id: 'daily-schedule', label: 'Daily Schedule', path: 'daily-schedule', category: 'ACCOMMODATION & CARE' },
+  {
+    id: 'daily-schedule',
+    label: 'Daily Schedule',
+    path: 'daily-schedule',
+    category: 'ACCOMMODATION & CARE',
+  },
 
   // LOCATION & LOGISTICS
-  { id: 'location-campus', label: 'Location & Campus', path: 'location-campus', category: 'LOCATION & LOGISTICS' },
-  { id: 'getting-there', label: 'Getting There', path: 'getting-there', category: 'LOCATION & LOGISTICS' },
+  {
+    id: 'location-campus',
+    label: 'Location & Campus',
+    path: 'location-campus',
+    category: 'LOCATION & LOGISTICS',
+  },
+  {
+    id: 'getting-there',
+    label: 'Getting There',
+    path: 'getting-there',
+    category: 'LOCATION & LOGISTICS',
+  },
 ]
 
 interface CampEditorSidebarProps {
@@ -70,7 +150,7 @@ export function CampEditorSidebar({ campId }: CampEditorSidebarProps) {
 
     // Filter activity sections based on selected activities
     if (section.activityKey) {
-      const selectedActivities = currentCamp?.activities || []
+      const selectedActivities = currentCamp?.activities ?? []
       return selectedActivities.includes(section.activityKey)
     }
 
@@ -85,16 +165,16 @@ export function CampEditorSidebar({ campId }: CampEditorSidebarProps) {
   }
 
   return (
-    <aside className="fixed left-0 top-0 z-100 flex h-screen w-[280px] flex-col overflow-y-auto border-r border-default-200 bg-default-50">
-      {/* Logo Header */}
-      <div className="flex min-h-[61px] items-center bg-default-50 px-5 py-5">
+    <aside className="fixed left-0 top-0 z-100 flex h-screen w-[280px] flex-col border-r border-default-200 bg-default-50">
+      {/* Logo Header - Fixed */}
+      <div className="flex min-h-[61px] shrink-0 items-center bg-default-50 px-5 py-5">
         <div className="flex items-center">
           <Logo size={'md'} showText={true} />
         </div>
       </div>
 
-      {/* Camp Name */}
-      <div className="border-b border-default-200 bg-default-50 px-5 py-4">
+      {/* Camp Name - Fixed */}
+      <div className="shrink-0 border-b border-default-200 bg-default-50 px-5 py-4">
         <p className="text-[11px] font-bold uppercase tracking-[0.5px] text-default-500">
           EDITING CAMP
         </p>
@@ -103,8 +183,8 @@ export function CampEditorSidebar({ campId }: CampEditorSidebarProps) {
         </h2>
       </div>
 
-      {/* Sections List */}
-      <nav className="flex-1 py-6">
+      {/* Sections List - Scrollable */}
+      <nav className="flex-1 overflow-y-auto py-6">
         {categories.map((category, categoryIndex) => {
           const sections = getSectionsByCategory(category)
           if (sections.length === 0) return null
