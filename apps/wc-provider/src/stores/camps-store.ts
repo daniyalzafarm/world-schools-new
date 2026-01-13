@@ -6,11 +6,13 @@ import type {
   UpdateCampProgramsDto,
 } from '../types/camps'
 import * as campsService from '../services/camps.services'
+import type { CampStatistics, GetCampsFilters } from '../services/camps.services'
 
 interface CampsState {
   // State
   camps: Camp[]
   currentCamp: Camp | null
+  statistics: CampStatistics | null
   isLoading: boolean
   error: string | null
 
@@ -31,8 +33,11 @@ interface CampsState {
   saveDraft: () => Promise<void>
 
   // Actions - Camp Management
-  fetchCamps: (filters?: { status?: string }) => Promise<void>
+  fetchCamps: (filters?: GetCampsFilters) => Promise<void>
   fetchCamp: (campId: string) => Promise<void>
+  fetchStatistics: () => Promise<void>
+  archiveCamp: (campId: string) => Promise<void>
+  duplicateCamp: (campId: string) => Promise<Camp>
   deleteCamp: (campId: string) => Promise<void>
 
   // Actions - Editor
@@ -54,6 +59,7 @@ export const useCampsStore = create<CampsState>((set, get) => ({
   // Initial state
   camps: [],
   currentCamp: null,
+  statistics: null,
   isLoading: false,
   error: null,
   wizardCamp: null,
@@ -151,7 +157,7 @@ export const useCampsStore = create<CampsState>((set, get) => ({
   },
 
   // Camp management actions
-  fetchCamps: async (filters?: { status?: string }) => {
+  fetchCamps: async (filters?: GetCampsFilters) => {
     set({ isLoading: true, error: null })
     try {
       const camps = await campsService.getCamps(filters)
@@ -168,6 +174,45 @@ export const useCampsStore = create<CampsState>((set, get) => ({
       const camp = await campsService.getCamp(campId)
       // Set both currentCamp and wizardCamp to support both wizard and editor modes
       set({ currentCamp: camp, wizardCamp: camp, isLoading: false })
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false })
+      throw error
+    }
+  },
+
+  fetchStatistics: async () => {
+    set({ isLoading: true, error: null })
+    try {
+      const statistics = await campsService.getCampStatistics()
+      set({ statistics, isLoading: false })
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false })
+      throw error
+    }
+  },
+
+  archiveCamp: async (campId: string) => {
+    set({ isLoading: true, error: null })
+    try {
+      await campsService.archiveCamp(campId)
+      const { camps } = get()
+      set({
+        camps: camps.map(c => (c.id === campId ? { ...c, status: 'archived' as const } : c)),
+        isLoading: false,
+      })
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false })
+      throw error
+    }
+  },
+
+  duplicateCamp: async (campId: string) => {
+    set({ isLoading: true, error: null })
+    try {
+      const newCamp = await campsService.duplicateCamp(campId)
+      const { camps } = get()
+      set({ camps: [newCamp, ...camps], isLoading: false })
+      return newCamp
     } catch (error: any) {
       set({ error: error.message, isLoading: false })
       throw error

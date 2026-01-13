@@ -91,14 +91,49 @@ export const publishCamp = async (campId: string): Promise<Camp> => {
 // Camp Management Endpoints
 // ============================================
 
-export const getCamps = async (filters?: { status?: string }): Promise<Camp[]> => {
+export interface GetCampsFilters {
+  search?: string
+  status?: 'draft' | 'published' | 'archived'
+  location?: string
+  type?: 'day' | 'residential'
+}
+
+export interface CampStatistics {
+  totalCamps: number
+  publishedCamps: number
+  draftCamps: number
+  archivedCamps: number
+  totalBookings: number
+  activeSessions: number
+  averageRating: number
+}
+
+export const getCamps = async (filters?: GetCampsFilters): Promise<Camp[]> => {
   const response = await apiClient.get<{ camps: Camp[] }>('/provider/camps', { params: filters })
   if (!response.success) throw new Error((response.data as any).message)
   return (response.data as any).camps
 }
 
+export const getCampStatistics = async (): Promise<CampStatistics> => {
+  const response = await apiClient.get<{ stats: CampStatistics }>('/provider/camps/statistics')
+  if (!response.success) throw new Error((response.data as any).message)
+  return (response.data as any).stats
+}
+
 export const getCamp = async (campId: string): Promise<Camp> => {
   const response = await apiClient.get<{ camp: Camp }>(`/provider/camps/${campId}`)
+  if (!response.success) throw new Error((response.data as any).message)
+  return (response.data as any).camp
+}
+
+export const archiveCamp = async (campId: string): Promise<Camp> => {
+  const response = await apiClient.post<{ camp: Camp }>(`/provider/camps/${campId}/archive`, {})
+  if (!response.success) throw new Error((response.data as any).message)
+  return (response.data as any).camp
+}
+
+export const duplicateCamp = async (campId: string): Promise<Camp> => {
+  const response = await apiClient.post<{ camp: Camp }>(`/provider/camps/${campId}/duplicate`, {})
   if (!response.success) throw new Error((response.data as any).message)
   return (response.data as any).camp
 }

@@ -28,6 +28,7 @@ import {
   UpdateWhatsIncludedDto,
 } from './dto/update-camp.dto'
 import { PhotoUploadService } from './services/photo-upload.service'
+import { GetCampsFiltersDto } from './dto/get-camps-filters.dto'
 
 @Injectable()
 export class CampsService {
@@ -45,6 +46,32 @@ export class CampsService {
       throw new BadRequestException('Location place ID is required when using different location')
     }
 
+    // Prepare location data
+    let locationData = {
+      locationPlaceId: dto.locationPlaceId,
+      locationName: dto.locationName,
+      locationAddress: dto.locationAddress,
+      locationLat: dto.locationLat,
+      locationLng: dto.locationLng,
+    }
+
+    // If using provider location, populate from Google Business Profile
+    if (dto.locationType === 'provider') {
+      const googleProfile = await this.prisma.googleBusinessProfile.findUnique({
+        where: { providerId },
+      })
+
+      if (googleProfile) {
+        locationData = {
+          locationPlaceId: googleProfile.placeId,
+          locationName: googleProfile.businessName,
+          locationAddress: googleProfile.formattedAddress,
+          locationLat: Number(googleProfile.lat),
+          locationLng: Number(googleProfile.lng),
+        }
+      }
+    }
+
     const camp = await this.prisma.camp.create({
       data: {
         providerId,
@@ -52,11 +79,7 @@ export class CampsService {
         type: dto.type,
         description: dto.description,
         locationType: dto.locationType,
-        locationPlaceId: dto.locationPlaceId,
-        locationName: dto.locationName,
-        locationAddress: dto.locationAddress,
-        locationLat: dto.locationLat,
-        locationLng: dto.locationLng,
+        ...locationData,
         // Initialize with empty arrays for required fields
         ageGroups: [],
         languages: [],
@@ -208,13 +231,45 @@ export class CampsService {
   }
 
   /**
-   * Get all camps for a provider
+   * Get all camps for a provider with search and filtering
    */
-  async getCamps(providerId: string, filters?: any) {
+  async getCamps(providerId: string, filters?: GetCampsFiltersDto) {
     const where: any = { providerId }
 
+    // Status filter
     if (filters?.status) {
       where.status = filters.status
+    }
+
+    // Type filter
+    if (filters?.type) {
+      where.type = filters.type
+    }
+
+    // Location filter (search in locationName and locationAddress)
+    if (filters?.location) {
+      where.OR = [
+        { locationName: { contains: filters.location, mode: 'insensitive' } },
+        { locationAddress: { contains: filters.location, mode: 'insensitive' } },
+      ]
+    }
+
+    // Search filter (search across name, description, locationName, locationAddress)
+    if (filters?.search) {
+      const searchConditions = [
+        { name: { contains: filters.search, mode: 'insensitive' } },
+        { description: { contains: filters.search, mode: 'insensitive' } },
+        { locationName: { contains: filters.search, mode: 'insensitive' } },
+        { locationAddress: { contains: filters.search, mode: 'insensitive' } },
+      ]
+
+      // If location filter is already applied, combine with AND
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchConditions }]
+        delete where.OR
+      } else {
+        where.OR = searchConditions
+      }
     }
 
     const camps = await this.prisma.camp.findMany({
@@ -222,7 +277,23 @@ export class CampsService {
       orderBy: { createdAt: 'desc' },
     })
 
-    return camps
+    // Generate SAS URLs for photos
+    const campsWithPhotoUrls = await Promise.all(
+      camps.map(async camp => {
+        if (camp.photos && Array.isArray(camp.photos) && camp.photos.length > 0) {
+          const photosWithUrls = await this.photoUploadService.generatePhotoUrls(
+            camp.photos as any[]
+          )
+          return {
+            ...camp,
+            photos: photosWithUrls,
+          }
+        }
+        return camp
+      })
+    )
+
+    return campsWithPhotoUrls
   }
 
   /**
@@ -259,9 +330,27 @@ export class CampsService {
   async updateBasicInfo(campId: string, providerId: string, dto: UpdateBasicInfoDto) {
     await this.verifyCampOwnership(campId, providerId)
 
+    // Prepare update data
+    const updateData: any = { ...dto }
+
+    // If changing to provider location, populate from Google Business Profile
+    if (dto.locationType === 'provider') {
+      const googleProfile = await this.prisma.googleBusinessProfile.findUnique({
+        where: { providerId },
+      })
+
+      if (googleProfile) {
+        updateData.locationPlaceId = googleProfile.placeId
+        updateData.locationName = googleProfile.businessName
+        updateData.locationAddress = googleProfile.formattedAddress
+        updateData.locationLat = Number(googleProfile.lat)
+        updateData.locationLng = Number(googleProfile.lng)
+      }
+    }
+
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: dto,
+      data: updateData,
     })
 
     return camp
@@ -520,6 +609,70 @@ export class CampsService {
     })
 
     return camp
+  }
+
+  /**
+   * Get camp statistics for provider dashboard
+   */
+  async getCampStatistics(providerId: string) {
+    const camps = await this.prisma.camp.findMany({
+      where: { providerId },
+      select: {
+        id: true,
+        status: true,
+      },
+    })
+
+    // TODO: Replace with actual bookings and sessions data when those models are implemented
+    // For now, return mock data
+    const stats = {
+      totalCamps: camps.length,
+      publishedCamps: camps.filter(c => c.status === 'published').length,
+      draftCamps: camps.filter(c => c.status === 'draft').length,
+      archivedCamps: camps.filter(c => c.status === 'archived').length,
+      totalBookings: 0, // TODO: Implement when bookings model is ready
+      activeSessions: 0, // TODO: Implement when sessions model is ready
+      averageRating: 0.0, // TODO: Implement when reviews model is ready
+    }
+
+    return stats
+  }
+
+  /**
+   * Archive a camp
+   */
+  async archiveCamp(campId: string, providerId: string) {
+    await this.verifyCampOwnership(campId, providerId)
+
+    const camp = await this.prisma.camp.update({
+      where: { id: campId },
+      data: {
+        status: 'archived',
+      },
+    })
+
+    return camp
+  }
+
+  /**
+   * Duplicate a camp
+   */
+  async duplicateCamp(campId: string, providerId: string) {
+    const originalCamp = await this.verifyCampOwnership(campId, providerId)
+
+    // Create a copy of the camp with a new name
+    const { id, createdAt, updatedAt, publishedAt, ...campData } = originalCamp as any
+
+    const duplicatedCamp = await this.prisma.camp.create({
+      data: {
+        ...campData,
+        name: `${campData.name} (Copy)`,
+        status: 'draft',
+        publishedAt: null,
+      },
+    })
+
+    return duplicatedCamp
   }
 
   /**

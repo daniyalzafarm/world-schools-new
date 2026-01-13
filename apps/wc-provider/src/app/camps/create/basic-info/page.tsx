@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Button } from '@heroui/react'
 import { useCampsStore } from '../../../../stores/camps-store'
 import { useOnboardingStore } from '../../../../stores/onboarding-store'
 import type { CampType, CreateCampDto, LocationType } from '../../../../types/camps'
@@ -38,10 +39,19 @@ export default function BasicInfoPage() {
   const [mapLocation, setMapLocation] = useState<{ lat: number; lng: number; name: string } | null>(
     null
   )
-  const [showMap, setShowMap] = useState(true) // Track if map should be visible
+  const [isEditingLocation, setIsEditingLocation] = useState(false) // Track if user is changing location
 
   // Cache for previously selected location (persists when toggling location types)
   const [cachedLocation, setCachedLocation] = useState<{
+    locationPlaceId: string
+    locationName: string
+    locationAddress: string
+    locationLat: number
+    locationLng: number
+  } | null>(null)
+
+  // Temporary storage for location before user confirms change
+  const [previousLocation, setPreviousLocation] = useState<{
     locationPlaceId: string
     locationName: string
     locationAddress: string
@@ -109,16 +119,20 @@ export default function BasicInfoPage() {
           locationLng: wizardCamp.locationLng,
         })
 
-        // Hide map if location is already selected
-        setShowMap(false)
+        // Make sure we're not in edit mode when loading existing data
+        setIsEditingLocation(false)
+        setPreviousLocation(null)
       }
     }
   }, [wizardCamp])
 
   // Initialize Google Places Autocomplete
   useEffect(() => {
-    // Only initialize when "different" location is selected and map is visible
-    if (formData.locationType !== 'different' || !showMap) {
+    // Only initialize when "different" location is selected and either:
+    // - No location is selected yet, OR
+    // - User is editing an existing location
+    const shouldShowMap = !formData.locationPlaceId || isEditingLocation
+    if (formData.locationType !== 'different' || !shouldShowMap) {
       return
     }
 
@@ -187,9 +201,10 @@ export default function BasicInfoPage() {
             name: place.name || '',
           })
 
-          // Clear search query and hide map
+          // Clear search query and exit edit mode
           setSearchQuery('')
-          setShowMap(false)
+          setIsEditingLocation(false)
+          setPreviousLocation(null)
         })
 
         autocompleteRef.current = autocomplete
@@ -211,7 +226,7 @@ export default function BasicInfoPage() {
         autocompleteRef.current = null
       }
     }
-  }, [formData.locationType, showMap])
+  }, [formData.locationType, formData.locationPlaceId, isEditingLocation])
 
   const handleSubmit = async () => {
     try {
@@ -417,13 +432,15 @@ export default function BasicInfoPage() {
                         lng: cachedLocation.locationLng,
                         name: cachedLocation.locationName,
                       })
-                      // Show location card (not map) since location is already selected
-                      setShowMap(false)
+                      // Exit edit mode when switching back
+                      setIsEditingLocation(false)
+                      setPreviousLocation(null)
                     } else {
                       // No cached location, just update location type
                       setFormData({ ...formData, locationType: e.target.value as LocationType })
-                      // Show map for new selection
-                      setShowMap(true)
+                      // Make sure we're not in edit mode
+                      setIsEditingLocation(false)
+                      setPreviousLocation(null)
                     }
                   }}
                   className="hidden"
@@ -470,9 +487,9 @@ export default function BasicInfoPage() {
 
             {/* Google Maps for Different Location */}
             {formData.locationType === 'different' && (
-              <div className="mt-4">
-                {/* Show selected location card when location is selected and map is hidden */}
-                {formData.locationPlaceId && !showMap ? (
+              <div className="mt-4 space-y-4">
+                {/* Show selected location card when location is selected */}
+                {formData.locationPlaceId && (
                   <div className="flex items-center gap-4 rounded-lg bg-default-100 p-4">
                     <div className="flex-1">
                       <div className="mb-1 flex items-center gap-2">
@@ -485,18 +502,61 @@ export default function BasicInfoPage() {
                         {formData.locationAddress}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowMap(true)}
-                      className="flex-shrink-0 rounded-lg border-2 border-default-300 bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-default-50"
-                    >
-                      Change
-                    </button>
+                    {isEditingLocation ? (
+                      <Button
+                        size="sm"
+                        variant="bordered"
+                        color="default"
+                        onPress={() => {
+                          // Cancel editing - restore previous location
+                          if (previousLocation) {
+                            setFormData(prev => ({
+                              ...prev,
+                              ...previousLocation,
+                            }))
+                            setCachedLocation(previousLocation)
+                            setMapLocation({
+                              lat: previousLocation.locationLat,
+                              lng: previousLocation.locationLng,
+                              name: previousLocation.locationName,
+                            })
+                          }
+                          setIsEditingLocation(false)
+                          setPreviousLocation(null)
+                          setSearchQuery('')
+                        }}
+                        className="shrink-0 w-16"
+                      >
+                        Cancel
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        color="primary"
+                        onPress={() => {
+                          // Save current location before editing
+                          setPreviousLocation({
+                            locationPlaceId: formData.locationPlaceId || '',
+                            locationName: formData.locationName || '',
+                            locationAddress: formData.locationAddress || '',
+                            locationLat: formData.locationLat ?? 0,
+                            locationLng: formData.locationLng ?? 0,
+                          })
+                          setIsEditingLocation(true)
+                        }}
+                        className="shrink-0 w-16"
+                      >
+                        Change
+                      </Button>
+                    )}
                   </div>
-                ) : (
+                )}
+
+                {/* Show map when no location selected OR when editing */}
+                {(!formData.locationPlaceId || isEditingLocation) && (
                   <>
                     {/* Map Container with Search */}
-                    <div className="mb-4 h-[320px] overflow-hidden rounded-2xl">
+                    <div className="h-80 overflow-hidden rounded-2xl">
                       <div className="relative h-full w-full">
                         {/* Google Maps */}
                         <GoogleMapWithSearch

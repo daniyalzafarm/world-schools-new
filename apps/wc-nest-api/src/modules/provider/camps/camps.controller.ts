@@ -43,6 +43,7 @@ import {
   UpdateWaterDto,
   UpdateWhatsIncludedDto,
 } from './dto/update-camp.dto'
+import { GetCampsFiltersDto } from './dto/get-camps-filters.dto'
 
 @Controller('provider/camps')
 @UseGuards(RolesOrPermissionsGuard)
@@ -128,7 +129,7 @@ export class CampsController {
     const camp = await this.campsService.updateCampPhotos(
       campId,
       providerId,
-      files || [],
+      files ?? [],
       existingPhotos
     )
     return ResponseUtil.success({ camp })
@@ -150,11 +151,22 @@ export class CampsController {
   // ============================================
 
   /**
-   * Get all camps
+   * Get camp statistics
+   */
+  @Get('statistics')
+  @HttpCode(HttpStatus.OK)
+  async getCampStatistics(@CurrentUser() user: any) {
+    const providerId = await this.getProviderIdForUser(user)
+    const stats = await this.campsService.getCampStatistics(providerId)
+    return ResponseUtil.success({ stats })
+  }
+
+  /**
+   * Get all camps with search and filtering
    */
   @Get()
   @HttpCode(HttpStatus.OK)
-  async getCamps(@CurrentUser() user: any, @Query() filters: any) {
+  async getCamps(@CurrentUser() user: any, @Query() filters: GetCampsFiltersDto) {
     const providerId = await this.getProviderIdForUser(user)
     const camps = await this.campsService.getCamps(providerId, filters)
     return ResponseUtil.success({ camps })
@@ -168,6 +180,28 @@ export class CampsController {
   async getCamp(@Param('id') campId: string, @CurrentUser() user: any) {
     const providerId = await this.getProviderIdForUser(user)
     const camp = await this.campsService.getCamp(campId, providerId)
+    return ResponseUtil.success({ camp })
+  }
+
+  /**
+   * Archive a camp
+   */
+  @Post(':id/archive')
+  @HttpCode(HttpStatus.OK)
+  async archiveCamp(@Param('id') campId: string, @CurrentUser() user: any) {
+    const providerId = await this.getProviderIdForUser(user)
+    const camp = await this.campsService.archiveCamp(campId, providerId)
+    return ResponseUtil.success({ camp })
+  }
+
+  /**
+   * Duplicate a camp
+   */
+  @Post(':id/duplicate')
+  @HttpCode(HttpStatus.OK)
+  async duplicateCamp(@Param('id') campId: string, @CurrentUser() user: any) {
+    const providerId = await this.getProviderIdForUser(user)
+    const camp = await this.campsService.duplicateCamp(campId, providerId)
     return ResponseUtil.success({ camp })
   }
 
