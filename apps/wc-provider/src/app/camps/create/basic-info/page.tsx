@@ -277,10 +277,10 @@ export default function BasicInfoPage() {
       <div>
         {/* Header */}
         <div className="mb-8">
-          <h1 className="mb-1.5 text-[24px] font-semibold text-foreground">
+          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">
             Let's add info for your camp
           </h1>
-          <p className="text-[15px] leading-[1.5] text-default-500">
+          <p className="text-base leading-normal text-default-500">
             Start with the basics: name, type, location, and a short description
           </p>
         </div>
@@ -290,23 +290,23 @@ export default function BasicInfoPage() {
           {/* Camp Name */}
           <div className="form-group">
             <div className="mb-2 flex items-center gap-2">
-              <label className="text-[15px] font-semibold text-foreground">
+              <label className="text-base font-semibold text-foreground">
                 Camp Name
                 <span className="ml-1 text-danger">*</span>
               </label>
-              <span className="relative inline-flex cursor-help items-center justify-center text-[13px] text-default-400">
+              <span className="relative inline-flex cursor-help items-center justify-center text-xs text-default-400">
                 ⓘ
               </span>
             </div>
             <input
               type="text"
-              className="w-full rounded-lg border border-default-300 bg-background px-4 py-3 text-[15px] text-foreground transition-all placeholder:text-default-400 hover:border-default-400 focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/20"
+              className="w-full rounded-lg border border-default-300 bg-background px-4 py-3 text-base text-foreground transition-all placeholder:text-default-400 hover:border-default-400 focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/20"
               placeholder="e.g., American International Summer Camp – Salzburg"
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               maxLength={120}
             />
-            <div className="mt-1.5 text-right text-[13px] text-default-400">
+            <div className="mt-1.5 text-right text-xs text-default-400">
               {formData.name.length} / 120 characters
             </div>
           </div>
@@ -314,11 +314,11 @@ export default function BasicInfoPage() {
           {/* Camp Type */}
           <div className="form-group">
             <div className="mb-2 flex items-center gap-2">
-              <label className="text-[15px] font-semibold text-foreground">
+              <label className="text-base font-semibold text-foreground">
                 Camp Type
                 <span className="ml-1 text-danger">*</span>
               </label>
-              <span className="relative inline-flex cursor-help items-center justify-center text-[13px] text-default-400">
+              <span className="relative inline-flex cursor-help items-center justify-center text-xs text-default-400">
                 ⓘ
               </span>
             </div>
@@ -338,10 +338,10 @@ export default function BasicInfoPage() {
                   onChange={e => setFormData({ ...formData, type: e.target.value as CampType })}
                   className="hidden"
                 />
-                <div className="text-[20px]">☀️</div>
+                <div className="text-xl">☀️</div>
                 <div className="flex-1">
-                  <div className="text-[14px] font-semibold text-foreground">Day Camp</div>
-                  <div className="text-[13px] leading-[1.3] text-default-500">
+                  <div className="text-sm font-semibold text-foreground">Day Camp</div>
+                  <div className="text-xs leading-tight text-default-500">
                     Campers go home daily
                   </div>
                 </div>
@@ -361,14 +361,14 @@ export default function BasicInfoPage() {
                   onChange={e => setFormData({ ...formData, type: e.target.value as CampType })}
                   className="hidden"
                 />
-                <div className="text-[20px]">🏕️</div>
+                <div className="text-xl">🏕️</div>
                 <div className="flex-1">
-                  <div className="text-[14px] font-semibold text-foreground">Residential Camp</div>
-                  <div className="text-[13px] leading-[1.3] text-default-500">Overnight stays</div>
+                  <div className="text-sm font-semibold text-foreground">Residential Camp</div>
+                  <div className="text-xs leading-tight text-default-500">Overnight stays</div>
                 </div>
               </label>
             </div>
-            <div className="mt-3 text-[14px] leading-[1.5] text-default-500">
+            <div className="mt-3 text-sm leading-normal text-default-500">
               💡 If you offer both day and residential programs, create separate listings for each
             </div>
           </div>
@@ -376,11 +376,11 @@ export default function BasicInfoPage() {
           {/* Location */}
           <div className="form-group">
             <div className="mb-2 flex items-center gap-2">
-              <label className="text-[15px] font-semibold text-foreground">
+              <label className="text-base font-semibold text-foreground">
                 Location
                 <span className="ml-1 text-danger">*</span>
               </label>
-              <span className="relative inline-flex cursor-help items-center justify-center text-[13px] text-default-400">
+              <span className="relative inline-flex cursor-help items-center justify-center text-xs text-default-400">
                 ⓘ
               </span>
             </div>
@@ -412,10 +412,10 @@ export default function BasicInfoPage() {
                   }}
                   className="hidden"
                 />
-                <div className="text-[20px]">🏢</div>
+                <div className="text-xl">🏢</div>
                 <div className="flex-1">
-                  <div className="text-[14px] font-semibold text-foreground">Provider Address</div>
-                  <div className="text-[13px] leading-[1.3] text-default-500">
+                  <div className="text-sm font-semibold text-foreground">Provider Address</div>
+                  <div className="text-xs leading-tight text-default-500">
                     Use organization location
                   </div>
                 </div>
@@ -459,12 +459,10 @@ export default function BasicInfoPage() {
                   }}
                   className="hidden"
                 />
-                <div className="text-[20px]">📍</div>
+                <div className="text-xl">📍</div>
                 <div className="flex-1">
-                  <div className="text-[14px] font-semibold text-foreground">
-                    Different Location
-                  </div>
-                  <div className="text-[13px] leading-[1.3] text-default-500">
+                  <div className="text-sm font-semibold text-foreground">Different Location</div>
+                  <div className="text-xs leading-tight text-default-500">
                     Camp at external venue
                   </div>
                 </div>
@@ -477,21 +475,21 @@ export default function BasicInfoPage() {
                 {googleBusinessProfile ? (
                   <>
                     <div className="mb-1 flex items-center gap-2">
-                      <div className="text-[20px]">🏢</div>
-                      <div className="text-[14px] font-semibold text-foreground">
+                      <div className="text-xl">🏢</div>
+                      <div className="text-sm font-semibold text-foreground">
                         {googleBusinessProfile.businessName}
                       </div>
                     </div>
-                    <div className="pl-7 text-[13px] text-default-500">
+                    <div className="pl-7 text-xs text-default-500">
                       {googleBusinessProfile.formattedAddress}
                     </div>
                   </>
                 ) : (
                   <>
-                    <div className="mb-1 text-[14px] font-semibold text-default-500">
+                    <div className="mb-1 text-sm font-semibold text-default-500">
                       Loading business address...
                     </div>
-                    <div className="text-[13px] text-default-400">
+                    <div className="text-xs text-default-400">
                       Please complete your business profile in onboarding if not already done
                     </div>
                   </>
@@ -507,12 +505,12 @@ export default function BasicInfoPage() {
                   <div className="flex items-center gap-4 rounded-lg bg-default-100 p-4">
                     <div className="flex-1">
                       <div className="mb-1 flex items-center gap-2">
-                        <span className="text-[20px]">📍</span>
-                        <div className="text-[14px] font-semibold text-foreground">
+                        <span className="text-xl">📍</span>
+                        <div className="text-sm font-semibold text-foreground">
                           {formData.locationName}
                         </div>
                       </div>
-                      <div className="pl-7 text-[13px] text-default-500">
+                      <div className="pl-7 text-xs text-default-500">
                         {formData.locationAddress}
                       </div>
                     </div>
@@ -620,22 +618,22 @@ export default function BasicInfoPage() {
           {/* Short Description */}
           <div className="form-group">
             <div className="mb-2 flex items-center gap-2">
-              <label className="text-[15px] font-semibold text-foreground">
+              <label className="text-base font-semibold text-foreground">
                 Short Description
                 <span className="ml-1 text-danger">*</span>
               </label>
-              <span className="relative inline-flex cursor-help items-center justify-center text-[13px] text-default-400">
+              <span className="relative inline-flex cursor-help items-center justify-center text-xs text-default-400">
                 ⓘ
               </span>
             </div>
             <textarea
-              className="min-h-[120px] w-full resize-y rounded-lg border border-default-300 bg-background px-4 py-3 text-[15px] leading-[1.6] text-foreground transition-all placeholder:text-default-400 hover:border-default-400 focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/20"
+              className="min-h-[120px] w-full resize-y rounded-lg border border-default-300 bg-background px-4 py-3 text-base leading-relaxed text-foreground transition-all placeholder:text-default-400 hover:border-default-400 focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/20"
               placeholder="Describe what makes your camp special, your location, and the unique experience you offer..."
               value={formData.description}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
               maxLength={500}
             />
-            <div className="mt-1.5 text-right text-[13px] text-default-400">
+            <div className="mt-1.5 text-right text-xs text-default-400">
               {formData.description.length} / 500 characters
             </div>
           </div>

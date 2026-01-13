@@ -205,10 +205,10 @@ export default function PhotosPage() {
     <div>
       {/* Header - matching reference design */}
       <div className="mb-8">
-        <h1 className="text-[32px] font-bold leading-tight text-[#222222]">
+        <h1 className="text-2xl font-bold leading-tight text-foreground">
           Add photos of your camp
         </h1>
-        <p className="text-[16px] text-[#717171]">
+        <p className="text-base text-default-500">
           Parents want to see your facilities and activities. Upload at least 5 photos.
         </p>
       </div>
@@ -218,11 +218,11 @@ export default function PhotosPage() {
         <div className="mb-7">
           {/* Label with Tooltip */}
           <div className="mb-2.5 flex items-center gap-2">
-            <label className="text-[15px] font-semibold text-[#222222] after:ml-1 after:text-[#FF385C] after:content-['*']">
+            <label className="text-base font-semibold text-foreground after:ml-1 after:text-danger after:content-['*']">
               Camp Photos
             </label>
             <span
-              className="relative inline-flex h-[18px] w-[18px] cursor-help items-center justify-center rounded-full border border-[#E5E5E5] bg-[#F7F7F7] text-[12px] font-semibold text-[#717171] transition-all hover:border-[#222222] hover:bg-[#222222] hover:text-white"
+              className="relative inline-flex h-4.5 w-4.5 cursor-help items-center justify-center rounded-full border border-default-200 bg-default-100 text-xs font-semibold text-default-500 transition-all hover:border-foreground hover:bg-foreground hover:text-background"
               title="High-quality photos increase inquiries by 3x"
             >
               ⓘ
@@ -234,20 +234,20 @@ export default function PhotosPage() {
             <>
               <div
                 onClick={() => document.getElementById('photoInput')?.click()}
-                className="cursor-pointer rounded-xl border-2 border-dashed border-[#E5E5E5] bg-[#F7F7F7] px-6 py-12 text-center transition-all hover:border-[#45F0B5] hover:bg-[#E8FDF7]"
+                className="cursor-pointer rounded-xl border-2 border-dashed border-default-200 bg-default-100 px-6 py-12 text-center transition-all hover:border-primary hover:bg-primary/5"
               >
                 <div className="mb-3 text-5xl">📸</div>
-                <div className="mb-1.5 text-[16px] font-semibold text-[#222222]">
+                <div className="mb-1.5 text-base font-semibold text-foreground">
                   Drag photos here or click to browse
                 </div>
-                <div className="text-[13px] text-[#717171]">
+                <div className="text-xs text-default-500">
                   JPG, PNG or WebP • Max 5MB each • Minimum 5 photos
                 </div>
               </div>
 
               {/* Photo Tips - only show when no photos */}
-              <div className="mt-4 text-[14px] leading-relaxed text-[#717171]">
-                <strong className="text-[#222222]">Photo tips:</strong>
+              <div className="mt-4 text-sm leading-relaxed text-default-500">
+                <strong className="text-foreground">Photo tips:</strong>
                 <br />• Show kids actively participating in activities
                 <br />• Include wide shots of facilities and grounds
                 <br />• Capture staff interacting with campers
@@ -271,14 +271,14 @@ export default function PhotosPage() {
         {photos.length > 0 && (
           <div className="space-y-3">
             <div className="flex justify-between">
-              <p className="text-[13px] text-[#717171]">
+              <p className="text-xs text-default-500">
                 You can drag to arrange the order of the images.
               </p>
               {/* Photo Count */}
-              <div className="ml-auto text-[13px] text-[#717171]">
+              <div className="ml-auto text-xs text-default-500">
                 {photos.length} photo{photos.length !== 1 ? 's' : ''} selected
                 {photos.length < 5 && (
-                  <span className="ml-1 text-[#FF385C]"> (minimum 5 required)</span>
+                  <span className="ml-1 text-danger"> (minimum 5 required)</span>
                 )}
               </div>
             </div>
@@ -296,7 +296,7 @@ export default function PhotosPage() {
                   onDragEnd={handleDragEnd}
                   className={`group relative col-span-2 row-span-2 cursor-move overflow-hidden rounded-lg border-2 transition-all ${
                     dragOverIndex === 0 && draggedIndex !== 0
-                      ? 'border-[#45F0B5] bg-[#E8FDF7]'
+                      ? 'border-primary bg-primary/5'
                       : 'border-transparent'
                   } ${draggedIndex === 0 ? 'opacity-50' : ''}`}
                   style={{ aspectRatio: '4/3' }}
@@ -308,7 +308,7 @@ export default function PhotosPage() {
                   />
 
                   {/* Primary Badge */}
-                  <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-[#45F0B5] px-2 py-1 text-[10px] font-semibold text-[#222222]">
+                  <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-[10px] font-semibold text-foreground">
                     Primary
                   </div>
 
@@ -344,7 +344,7 @@ export default function PhotosPage() {
                     onDragEnd={handleDragEnd}
                     className={`group relative cursor-move overflow-hidden rounded-lg border-2 transition-all ${
                       dragOverIndex === actualIndex && draggedIndex !== actualIndex
-                        ? 'border-[#45F0B5] bg-[#E8FDF7]'
+                        ? 'border-primary bg-primary/5'
                         : 'border-transparent'
                     } ${draggedIndex === actualIndex ? 'opacity-50' : ''}`}
                     style={{ aspectRatio: '4/3' }}
@@ -356,7 +356,7 @@ export default function PhotosPage() {
                     />
 
                     {/* Position Number */}
-                    <div className="absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-[10px] font-semibold text-white">
+                    <div className="absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-foreground/50 text-[10px] font-semibold text-background">
                       {actualIndex + 1}
                     </div>
 
@@ -385,12 +385,12 @@ export default function PhotosPage() {
                   <div
                     key={`empty-top-${index}`}
                     onClick={() => document.getElementById('photoInput')?.click()}
-                    className="flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-[#E5E5E5] bg-[#F7F7F7] transition-all hover:border-[#45F0B5] hover:bg-[#E8FDF7]"
+                    className="flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-default-200 bg-default-100 transition-all hover:border-primary hover:bg-primary/5"
                     style={{ aspectRatio: '4/3' }}
                   >
                     <div className="text-center">
                       <div className="mb-1 text-3xl opacity-30">📸</div>
-                      <div className="text-[10px] text-[#717171]">Add photo</div>
+                      <div className="text-[10px] text-default-500">Add photo</div>
                     </div>
                   </div>
                 ))}
@@ -399,12 +399,12 @@ export default function PhotosPage() {
               {photos.length === 5 && (
                 <div
                   onClick={() => document.getElementById('photoInput')?.click()}
-                  className="flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-[#E5E5E5] bg-[#F7F7F7] transition-all hover:border-[#45F0B5] hover:bg-[#E8FDF7]"
+                  className="flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-default-200 bg-default-100 transition-all hover:border-primary hover:bg-primary/5"
                   style={{ aspectRatio: '4/3' }}
                 >
                   <div className="text-center">
                     <div className="mb-1 text-3xl opacity-30">📸</div>
-                    <div className="text-[10px] text-[#717171]">Add photo</div>
+                    <div className="text-[10px] text-default-500">Add photo</div>
                   </div>
                 </div>
               )}
@@ -426,7 +426,7 @@ export default function PhotosPage() {
                       onDragEnd={handleDragEnd}
                       className={`group relative cursor-move overflow-hidden rounded-lg border-2 transition-all ${
                         dragOverIndex === actualIndex && draggedIndex !== actualIndex
-                          ? 'border-[#45F0B5] bg-[#E8FDF7]'
+                          ? 'border-primary bg-primary/5'
                           : 'border-transparent'
                       } ${draggedIndex === actualIndex ? 'opacity-50' : ''}`}
                       style={{ aspectRatio: '4/3' }}
@@ -438,7 +438,7 @@ export default function PhotosPage() {
                       />
 
                       {/* Position Number */}
-                      <div className="absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-[10px] font-semibold text-white">
+                      <div className="absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-foreground/50 text-[10px] font-semibold text-background">
                         {actualIndex + 1}
                       </div>
 
@@ -464,12 +464,12 @@ export default function PhotosPage() {
                 {/* Always show Add Photo button */}
                 <div
                   onClick={() => document.getElementById('photoInput')?.click()}
-                  className="flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-[#E5E5E5] bg-[#F7F7F7] transition-all hover:border-[#45F0B5] hover:bg-[#E8FDF7]"
+                  className="flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-default-200 bg-default-100 transition-all hover:border-primary hover:bg-primary/5"
                   style={{ aspectRatio: '4/3' }}
                 >
                   <div className="text-center">
                     <div className="mb-1 text-3xl opacity-30">📸</div>
-                    <div className="text-[10px] text-[#717171]">Add photo</div>
+                    <div className="text-[10px] text-default-500">Add photo</div>
                   </div>
                 </div>
               </div>
@@ -482,7 +482,7 @@ export default function PhotosPage() {
           <div className="mt-8 flex items-center gap-4">
             {/* Success Message */}
             {saveSuccess && (
-              <div className="flex items-center gap-2 text-[14px] font-medium text-green-600">
+              <div className="flex items-center gap-2 text-sm font-medium text-success">
                 <span className="text-xl">✓</span>
                 Photos saved successfully!
               </div>
@@ -490,7 +490,7 @@ export default function PhotosPage() {
 
             {/* Unsaved Changes Indicator */}
             {localHasUnsavedChanges && !isLoading && (
-              <div className="text-[13px] text-[#717171]">You have unsaved changes</div>
+              <div className="text-xs text-default-500">You have unsaved changes</div>
             )}
           </div>
         )}

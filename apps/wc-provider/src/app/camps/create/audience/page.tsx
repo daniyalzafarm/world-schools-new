@@ -128,10 +128,8 @@ export default function AudiencePage() {
     <div>
       {/* Header */}
       <div className="mb-8">
-        <h1 className="mb-1.5 text-[24px] font-semibold text-foreground">
-          Who can attend your camp?
-        </h1>
-        <p className="text-[15px] leading-normal text-default-500">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Who can attend your camp?</h1>
+        <p className="text-base leading-normal text-default-500">
           Define age groups, languages, and gender to help parents find your camp
         </p>
       </div>
