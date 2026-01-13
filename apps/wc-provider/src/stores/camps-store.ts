@@ -172,8 +172,8 @@ export const useCampsStore = create<CampsState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const camp = await campsService.getCamp(campId)
-      // Set both currentCamp and wizardCamp to support both wizard and editor modes
-      set({ currentCamp: camp, wizardCamp: camp, isLoading: false })
+      // Only set currentCamp - wizardCamp should be set explicitly when needed
+      set({ currentCamp: camp, isLoading: false })
     } catch (error: any) {
       set({ error: error.message, isLoading: false })
       throw error

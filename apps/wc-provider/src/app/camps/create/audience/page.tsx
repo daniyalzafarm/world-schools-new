@@ -22,7 +22,8 @@ export default function AudiencePage() {
   const searchParams = useSearchParams()
   const campId = searchParams.get('id')
 
-  const { updateCampAudience, fetchCamp, wizardCamp, setWizardStep, isLoading } = useCampsStore()
+  const { updateCampAudience, fetchCamp, wizardCamp, setWizardCamp, setWizardStep, isLoading } =
+    useCampsStore()
 
   const [formData, setFormData] = useState<UpdateCampAudienceDto>({
     ageGroups: [{ min: 6, max: 12 }],
@@ -34,14 +35,22 @@ export default function AudiencePage() {
     setWizardStep(2)
 
     if (campId) {
-      fetchCamp(campId).catch(error => {
-        console.error('Failed to fetch camp:', error)
-        router.push('/camps/create/basic-info')
-      })
+      fetchCamp(campId)
+        .then(() => {
+          // Get the fetched camp from currentCamp and set it as wizardCamp
+          const currentCamp = useCampsStore.getState().currentCamp
+          if (currentCamp) {
+            setWizardCamp(currentCamp)
+          }
+        })
+        .catch(error => {
+          console.error('Failed to fetch camp:', error)
+          router.push('/camps/create/basic-info')
+        })
     } else {
       router.push('/camps/create/basic-info')
     }
-  }, [campId, fetchCamp, setWizardStep, router])
+  }, [campId, fetchCamp, setWizardCamp, setWizardStep, router])
 
   useEffect(() => {
     if (wizardCamp) {

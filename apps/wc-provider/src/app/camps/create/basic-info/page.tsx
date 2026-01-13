@@ -17,8 +17,15 @@ export default function BasicInfoPage() {
   const searchParams = useSearchParams()
   const campId = searchParams.get('id')
 
-  const { createCamp, fetchCamp, wizardCamp, setWizardCamp, setWizardStep, isLoading } =
-    useCampsStore()
+  const {
+    createCamp,
+    fetchCamp,
+    wizardCamp,
+    setWizardCamp,
+    setWizardStep,
+    resetWizard,
+    isLoading,
+  } = useCampsStore()
 
   const { googleBusinessProfile, fetchGoogleBusinessProfile } = useOnboardingStore()
 
@@ -66,20 +73,27 @@ export default function BasicInfoPage() {
   useEffect(() => {
     setWizardStep(1)
 
-    // If campId exists, fetch the camp data
+    // If campId exists, fetch the camp data and set it as wizardCamp
     if (campId) {
       fetchCamp(campId)
         .then(() => {
-          // Form will be populated from wizardCamp
+          // Get the fetched camp from currentCamp and set it as wizardCamp
+          const currentCamp = useCampsStore.getState().currentCamp
+          if (currentCamp) {
+            setWizardCamp(currentCamp)
+          }
         })
         .catch(error => {
           console.error('Failed to fetch camp:', error)
         })
+    } else {
+      // Starting a new camp creation - reset wizard state to ensure clean slate
+      resetWizard()
     }
 
     // Fetch Google Business Profile for provider address display
     void fetchGoogleBusinessProfile()
-  }, [campId, fetchCamp, setWizardStep, fetchGoogleBusinessProfile])
+  }, [campId, fetchCamp, setWizardCamp, setWizardStep, resetWizard, fetchGoogleBusinessProfile])
 
   useEffect(() => {
     // Populate form with existing data
