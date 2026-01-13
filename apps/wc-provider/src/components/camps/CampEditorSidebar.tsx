@@ -1,35 +1,47 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { useCampsStore } from '../../stores/camps-store'
+import { Logo } from '@/components/layout/logo'
 
 interface EditorSection {
   id: string
   label: string
   path: string
   category?: string
+  activityKey?: string // Maps to the activity value in camp.activities array
 }
 
 const editorSections: EditorSection[] = [
-  { id: 'basic-info', label: 'Basic Information', path: 'basic-info' },
-  { id: 'photos', label: 'Photos', path: 'photos' },
-  { id: 'whats-included', label: "What's Included", path: 'whats-included' },
-  { id: 'daily-schedule', label: 'Daily Schedule', path: 'daily-schedule' },
-  { id: 'meals', label: 'Meals', path: 'meals' },
-  { id: 'sports', label: 'Sports', path: 'sports', category: 'Activities' },
-  { id: 'languages', label: 'Languages', path: 'languages', category: 'Activities' },
-  { id: 'arts', label: 'Arts & Crafts', path: 'arts', category: 'Activities' },
-  { id: 'adventure', label: 'Adventure', path: 'adventure', category: 'Activities' },
-  { id: 'water', label: 'Water Activities', path: 'water', category: 'Activities' },
-  { id: 'environmental', label: 'Environmental', path: 'environmental', category: 'Activities' },
-  { id: 'academics', label: 'Academics', path: 'academics', category: 'Activities' },
-  { id: 'religion', label: 'Religion', path: 'religion', category: 'Activities' },
-  { id: 'excursions', label: 'Excursions', path: 'excursions' },
-  { id: 'location-campus', label: 'Location & Campus', path: 'location-campus' },
-  { id: 'accommodation', label: 'Accommodation', path: 'accommodation' },
-  { id: 'getting-there', label: 'Getting There', path: 'getting-there' },
-  { id: 'camp-focus', label: 'Camp Focus', path: 'camp-focus' },
+  // CAMP OVERVIEW
+  { id: 'basic-info', label: 'Basic Info', path: 'basic-info', category: 'CAMP OVERVIEW' },
+  { id: 'audience', label: 'Audience', path: 'audience', category: 'CAMP OVERVIEW' },
+  { id: 'programs', label: 'Programs', path: 'programs', category: 'CAMP OVERVIEW' },
+  { id: 'photos', label: 'Photos & Media', path: 'photos', category: 'CAMP OVERVIEW' },
+
+  // SESSIONS & BOOKING
+  { id: 'whats-included', label: "What's Included", path: 'whats-included', category: 'SESSIONS & BOOKING' },
+
+  // PROGRAM & ACTIVITIES
+  { id: 'camp-focus', label: 'Camp Focus', path: 'camp-focus', category: 'PROGRAM & ACTIVITIES' },
+  { id: 'sports', label: 'Sports', path: 'sports', category: 'PROGRAM & ACTIVITIES', activityKey: 'sports' },
+  { id: 'languages', label: 'Languages', path: 'languages', category: 'PROGRAM & ACTIVITIES', activityKey: 'languages' },
+  { id: 'arts', label: 'Arts & Creativity', path: 'arts', category: 'PROGRAM & ACTIVITIES', activityKey: 'arts' },
+  { id: 'adventure', label: 'Adventure & Outdoors', path: 'adventure', category: 'PROGRAM & ACTIVITIES', activityKey: 'adventure' },
+  { id: 'water', label: 'Water Activities', path: 'water', category: 'PROGRAM & ACTIVITIES', activityKey: 'water' },
+  { id: 'environmental', label: 'Nature & Environment', path: 'environmental', category: 'PROGRAM & ACTIVITIES', activityKey: 'environment' },
+  { id: 'academics', label: 'Academics', path: 'academics', category: 'PROGRAM & ACTIVITIES', activityKey: 'academics' },
+  { id: 'religion', label: 'Religion Programs', path: 'religion', category: 'PROGRAM & ACTIVITIES', activityKey: 'religion' },
+  { id: 'excursions', label: 'Excursions & Trips', path: 'excursions', category: 'PROGRAM & ACTIVITIES', activityKey: 'excursions' },
+
+  // ACCOMMODATION & CARE
+  { id: 'accommodation', label: 'Accommodation', path: 'accommodation', category: 'ACCOMMODATION & CARE' },
+  { id: 'meals', label: 'Meals & Dietary', path: 'meals', category: 'ACCOMMODATION & CARE' },
+  { id: 'daily-schedule', label: 'Daily Schedule', path: 'daily-schedule', category: 'ACCOMMODATION & CARE' },
+
+  // LOCATION & LOGISTICS
+  { id: 'location-campus', label: 'Location & Campus', path: 'location-campus', category: 'LOCATION & LOGISTICS' },
+  { id: 'getting-there', label: 'Getting There', path: 'getting-there', category: 'LOCATION & LOGISTICS' },
 ]
 
 interface CampEditorSidebarProps {
@@ -49,71 +61,83 @@ export function CampEditorSidebar({ campId }: CampEditorSidebarProps) {
     return pathname.includes(section.path)
   }
 
-  // Group sections by category
-  const generalSections = editorSections.filter(s => !s.category)
-  const activitySections = editorSections.filter(s => s.category === 'Activities')
-
-  // Filter residential-only sections
+  // Filter sections based on camp configuration
   const shouldShowSection = (section: EditorSection) => {
+    // Filter residential-only sections
     if (section.id === 'accommodation' || section.id === 'getting-there') {
-      return currentCamp?.type === 'residential'
+      if (currentCamp?.type !== 'residential') return false
     }
+
+    // Filter activity sections based on selected activities
+    if (section.activityKey) {
+      const selectedActivities = currentCamp?.activities || []
+      return selectedActivities.includes(section.activityKey)
+    }
+
     return true
   }
 
+  // Group sections by category
+  const categories = Array.from(new Set(editorSections.map(s => s.category).filter(Boolean)))
+
+  const getSectionsByCategory = (category: string) => {
+    return editorSections.filter(s => s.category === category && shouldShowSection(s))
+  }
+
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-[280px] border-r border-gray-200 bg-white">
-      {/* Logo */}
-      <div className="flex h-18 items-center border-b border-gray-200 px-6">
-        <Image src="/images/logo.svg" alt="World-Camps" width={140} height={32} priority />
+    <aside className="fixed left-0 top-0 z-100 flex h-screen w-[280px] flex-col overflow-y-auto border-r border-default-200 bg-default-50">
+      {/* Logo Header */}
+      <div className="flex min-h-[61px] items-center bg-default-50 px-5 py-5">
+        <div className="flex items-center">
+          <Logo size={'md'} showText={true} />
+        </div>
       </div>
 
       {/* Camp Name */}
-      <div className="border-b border-gray-200 px-6 py-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Editing Camp</p>
-        <h2 className="mt-1 truncate text-sm font-semibold text-gray-900">
+      <div className="border-b border-default-200 bg-default-50 px-5 py-4">
+        <p className="text-[11px] font-bold uppercase tracking-[0.5px] text-default-500">
+          EDITING CAMP
+        </p>
+        <h2 className="mt-1 truncate text-sm font-semibold text-foreground">
           {currentCamp?.name || 'Loading...'}
         </h2>
       </div>
 
       {/* Sections List */}
-      <nav className="overflow-y-auto px-3 py-4" style={{ height: 'calc(100vh - 180px)' }}>
-        <div className="space-y-1">
-          {/* General Sections */}
-          {generalSections.filter(shouldShowSection).map(section => (
-            <button
-              key={section.id}
-              onClick={() => handleSectionClick(section)}
-              className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                isActive(section)
-                  ? 'bg-primary-50 font-medium text-primary-700'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {section.label}
-            </button>
-          ))}
+      <nav className="flex-1 py-6">
+        {categories.map((category, categoryIndex) => {
+          const sections = getSectionsByCategory(category)
+          if (sections.length === 0) return null
 
-          {/* Activities Category */}
-          <div className="pt-4">
-            <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Activities
-            </p>
-            {activitySections.map(section => (
-              <button
-                key={section.id}
-                onClick={() => handleSectionClick(section)}
-                className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                  isActive(section)
-                    ? 'bg-primary-50 font-medium text-primary-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                {section.label}
-              </button>
-            ))}
-          </div>
-        </div>
+          return (
+            <div key={category} className={categoryIndex > 0 ? 'mt-6' : ''}>
+              <div className="mb-3 px-5 text-[11px] font-bold uppercase tracking-[0.5px] text-default-500">
+                {category}
+              </div>
+              {sections.map(section => {
+                const isCurrent = isActive(section)
+
+                return (
+                  <button
+                    key={section.id}
+                    onClick={() => handleSectionClick(section)}
+                    className={`relative flex w-full items-center gap-3 px-5 py-3 text-left text-sm transition-all ${
+                      isCurrent
+                        ? 'bg-white font-semibold text-foreground'
+                        : 'font-medium text-foreground hover:bg-white/60'
+                    }`}
+                  >
+                    {/* Active Indicator */}
+                    {isCurrent && (
+                      <div className="absolute bottom-0 left-0 top-0 w-[3px] bg-primary" />
+                    )}
+                    <span>{section.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )
+        })}
       </nav>
     </aside>
   )

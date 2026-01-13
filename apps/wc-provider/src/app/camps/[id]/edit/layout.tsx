@@ -21,21 +21,27 @@ export default function CampEditorLayout({ children }: { children: React.ReactNo
   }, [campId, fetchCamp])
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-white">
       {/* Editor Sidebar */}
       <CampEditorSidebar campId={campId} />
 
       {/* Main Content Area */}
-      <div className="flex flex-1 flex-col overflow-hidden pl-[280px]">
-        {/* Top Bar */}
-        <CampEditorTopBar campId={campId} />
+      <main className="flex h-full flex-1 flex-col md:ml-[280px]">
+        {/* Top Bar - Sticky with reserved space */}
+        <div className="sticky top-0 z-40 shrink-0">
+          <CampEditorTopBar campId={campId} />
+        </div>
 
-        {/* Content */}
-        <main className="flex-1 overflow-y-auto pb-[80px]">{children}</main>
+        {/* Scrollable Content Area - fills remaining space */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-12 py-8">{children}</div>
+        </div>
 
-        {/* Footer */}
-        <CampEditorFooter campId={campId} />
-      </div>
+        {/* Footer - Sticky with reserved space */}
+        <div className="sticky bottom-0 z-40 shrink-0">
+          <CampEditorFooter campId={campId} />
+        </div>
+      </main>
     </div>
   )
 }
