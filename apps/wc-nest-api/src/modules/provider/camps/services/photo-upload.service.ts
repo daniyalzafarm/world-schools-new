@@ -113,7 +113,52 @@ export class PhotoUploadService {
   }
 
   /**
+   * Extract blob name from a URL (handles both blob URLs and SAS URLs)
+   *
+   * This method is used ONLY at the input boundary (updateCampPhotos) to sanitize
+   * incoming photo URLs from the frontend. It should NOT be used in read paths.
+   *
+   * @param url - The URL to extract the blob name from (can be a blob name, blob URL, or SAS URL)
+   * @returns The blob name without query parameters or protocol
+   *
+   * @example
+   * // Blob name (already clean)
+   * extractBlobName('providers/123/camps/456/photos/photo.jpg')
+   * // Returns: 'providers/123/camps/456/photos/photo.jpg'
+   *
+   * @example
+   * // SAS URL (needs sanitization)
+   * extractBlobName('https://account.blob.core.windows.net/container/providers/123/photos/photo.jpg?sv=2021&sig=abc')
+   * // Returns: 'providers/123/photos/photo.jpg'
+   */
+  extractBlobName(url: string): string {
+    try {
+      // If it's already a blob name (no protocol), return as is
+      if (!url.includes('://')) {
+        return url
+      }
+
+      // Parse the URL to remove query parameters (SAS tokens)
+      const urlObj = new URL(url)
+
+      // Extract the path after the container name
+      // Format: https://{account}.blob.core.windows.net/{container}/{blobName}
+      const pathParts = urlObj.pathname.split('/')
+
+      // Remove empty strings and container name (first two parts)
+      const blobNameParts = pathParts.filter(part => part !== '').slice(1)
+
+      return blobNameParts.join('/')
+    } catch (error) {
+      this.logger.warn(`Failed to extract blob name from URL: ${url}`)
+      // Return the original URL if parsing fails
+      return url
+    }
+  }
+
+  /**
    * Generate SAS URLs for photos
+   * Note: Expects photo.url to be a blob name, not a full URL
    */
   async generatePhotoUrls(photos: any[]): Promise<any[]> {
     return Promise.all(

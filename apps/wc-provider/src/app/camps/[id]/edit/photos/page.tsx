@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { addToast, Button } from '@heroui/react'
+import { addToast, Button, Tooltip } from '@heroui/react'
 import { useCampsStore } from '../../../../../stores/camps-store'
 import { GripVertical, Trash2 } from 'lucide-react'
 import type { CampPhoto } from '../../../../../types/camps'
@@ -12,15 +12,22 @@ export default function PhotosEditorPage() {
   const params = useParams()
   const campId = params.id as string
 
-  const { uploadCampPhotos, fetchCamp, currentCamp, isLoading } = useCampsStore()
+  const {
+    uploadCampPhotos,
+    fetchCamp,
+    currentCamp,
+    isLoading,
+    setHasUnsavedChanges,
+    setWizardFormValid,
+    setWizardFormSubmit,
+  } = useCampsStore()
 
   const [photos, setPhotos] = useState<CampPhoto[]>([])
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [originalPhotos, setOriginalPhotos] = useState<CampPhoto[]>([])
   const [isUploading, setIsUploading] = useState(false)
-  const [localHasUnsavedChanges, setLocalHasUnsavedChanges] = useState(false)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
-  const [saveSuccess, setSaveSuccess] = useState(false)
 
   useEffect(() => {
     if (campId) {
@@ -29,7 +36,14 @@ export default function PhotosEditorPage() {
         router.push('/camps')
       })
     }
-  }, [campId, fetchCamp, router])
+
+    // Cleanup on unmount
+    return () => {
+      setHasUnsavedChanges(false)
+      setWizardFormValid(false)
+      setWizardFormSubmit(null)
+    }
+  }, [campId, fetchCamp, router, setHasUnsavedChanges, setWizardFormValid, setWizardFormSubmit])
 
   useEffect(() => {
     if (currentCamp?.photos) {
@@ -38,8 +52,60 @@ export default function PhotosEditorPage() {
         (a, b) => a.order - b.order
       )
       setPhotos(sortedPhotos)
+      setOriginalPhotos(sortedPhotos)
     }
   }, [currentCamp])
+
+  // Detect form changes
+  useEffect(() => {
+    if (originalPhotos.length === 0 && photos.length === 0) return
+
+    const hasChanges =
+      pendingFiles.length > 0 ||
+      photos.length !== originalPhotos.length ||
+      JSON.stringify(photos.map(p => ({ id: p.id, order: p.order }))) !==
+        JSON.stringify(originalPhotos.map(p => ({ id: p.id, order: p.order })))
+
+    setHasUnsavedChanges(hasChanges)
+  }, [photos, originalPhotos, pendingFiles, setHasUnsavedChanges])
+
+  // Update form validity
+  useEffect(() => {
+    const isValid = photos.length >= 5
+
+    setWizardFormValid(isValid)
+  }, [photos, setWizardFormValid])
+
+  // Register submit handler for footer
+  useEffect(() => {
+    const handleFormSubmit = async () => {
+      if (!campId) return
+
+      try {
+        // Separate existing photos (already uploaded) from new ones (temp IDs)
+        const existingPhotos = photos.filter(p => !p.id.startsWith('temp-'))
+
+        // Upload new files along with existing photos metadata
+        await uploadCampPhotos(campId, pendingFiles, existingPhotos)
+
+        // Clear pending files and update original photos
+        setPendingFiles([])
+        setOriginalPhotos(photos)
+
+        // Refresh camp data to get updated photos with SAS URLs
+        await fetchCamp(campId)
+      } catch (error) {
+        console.error('Failed to save photos:', error)
+        throw error
+      }
+    }
+
+    setWizardFormSubmit(handleFormSubmit)
+
+    return () => {
+      setWizardFormSubmit(null)
+    }
+  }, [campId, photos, pendingFiles, uploadCampPhotos, fetchCamp, setWizardFormSubmit])
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
@@ -60,8 +126,6 @@ export default function PhotosEditorPage() {
       const updatedPhotos = [...photos, ...newPhotos]
       setPhotos(updatedPhotos)
       setPendingFiles(prev => [...prev, ...fileArray])
-      setLocalHasUnsavedChanges(true)
-      setSaveSuccess(false)
     } catch (error) {
       console.error('Failed to select photos:', error)
       addToast({
@@ -83,8 +147,6 @@ export default function PhotosEditorPage() {
       isPrimary: index === 0,
     }))
     setPhotos(reorderedPhotos)
-    setLocalHasUnsavedChanges(true)
-    setSaveSuccess(false)
   }
 
   const handleDragStart = (index: number) => {
@@ -127,60 +189,12 @@ export default function PhotosEditorPage() {
     setPhotos(reorderedPhotos)
     setDraggedIndex(null)
     setDragOverIndex(null)
-    setLocalHasUnsavedChanges(true)
-    setSaveSuccess(false)
   }
 
   const handleDragEnd = () => {
     setDraggedIndex(null)
     setDragOverIndex(null)
   }
-
-  const handleSave = async () => {
-    if (!campId) return
-
-    // Update store loading state
-    useCampsStore.setState({ isLoading: true })
-    setSaveSuccess(false)
-    try {
-      // Separate existing photos (already uploaded) from new ones (temp IDs)
-      const existingPhotos = photos.filter(p => !p.id.startsWith('temp-'))
-
-      // Upload new files along with existing photos metadata
-      await uploadCampPhotos(campId, pendingFiles, existingPhotos)
-
-      // Clear pending files and mark as saved
-      setPendingFiles([])
-      setLocalHasUnsavedChanges(false)
-      setSaveSuccess(true)
-
-      // Refresh camp data to get updated photos with SAS URLs
-      await fetchCamp(campId)
-
-      // Auto-hide success message after 3 seconds
-      setTimeout(() => setSaveSuccess(false), 3000)
-    } catch (error) {
-      console.error('Failed to save photos:', error)
-      addToast({
-        title: 'Error',
-        description: 'Failed to save photos. Please try again.',
-        color: 'danger',
-      })
-    } finally {
-      useCampsStore.setState({ isLoading: false })
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    // Save photos if there are unsaved changes
-    if (localHasUnsavedChanges) {
-      await handleSave()
-    }
-  }
-
-  // Require minimum 5 photos
-  const isFormValid = photos.length >= 5
 
   return (
     <div>
@@ -192,7 +206,7 @@ export default function PhotosEditorPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-6">
         {/* Form Group */}
         <div className="mb-7">
           {/* Label with Tooltip */}
@@ -200,12 +214,9 @@ export default function PhotosEditorPage() {
             <label className="text-base font-semibold text-foreground after:ml-1 after:text-danger after:content-['*']">
               Camp Photos
             </label>
-            <span
-              className="relative inline-flex h-4.5 w-4.5 cursor-help items-center justify-center rounded-full border border-default-200 bg-default-100 text-xs font-semibold text-default-500 transition-all hover:border-foreground hover:bg-foreground hover:text-background"
-              title="High-quality photos increase inquiries by 3x"
-            >
-              ⓘ
-            </span>
+            <Tooltip content="High-quality photos increase inquiries by 3x" showArrow={true}>
+              <span className="cursor-help text-sm text-default-400">ⓘ</span>
+            </Tooltip>
           </div>
 
           {/* Photo Dropzone - only show when no photos */}
@@ -455,38 +466,7 @@ export default function PhotosEditorPage() {
             )}
           </div>
         )}
-
-        {/* Status Indicators - Show when there are photos */}
-        {photos.length > 0 && (
-          <div className="mt-8 flex items-center gap-4">
-            {/* Success Message */}
-            {saveSuccess && (
-              <div className="flex items-center gap-2 text-sm font-medium text-success">
-                <span className="text-xl">✓</span>
-                Photos saved successfully!
-              </div>
-            )}
-
-            {/* Unsaved Changes Indicator */}
-            {localHasUnsavedChanges && !isLoading && (
-              <div className="text-xs text-default-500">You have unsaved changes</div>
-            )}
-          </div>
-        )}
-
-        {/* Save Button */}
-        {photos.length > 0 && (
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={!isFormValid || isLoading}
-              className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isLoading ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Changes'}
-            </button>
-          </div>
-        )}
-      </form>
+      </div>
     </div>
   )
 }

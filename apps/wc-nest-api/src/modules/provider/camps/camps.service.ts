@@ -155,7 +155,18 @@ export class CampsService {
       select: { photos: true },
     })
 
-    let allPhotos = [...existingPhotos]
+    // IMPORTANT: Sanitize existing photos to extract blob names from SAS URLs
+    // The frontend sends photos with SAS URLs (from previous getCamp calls).
+    // We must extract blob names before saving to maintain data integrity.
+    // This is the ONLY place where URL sanitization should occur - all other
+    // methods expect clean blob names in the database.
+    const sanitizedExistingPhotos = existingPhotos.map(photo => ({
+      ...photo,
+      url: this.photoUploadService.extractBlobName(photo.url),
+      thumbnail: this.photoUploadService.extractBlobName(photo.thumbnail || photo.url),
+    }))
+
+    let allPhotos = [...sanitizedExistingPhotos]
 
     // Upload new files if provided
     if (files && files.length > 0) {
@@ -163,9 +174,9 @@ export class CampsService {
         campId,
         providerId,
         files,
-        existingPhotos
+        sanitizedExistingPhotos
       )
-      allPhotos = [...existingPhotos, ...uploadedPhotos]
+      allPhotos = [...sanitizedExistingPhotos, ...uploadedPhotos]
     }
 
     // Validate minimum 5 photos requirement
