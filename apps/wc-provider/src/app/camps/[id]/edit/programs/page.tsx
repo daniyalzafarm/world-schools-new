@@ -159,6 +159,7 @@ export default function ProgramsEditorPage() {
             {ACTIVITY_OPTIONS.map(activity => (
               <CheckboxButton
                 key={activity.value}
+                id={`activity-${activity.value}`}
                 label={activity.label}
                 value={activity.value}
                 checked={formData.activities.includes(activity.value)}
