@@ -13,6 +13,7 @@ import {
   SelectItem,
   Textarea,
 } from '@heroui/react'
+import { EmojiPicker } from '@world-schools/ui-web'
 import {
   ADD_ON_TYPES,
   type AddOn,
@@ -183,16 +184,12 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
           />
 
           {/* Icon */}
-          <Input
-            label="Icon"
-            placeholder="🎾"
+          <EmojiPicker
             value={formData.icon}
-            onValueChange={value => setFormData(prev => ({ ...prev, icon: value }))}
+            onChange={value => setFormData(prev => ({ ...prev, icon: value }))}
+            label="Icon"
             description="Choose an emoji to represent this add-on"
-            className="max-w-[120px]"
-            classNames={{
-              input: 'text-center text-[24px]',
-            }}
+            emojiSize="lg"
           />
 
           {/* Pricing */}
