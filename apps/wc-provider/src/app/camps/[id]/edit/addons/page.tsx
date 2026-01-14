@@ -43,6 +43,13 @@ export default function CampAddOnsEditorPage() {
     })
   }, [campId])
 
+  // Cleanup on unmount - clear pending auto-save state
+  useEffect(() => {
+    return () => {
+      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
+    }
+  }, [])
+
   // Auto-save handler
   const handleSave = async (updatedAddOns: CampAddOn[]) => {
     if (saveTimeout) {
@@ -50,6 +57,8 @@ export default function CampAddOnsEditorPage() {
     }
 
     setAutoSaveStatus('saving')
+    // Update store to indicate pending auto-save (debounce period)
+    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
 
     const timeout = setTimeout(async () => {
       try {
@@ -61,13 +70,16 @@ export default function CampAddOnsEditorPage() {
 
         await campAddOnsService.updateCampAddOns(campId, { addOns: updateData })
         setAutoSaveStatus('saved')
+        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
 
         setTimeout(() => {
           setAutoSaveStatus('idle')
+          useCampsStore.setState({ autoSaveStatus: 'idle' })
         }, 2000)
       } catch (error) {
         console.error('Failed to save add-ons:', error)
         setAutoSaveStatus('error')
+        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
       }
     }, 1000)
 
