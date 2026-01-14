@@ -23,6 +23,10 @@ interface CampsState {
   wizardFormValid: boolean
   wizardFormSubmit: (() => Promise<void>) | null
 
+  // Auto-save state (for sections using auto-save only)
+  autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error'
+  hasPendingAutoSave: boolean
+
   // Actions - Wizard
   createCamp: (data: CreateCampDto) => Promise<Camp>
   updateCampAudience: (campId: string, data: UpdateCampAudienceDto) => Promise<Camp>
@@ -69,6 +73,8 @@ export const useCampsStore = create<CampsState>((set, get) => ({
   hasUnsavedChanges: false,
   wizardFormValid: false,
   wizardFormSubmit: null,
+  autoSaveStatus: 'idle',
+  hasPendingAutoSave: false,
 
   // Wizard actions
   createCamp: async (data: CreateCampDto) => {
