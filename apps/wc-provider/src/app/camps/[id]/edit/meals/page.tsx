@@ -142,10 +142,7 @@ export default function MealsEditorPage() {
         <div className="form-group">
           <div className="mb-2.5 flex items-start justify-between">
             <label className="text-sm font-medium text-foreground">Meals Description</label>
-            <CharacterCounter
-              current={mealsData.description.length}
-              max={MAX_DESCRIPTION_LENGTH}
-            />
+            <CharacterCounter current={mealsData.description.length} max={MAX_DESCRIPTION_LENGTH} />
           </div>
           <Textarea
             placeholder="Describe your meal program, food quality, and dining experience..."
@@ -173,7 +170,7 @@ export default function MealsEditorPage() {
             value={mealsData.mealsIncluded}
             onValueChange={handleMealsIncludedChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {MEAL_TYPES.map(meal => (
@@ -181,9 +178,9 @@ export default function MealsEditorPage() {
                 key={meal.value}
                 value={meal.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary after:bg-primary",
-                  label: "ml-2 text-sm w-full"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary after:bg-primary',
+                  label: 'ml-2 text-sm w-full',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -199,12 +196,14 @@ export default function MealsEditorPage() {
           <div className="mb-2.5 flex items-center gap-2">
             <label className="text-sm font-medium text-foreground">Meal Style</label>
           </div>
-          <p className="mb-2.5 text-sm leading-normal text-default-500">How are meals served at your camp?</p>
+          <p className="mb-2.5 text-sm leading-normal text-default-500">
+            How are meals served at your camp?
+          </p>
           <CheckboxGroup
             value={mealsData.mealStyle}
             onValueChange={handleMealStyleChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {MEAL_STYLE.map(style => (
@@ -212,9 +211,9 @@ export default function MealsEditorPage() {
                 key={style.value}
                 value={style.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary after:bg-primary",
-                  label: "ml-2 text-sm w-full"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary after:bg-primary',
+                  label: 'ml-2 text-sm w-full',
                 }}
               >
                 <div className="flex flex-col gap-0.5">

@@ -146,12 +146,14 @@ export default function LocationCampusEditorPage() {
           <div className="mb-2.5 flex items-center gap-2">
             <label className="text-sm font-medium text-foreground">Campus Size</label>
           </div>
-          <p className="mb-2.5 text-sm leading-normal text-default-500">How large is your camp campus?</p>
+          <p className="mb-2.5 text-sm leading-normal text-default-500">
+            How large is your camp campus?
+          </p>
           <RadioGroup
             value={locationData.campusSize}
             onValueChange={handleCampusSizeChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {CAMPUS_SIZE.map(size => (
@@ -159,10 +161,10 @@ export default function LocationCampusEditorPage() {
                 key={size.value}
                 value={size.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -185,7 +187,7 @@ export default function LocationCampusEditorPage() {
             value={locationData.campusSetting}
             onValueChange={handleCampusSettingChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {CAMPUS_SETTING.map(setting => (
@@ -193,10 +195,10 @@ export default function LocationCampusEditorPage() {
                 key={setting.value}
                 value={setting.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">

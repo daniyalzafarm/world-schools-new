@@ -180,7 +180,7 @@ export default function LanguagesEditorPage() {
             value={languagesData.proficiencyLevel}
             onValueChange={handleProficiencyLevelChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {LANGUAGE_PROFICIENCY_LEVELS.map(level => (
@@ -188,10 +188,10 @@ export default function LanguagesEditorPage() {
                 key={level.value}
                 value={level.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -215,7 +215,7 @@ export default function LanguagesEditorPage() {
             value={languagesData.teachingMethod}
             onValueChange={handleTeachingMethodChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {TEACHING_METHODS.map(method => (
@@ -223,10 +223,10 @@ export default function LanguagesEditorPage() {
                 key={method.value}
                 value={method.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">

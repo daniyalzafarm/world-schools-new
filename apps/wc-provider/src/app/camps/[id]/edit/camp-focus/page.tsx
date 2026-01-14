@@ -142,13 +142,8 @@ export default function CampFocusEditorPage() {
         {/* Camp Focus Description */}
         <div className="form-group">
           <div className="mb-2.5 flex items-start justify-between">
-            <label className="text-sm font-medium text-foreground">
-              Camp Focus Description
-            </label>
-            <CharacterCounter
-              current={focusData.description.length}
-              max={MAX_DESCRIPTION_LENGTH}
-            />
+            <label className="text-sm font-medium text-foreground">Camp Focus Description</label>
+            <CharacterCounter current={focusData.description.length} max={MAX_DESCRIPTION_LENGTH} />
           </div>
           <Textarea
             placeholder="Describe your camp's mission, values, and educational philosophy..."
@@ -177,7 +172,7 @@ export default function CampFocusEditorPage() {
             value={focusData.philosophy}
             onValueChange={handlePhilosophyChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {CAMP_PHILOSOPHY.map(phil => (
@@ -185,10 +180,10 @@ export default function CampFocusEditorPage() {
                 key={phil.value}
                 value={phil.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -212,7 +207,7 @@ export default function CampFocusEditorPage() {
             value={focusData.learningApproach}
             onValueChange={handleLearningApproachChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {LEARNING_APPROACH.map(approach => (
@@ -220,10 +215,10 @@ export default function CampFocusEditorPage() {
                 key={approach.value}
                 value={approach.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">

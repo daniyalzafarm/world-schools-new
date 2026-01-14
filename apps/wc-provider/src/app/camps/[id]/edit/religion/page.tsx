@@ -162,14 +162,12 @@ export default function ReligionEditorPage() {
           <p className="mt-2.5 text-sm leading-normal text-default-500">
             Include details about religious observances, spiritual development, or interfaith
             activities
-            </p>
+          </p>
         </div>
 
         <div className="form-group">
           <div className="mb-2.5 flex items-center gap-2">
-            <label className="text-sm font-medium text-foreground">
-              Religious Affiliation
-            </label>
+            <label className="text-sm font-medium text-foreground">Religious Affiliation</label>
           </div>
           <p className="mb-2.5 text-sm leading-normal text-default-500">
             What is the religious affiliation of your camp?
@@ -178,7 +176,7 @@ export default function ReligionEditorPage() {
             value={religionData.denomination}
             onValueChange={handleDenominationChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {DENOMINATIONS.map(denom => (
@@ -186,10 +184,10 @@ export default function ReligionEditorPage() {
                 key={denom.value}
                 value={denom.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -212,7 +210,7 @@ export default function ReligionEditorPage() {
             value={religionData.observance}
             onValueChange={handleObservanceChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {RELIGIOUS_OBSERVANCE.map(obs => (
@@ -220,10 +218,10 @@ export default function ReligionEditorPage() {
                 key={obs.value}
                 value={obs.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">

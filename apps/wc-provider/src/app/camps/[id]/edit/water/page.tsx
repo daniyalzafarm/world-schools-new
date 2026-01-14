@@ -160,10 +160,7 @@ export default function WaterEditorPage() {
             <label className="text-sm font-medium text-foreground">
               Water Activities Description
             </label>
-            <CharacterCounter
-              current={waterData.description.length}
-              max={MAX_DESCRIPTION_LENGTH}
-            />
+            <CharacterCounter current={waterData.description.length} max={MAX_DESCRIPTION_LENGTH} />
           </div>
           <Textarea
             placeholder="Describe your water activities program, safety measures, and facilities..."
@@ -183,9 +180,7 @@ export default function WaterEditorPage() {
         {/* Swim Level */}
         <div className="form-group">
           <div className="mb-2.5 flex items-center gap-2">
-            <label className="text-sm font-medium text-foreground">
-              Swimming Ability Required
-            </label>
+            <label className="text-sm font-medium text-foreground">Swimming Ability Required</label>
           </div>
           <p className="mb-2.5 text-sm leading-normal text-default-500">
             What swimming ability is required for participation?
@@ -194,7 +189,7 @@ export default function WaterEditorPage() {
             value={waterData.swimLevel}
             onValueChange={handleSwimLevelChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {SWIM_LEVELS.map(level => (
@@ -202,10 +197,10 @@ export default function WaterEditorPage() {
                 key={level.value}
                 value={level.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -231,7 +226,7 @@ export default function WaterEditorPage() {
             value={waterData.lifeguardCerts}
             onValueChange={handleLifeguardCertsChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {LIFEGUARD_CERTIFICATIONS.map(cert => (
@@ -239,9 +234,9 @@ export default function WaterEditorPage() {
                 key={cert.value}
                 value={cert.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary after:bg-primary",
-                  label: "ml-2 text-sm w-full"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary after:bg-primary',
+                  label: 'ml-2 text-sm w-full',
                 }}
               >
                 <div className="flex flex-col gap-0.5">

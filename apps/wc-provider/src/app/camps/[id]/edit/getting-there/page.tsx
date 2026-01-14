@@ -121,7 +121,9 @@ export default function GettingThereEditorPage() {
       <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Getting There</h1>
-          <p className="text-base leading-normal text-default-500">Provide transportation and arrival information</p>
+          <p className="text-base leading-normal text-default-500">
+            Provide transportation and arrival information
+          </p>
         </div>
         <AutoSaveIndicator status={autoSaveStatus} />
       </div>
@@ -154,9 +156,7 @@ export default function GettingThereEditorPage() {
 
         <div className="form-group">
           <div className="mb-2.5 flex items-center gap-2">
-            <label className="text-sm font-medium text-foreground">
-              Transportation Included
-            </label>
+            <label className="text-sm font-medium text-foreground">Transportation Included</label>
           </div>
           <p className="mb-2.5 text-sm leading-normal text-default-500">
             Is transportation to/from camp included in the fee?
@@ -165,7 +165,7 @@ export default function GettingThereEditorPage() {
             value={gettingThereData.transportIncluded}
             onValueChange={handleTransportIncludedChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {TRANSPORT_INCLUDED.map(option => (
@@ -173,10 +173,10 @@ export default function GettingThereEditorPage() {
                 key={option.value}
                 value={option.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -199,7 +199,7 @@ export default function GettingThereEditorPage() {
             value={gettingThereData.pickupLocations}
             onValueChange={handlePickupLocationsChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {PICKUP_LOCATIONS.map(location => (
@@ -207,10 +207,10 @@ export default function GettingThereEditorPage() {
                 key={location.value}
                 value={location.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -225,9 +225,7 @@ export default function GettingThereEditorPage() {
         <div className="form-group">
           <div className="mb-2.5 flex items-start justify-between">
             <div>
-              <label className="text-sm font-medium text-foreground">
-                Transportation Options
-              </label>
+              <label className="text-sm font-medium text-foreground">Transportation Options</label>
               <p className="mt-1 text-sm leading-normal text-default-500">
                 Select all transportation options available
               </p>

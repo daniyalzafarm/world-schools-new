@@ -142,9 +142,7 @@ export default function ExcursionsEditorPage() {
       <div className="space-y-8">
         <div className="form-group">
           <div className="mb-2.5 flex items-start justify-between">
-            <label className="text-sm font-medium text-foreground">
-              Excursions Description
-            </label>
+            <label className="text-sm font-medium text-foreground">Excursions Description</label>
             <CharacterCounter
               current={excursionsData.description.length}
               max={MAX_DESCRIPTION_LENGTH}
@@ -167,9 +165,7 @@ export default function ExcursionsEditorPage() {
 
         <div className="form-group">
           <div className="mb-2.5 flex items-center gap-2">
-            <label className="text-sm font-medium text-foreground">
-              Transportation Included
-            </label>
+            <label className="text-sm font-medium text-foreground">Transportation Included</label>
           </div>
           <p className="mb-2.5 text-sm leading-normal text-default-500">
             Is transportation to excursions included in the camp fee?
@@ -178,7 +174,7 @@ export default function ExcursionsEditorPage() {
             value={excursionsData.transportationIncluded}
             onValueChange={handleTransportationChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {TRANSPORTATION_INCLUDED.map(option => (
@@ -186,10 +182,10 @@ export default function ExcursionsEditorPage() {
                 key={option.value}
                 value={option.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -205,12 +201,14 @@ export default function ExcursionsEditorPage() {
           <div className="mb-2.5 flex items-center gap-2">
             <label className="text-sm font-medium text-foreground">Excursion Frequency</label>
           </div>
-          <p className="mb-2.5 text-sm leading-normal text-default-500">How often do excursions take place?</p>
+          <p className="mb-2.5 text-sm leading-normal text-default-500">
+            How often do excursions take place?
+          </p>
           <RadioGroup
             value={excursionsData.frequency}
             onValueChange={handleFrequencyChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {EXCURSION_FREQUENCY.map(freq => (
@@ -218,10 +216,10 @@ export default function ExcursionsEditorPage() {
                 key={freq.value}
                 value={freq.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -236,9 +234,7 @@ export default function ExcursionsEditorPage() {
         <div className="form-group">
           <div className="mb-2.5 flex items-start justify-between">
             <div>
-              <label className="text-sm font-medium text-foreground">
-                Types of Excursions
-              </label>
+              <label className="text-sm font-medium text-foreground">Types of Excursions</label>
               <p className="mt-1 text-sm leading-normal text-default-500">
                 Select all types of excursions offered at your camp
               </p>

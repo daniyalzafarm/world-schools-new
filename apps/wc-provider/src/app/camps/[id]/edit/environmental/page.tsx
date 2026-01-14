@@ -136,7 +136,9 @@ export default function EnvironmentalEditorPage() {
     <div>
       <div className="mb-8 flex items-start justify-between">
         <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Environmental Activities</h1>
+          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">
+            Environmental Activities
+          </h1>
           <p className="text-base leading-normal text-default-500">
             Describe the environmental and sustainability programs at your camp
           </p>
@@ -184,7 +186,7 @@ export default function EnvironmentalEditorPage() {
             value={environmentalData.sustainabilityFocus}
             onValueChange={handleSustainabilityFocusChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {SUSTAINABILITY_FOCUS.map(focus => (
@@ -192,10 +194,10 @@ export default function EnvironmentalEditorPage() {
                 key={focus.value}
                 value={focus.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">

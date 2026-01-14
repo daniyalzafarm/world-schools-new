@@ -160,13 +160,8 @@ export default function ArtsEditorPage() {
         {/* Description */}
         <div className="form-group">
           <div className="mb-2.5 flex items-start justify-between">
-            <label className="text-sm font-medium text-foreground">
-              Arts Program Description
-            </label>
-            <CharacterCounter
-              current={artsData.description.length}
-              max={MAX_DESCRIPTION_LENGTH}
-            />
+            <label className="text-sm font-medium text-foreground">Arts Program Description</label>
+            <CharacterCounter current={artsData.description.length} max={MAX_DESCRIPTION_LENGTH} />
           </div>
           <Textarea
             placeholder="Describe your arts program, creative opportunities, and what makes it special..."
@@ -195,7 +190,7 @@ export default function ArtsEditorPage() {
             value={artsData.skillLevel}
             onValueChange={handleSkillLevelChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {SKILL_LEVELS.map(level => (
@@ -203,10 +198,10 @@ export default function ArtsEditorPage() {
                 key={level.value}
                 value={level.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -230,7 +225,7 @@ export default function ArtsEditorPage() {
             value={artsData.instructionType}
             onValueChange={handleInstructionTypeChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {INSTRUCTION_TYPES.map(type => (
@@ -238,10 +233,10 @@ export default function ArtsEditorPage() {
                 key={type.value}
                 value={type.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">

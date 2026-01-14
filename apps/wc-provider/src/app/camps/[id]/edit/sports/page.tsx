@@ -193,14 +193,14 @@ export default function SportsEditorPage() {
             <label className="text-sm font-medium text-foreground">Skill Level</label>
           </div>
           <p className="mb-2.5 text-sm leading-normal text-default-500">
-            What skill levels can participate? This helps parents know if the program is right
-            for their child.
+            What skill levels can participate? This helps parents know if the program is right for
+            their child.
           </p>
           <RadioGroup
             value={sportsData.skillLevel}
             onValueChange={handleSkillLevelChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {SKILL_LEVELS.map(level => (
@@ -208,10 +208,10 @@ export default function SportsEditorPage() {
                 key={level.value}
                 value={level.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -235,7 +235,7 @@ export default function SportsEditorPage() {
             value={sportsData.coachingType}
             onValueChange={handleCoachingTypeChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {COACHING_TYPES.map(type => (
@@ -243,10 +243,10 @@ export default function SportsEditorPage() {
                 key={type.value}
                 value={type.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">

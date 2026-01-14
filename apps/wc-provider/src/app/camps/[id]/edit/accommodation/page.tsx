@@ -146,9 +146,7 @@ export default function AccommodationEditorPage() {
       <div className="space-y-8">
         <div className="form-group">
           <div className="mb-2.5 flex items-start justify-between">
-            <label className="text-sm font-medium text-foreground">
-              Accommodation Description
-            </label>
+            <label className="text-sm font-medium text-foreground">Accommodation Description</label>
             <CharacterCounter
               current={accommodationData.description.length}
               max={MAX_DESCRIPTION_LENGTH}
@@ -172,9 +170,7 @@ export default function AccommodationEditorPage() {
         <div className="form-group">
           <div className="mb-2.5 flex items-start justify-between">
             <div>
-              <label className="text-sm font-medium text-foreground">
-                Sleeping Arrangements
-              </label>
+              <label className="text-sm font-medium text-foreground">Sleeping Arrangements</label>
               <p className="mt-1 text-sm leading-normal text-default-500">
                 Select the types of accommodation available
               </p>
@@ -202,7 +198,7 @@ export default function AccommodationEditorPage() {
             value={accommodationData.roomCapacity}
             onValueChange={handleRoomCapacityChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {ROOM_CAPACITY.map(capacity => (
@@ -210,10 +206,10 @@ export default function AccommodationEditorPage() {
                 key={capacity.value}
                 value={capacity.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -236,7 +232,7 @@ export default function AccommodationEditorPage() {
             value={accommodationData.supervision}
             onValueChange={handleSupervisionChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {SUPERVISION.map(sup => (
@@ -244,10 +240,10 @@ export default function AccommodationEditorPage() {
                 key={sup.value}
                 value={sup.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">

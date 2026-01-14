@@ -168,74 +168,74 @@ export default function DailyScheduleEditorPage() {
         {/* Schedules */}
         {data.schedules.map((schedule, index) => (
           <div key={schedule.id} className="form-group">
-              {/* Schedule Header */}
-              <div className="flex items-start justify-between">
-                <div className="flex-1 space-y-3">
-                  <div className="flex gap-3">
+            {/* Schedule Header */}
+            <div className="flex items-start justify-between">
+              <div className="flex-1 space-y-3">
+                <div className="flex gap-3">
+                  <Select
+                    label="Schedule Type"
+                    selectedKeys={[schedule.type]}
+                    onSelectionChange={keys => {
+                      const type = Array.from(keys)[0] as 'daily' | 'weekly'
+                      updateScheduleType(index, type)
+                    }}
+                    className="max-w-xs"
+                    size="sm"
+                  >
+                    {SCHEDULE_TYPES.map(type => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </Select>
+
+                  {schedule.type === 'weekly' && (
                     <Select
-                      label="Schedule Type"
-                      selectedKeys={[schedule.type]}
+                      label="Day of Week"
+                      selectedKeys={schedule.day ? [schedule.day] : []}
                       onSelectionChange={keys => {
-                        const type = Array.from(keys)[0] as 'daily' | 'weekly'
-                        updateScheduleType(index, type)
+                        const day = Array.from(keys)[0] as string
+                        updateScheduleDay(index, day)
                       }}
                       className="max-w-xs"
                       size="sm"
                     >
-                      {SCHEDULE_TYPES.map(type => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
+                      {DAYS_OF_WEEK.map(day => (
+                        <SelectItem key={day} value={day}>
+                          {day}
                         </SelectItem>
                       ))}
                     </Select>
-
-                    {schedule.type === 'weekly' && (
-                      <Select
-                        label="Day of Week"
-                        selectedKeys={schedule.day ? [schedule.day] : []}
-                        onSelectionChange={keys => {
-                          const day = Array.from(keys)[0] as string
-                          updateScheduleDay(index, day)
-                        }}
-                        className="max-w-xs"
-                        size="sm"
-                      >
-                        {DAYS_OF_WEEK.map(day => (
-                          <SelectItem key={day} value={day}>
-                            {day}
-                          </SelectItem>
-                        ))}
-                      </Select>
-                    )}
-                  </div>
-
-                  <Input
-                    label="Age Group (Optional)"
-                    placeholder="e.g., Ages 8-12, Juniors, Seniors"
-                    value={schedule.ageGroup || ''}
-                    onValueChange={value => updateScheduleAgeGroup(index, value)}
-                    className="max-w-xs"
-                    size="sm"
-                  />
+                  )}
                 </div>
 
-                {data.schedules.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => deleteSchedule(index)}
-                    className="text-default-400 hover:text-danger"
-                    title="Delete schedule"
-                  >
-                    🗑️
-                  </button>
-                )}
+                <Input
+                  label="Age Group (Optional)"
+                  placeholder="e.g., Ages 8-12, Juniors, Seniors"
+                  value={schedule.ageGroup || ''}
+                  onValueChange={value => updateScheduleAgeGroup(index, value)}
+                  className="max-w-xs"
+                  size="sm"
+                />
               </div>
 
-              {/* Timeline Builder */}
-              <TimelineBuilder
-                schedule={schedule}
-                onChange={updated => updateSchedule(index, updated)}
-              />
+              {data.schedules.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => deleteSchedule(index)}
+                  className="text-default-400 hover:text-danger"
+                  title="Delete schedule"
+                >
+                  🗑️
+                </button>
+              )}
+            </div>
+
+            {/* Timeline Builder */}
+            <TimelineBuilder
+              schedule={schedule}
+              onChange={updated => updateSchedule(index, updated)}
+            />
           </div>
         ))}
 

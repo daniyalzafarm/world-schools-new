@@ -192,7 +192,7 @@ export default function AdventureEditorPage() {
             value={adventureData.difficultyLevel}
             onValueChange={handleDifficultyLevelChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {DIFFICULTY_LEVELS.map(level => (
@@ -200,10 +200,10 @@ export default function AdventureEditorPage() {
                 key={level.value}
                 value={level.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -227,7 +227,7 @@ export default function AdventureEditorPage() {
             value={adventureData.supervisionRatio}
             onValueChange={handleSupervisionRatioChange}
             classNames={{
-              wrapper: "flex flex-row flex-wrap gap-3"
+              wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {SUPERVISION_RATIOS.map(ratio => (
@@ -235,10 +235,10 @@ export default function AdventureEditorPage() {
                 key={ratio.value}
                 value={ratio.value}
                 classNames={{
-                  base: "flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start",
-                  wrapper: "group-data-[selected=true]:border-primary",
-                  labelWrapper: "ml-2",
-                  label: "text-sm"
+                  base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -305,9 +305,7 @@ export default function AdventureEditorPage() {
         <div className="form-group">
           <div className="mb-2.5 flex items-start justify-between">
             <div>
-              <label className="text-sm font-medium text-foreground">
-                Safety Certifications
-              </label>
+              <label className="text-sm font-medium text-foreground">Safety Certifications</label>
               <p className="mt-1 text-sm leading-normal text-default-500">
                 Select the safety certifications your staff holds
               </p>
