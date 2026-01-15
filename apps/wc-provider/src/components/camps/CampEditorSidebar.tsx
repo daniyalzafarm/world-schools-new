@@ -158,7 +158,7 @@ export function CampEditorSidebar({ campId }: CampEditorSidebarProps) {
   }
 
   // Group sections by category
-  const categories = Array.from(new Set(editorSections.map(s => s.category).filter(Boolean)))
+  const categories: any = Array.from(new Set(editorSections.map(s => s.category).filter(Boolean)))
 
   const getSectionsByCategory = (category: string) => {
     return editorSections.filter(s => s.category === category && shouldShowSection(s))
@@ -201,7 +201,7 @@ export function CampEditorSidebar({ campId }: CampEditorSidebarProps) {
                   <button
                     key={section.id}
                     onClick={() => handleSectionClick(section)}
-                    className={`relative flex w-full items-center gap-3 px-5 py-3 text-left text-sm transition-all ${
+                    className={`cursor-pointer relative flex w-full items-center gap-3 px-5 py-3 text-left text-sm transition-all ${
                       isCurrent
                         ? 'bg-white font-semibold text-foreground'
                         : 'font-medium text-foreground hover:bg-white/60'

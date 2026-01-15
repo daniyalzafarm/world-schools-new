@@ -197,9 +197,7 @@ export default function DailyScheduleEditorPage() {
                     size="sm"
                   >
                     {SCHEDULE_TYPES.map(type => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
+                      <SelectItem key={type.value}>{type.label}</SelectItem>
                     ))}
                   </Select>
 
@@ -215,9 +213,7 @@ export default function DailyScheduleEditorPage() {
                       size="sm"
                     >
                       {DAYS_OF_WEEK.map(day => (
-                        <SelectItem key={day} value={day}>
-                          {day}
-                        </SelectItem>
+                        <SelectItem key={day}>{day}</SelectItem>
                       ))}
                     </Select>
                   )}
