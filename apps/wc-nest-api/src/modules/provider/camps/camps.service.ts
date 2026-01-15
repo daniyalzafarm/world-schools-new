@@ -697,8 +697,16 @@ export class CampsService {
     // Validate structured data
     if (dto.campFocus) {
       this.validateActivityData(dto.campFocus, 'focus')
-      this.validateArrayField(dto.campFocus.selectedFocusAreas, 'selectedFocusAreas')
-      this.validateArrayField(dto.campFocus.customFocusAreas, 'customFocusAreas')
+
+      // Validate primary focus if provided
+      if (dto.campFocus.primaryFocus) {
+        if (!dto.campFocus.primaryFocus.activityId || !dto.campFocus.primaryFocus.activityName) {
+          throw new BadRequestException('Primary focus must have activityId and activityName')
+        }
+        if (!dto.campFocus.primaryFocus.categoryId || !dto.campFocus.primaryFocus.categoryName) {
+          throw new BadRequestException('Primary focus must have categoryId and categoryName')
+        }
+      }
     }
 
     const camp = await this.prisma.camp.update({

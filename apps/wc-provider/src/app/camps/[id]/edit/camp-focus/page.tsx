@@ -3,25 +3,26 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Radio, RadioGroup, Textarea } from '@heroui/react'
+import { useConfirmDialog } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
-import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
 import { CharacterCounter } from '../../../../../components/camp-editor/CharacterCounter'
 import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
-import { CustomActivityInput } from '../../../../../components/camp-editor/CustomActivityInput'
+import { SingleSelectActivityGrid } from '../../../../../components/camp-editor/SingleSelectActivityGrid'
+import { CampFocusDisplayCard } from '../../../../../components/camp-editor/CampFocusDisplayCard'
+import { CAMP_PHILOSOPHY, LEARNING_APPROACH } from '../../../../../constants/camp-focus-activities'
 import {
-  CAMP_PHILOSOPHY,
-  LEARNING_APPROACH,
-  PREDEFINED_FOCUS_AREAS,
-} from '../../../../../constants/camp-focus-activities'
+  type ActivityWithCategory,
+  getActivitiesByCategory,
+} from '../../../../../utils/camp-focus-activities'
+import type { PrimaryFocus } from '../../../../../types/camps'
 
 const MAX_DESCRIPTION_LENGTH = 1200
 
 interface CampFocusData {
+  primaryFocus: PrimaryFocus | null
   description: string
   philosophy: string
   learningApproach: string
-  selectedFocusAreas: string[]
-  customFocusAreas: string[]
 }
 
 export default function CampFocusEditorPage() {
@@ -29,13 +30,13 @@ export default function CampFocusEditorPage() {
   const campId = params.id as string
 
   const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const { confirm } = useConfirmDialog()
 
   const [focusData, setFocusData] = useState<CampFocusData>({
+    primaryFocus: null,
     description: '',
     philosophy: 'holistic',
     learningApproach: 'experiential',
-    selectedFocusAreas: [],
-    customFocusAreas: [],
   })
 
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
@@ -43,14 +44,16 @@ export default function CampFocusEditorPage() {
   )
   const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
 
+  // Get activities organized by category based on camp's programs
+  const activityCategories = getActivitiesByCategory(currentCamp)
+
   useEffect(() => {
     if (currentCamp?.campFocus) {
       setFocusData({
+        primaryFocus: (currentCamp.campFocus as any).primaryFocus || null,
         description: currentCamp.campFocus.description || '',
         philosophy: (currentCamp.campFocus as any).philosophy || 'holistic',
         learningApproach: (currentCamp.campFocus as any).learningApproach || 'experiential',
-        selectedFocusAreas: (currentCamp.campFocus as any).selectedFocusAreas || [],
-        customFocusAreas: (currentCamp.campFocus as any).customFocusAreas || [],
       })
     }
   }, [currentCamp])
@@ -97,33 +100,40 @@ export default function CampFocusEditorPage() {
     triggerAutoSave(updated)
   }
 
-  const toggleFocusArea = (areaId: string) => {
+  const handleActivitySelect = (activity: ActivityWithCategory) => {
     const updated = {
       ...focusData,
-      selectedFocusAreas: focusData.selectedFocusAreas.includes(areaId)
-        ? focusData.selectedFocusAreas.filter(id => id !== areaId)
-        : [...focusData.selectedFocusAreas, areaId],
+      primaryFocus: {
+        activityId: activity.id,
+        activityName: activity.name,
+        categoryId: activity.categoryId,
+        categoryName: activity.categoryName,
+        icon: activity.icon,
+      },
     }
     setFocusData(updated)
     triggerAutoSave(updated)
   }
 
-  const addCustomFocusArea = (areaName: string) => {
-    const updated = {
-      ...focusData,
-      customFocusAreas: [...focusData.customFocusAreas, areaName],
-    }
-    setFocusData(updated)
-    triggerAutoSave(updated)
-  }
+  const handleRemoveFocus = async () => {
+    if (!focusData.primaryFocus) return
 
-  const removeCustomFocusArea = (index: number) => {
-    const updated = {
-      ...focusData,
-      customFocusAreas: focusData.customFocusAreas.filter((_, i) => i !== index),
+    const confirmed = await confirm({
+      title: 'Remove Camp Focus?',
+      message: `Are you sure you want to remove ${focusData.primaryFocus.activityName} as your camp's primary focus? Your camp will no longer appear as a specialized camp in this activity.`,
+      confirmText: 'Remove Focus',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    })
+
+    if (confirmed) {
+      const updated = {
+        ...focusData,
+        primaryFocus: null,
+      }
+      setFocusData(updated)
+      triggerAutoSave(updated)
     }
-    setFocusData(updated)
-    triggerAutoSave(updated)
   }
 
   return (
@@ -132,31 +142,68 @@ export default function CampFocusEditorPage() {
         <div>
           <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Camp Focus</h1>
           <p className="text-base leading-normal text-default-500">
-            Describe the overall focus and philosophy of your camp
+            Does your camp specialize in a specific activity? Select your primary focus to
+            differentiate your camp (e.g., "Soccer Camp" vs a camp that offers soccer). This will be
+            prominently displayed in your camp profile. Not all camps need a focus - only select one
+            if your camp truly specializes.
           </p>
         </div>
         <AutoSaveIndicator status={autoSaveStatus} />
       </div>
 
       <div className="space-y-8">
+        {/* Current Focus Display */}
+        <CampFocusDisplayCard
+          primaryFocus={focusData.primaryFocus}
+          onRemove={handleRemoveFocus}
+        />
+
+        {/* Activity Selection by Category */}
+        {activityCategories.length === 0 ? (
+          <div className="rounded-xl border-2 border-dashed border-default-300 bg-default-50 p-8 text-center">
+            <p className="text-default-600">
+              No program activities selected yet. Please select program categories in the{' '}
+              <strong>Programs</strong> section first to choose a camp focus.
+            </p>
+          </div>
+        ) : (
+          activityCategories.map(category => (
+            <div key={category.id} className="form-group">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">{category.name}</h3>
+                  <p className="text-sm text-default-500">{category.activities.length} available</p>
+                </div>
+              </div>
+              <SingleSelectActivityGrid
+                activities={category.activities}
+                selectedActivityId={focusData.primaryFocus?.activityId || null}
+                onSelect={handleActivitySelect}
+              />
+            </div>
+          ))
+        )}
+
         {/* Camp Focus Description */}
         <div className="form-group">
           <div className="mb-2.5 flex items-start justify-between">
-            <label className="text-sm font-medium text-foreground">Camp Focus Description</label>
+            <label className="text-sm font-medium text-foreground">
+              Camp Focus Description (Optional)
+            </label>
             <CharacterCounter current={focusData.description.length} max={MAX_DESCRIPTION_LENGTH} />
           </div>
           <Textarea
-            placeholder="Describe your camp's mission, values, and educational philosophy..."
+            placeholder="Describe why this activity is your camp's focus and what makes your program special..."
             value={focusData.description}
             onValueChange={handleDescriptionChange}
-            minRows={6}
+            minRows={4}
             maxLength={MAX_DESCRIPTION_LENGTH}
             classNames={{
               input: 'resize-none',
             }}
           />
           <p className="mt-2.5 text-sm leading-normal text-default-500">
-            Include details about your camp's approach, goals, and what makes it unique
+            Explain your camp's approach to this activity and what campers will learn
           </p>
         </div>
 
@@ -228,55 +275,6 @@ export default function CampFocusEditorPage() {
               </Radio>
             ))}
           </RadioGroup>
-        </div>
-
-        {/* Focus Areas */}
-        <div className="form-group">
-          <div className="mb-2.5 flex items-start justify-between">
-            <div>
-              <label className="text-sm font-medium text-foreground">Focus Areas</label>
-              <p className="mt-1 text-sm leading-normal text-default-500">
-                Select all areas your camp focuses on
-              </p>
-            </div>
-            <span className="rounded-full bg-default-100 px-3 py-1 text-xs font-medium text-default-700">
-              {focusData.selectedFocusAreas.length} selected
-            </span>
-          </div>
-
-          <ActivityGrid
-            activities={PREDEFINED_FOCUS_AREAS}
-            selectedActivities={focusData.selectedFocusAreas}
-            onToggle={toggleFocusArea}
-          />
-
-          {focusData.customFocusAreas.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {focusData.customFocusAreas.map((area, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 rounded-lg border-2 border-primary bg-primary/5 px-3 py-2"
-                >
-                  <span className="text-sm font-medium">{area}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeCustomFocusArea(index)}
-                    className="text-default-500 hover:text-danger"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-3">
-            <CustomActivityInput
-              placeholder="e.g., STEM, Leadership..."
-              onAdd={addCustomFocusArea}
-              buttonText="Add Focus Area"
-            />
-          </div>
         </div>
       </div>
     </div>

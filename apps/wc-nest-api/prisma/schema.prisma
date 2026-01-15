@@ -440,7 +440,7 @@ model Camp {
   campusFacilities        Json? // {facilities: string[], description}
   accommodation           Json? // {type, rooms, amenities}
   gettingThere            Json? // {directions, transportation}
-  campFocus               Json? // {focus: string[], description}
+  campFocus               Json? // {primaryFocus: {activityId, activityName, categoryId, categoryName, icon}, description, philosophy, learningApproach}
 
   // Publishing
   status      CampStatus @default(draft)

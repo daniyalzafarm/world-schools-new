@@ -548,8 +548,31 @@ export class UpdateGettingThereDto {
   gettingThere?: GettingThereDataDto
 }
 
-// Camp Focus DTO
+// Camp Focus DTO - Single Primary Focus
+class PrimaryFocusDto {
+  @IsString()
+  activityId: string
+
+  @IsString()
+  activityName: string
+
+  @IsString()
+  categoryId: string
+
+  @IsString()
+  categoryName: string
+
+  @IsString()
+  icon: string
+}
+
 class CampFocusDataDto {
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => PrimaryFocusDto)
+  primaryFocus?: PrimaryFocusDto | null
+
   @IsOptional()
   @IsString()
   @MaxLength(1200)
@@ -562,16 +585,6 @@ class CampFocusDataDto {
   @IsOptional()
   @IsString()
   learningApproach?: string
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  selectedFocusAreas?: string[]
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  customFocusAreas?: string[]
 }
 
 export class UpdateCampFocusDto {

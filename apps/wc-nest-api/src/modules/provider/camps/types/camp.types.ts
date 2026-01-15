@@ -56,9 +56,19 @@ export interface GettingThere {
   description?: string
 }
 
+export interface PrimaryFocus {
+  activityId: string
+  activityName: string
+  categoryId: string
+  categoryName: string
+  icon: string
+}
+
 export interface CampFocus {
-  focus: string[]
+  primaryFocus?: PrimaryFocus | null
   description?: string
+  philosophy?: string
+  learningApproach?: string
 }
 
 export type CampType = 'day' | 'residential'
