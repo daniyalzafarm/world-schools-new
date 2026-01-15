@@ -35,7 +35,7 @@ const editorSections = [
 ]
 
 // Sections that use auto-save only (no manual save button)
-const autoSaveOnlySections = ['whats-included', 'addons']
+const autoSaveOnlySections = ['whats-included', 'addons', 'camp-focus']
 
 export function CampEditorFooter({ campId }: CampEditorFooterProps) {
   const pathname = usePathname()

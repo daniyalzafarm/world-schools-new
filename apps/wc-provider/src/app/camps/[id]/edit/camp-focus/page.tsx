@@ -58,6 +58,13 @@ export default function CampFocusEditorPage() {
     }
   }, [currentCamp])
 
+  // Cleanup on unmount - clear pending auto-save state
+  useEffect(() => {
+    return () => {
+      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
+    }
+  }, [])
+
   const triggerAutoSave = (updatedData: CampFocusData) => {
     setHasUnsavedChanges(true)
 
@@ -66,16 +73,23 @@ export default function CampFocusEditorPage() {
     }
 
     setAutoSaveStatus('saving')
+    // Update store to indicate pending auto-save (debounce period)
+    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
 
     const timeout = setTimeout(async () => {
       try {
         await updateSection(campId, 'camp-focus', { campFocus: updatedData })
         setAutoSaveStatus('saved')
+        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
         setHasUnsavedChanges(false)
-        setTimeout(() => setAutoSaveStatus('idle'), 2000)
+        setTimeout(() => {
+          setAutoSaveStatus('idle')
+          useCampsStore.setState({ autoSaveStatus: 'idle' })
+        }, 2000)
       } catch (error) {
         console.error('Failed to save camp focus data:', error)
         setAutoSaveStatus('error')
+        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
       }
     }, 1500)
 
@@ -138,25 +152,22 @@ export default function CampFocusEditorPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between">
-        <div>
+      <div className="mb-8">
+        <div className="flex items-start justify-between">
           <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Camp Focus</h1>
-          <p className="text-base leading-normal text-default-500">
-            Does your camp specialize in a specific activity? Select your primary focus to
-            differentiate your camp (e.g., "Soccer Camp" vs a camp that offers soccer). This will be
-            prominently displayed in your camp profile. Not all camps need a focus - only select one
-            if your camp truly specializes.
-          </p>
+          <AutoSaveIndicator status={autoSaveStatus} />
         </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+        <p className="text-base leading-normal text-default-500">
+          Does your camp specialize in a specific activity? Select your primary focus to
+          differentiate your camp (e.g., "Soccer Camp" vs a camp that offers soccer). This will be
+          prominently displayed in your camp profile. Not all camps need a focus - only select one
+          if your camp truly specializes.
+        </p>
       </div>
 
       <div className="space-y-8">
         {/* Current Focus Display */}
-        <CampFocusDisplayCard
-          primaryFocus={focusData.primaryFocus}
-          onRemove={handleRemoveFocus}
-        />
+        <CampFocusDisplayCard primaryFocus={focusData.primaryFocus} onRemove={handleRemoveFocus} />
 
         {/* Activity Selection by Category */}
         {activityCategories.length === 0 ? (
