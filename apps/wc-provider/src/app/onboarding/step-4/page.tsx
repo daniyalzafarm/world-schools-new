@@ -184,7 +184,7 @@ export default function OnboardingStep4Page() {
             ← Back
           </Button>
           <Button
-            className="bg-primary font-semibold text-foreground hover:bg-primary-600"
+            color="primary"
             size="lg"
             onPress={isReadOnly ? () => router.push('/onboarding/step-5') : handleContinue}
             isDisabled={!isReadOnly && !hasRequiredDocs()}

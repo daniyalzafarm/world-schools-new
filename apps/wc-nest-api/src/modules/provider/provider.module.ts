@@ -4,6 +4,8 @@ import { ProviderRolesModule } from './roles/roles.module'
 import { ProviderUsersModule } from './users/users.module'
 import { ProviderPermissionsModule } from './permissions/permissions.module'
 import { OnboardingModule } from './onboarding/onboarding.module'
+import { CampsModule } from './camps/camps.module'
+import { AddOnsModule } from './add-ons/add-ons.module'
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { OnboardingModule } from './onboarding/onboarding.module'
     ProviderUsersModule,
     ProviderPermissionsModule,
     OnboardingModule,
+    CampsModule,
+    AddOnsModule,
   ],
 })
 export class ProviderModule {}
