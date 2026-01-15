@@ -60,6 +60,13 @@ export default function SportsEditorPage() {
     }
   }, [currentCamp])
 
+  // Cleanup on unmount - clear pending auto-save state
+  useEffect(() => {
+    return () => {
+      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
+    }
+  }, [])
+
   // Auto-save handler
   const triggerAutoSave = (updatedData: SportsData) => {
     setHasUnsavedChanges(true)
@@ -70,19 +77,26 @@ export default function SportsEditorPage() {
     }
 
     setAutoSaveStatus('saving')
+    // Update store to indicate pending auto-save (debounce period)
+    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
 
     // Set new timeout
     const timeout = setTimeout(async () => {
       try {
         await updateSection(campId, 'sports', { sportsActivities: updatedData })
         setAutoSaveStatus('saved')
+        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
         setHasUnsavedChanges(false)
 
         // Hide indicator after 2 seconds
-        setTimeout(() => setAutoSaveStatus('idle'), 2000)
+        setTimeout(() => {
+          setAutoSaveStatus('idle')
+          useCampsStore.setState({ autoSaveStatus: 'idle' })
+        }, 2000)
       } catch (error) {
         console.error('Failed to save sports data:', error)
         setAutoSaveStatus('error')
+        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
       }
     }, 1500)
 

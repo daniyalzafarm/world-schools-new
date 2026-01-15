@@ -56,6 +56,13 @@ export default function LanguagesEditorPage() {
     }
   }, [currentCamp])
 
+  // Cleanup on unmount - clear pending auto-save state
+  useEffect(() => {
+    return () => {
+      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
+    }
+  }, [])
+
   // Auto-save handler
   const triggerAutoSave = (updatedData: LanguagesData) => {
     setHasUnsavedChanges(true)
@@ -65,16 +72,23 @@ export default function LanguagesEditorPage() {
     }
 
     setAutoSaveStatus('saving')
+    // Update store to indicate pending auto-save (debounce period)
+    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
 
     const timeout = setTimeout(async () => {
       try {
         await updateSection(campId, 'languages', { languagePrograms: updatedData })
         setAutoSaveStatus('saved')
+        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
         setHasUnsavedChanges(false)
-        setTimeout(() => setAutoSaveStatus('idle'), 2000)
+        setTimeout(() => {
+          setAutoSaveStatus('idle')
+          useCampsStore.setState({ autoSaveStatus: 'idle' })
+        }, 2000)
       } catch (error) {
         console.error('Failed to save languages data:', error)
         setAutoSaveStatus('error')
+        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
       }
     }, 1500)
 

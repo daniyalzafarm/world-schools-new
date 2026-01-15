@@ -59,6 +59,13 @@ export default function WaterEditorPage() {
     }
   }, [currentCamp])
 
+  // Cleanup on unmount - clear pending auto-save state
+  useEffect(() => {
+    return () => {
+      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
+    }
+  }, [])
+
   const triggerAutoSave = (updatedData: WaterData) => {
     setHasUnsavedChanges(true)
 
@@ -67,16 +74,23 @@ export default function WaterEditorPage() {
     }
 
     setAutoSaveStatus('saving')
+    // Update store to indicate pending auto-save (debounce period)
+    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
 
     const timeout = setTimeout(async () => {
       try {
         await updateSection(campId, 'water', { waterActivities: updatedData })
         setAutoSaveStatus('saved')
+        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
         setHasUnsavedChanges(false)
-        setTimeout(() => setAutoSaveStatus('idle'), 2000)
+        setTimeout(() => {
+          setAutoSaveStatus('idle')
+          useCampsStore.setState({ autoSaveStatus: 'idle' })
+        }, 2000)
       } catch (error) {
         console.error('Failed to save water data:', error)
         setAutoSaveStatus('error')
+        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
       }
     }, 1500)
 
