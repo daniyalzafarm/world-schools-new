@@ -14,6 +14,7 @@ const STEP_PATHS: Record<number, string> = {
   2: 'audience',
   3: 'programs',
   4: 'photos',
+  5: 'sessions',
 }
 
 export function CampWizardFooter({ currentStep, campId }: CampWizardFooterProps) {
@@ -33,10 +34,13 @@ export function CampWizardFooter({ currentStep, campId }: CampWizardFooterProps)
     // If there's a form submit handler from the page, use it
     if (wizardFormSubmit) {
       await wizardFormSubmit()
-    } else if (currentStep < 4 && campId) {
+    } else if (currentStep < 5 && campId) {
       // Default navigation for steps without custom handlers
       const nextStep = currentStep + 1
       router.push(`/camps/create/${STEP_PATHS[nextStep]}?id=${campId}`)
+    } else if (currentStep === 5 && campId) {
+      // After sessions step, redirect to camps list or publish
+      router.push('/camps')
     }
   }
 

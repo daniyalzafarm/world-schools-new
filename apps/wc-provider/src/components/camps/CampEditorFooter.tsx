@@ -15,6 +15,7 @@ const editorSections = [
   'audience',
   'programs',
   'photos',
+  'sessions',
   'whats-included',
   'addons',
   'camp-focus',

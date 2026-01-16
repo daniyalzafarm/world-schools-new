@@ -1,0 +1,147 @@
+// Session Types
+export type SessionType = 'flexible' | 'fixed'
+
+// Duration for flexible sessions
+export interface Duration {
+  weeks: number
+  days?: number
+  price: number
+}
+
+// Blackout dates for flexible sessions
+export interface BlackoutDate {
+  start: string // ISO date string
+  end: string // ISO date string
+  reason?: string
+}
+
+// Base Session interface
+export interface Session {
+  id: string
+  campId: string
+  type: SessionType
+  name: string
+  description?: string
+  isActive: boolean
+  capacity?: number
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+// Flexible Session
+export interface FlexibleSession extends Session {
+  type: 'flexible'
+  startDate: string // ISO date string - booking window start
+  endDate: string // ISO date string - booking window end
+  durations: Duration[]
+  blackoutDates?: BlackoutDate[]
+}
+
+// Fixed Session
+export interface FixedSession extends Session {
+  type: 'fixed'
+  sessionStartDate: string // ISO date string - actual session start
+  sessionEndDate: string // ISO date string - actual session end
+  price: number
+  bookedCount?: number // Number of bookings for this session
+}
+
+// DTOs for creating sessions
+export interface CreateFlexibleSessionDto {
+  name: string
+  description?: string
+  startDate: string
+  endDate: string
+  durations: Duration[]
+  capacity?: number
+  blackoutDates?: BlackoutDate[]
+}
+
+export interface CreateFixedSessionDto {
+  name: string
+  description?: string
+  sessionStartDate: string
+  sessionEndDate: string
+  price: number
+  capacity?: number
+}
+
+// DTOs for updating sessions
+export interface UpdateFlexibleSessionDto {
+  name?: string
+  description?: string
+  startDate?: string
+  endDate?: string
+  durations?: Duration[]
+  capacity?: number
+  blackoutDates?: BlackoutDate[]
+  isActive?: boolean
+}
+
+export interface UpdateFixedSessionDto {
+  name?: string
+  description?: string
+  sessionStartDate?: string
+  sessionEndDate?: string
+  price?: number
+  capacity?: number
+  isActive?: boolean
+}
+
+// DTO for setting session type
+export interface UpdateSessionTypeDto {
+  sessionType: SessionType
+}
+
+// API Response types
+export interface SessionTypeResponse {
+  sessionType: SessionType | null
+  canChange: boolean
+}
+
+export interface FlexibleSessionsResponse {
+  sessions: FlexibleSession[]
+  total: number
+}
+
+export interface FixedSessionsResponse {
+  sessions: FixedSession[]
+  total: number
+}
+
+export interface SessionResponse {
+  session: FlexibleSession | FixedSession
+  message: string
+}
+
+export interface DeleteSessionResponse {
+  message: string
+  affectedBookings: number
+}
+
+// Form state types for UI
+export interface FlexibleSessionFormData {
+  name: string
+  description: string
+  startDate: Date | null
+  endDate: Date | null
+  durations: Duration[]
+  capacity: number | null
+  blackoutDates: BlackoutDate[]
+}
+
+export interface FixedSessionFormData {
+  name: string
+  description: string
+  sessionStartDate: Date | null
+  sessionEndDate: Date | null
+  price: number | null
+  capacity: number | null
+}
+
+// Validation errors
+export interface SessionValidationError {
+  field: string
+  message: string
+}

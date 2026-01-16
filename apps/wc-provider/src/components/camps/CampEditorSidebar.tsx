@@ -20,6 +20,7 @@ const editorSections: EditorSection[] = [
   { id: 'photos', label: 'Photos & Media', path: 'photos', category: 'CAMP OVERVIEW' },
 
   // SESSIONS & BOOKING
+  { id: 'sessions', label: 'Sessions', path: 'sessions', category: 'SESSIONS & BOOKING' },
   {
     id: 'whats-included',
     label: "What's Included",
