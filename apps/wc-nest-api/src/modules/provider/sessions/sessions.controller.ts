@@ -26,7 +26,6 @@ import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 @ApiBearerAuth()
 @Controller('provider/camps/:campId/sessions')
 @UseGuards(RolesOrPermissionsGuard)
-@Permissions('camps.manage')
 export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
 
@@ -34,6 +33,7 @@ export class SessionsController {
    * Get session type for a camp
    */
   @Get('type')
+  @Permissions('camps.read', 'camps.create', 'camps.update')
   @ApiOperation({ summary: 'Get session type for a camp' })
   @ApiResponse({ status: 200, description: 'Session type retrieved successfully' })
   async getSessionType(@Param('campId') campId: string, @CurrentUser() user: any) {
@@ -44,6 +44,7 @@ export class SessionsController {
    * Set session type for a camp
    */
   @Put('type')
+  @Permissions('camps.create', 'camps.update')
   @ApiOperation({ summary: 'Set session type for a camp' })
   @ApiResponse({ status: 200, description: 'Session type updated successfully' })
   async setSessionType(
@@ -58,6 +59,7 @@ export class SessionsController {
    * Get all flexible sessions
    */
   @Get('flexible')
+  @Permissions('camps.read', 'camps.create', 'camps.update')
   @ApiOperation({ summary: 'Get all flexible sessions for a camp' })
   @ApiResponse({ status: 200, description: 'Flexible sessions retrieved successfully' })
   async getFlexibleSessions(@Param('campId') campId: string, @CurrentUser() user: any) {
@@ -68,6 +70,7 @@ export class SessionsController {
    * Get all fixed sessions
    */
   @Get('fixed')
+  @Permissions('camps.read')
   @ApiOperation({ summary: 'Get all fixed sessions for a camp' })
   @ApiResponse({ status: 200, description: 'Fixed sessions retrieved successfully' })
   async getFixedSessions(@Param('campId') campId: string, @CurrentUser() user: any) {
@@ -78,6 +81,7 @@ export class SessionsController {
    * Create a flexible session
    */
   @Post('flexible')
+  @Permissions('camps.update')
   @ApiOperation({ summary: 'Create a flexible session' })
   @ApiResponse({ status: 201, description: 'Flexible session created successfully' })
   async createFlexibleSession(
@@ -92,6 +96,7 @@ export class SessionsController {
    * Create a fixed session
    */
   @Post('fixed')
+  @Permissions('camps.update')
   @ApiOperation({ summary: 'Create a fixed session' })
   @ApiResponse({ status: 201, description: 'Fixed session created successfully' })
   async createFixedSession(
@@ -106,6 +111,7 @@ export class SessionsController {
    * Update a flexible session
    */
   @Put('flexible/:sessionId')
+  @Permissions('camps.update')
   @ApiOperation({ summary: 'Update a flexible session' })
   @ApiResponse({ status: 200, description: 'Flexible session updated successfully' })
   async updateFlexibleSession(
@@ -121,6 +127,7 @@ export class SessionsController {
    * Update a fixed session
    */
   @Put('fixed/:sessionId')
+  @Permissions('camps.update')
   @ApiOperation({ summary: 'Update a fixed session' })
   @ApiResponse({ status: 200, description: 'Fixed session updated successfully' })
   async updateFixedSession(
@@ -137,6 +144,7 @@ export class SessionsController {
    */
   @Delete(':sessionId')
   @HttpCode(HttpStatus.OK)
+  @Permissions('camps.update')
   @ApiOperation({ summary: 'Delete a session' })
   @ApiResponse({ status: 200, description: 'Session deleted successfully' })
   async deleteSession(
@@ -151,6 +159,7 @@ export class SessionsController {
    * Toggle session active status
    */
   @Patch(':sessionId/toggle')
+  @Permissions('camps.update')
   @ApiOperation({ summary: 'Toggle session active status' })
   @ApiResponse({ status: 200, description: 'Session status toggled successfully' })
   async toggleSessionStatus(
@@ -165,6 +174,7 @@ export class SessionsController {
    * Duplicate a fixed session
    */
   @Post('fixed/:sessionId/duplicate')
+  @Permissions('camps.update')
   @ApiOperation({ summary: 'Duplicate a fixed session' })
   @ApiResponse({ status: 201, description: 'Session duplicated successfully' })
   async duplicateFixedSession(

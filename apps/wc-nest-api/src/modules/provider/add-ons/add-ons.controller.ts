@@ -15,6 +15,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
+import { Permissions } from '../../core/auth/decorators/permissions.decorator'
 import { ResponseUtil } from '../../../common/utils/response.util'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { AddOnsService } from './add-ons.service'
@@ -36,6 +37,7 @@ export class AddOnsController {
    * Create a new add-on
    */
   @Post()
+  @Permissions('addons.create', 'camps.create', 'camps.update')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new add-on' })
   @ApiResponse({ status: 201, description: 'Add-on created successfully' })
@@ -50,6 +52,14 @@ export class AddOnsController {
    * Get all add-ons for the provider
    */
   @Get()
+  @Permissions(
+    'addons.read',
+    'addons.create',
+    'addons.update',
+    'camps.read',
+    'camps.create',
+    'camps.update'
+  )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get all add-ons' })
   @ApiResponse({ status: 200, description: 'Add-ons retrieved successfully' })
@@ -63,6 +73,14 @@ export class AddOnsController {
    * Get a single add-on
    */
   @Get(':id')
+  @Permissions(
+    'addons.read',
+    'addons.create',
+    'addons.update',
+    'camps.read',
+    'camps.create',
+    'camps.update'
+  )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get a single add-on' })
   @ApiResponse({ status: 200, description: 'Add-on retrieved successfully' })
@@ -77,6 +95,7 @@ export class AddOnsController {
    * Update an add-on
    */
   @Patch(':id')
+  @Permissions('addons.update', 'camps.create', 'camps.update')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update an add-on' })
   @ApiResponse({ status: 200, description: 'Add-on updated successfully' })
@@ -91,6 +110,7 @@ export class AddOnsController {
    * Delete an add-on
    */
   @Delete(':id')
+  @Permissions('addons.delete', 'camps.create', 'camps.update')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete an add-on' })
   @ApiResponse({ status: 200, description: 'Add-on deleted successfully' })

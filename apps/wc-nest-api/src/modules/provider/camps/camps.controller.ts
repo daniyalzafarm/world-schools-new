@@ -62,6 +62,7 @@ export class CampsController {
    * Create camp with basic info (Wizard Step 1)
    */
   @Post('create/basic-info')
+  @Permissions('camps.create')
   @HttpCode(HttpStatus.CREATED)
   async createCamp(@CurrentUser() user: any, @Body() dto: CreateCampDto) {
     const providerId = await this.getProviderIdForUser(user)
@@ -73,6 +74,7 @@ export class CampsController {
    * Update camp audience (Wizard Step 2)
    */
   @Patch(':id/create/audience')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateCampAudience(
     @Param('id') campId: string,
@@ -88,6 +90,7 @@ export class CampsController {
    * Update camp programs (Wizard Step 3)
    */
   @Patch(':id/create/programs')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateCampPrograms(
     @Param('id') campId: string,
@@ -104,6 +107,7 @@ export class CampsController {
    * Supports both file uploads and metadata updates
    */
   @Patch(':id/create/photos')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FilesInterceptor('photos', 20)) // Max 20 photos
   async updateCampPhotos(
@@ -140,6 +144,7 @@ export class CampsController {
    * Publish camp
    */
   @Post(':id/publish')
+  @Permissions('camps.publish')
   @HttpCode(HttpStatus.OK)
   async publishCamp(@Param('id') campId: string, @CurrentUser() user: any) {
     const providerId = await this.getProviderIdForUser(user)
@@ -155,6 +160,7 @@ export class CampsController {
    * Get camp statistics
    */
   @Get('statistics')
+  @Permissions('camps.read')
   @HttpCode(HttpStatus.OK)
   async getCampStatistics(@CurrentUser() user: any) {
     const providerId = await this.getProviderIdForUser(user)
@@ -166,6 +172,7 @@ export class CampsController {
    * Get all camps with search and filtering
    */
   @Get()
+  @Permissions('camps.read')
   @HttpCode(HttpStatus.OK)
   async getCamps(@CurrentUser() user: any, @Query() filters: GetCampsFiltersDto) {
     const providerId = await this.getProviderIdForUser(user)
@@ -177,6 +184,7 @@ export class CampsController {
    * Get single camp
    */
   @Get(':id')
+  @Permissions('camps.read')
   @HttpCode(HttpStatus.OK)
   async getCamp(@Param('id') campId: string, @CurrentUser() user: any) {
     const providerId = await this.getProviderIdForUser(user)
@@ -188,6 +196,7 @@ export class CampsController {
    * Archive a camp
    */
   @Post(':id/archive')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async archiveCamp(@Param('id') campId: string, @CurrentUser() user: any) {
     const providerId = await this.getProviderIdForUser(user)
@@ -199,6 +208,7 @@ export class CampsController {
    * Duplicate a camp
    */
   @Post(':id/duplicate')
+  @Permissions('camps.create')
   @HttpCode(HttpStatus.OK)
   async duplicateCamp(@Param('id') campId: string, @CurrentUser() user: any) {
     const providerId = await this.getProviderIdForUser(user)
@@ -210,6 +220,7 @@ export class CampsController {
    * Delete camp
    */
   @Delete(':id')
+  @Permissions('camps.delete')
   @HttpCode(HttpStatus.OK)
   async deleteCamp(@Param('id') campId: string, @CurrentUser() user: any) {
     const providerId = await this.getProviderIdForUser(user)
@@ -225,6 +236,7 @@ export class CampsController {
    * Update basic info
    */
   @Patch(':id/basic-info')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateBasicInfo(
     @Param('id') campId: string,
@@ -237,6 +249,7 @@ export class CampsController {
   }
 
   @Patch(':id/photos')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updatePhotos(
     @Param('id') campId: string,
@@ -249,6 +262,7 @@ export class CampsController {
   }
 
   @Patch(':id/whats-included')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateWhatsIncluded(
     @Param('id') campId: string,
@@ -261,6 +275,7 @@ export class CampsController {
   }
 
   @Patch(':id/daily-schedule')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateDailySchedule(
     @Param('id') campId: string,
@@ -273,6 +288,7 @@ export class CampsController {
   }
 
   @Patch(':id/meals')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateMeals(
     @Param('id') campId: string,
@@ -285,6 +301,7 @@ export class CampsController {
   }
 
   @Patch(':id/sports')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateSports(
     @Param('id') campId: string,
@@ -297,6 +314,7 @@ export class CampsController {
   }
 
   @Patch(':id/languages')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateLanguages(
     @Param('id') campId: string,
@@ -309,6 +327,7 @@ export class CampsController {
   }
 
   @Patch(':id/arts')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateArts(
     @Param('id') campId: string,
@@ -321,6 +340,7 @@ export class CampsController {
   }
 
   @Patch(':id/adventure')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateAdventure(
     @Param('id') campId: string,
@@ -333,6 +353,7 @@ export class CampsController {
   }
 
   @Patch(':id/water')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateWater(
     @Param('id') campId: string,
@@ -345,6 +366,7 @@ export class CampsController {
   }
 
   @Patch(':id/environmental')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateEnvironmental(
     @Param('id') campId: string,
@@ -357,6 +379,7 @@ export class CampsController {
   }
 
   @Patch(':id/academics')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateAcademics(
     @Param('id') campId: string,
@@ -369,6 +392,7 @@ export class CampsController {
   }
 
   @Patch(':id/religion')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateReligion(
     @Param('id') campId: string,
@@ -381,6 +405,7 @@ export class CampsController {
   }
 
   @Patch(':id/excursions')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateExcursions(
     @Param('id') campId: string,
@@ -393,6 +418,7 @@ export class CampsController {
   }
 
   @Patch(':id/location-campus')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateLocationCampus(
     @Param('id') campId: string,
@@ -405,6 +431,7 @@ export class CampsController {
   }
 
   @Patch(':id/accommodation')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateAccommodation(
     @Param('id') campId: string,
@@ -417,6 +444,7 @@ export class CampsController {
   }
 
   @Patch(':id/getting-there')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateGettingThere(
     @Param('id') campId: string,
@@ -429,6 +457,7 @@ export class CampsController {
   }
 
   @Patch(':id/camp-focus')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateCampFocus(
     @Param('id') campId: string,
@@ -441,6 +470,7 @@ export class CampsController {
   }
 
   @Patch(':id/status')
+  @Permissions('camps.update')
   @HttpCode(HttpStatus.OK)
   async updateCampStatus(
     @Param('id') campId: string,
@@ -460,6 +490,7 @@ export class CampsController {
    * Get camp add-ons with enabled status
    */
   @Get(':id/addons')
+  @Permissions('addons.read')
   @HttpCode(HttpStatus.OK)
   async getCampAddOns(@Param('id') campId: string, @CurrentUser() user: any) {
     const providerId = await this.getProviderIdForUser(user)
@@ -471,6 +502,7 @@ export class CampsController {
    * Update camp add-ons (enable/disable and reorder)
    */
   @Patch(':id/addons')
+  @Permissions('addons.update')
   @HttpCode(HttpStatus.OK)
   async updateCampAddOns(
     @Param('id') campId: string,
