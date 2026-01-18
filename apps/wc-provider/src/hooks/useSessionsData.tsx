@@ -112,8 +112,8 @@ export function useSessionsData(campId: string): UseSessionsDataReturn {
 
   const reload = useCallback(async () => {
     await loadSessionType()
-    // Sessions will reload automatically via useEffect when type changes
-  }, [loadSessionType])
+    await loadSessions()
+  }, [loadSessionType, loadSessions])
 
   // Combined sessions array
   const sessions = sessionType === 'flexible' ? flexibleSessions : fixedSessions

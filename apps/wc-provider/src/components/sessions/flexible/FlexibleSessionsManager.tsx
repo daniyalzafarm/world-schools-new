@@ -41,24 +41,18 @@ export function FlexibleSessionsManager({
 
   // Handle delete
   const handleDelete = async (sessionId: string) => {
-    await deleteSession(sessionId, {
-      onSuccess: () => {
-        reload().catch(error => {
-          console.error('Failed to reload sessions:', error)
-        })
-      },
-    })
+    const success = await deleteSession(sessionId)
+    if (success) {
+      await reload()
+    }
   }
 
   // Handle toggle status
   const handleToggleStatus = async (sessionId: string) => {
-    await toggleSessionStatus(sessionId, {
-      onSuccess: () => {
-        reload().catch(error => {
-          console.error('Failed to reload sessions:', error)
-        })
-      },
-    })
+    const updatedSession = await toggleSessionStatus(sessionId)
+    if (updatedSession) {
+      await reload()
+    }
   }
 
   return (

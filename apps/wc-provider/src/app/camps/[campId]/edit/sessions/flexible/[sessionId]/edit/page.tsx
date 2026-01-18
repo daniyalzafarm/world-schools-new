@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'next'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Spinner } from '@heroui/react'
 import { SessionBreadcrumb } from '@/components/sessions/SessionBreadcrumb'

@@ -14,9 +14,9 @@ interface FixedSessionsListProps {
   canChangeType?: boolean
   onCreateSession: () => void
   onEditSession: (session: FixedSession) => void
-  onDeleteSession: (sessionId: string) => void
-  onDuplicateSession: (sessionId: string) => void
-  onToggleStatus: (sessionId: string) => void
+  onDeleteSession: (sessionId: string) => Promise<void>
+  onDuplicateSession: (sessionId: string) => Promise<void>
+  onToggleStatus: (sessionId: string) => Promise<void>
   onChangeSessionType?: () => void
 }
 

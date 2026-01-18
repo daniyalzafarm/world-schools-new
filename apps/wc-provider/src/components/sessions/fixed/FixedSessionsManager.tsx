@@ -38,35 +38,26 @@ export function FixedSessionsManager({ campId, onChangeSessionType }: FixedSessi
 
   // Handle delete
   const handleDelete = async (sessionId: string) => {
-    await deleteSession(sessionId, {
-      onSuccess: () => {
-        reload().catch(error => {
-          console.error('Failed to reload sessions:', error)
-        })
-      },
-    })
+    const success = await deleteSession(sessionId)
+    if (success) {
+      await reload()
+    }
   }
 
   // Handle duplicate
   const handleDuplicate = async (sessionId: string) => {
-    await duplicateFixedSession(sessionId, {
-      onSuccess: () => {
-        reload().catch(error => {
-          console.error('Failed to reload sessions:', error)
-        })
-      },
-    })
+    const newSession = await duplicateFixedSession(sessionId)
+    if (newSession) {
+      await reload()
+    }
   }
 
   // Handle toggle status
   const handleToggleStatus = async (sessionId: string) => {
-    await toggleSessionStatus(sessionId, {
-      onSuccess: () => {
-        reload().catch(error => {
-          console.error('Failed to reload sessions:', error)
-        })
-      },
-    })
+    const updatedSession = await toggleSessionStatus(sessionId)
+    if (updatedSession) {
+      await reload()
+    }
   }
 
   return (

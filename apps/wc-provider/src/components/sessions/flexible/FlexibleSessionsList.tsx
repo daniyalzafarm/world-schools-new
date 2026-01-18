@@ -14,8 +14,8 @@ interface FlexibleSessionsListProps {
   canChangeType?: boolean
   onCreateSession: () => void
   onEditSession: (session: FlexibleSession) => void
-  onDeleteSession: (sessionId: string) => void
-  onToggleStatus: (sessionId: string) => void
+  onDeleteSession: (sessionId: string) => Promise<void>
+  onToggleStatus: (sessionId: string) => Promise<void>
   onChangeSessionType?: () => void
 }
 
