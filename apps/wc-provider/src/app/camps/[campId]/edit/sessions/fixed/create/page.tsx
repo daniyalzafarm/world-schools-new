@@ -34,7 +34,7 @@ export default function CreateFixedSessionPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div>
       <SessionBreadcrumb
         campId={campId}
         title="Create Fixed Session"

@@ -22,7 +22,7 @@ export function SessionBreadcrumb({ campId, title, subtitle }: SessionBreadcrumb
   }
 
   return (
-    <div className="mb-6">
+    <div className="mb-8">
       {/* Back Button */}
       <Button
         variant="light"
@@ -35,8 +35,8 @@ export function SessionBreadcrumb({ campId, title, subtitle }: SessionBreadcrumb
 
       {/* Page Title */}
       <div>
-        <h1 className="text-[28px] font-bold text-default-900">{title}</h1>
-        {subtitle && <p className="text-[14px] text-default-600 mt-1">{subtitle}</p>}
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">{title}</h1>
+        {subtitle && <p className="text-base leading-normal text-default-500">{subtitle}</p>}
       </div>
     </div>
   )
