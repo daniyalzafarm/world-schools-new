@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Button, Card, CardBody, Divider, Input } from '@heroui/react'
-import { Calendar, Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Button } from '@heroui/react'
+import { Input } from '@world-schools/ui-web'
+import { Plus, Trash2 } from 'lucide-react'
 import type { BlackoutDate, Duration, FlexibleSession } from '@/types/sessions'
 import { useSessionValidation } from '@/hooks/useSessionValidation'
 import { formatDateForInput } from '@/utils/sessionFormatters'
@@ -133,190 +134,192 @@ export function FlexibleSessionForm({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Basic Information */}
-      <Card>
-        <CardBody className="p-6 space-y-4">
-          <h3 className="text-[18px] font-semibold text-default-900">Basic Information</h3>
+    <div className="space-y-8">
+      {/* Session Name */}
+      <div className="form-group">
+        <Input
+          type="text"
+          label="Session Name"
+          labelPlacement="outside"
+          placeholder="e.g., Summer 2024 Language Immersion"
+          value={formData.name}
+          onValueChange={value => setFormData(prev => ({ ...prev, name: value }))}
+          isRequired
+          isInvalid={!!errors.name}
+          errorMessage={errors.name}
+        />
+      </div>
 
-          {/* Session Name */}
+      {/* Date Range */}
+      <div className="form-group">
+        <div className="mb-2">
+          <label className="text-base font-semibold text-foreground">
+            Session Dates
+            <span className="ml-1 text-danger">*</span>
+          </label>
+        </div>
+        <div className="grid md:grid-cols-2 gap-4">
           <Input
-            label="Session Name"
-            placeholder="e.g., Summer 2024 Language Immersion"
-            value={formData.name}
-            onValueChange={value => setFormData(prev => ({ ...prev, name: value }))}
-            isInvalid={!!errors.name}
-            errorMessage={errors.name}
+            type="date"
+            label="Start Date"
+            labelPlacement="outside"
+            value={formData.startDate}
+            onValueChange={value => setFormData(prev => ({ ...prev, startDate: value }))}
             isRequired
+            isInvalid={!!errors.dates}
           />
-
-          {/* Date Range */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <Input
-              type="date"
-              label="Start Date"
-              value={formData.startDate}
-              onValueChange={value => setFormData(prev => ({ ...prev, startDate: value }))}
-              isInvalid={!!errors.dates}
-              isRequired
-            />
-            <Input
-              type="date"
-              label="End Date"
-              value={formData.endDate}
-              onValueChange={value => setFormData(prev => ({ ...prev, endDate: value }))}
-              isInvalid={!!errors.dates}
-              errorMessage={errors.dates}
-              isRequired
-            />
-          </div>
-        </CardBody>
-      </Card>
+          <Input
+            type="date"
+            label="End Date"
+            labelPlacement="outside"
+            value={formData.endDate}
+            onValueChange={value => setFormData(prev => ({ ...prev, endDate: value }))}
+            isRequired
+            isInvalid={!!errors.dates}
+          />
+        </div>
+        {errors.dates && <p className="mt-1.5 text-sm text-danger">{errors.dates}</p>}
+      </div>
 
       {/* Duration Options */}
-      <Card>
-        <CardBody className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-[18px] font-semibold text-default-900">Duration Options</h3>
-              <p className="text-[13px] text-default-600 mt-1">
-                Add different duration options with their respective pricing
-              </p>
-            </div>
-            <Button
-              size="sm"
-              color="primary"
-              variant="flat"
-              startContent={<Plus className="w-4 h-4" />}
-              onPress={addDuration}
-            >
-              Add Duration
-            </Button>
+      <div className="form-group">
+        <div className="mb-2 flex items-center justify-between">
+          <label className="text-base font-semibold text-foreground">Duration Options</label>
+          <Button
+            size="sm"
+            color="primary"
+            variant="flat"
+            startContent={<Plus className="w-4 h-4" />}
+            onPress={addDuration}
+          >
+            Add Duration
+          </Button>
+        </div>
+        <p className="mb-4 text-sm leading-normal text-default-500">
+          Add different duration options with their respective pricing
+        </p>
+
+        {errors.durations && (
+          <div className="mb-4 rounded-lg border border-danger-200 bg-danger-50 p-3 dark:border-danger-800 dark:bg-danger-950">
+            <p className="text-sm text-danger-700 dark:text-danger-300">{errors.durations}</p>
           </div>
+        )}
 
-          {errors.durations && (
-            <div className="bg-danger-50 dark:bg-danger-950 border border-danger-200 dark:border-danger-800 rounded-lg p-3">
-              <p className="text-[13px] text-danger-700 dark:text-danger-300">{errors.durations}</p>
+        <div className="space-y-3">
+          {formData.durations.map((duration, index) => (
+            <div key={index} className="flex items-end gap-3">
+              <Input
+                type="number"
+                label="Weeks"
+                labelPlacement="outside"
+                placeholder="2"
+                value={duration.weeks.toString()}
+                onValueChange={value => updateDuration(index, 'weeks', parseInt(value) || 0)}
+                min={1}
+                max={12}
+                className="flex-1"
+              />
+              <Input
+                type="number"
+                label="Days (optional)"
+                labelPlacement="outside"
+                placeholder="0"
+                value={duration.days?.toString() || '0'}
+                onValueChange={value => updateDuration(index, 'days', parseInt(value) || 0)}
+                min={0}
+                max={6}
+                className="flex-1"
+              />
+              <Input
+                type="number"
+                label="Price (USD)"
+                labelPlacement="outside"
+                placeholder="1200"
+                value={duration.price.toString()}
+                onValueChange={value => updateDuration(index, 'price', parseFloat(value) || 0)}
+                min={0}
+                className="flex-1"
+              />
+              {formData.durations.length > 1 && (
+                <Button
+                  isIconOnly
+                  color="danger"
+                  variant="flat"
+                  onPress={() => removeDuration(index)}
+                  className="mb-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
             </div>
-          )}
+          ))}
+        </div>
+      </div>
 
+      {/* Blackout Dates */}
+      <div className="form-group">
+        <div className="mb-2 flex items-center justify-between">
+          <label className="text-base font-semibold text-foreground">
+            Blackout Dates (Optional)
+          </label>
+          <Button
+            size="sm"
+            color="default"
+            variant="flat"
+            startContent={<Plus className="w-4 h-4" />}
+            onPress={addBlackoutDate}
+          >
+            Add Blackout
+          </Button>
+        </div>
+        <p className="mb-4 text-sm leading-normal text-default-500">
+          Block specific date ranges when the camp is closed
+        </p>
+
+        {errors.blackoutDates && (
+          <div className="mb-4 rounded-lg border border-danger-200 bg-danger-50 p-3 dark:border-danger-800 dark:bg-danger-950">
+            <p className="text-sm text-danger-700 dark:text-danger-300">{errors.blackoutDates}</p>
+          </div>
+        )}
+
+        {formData.blackoutDates.length > 0 && (
           <div className="space-y-3">
-            {formData.durations.map((duration, index) => (
+            {formData.blackoutDates.map((blackout, index) => (
               <div key={index} className="flex items-end gap-3">
                 <Input
-                  type="number"
-                  label="Weeks"
-                  placeholder="2"
-                  value={duration.weeks.toString()}
-                  onValueChange={value => updateDuration(index, 'weeks', parseInt(value) || 0)}
-                  min={1}
-                  max={12}
+                  type="date"
+                  label="Start Date"
+                  labelPlacement="outside"
+                  value={blackout.start}
+                  onValueChange={value => updateBlackoutDate(index, 'start', value)}
                   className="flex-1"
                 />
                 <Input
-                  type="number"
-                  label="Days (optional)"
-                  placeholder="0"
-                  value={duration.days?.toString() || '0'}
-                  onValueChange={value => updateDuration(index, 'days', parseInt(value) || 0)}
-                  min={0}
-                  max={6}
+                  type="date"
+                  label="End Date"
+                  labelPlacement="outside"
+                  value={blackout.end}
+                  onValueChange={value => updateBlackoutDate(index, 'end', value)}
                   className="flex-1"
                 />
-                <Input
-                  type="number"
-                  label="Price (USD)"
-                  placeholder="1200"
-                  value={duration.price.toString()}
-                  onValueChange={value => updateDuration(index, 'price', parseFloat(value) || 0)}
-                  min={0}
-                  className="flex-1"
-                />
-                {formData.durations.length > 1 && (
-                  <Button
-                    isIconOnly
-                    color="danger"
-                    variant="flat"
-                    onPress={() => removeDuration(index)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                )}
+                <Button
+                  isIconOnly
+                  color="danger"
+                  variant="flat"
+                  onPress={() => removeBlackoutDate(index)}
+                  className="mb-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
             ))}
           </div>
-        </CardBody>
-      </Card>
+        )}
 
-      {/* Blackout Dates */}
-      <Card>
-        <CardBody className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-[18px] font-semibold text-default-900">
-                Blackout Dates (Optional)
-              </h3>
-              <p className="text-[13px] text-default-600 mt-1">
-                Block specific date ranges when the camp is closed
-              </p>
-            </div>
-            <Button
-              size="sm"
-              color="default"
-              variant="flat"
-              startContent={<Plus className="w-4 h-4" />}
-              onPress={addBlackoutDate}
-            >
-              Add Blackout
-            </Button>
-          </div>
-
-          {errors.blackoutDates && (
-            <div className="bg-danger-50 dark:bg-danger-950 border border-danger-200 dark:border-danger-800 rounded-lg p-3">
-              <p className="text-[13px] text-danger-700 dark:text-danger-300">
-                {errors.blackoutDates}
-              </p>
-            </div>
-          )}
-
-          {formData.blackoutDates.length > 0 && (
-            <div className="space-y-3">
-              {formData.blackoutDates.map((blackout, index) => (
-                <div key={index} className="flex items-end gap-3">
-                  <Input
-                    type="date"
-                    label="Start Date"
-                    value={blackout.start}
-                    onValueChange={value => updateBlackoutDate(index, 'start', value)}
-                    className="flex-1"
-                  />
-                  <Input
-                    type="date"
-                    label="End Date"
-                    value={blackout.end}
-                    onValueChange={value => updateBlackoutDate(index, 'end', value)}
-                    className="flex-1"
-                  />
-                  <Button
-                    isIconOnly
-                    color="danger"
-                    variant="flat"
-                    onPress={() => removeBlackoutDate(index)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {formData.blackoutDates.length === 0 && (
-            <div className="text-center py-6 text-default-400 text-[13px]">
-              No blackout dates added
-            </div>
-          )}
-        </CardBody>
-      </Card>
+        {formData.blackoutDates.length === 0 && (
+          <div className="py-6 text-center text-sm text-default-400">No blackout dates added</div>
+        )}
+      </div>
 
       {/* Form Actions */}
       <div className="flex items-center justify-end gap-3 pt-4">

@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, Card, CardBody, Input, Switch } from '@heroui/react'
+import { Button, Switch } from '@heroui/react'
+import { Input } from '@world-schools/ui-web'
 import type { FixedSession } from '@/types/sessions'
 import { useSessionValidation } from '@/hooks/useSessionValidation'
 import { formatDateForInput } from '@/utils/sessionFormatters'
@@ -103,105 +104,102 @@ export function FixedSessionForm({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Basic Information */}
-      <Card>
-        <CardBody className="p-6 space-y-4">
-          <h3 className="text-[18px] font-semibold text-default-900">Basic Information</h3>
+    <div className="space-y-8">
+      {/* Session Name */}
+      <div className="form-group">
+        <Input
+          type="text"
+          label="Session Name"
+          labelPlacement="outside"
+          placeholder="e.g., Week 1 - Summer Camp"
+          value={formData.name}
+          onValueChange={value => setFormData(prev => ({ ...prev, name: value }))}
+          isRequired
+          isInvalid={!!errors.name}
+          errorMessage={errors.name}
+        />
+      </div>
 
-          {/* Session Name */}
+      {/* Date Range */}
+      <div className="form-group">
+        <div className="mb-2">
+          <label className="text-base font-semibold text-foreground">
+            Session Dates
+            <span className="ml-1 text-danger">*</span>
+          </label>
+        </div>
+        <div className="grid md:grid-cols-2 gap-4">
           <Input
-            label="Session Name"
-            placeholder="e.g., Week 1 - Summer Camp"
-            value={formData.name}
-            onValueChange={value => setFormData(prev => ({ ...prev, name: value }))}
-            isInvalid={!!errors.name}
-            errorMessage={errors.name}
+            type="date"
+            label="Start Date"
+            labelPlacement="outside"
+            value={formData.sessionStartDate}
+            onValueChange={value => setFormData(prev => ({ ...prev, sessionStartDate: value }))}
             isRequired
+            isInvalid={!!errors.dates}
           />
-
-          {/* Date Range */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <Input
-              type="date"
-              label="Start Date"
-              value={formData.sessionStartDate}
-              onValueChange={value => setFormData(prev => ({ ...prev, sessionStartDate: value }))}
-              isInvalid={!!errors.dates}
-              isRequired
-            />
-            <Input
-              type="date"
-              label="End Date"
-              value={formData.sessionEndDate}
-              onValueChange={value => setFormData(prev => ({ ...prev, sessionEndDate: value }))}
-              isInvalid={!!errors.dates}
-              errorMessage={errors.dates}
-              isRequired
-            />
-          </div>
-        </CardBody>
-      </Card>
+          <Input
+            type="date"
+            label="End Date"
+            labelPlacement="outside"
+            value={formData.sessionEndDate}
+            onValueChange={value => setFormData(prev => ({ ...prev, sessionEndDate: value }))}
+            isRequired
+            isInvalid={!!errors.dates}
+          />
+        </div>
+        {errors.dates && <p className="mt-1.5 text-sm text-danger">{errors.dates}</p>}
+      </div>
 
       {/* Pricing */}
-      <Card>
-        <CardBody className="p-6 space-y-4">
-          <h3 className="text-[18px] font-semibold text-default-900">Pricing</h3>
-
-          <Input
-            type="number"
-            label="Price (USD)"
-            placeholder="1200"
-            value={formData.price.toString()}
-            onValueChange={value =>
-              setFormData(prev => ({ ...prev, price: parseFloat(value) || 0 }))
-            }
-            isInvalid={!!errors.price}
-            errorMessage={errors.price}
-            min={0}
-            isRequired
-          />
-        </CardBody>
-      </Card>
+      <div className="form-group">
+        <Input
+          type="number"
+          label="Price (USD)"
+          labelPlacement="outside"
+          placeholder="1200"
+          value={formData.price.toString()}
+          onValueChange={value => setFormData(prev => ({ ...prev, price: parseFloat(value) || 0 }))}
+          min={0}
+          isRequired
+          isInvalid={!!errors.price}
+          errorMessage={errors.price}
+        />
+      </div>
 
       {/* Capacity */}
-      <Card>
-        <CardBody className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-[18px] font-semibold text-default-900">Capacity</h3>
-              <p className="text-[13px] text-default-600 mt-1">
-                Set a maximum number of participants for this session
-              </p>
-            </div>
-            <Switch isSelected={hasCapacityLimit} onValueChange={handleCapacityToggle} />
+      <div className="form-group">
+        <div className="mb-2 flex items-center justify-between">
+          <label className="text-base font-semibold text-foreground">Capacity</label>
+          <Switch isSelected={hasCapacityLimit} onValueChange={handleCapacityToggle} />
+        </div>
+        <p className="mb-4 text-sm leading-normal text-default-500">
+          Set a maximum number of participants for this session
+        </p>
+
+        {hasCapacityLimit && (
+          <Input
+            type="number"
+            label="Maximum Capacity"
+            labelPlacement="outside"
+            placeholder="50"
+            value={formData.capacity?.toString() || ''}
+            onValueChange={value =>
+              setFormData(prev => ({ ...prev, capacity: parseInt(value) || undefined }))
+            }
+            min={1}
+            isRequired
+            isInvalid={!!errors.capacity}
+            errorMessage={errors.capacity}
+          />
+        )}
+
+        {!hasCapacityLimit && (
+          <div className="rounded-lg bg-default-100 p-4">
+            <p className="text-sm text-default-500">This session will have unlimited capacity</p>
           </div>
-
-          {hasCapacityLimit && (
-            <Input
-              type="number"
-              label="Maximum Capacity"
-              placeholder="50"
-              value={formData.capacity?.toString() || ''}
-              onValueChange={value =>
-                setFormData(prev => ({ ...prev, capacity: parseInt(value) || undefined }))
-              }
-              isInvalid={!!errors.capacity}
-              errorMessage={errors.capacity}
-              min={1}
-              isRequired
-            />
-          )}
-
-          {!hasCapacityLimit && (
-            <div className="bg-default-100 dark:bg-default-800 rounded-lg p-4">
-              <p className="text-[13px] text-default-600">
-                This session will have unlimited capacity
-              </p>
-            </div>
-          )}
-        </CardBody>
-      </Card>
+        )}
+      </div>
 
       {/* Form Actions */}
       <div className="flex items-center justify-end gap-3 pt-4">
