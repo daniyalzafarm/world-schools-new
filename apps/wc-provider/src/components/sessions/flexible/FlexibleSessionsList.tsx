@@ -93,8 +93,8 @@ export function FlexibleSessionsList({
         </Button>
       </div>
 
-      {/* Sessions Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Sessions List */}
+      <div className="space-y-3">
         {sessions.map(session => (
           <FlexibleSessionCard
             key={session.id}
