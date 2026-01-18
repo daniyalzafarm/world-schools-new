@@ -19,32 +19,41 @@ interface SessionsPageProps {
  * Handles session type selection and routing to appropriate manager
  */
 export function SessionsPage({ campId }: SessionsPageProps) {
-  const { sessions, sessionType, isLoading } = useSessionsData(campId)
+  const { sessions, sessionType, canChangeType, isLoading, reload } = useSessionsData(campId)
   const { setSessionType, isSettingType } = useSessionMutations(campId)
   const [showTypeSelector, setShowTypeSelector] = useState(false)
+  const [forceShowTypeSelector, setForceShowTypeSelector] = useState(false)
 
   // Determine if we need to show the type selector
   useEffect(() => {
     if (!isLoading) {
       // Show type selector if:
       // 1. No session type is set AND
-      // 2. No sessions exist
-      const needsTypeSelection = !sessionType && (!sessions || sessions.length === 0)
+      // 2. No sessions exist (canChangeType is true)
+      const needsTypeSelection = !sessionType && canChangeType
       setShowTypeSelector(needsTypeSelection)
     }
-  }, [isLoading, sessionType, sessions])
+  }, [isLoading, sessionType, canChangeType])
 
   // Handle session type selection
   const handleTypeSelected = async (type: SessionType) => {
     try {
       await setSessionType(type, {
-        onSuccess: () => {
+        onSuccess: async () => {
+          // Reload session data to get the updated session type
+          await reload()
           setShowTypeSelector(false)
+          setForceShowTypeSelector(false)
         },
       })
     } catch (error) {
       console.error('Failed to set session type:', error)
     }
+  }
+
+  // Handle request to change session type
+  const handleChangeSessionType = () => {
+    setForceShowTypeSelector(true)
   }
 
   // Loading state
@@ -56,8 +65,8 @@ export function SessionsPage({ campId }: SessionsPageProps) {
     )
   }
 
-  // Show type selector if needed
-  if (showTypeSelector) {
+  // Show type selector if needed or forced
+  if (showTypeSelector || forceShowTypeSelector) {
     return (
       <SessionTypeSelector
         campId={campId}
@@ -69,11 +78,11 @@ export function SessionsPage({ campId }: SessionsPageProps) {
 
   // Show appropriate manager based on session type
   if (sessionType === 'flexible') {
-    return <FlexibleSessionsManager campId={campId} />
+    return <FlexibleSessionsManager campId={campId} onChangeSessionType={handleChangeSessionType} />
   }
 
   if (sessionType === 'fixed') {
-    return <FixedSessionsManager campId={campId} />
+    return <FixedSessionsManager campId={campId} onChangeSessionType={handleChangeSessionType} />
   }
 
   // Fallback - should not reach here

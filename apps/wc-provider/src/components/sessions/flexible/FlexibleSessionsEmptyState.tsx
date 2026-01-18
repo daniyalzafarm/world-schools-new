@@ -5,6 +5,8 @@ import { Ban, Calendar, Clock, DollarSign, Plus } from 'lucide-react'
 
 interface FlexibleSessionsEmptyStateProps {
   onCreateSession: () => void
+  canChangeType?: boolean
+  onChangeSessionType?: () => void
 }
 
 /**
@@ -12,7 +14,11 @@ interface FlexibleSessionsEmptyStateProps {
  * Shown when no flexible sessions exist yet
  * Reference: Design flex-session-2.png
  */
-export function FlexibleSessionsEmptyState({ onCreateSession }: FlexibleSessionsEmptyStateProps) {
+export function FlexibleSessionsEmptyState({
+  onCreateSession,
+  canChangeType = false,
+  onChangeSessionType,
+}: FlexibleSessionsEmptyStateProps) {
   return (
     <div className="max-w-3xl mx-auto py-12">
       <Card className="border-2 border-dashed border-default-300">
@@ -120,8 +126,18 @@ export function FlexibleSessionsEmptyState({ onCreateSession }: FlexibleSessions
               </div>
             </div>
 
-            {/* Create Button */}
-            <div className="pt-4">
+            {/* Action Buttons */}
+            <div className="pt-4 flex items-center justify-center gap-3">
+              {canChangeType && onChangeSessionType && (
+                <Button
+                  variant="bordered"
+                  size="lg"
+                  onPress={onChangeSessionType}
+                  className="font-semibold"
+                >
+                  Change Session Type
+                </Button>
+              )}
               <Button
                 color="primary"
                 size="lg"

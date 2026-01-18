@@ -133,17 +133,7 @@ export function FlexibleSessionForm({
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-[24px] font-bold text-default-900 mb-2">
-          {session ? 'Edit Flexible Session' : 'Create Flexible Session'}
-        </h2>
-        <p className="text-[14px] text-default-600">
-          Set up a flexible session where parents can choose their own start date and duration.
-        </p>
-      </div>
-
+    <div className="space-y-6">
       {/* Basic Information */}
       <Card>
         <CardBody className="p-6 space-y-4">

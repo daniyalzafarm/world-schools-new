@@ -13,6 +13,7 @@ import * as sessionsService from '@/services/sessions.service'
 
 interface UseSessionsDataReturn {
   sessionType: SessionType | null
+  canChangeType: boolean
   sessions: (FlexibleSession | FixedSession)[]
   flexibleSessions: FlexibleSession[]
   fixedSessions: FixedSession[]
@@ -31,6 +32,7 @@ interface UseSessionsDataReturn {
  */
 export function useSessionsData(campId: string): UseSessionsDataReturn {
   const [sessionType, setSessionType] = useState<SessionType | null>(null)
+  const [canChangeType, setCanChangeType] = useState(false)
   const [flexibleSessions, setFlexibleSessions] = useState<FlexibleSession[]>([])
   const [fixedSessions, setFixedSessions] = useState<FixedSession[]>([])
   const [isLoadingType, setIsLoadingType] = useState(true)
@@ -47,6 +49,7 @@ export function useSessionsData(campId: string): UseSessionsDataReturn {
     try {
       const response: SessionTypeResponse = await sessionsService.getSessionType(campId)
       setSessionType(response.sessionType)
+      setCanChangeType(response.canChange)
     } catch (err: any) {
       const errorMessage = err?.message || 'Failed to load session type'
       setError(errorMessage)
@@ -117,6 +120,7 @@ export function useSessionsData(campId: string): UseSessionsDataReturn {
 
   return {
     sessionType,
+    canChangeType,
     sessions,
     flexibleSessions,
     fixedSessions,

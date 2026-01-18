@@ -2,10 +2,7 @@
 
 import { useState } from 'react'
 import { Button, Card, CardBody, Input, Switch } from '@heroui/react'
-import type {
-  FixedSession,
-  FixedSessionFormData as FixedSessionFormDataType,
-} from '@/types/sessions'
+import type { FixedSession } from '@/types/sessions'
 import { useSessionValidation } from '@/hooks/useSessionValidation'
 import { formatDateForInput } from '@/utils/sessionFormatters'
 
@@ -106,17 +103,7 @@ export function FixedSessionForm({
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-[24px] font-bold text-default-900 mb-2">
-          {session ? 'Edit Fixed Session' : 'Create Fixed Session'}
-        </h2>
-        <p className="text-[14px] text-default-600">
-          Set up a fixed session with specific start and end dates.
-        </p>
-      </div>
-
+    <div className="space-y-6">
       {/* Basic Information */}
       <Card>
         <CardBody className="p-6 space-y-4">

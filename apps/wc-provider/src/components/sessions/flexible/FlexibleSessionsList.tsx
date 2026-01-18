@@ -11,10 +11,12 @@ import { DeleteSessionDialog } from '../shared/DeleteSessionDialog'
 interface FlexibleSessionsListProps {
   sessions: FlexibleSession[]
   isLoading?: boolean
+  canChangeType?: boolean
   onCreateSession: () => void
   onEditSession: (session: FlexibleSession) => void
   onDeleteSession: (sessionId: string) => void
   onToggleStatus: (sessionId: string) => void
+  onChangeSessionType?: () => void
 }
 
 /**
@@ -25,10 +27,12 @@ interface FlexibleSessionsListProps {
 export function FlexibleSessionsList({
   sessions,
   isLoading = false,
+  canChangeType = false,
   onCreateSession,
   onEditSession,
   onDeleteSession,
   onToggleStatus,
+  onChangeSessionType,
 }: FlexibleSessionsListProps) {
   const [sessionToDelete, setSessionToDelete] = useState<FlexibleSession | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -59,7 +63,13 @@ export function FlexibleSessionsList({
 
   // Empty state
   if (sessions.length === 0) {
-    return <FlexibleSessionsEmptyState onCreateSession={onCreateSession} />
+    return (
+      <FlexibleSessionsEmptyState
+        onCreateSession={onCreateSession}
+        canChangeType={canChangeType}
+        onChangeSessionType={onChangeSessionType}
+      />
+    )
   }
 
   // Sessions list

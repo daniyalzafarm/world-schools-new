@@ -1,15 +1,14 @@
 'use client'
 
-import { useState } from 'react'
-import { Modal, ModalBody, ModalContent } from '@heroui/react'
+import { useRouter } from 'next/navigation'
 import type { FlexibleSession } from '@/types/sessions'
 import { useSessionsData } from '@/hooks/useSessionsData'
 import { useSessionMutations } from '@/hooks/useSessionMutations'
 import { FlexibleSessionsList } from './FlexibleSessionsList'
-import { FlexibleSessionForm, type FlexibleSessionFormData } from './FlexibleSessionForm'
 
 interface FlexibleSessionsManagerProps {
   campId: string
+  onChangeSessionType?: () => void
 }
 
 /**
@@ -17,67 +16,27 @@ interface FlexibleSessionsManagerProps {
  * Main component for managing flexible sessions
  * Handles CRUD operations and state management
  */
-export function FlexibleSessionsManager({ campId }: FlexibleSessionsManagerProps) {
-  // Data hooks
-  const { sessions, isLoading, reload } = useSessionsData(campId)
-  const {
-    createFlexibleSession,
-    updateFlexibleSession,
-    deleteSession,
-    toggleSessionStatus,
-    isCreatingFlexible,
-    isUpdatingFlexible,
-    isDeleting,
-    isToggling,
-  } = useSessionMutations(campId)
+export function FlexibleSessionsManager({
+  campId,
+  onChangeSessionType,
+}: FlexibleSessionsManagerProps) {
+  const router = useRouter()
 
-  // UI state
-  const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingSession, setEditingSession] = useState<FlexibleSession | null>(null)
+  // Data hooks
+  const { sessions, canChangeType, isLoading, reload } = useSessionsData(campId)
+  const { deleteSession, toggleSessionStatus } = useSessionMutations(campId)
 
   // Filter flexible sessions
   const flexibleSessions = (sessions?.filter(s => s.type === 'flexible') || []) as FlexibleSession[]
 
-  // Handle create
+  // Handle create - navigate to create page
   const handleCreate = () => {
-    setEditingSession(null)
-    setIsFormOpen(true)
+    router.push(`/camps/${campId}/edit/sessions/flexible/create`)
   }
 
-  // Handle edit
+  // Handle edit - navigate to edit page
   const handleEdit = (session: FlexibleSession) => {
-    setEditingSession(session)
-    setIsFormOpen(true)
-  }
-
-  // Handle form submit
-  const handleFormSubmit = async (data: FlexibleSessionFormData) => {
-    try {
-      if (editingSession) {
-        // Update existing session
-        await updateFlexibleSession(editingSession.id, data, {
-          onSuccess: () => {
-            setIsFormOpen(false)
-            setEditingSession(null)
-            reload().catch(error => {
-              console.error('Failed to reload sessions:', error)
-            })
-          },
-        })
-      } else {
-        // Create new session
-        await createFlexibleSession(data, {
-          onSuccess: () => {
-            setIsFormOpen(false)
-            reload().catch(error => {
-              console.error('Failed to reload sessions:', error)
-            })
-          },
-        })
-      }
-    } catch (error) {
-      console.error('Failed to save session:', error)
-    }
+    router.push(`/camps/${campId}/edit/sessions/flexible/${session.id}/edit`)
   }
 
   // Handle delete
@@ -102,45 +61,16 @@ export function FlexibleSessionsManager({ campId }: FlexibleSessionsManagerProps
     })
   }
 
-  // Handle form cancel
-  const handleFormCancel = () => {
-    setIsFormOpen(false)
-    setEditingSession(null)
-  }
-
   return (
-    <>
-      {/* Sessions List */}
-      <FlexibleSessionsList
-        sessions={flexibleSessions}
-        isLoading={isLoading}
-        onCreateSession={handleCreate}
-        onEditSession={handleEdit}
-        onDeleteSession={handleDelete}
-        onToggleStatus={handleToggleStatus}
-      />
-
-      {/* Form Modal */}
-      <Modal
-        isOpen={isFormOpen}
-        onClose={handleFormCancel}
-        size="3xl"
-        scrollBehavior="inside"
-        classNames={{
-          base: 'max-h-[90vh]',
-        }}
-      >
-        <ModalContent>
-          <ModalBody className="p-6">
-            <FlexibleSessionForm
-              session={editingSession ?? undefined}
-              onSubmit={handleFormSubmit}
-              onCancel={handleFormCancel}
-              isSubmitting={isCreatingFlexible || isUpdatingFlexible}
-            />
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-    </>
+    <FlexibleSessionsList
+      sessions={flexibleSessions}
+      isLoading={isLoading}
+      canChangeType={canChangeType}
+      onCreateSession={handleCreate}
+      onEditSession={handleEdit}
+      onDeleteSession={handleDelete}
+      onToggleStatus={handleToggleStatus}
+      onChangeSessionType={onChangeSessionType}
+    />
   )
 }

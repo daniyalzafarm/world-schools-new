@@ -11,11 +11,13 @@ import { DeleteSessionDialog } from '../shared/DeleteSessionDialog'
 interface FixedSessionsListProps {
   sessions: FixedSession[]
   isLoading?: boolean
+  canChangeType?: boolean
   onCreateSession: () => void
   onEditSession: (session: FixedSession) => void
   onDeleteSession: (sessionId: string) => void
   onDuplicateSession: (sessionId: string) => void
   onToggleStatus: (sessionId: string) => void
+  onChangeSessionType?: () => void
 }
 
 /**
@@ -25,11 +27,13 @@ interface FixedSessionsListProps {
 export function FixedSessionsList({
   sessions,
   isLoading = false,
+  canChangeType = false,
   onCreateSession,
   onEditSession,
   onDeleteSession,
   onDuplicateSession,
   onToggleStatus,
+  onChangeSessionType,
 }: FixedSessionsListProps) {
   const [sessionToDelete, setSessionToDelete] = useState<FixedSession | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -60,7 +64,13 @@ export function FixedSessionsList({
 
   // Empty state
   if (sessions.length === 0) {
-    return <FixedSessionsEmptyState onCreateSession={onCreateSession} />
+    return (
+      <FixedSessionsEmptyState
+        onCreateSession={onCreateSession}
+        canChangeType={canChangeType}
+        onChangeSessionType={onChangeSessionType}
+      />
+    )
   }
 
   // Sessions list
