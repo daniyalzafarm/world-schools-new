@@ -136,22 +136,20 @@ export function FlexibleSessionForm({
   return (
     <div className="space-y-8">
       {/* Session Name */}
-      <div className="form-group">
-        <Input
-          type="text"
-          label="Session Name"
-          labelPlacement="outside"
-          placeholder="e.g., Summer 2024 Language Immersion"
-          value={formData.name}
-          onValueChange={value => setFormData(prev => ({ ...prev, name: value }))}
-          isRequired
-          isInvalid={!!errors.name}
-          errorMessage={errors.name}
-        />
-      </div>
+      <Input
+        type="text"
+        label="Session Name"
+        labelPlacement="outside"
+        placeholder="e.g., Summer 2024 Language Immersion"
+        value={formData.name}
+        onValueChange={value => setFormData(prev => ({ ...prev, name: value }))}
+        isRequired
+        isInvalid={!!errors.name}
+        errorMessage={errors.name}
+      />
 
       {/* Date Range */}
-      <div className="form-group">
+      <div>
         <div className="mb-2">
           <label className="text-base font-semibold text-foreground">
             Session Dates
@@ -182,7 +180,7 @@ export function FlexibleSessionForm({
       </div>
 
       {/* Duration Options */}
-      <div className="form-group">
+      <div>
         <div className="mb-2 flex items-center justify-between">
           <label className="text-base font-semibold text-foreground">Duration Options</label>
           <Button
@@ -257,7 +255,7 @@ export function FlexibleSessionForm({
       </div>
 
       {/* Blackout Dates */}
-      <div className="form-group">
+      <div>
         <div className="mb-2 flex items-center justify-between">
           <label className="text-base font-semibold text-foreground">
             Blackout Dates (Optional)

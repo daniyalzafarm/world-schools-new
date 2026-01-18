@@ -106,22 +106,20 @@ export function FixedSessionForm({
   return (
     <div className="space-y-8">
       {/* Session Name */}
-      <div className="form-group">
-        <Input
-          type="text"
-          label="Session Name"
-          labelPlacement="outside"
-          placeholder="e.g., Week 1 - Summer Camp"
-          value={formData.name}
-          onValueChange={value => setFormData(prev => ({ ...prev, name: value }))}
-          isRequired
-          isInvalid={!!errors.name}
-          errorMessage={errors.name}
-        />
-      </div>
+      <Input
+        type="text"
+        label="Session Name"
+        labelPlacement="outside"
+        placeholder="e.g., Week 1 - Summer Camp"
+        value={formData.name}
+        onValueChange={value => setFormData(prev => ({ ...prev, name: value }))}
+        isRequired
+        isInvalid={!!errors.name}
+        errorMessage={errors.name}
+      />
 
       {/* Date Range */}
-      <div className="form-group">
+      <div>
         <div className="mb-2">
           <label className="text-base font-semibold text-foreground">
             Session Dates
@@ -152,23 +150,21 @@ export function FixedSessionForm({
       </div>
 
       {/* Pricing */}
-      <div className="form-group">
-        <Input
-          type="number"
-          label="Price (USD)"
-          labelPlacement="outside"
-          placeholder="1200"
-          value={formData.price.toString()}
-          onValueChange={value => setFormData(prev => ({ ...prev, price: parseFloat(value) || 0 }))}
-          min={0}
-          isRequired
-          isInvalid={!!errors.price}
-          errorMessage={errors.price}
-        />
-      </div>
+      <Input
+        type="number"
+        label="Price (USD)"
+        labelPlacement="outside"
+        placeholder="1200"
+        value={formData.price.toString()}
+        onValueChange={value => setFormData(prev => ({ ...prev, price: parseFloat(value) || 0 }))}
+        min={0}
+        isRequired
+        isInvalid={!!errors.price}
+        errorMessage={errors.price}
+      />
 
       {/* Capacity */}
-      <div className="form-group">
+      <div>
         <div className="mb-2 flex items-center justify-between">
           <label className="text-base font-semibold text-foreground">Capacity</label>
           <Switch isSelected={hasCapacityLimit} onValueChange={handleCapacityToggle} />
