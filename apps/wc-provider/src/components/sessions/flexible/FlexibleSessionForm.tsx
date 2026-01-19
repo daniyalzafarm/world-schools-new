@@ -775,6 +775,7 @@ export function FlexibleSessionForm({
                           Day of Week
                         </label>
                         <SelectField
+                          label='Day of Week'
                           value={selectedDay}
                           onChange={value => {
                             const dayIndex = dayOptions.indexOf(value)
