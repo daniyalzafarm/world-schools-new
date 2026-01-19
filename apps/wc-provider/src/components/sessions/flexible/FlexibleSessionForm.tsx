@@ -692,8 +692,8 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
       <CollapsibleSection title="4. Capacity & Availability" defaultOpen={true}>
         <div className="space-y-6">
           {/* Total Capacity */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
+          <div className="flex gap-4 mb-4">
+            <div className="flex w-full items-center justify-between">
               <div>
                 <label className="text-sm font-medium text-foreground">Unlimited Capacity</label>
                 <p className="text-sm text-default-500">No limit on number of participants</p>
@@ -705,20 +705,21 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
                 }
               />
             </div>
-
-            {!formData.unlimitedCapacity && (
-              <Input
-                type="number"
-                label="Total Capacity"
-                labelPlacement="outside"
-                placeholder="50"
-                value={formData.capacity?.toString() || ''}
-                onValueChange={value =>
-                  setFormData(prev => ({ ...prev, capacity: value ? parseInt(value) : null }))
-                }
-                min={1}
-              />
-            )}
+            <div className="flex w-full">
+              {!formData.unlimitedCapacity && (
+                <Input
+                  type="number"
+                  label="Total Capacity"
+                  labelPlacement="outside"
+                  placeholder="50"
+                  value={formData.capacity?.toString() || ''}
+                  onValueChange={value =>
+                    setFormData(prev => ({ ...prev, capacity: value ? parseInt(value) : null }))
+                  }
+                  min={1}
+                />
+              )}
+            </div>
           </div>
 
           {/* Age Group */}
