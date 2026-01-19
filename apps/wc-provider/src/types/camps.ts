@@ -80,6 +80,7 @@ export interface Camp {
   id: string
   providerId: string
   name: string
+  slug: string
   type: CampType
   description: string
   locationType: LocationType
@@ -118,6 +119,7 @@ export interface Camp {
 
 export interface CreateCampDto {
   name: string
+  slug: string
   type: CampType
   description: string
   locationType: LocationType

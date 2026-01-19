@@ -31,6 +31,7 @@ import {
 import { PageSlot } from '@/components/layout/page-slot'
 import type { Camp, CampStatus, CampType } from '../../../types/camps'
 import { useConfirmDialog, useDebounce } from '@world-schools/ui-web'
+import config from '@/config/config'
 
 type TabFilter = 'all' | 'published' | 'draft' | 'archived'
 
@@ -143,9 +144,11 @@ export default function CampsPage() {
     router.push(`/camps/${campId}/edit/basic-info`)
   }
 
-  const handleViewCamp = (campId: string) => {
-    // TODO: Implement view camp functionality
-    console.log('View camp:', campId)
+  const handleViewCamp = (camp: Camp) => {
+    // Redirect to the booking app's camp page using the slug
+    const bookingAppUrl = config.app.bookingAppUrl
+    const campUrl = `${bookingAppUrl}/camps/${camp.slug}`
+    window.open(campUrl, '_blank')
   }
 
   const handleDeleteCamp = async (campId: string, campName: string) => {
@@ -572,7 +575,7 @@ export default function CampsPage() {
                           variant="bordered"
                           className="flex-1"
                           size="sm"
-                          onPress={() => handleViewCamp(camp.id)}
+                          onPress={() => handleViewCamp(camp)}
                           startContent={<Eye className="h-4 w-4" />}
                         >
                           View

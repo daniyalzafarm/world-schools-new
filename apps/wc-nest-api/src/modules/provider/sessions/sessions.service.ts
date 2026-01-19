@@ -143,7 +143,7 @@ export class SessionsService {
     })
 
     // Transform Decimal fields to numbers for proper JSON serialization
-    const transformedSessions = sessions.map((session) => this.transformSessionForResponse(session))
+    const transformedSessions = sessions.map(session => this.transformSessionForResponse(session))
 
     return {
       sessions: transformedSessions,
@@ -177,7 +177,7 @@ export class SessionsService {
     })
 
     // Transform Decimal fields to numbers and add booked count
-    const transformedSessions = sessions.map((session) => ({
+    const transformedSessions = sessions.map(session => ({
       ...this.transformSessionForResponse(session),
       bookedCount: session._count.bookings,
     }))

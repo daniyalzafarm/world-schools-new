@@ -59,6 +59,32 @@ export class CampsController {
   // ============================================
 
   /**
+   * Check if a slug is available
+   */
+  @Get('check-slug/:slug')
+  @Permissions('camps.create', 'camps.update')
+  @HttpCode(HttpStatus.OK)
+  async checkSlugAvailability(@Param('slug') slug: string, @Query('campId') campId?: string) {
+    const existingCamp = await this.prisma.camp.findUnique({
+      where: { slug },
+      select: { id: true },
+    })
+
+    // If no camp found with this slug, it's available
+    if (!existingCamp) {
+      return ResponseUtil.success({ available: true })
+    }
+
+    // If a campId is provided and it matches the existing camp, it's available (same camp)
+    if (campId && existingCamp.id === campId) {
+      return ResponseUtil.success({ available: true })
+    }
+
+    // Slug is taken by another camp
+    return ResponseUtil.success({ available: false })
+  }
+
+  /**
    * Create camp with basic info (Wizard Step 1)
    */
   @Post('create/basic-info')

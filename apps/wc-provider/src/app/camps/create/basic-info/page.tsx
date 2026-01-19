@@ -8,9 +8,21 @@ import { useOnboardingStore } from '../../../../stores/onboarding-store'
 import type { CampType, CreateCampDto, LocationType } from '../../../../types/camps'
 import { GoogleMapsLoader } from '../../../../components/onboarding/GoogleMapsLoader'
 import { GoogleMapWithSearch } from '../../../../components/onboarding/GoogleMapWithSearch'
+import { checkSlugAvailability } from '../../../../services/camps.services'
 
 /* eslint-disable no-undef */
 // Google Maps API types are loaded via script tag
+
+// Helper function to generate slug from camp name
+const generateSlug = (name: string): string => {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
+}
 
 export default function BasicInfoPage() {
   const router = useRouter()
@@ -31,6 +43,7 @@ export default function BasicInfoPage() {
 
   const [formData, setFormData] = useState<CreateCampDto>({
     name: '',
+    slug: '',
     type: 'day',
     description: '',
     locationType: 'provider',
@@ -40,6 +53,9 @@ export default function BasicInfoPage() {
     locationLat: undefined,
     locationLng: undefined,
   })
+
+  const [slugError, setSlugError] = useState<string>('')
+  const [isCheckingSlug, setIsCheckingSlug] = useState(false)
 
   // Google Maps state
   const [searchQuery, setSearchQuery] = useState('')
@@ -100,6 +116,7 @@ export default function BasicInfoPage() {
     if (wizardCamp) {
       setFormData({
         name: wizardCamp.name,
+        slug: wizardCamp.slug,
         type: wizardCamp.type,
         description: wizardCamp.description,
         locationType: wizardCamp.locationType,
@@ -242,7 +259,55 @@ export default function BasicInfoPage() {
     }
   }, [formData.locationType, formData.locationPlaceId, isEditingLocation])
 
+  // Handle name change with auto-slug generation
+  const handleNameChange = (name: string) => {
+    setFormData(prev => ({
+      ...prev,
+      name,
+      slug: generateSlug(name),
+    }))
+    setSlugError('')
+  }
+
+  // Validate slug availability
+  const validateSlug = async (slug: string) => {
+    if (!slug) {
+      setSlugError('Slug is required')
+      return false
+    }
+
+    // Check format
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+      setSlugError('Slug must be lowercase, alphanumeric, and use hyphens to separate words')
+      return false
+    }
+
+    // Check availability
+    setIsCheckingSlug(true)
+    try {
+      const result = await checkSlugAvailability(slug, campId || undefined)
+      if (!result.available) {
+        setSlugError('This slug is already taken. Please choose a different one.')
+        return false
+      }
+      setSlugError('')
+      return true
+    } catch (error) {
+      console.error('Failed to check slug availability:', error)
+      setSlugError('Failed to validate slug. Please try again.')
+      return false
+    } finally {
+      setIsCheckingSlug(false)
+    }
+  }
+
   const handleSubmit = async () => {
+    // Validate slug before submitting
+    const isSlugValid = await validateSlug(formData.slug)
+    if (!isSlugValid) {
+      return
+    }
+
     try {
       if (campId) {
         // Update existing camp (if needed)
@@ -262,6 +327,8 @@ export default function BasicInfoPage() {
   useEffect(() => {
     const isFormValid =
       formData.name.trim() !== '' &&
+      formData.slug.trim() !== '' &&
+      !slugError &&
       formData.description.trim() !== '' &&
       (formData.locationType === 'provider' || formData.locationPlaceId !== '')
 
@@ -270,7 +337,7 @@ export default function BasicInfoPage() {
       wizardFormValid: isFormValid,
       wizardFormSubmit: handleSubmit,
     })
-  }, [formData])
+  }, [formData, slugError])
 
   return (
     <GoogleMapsLoader apiKey={googleMapsApiKey}>
@@ -287,27 +354,70 @@ export default function BasicInfoPage() {
 
         {/* Form */}
         <div className="space-y-8">
-          {/* Camp Name */}
-          <div className="form-group">
-            <div className="mb-2 flex items-center gap-2">
-              <label className="text-base font-semibold text-foreground">
-                Camp Name
-                <span className="ml-1 text-danger">*</span>
-              </label>
-              <span className="relative inline-flex cursor-help items-center justify-center text-xs text-default-400">
-                ⓘ
-              </span>
+          <div className="flex gap-4">
+            {/* Camp Name */}
+            <div className="w-full">
+              <div className="mb-2 flex items-center gap-2">
+                <label className="text-base font-semibold text-foreground">
+                  Camp Name
+                  <span className="ml-1 text-danger">*</span>
+                </label>
+                <span className="relative inline-flex cursor-help items-center justify-center text-xs text-default-400">
+                  ⓘ
+                </span>
+              </div>
+              <input
+                type="text"
+                className="w-full rounded-lg border border-default-300 bg-background px-4 py-3 text-base text-foreground transition-all placeholder:text-default-400 hover:border-default-400 focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/20"
+                placeholder="e.g., American International Summer Camp – Salzburg"
+                value={formData.name}
+                onChange={e => handleNameChange(e.target.value)}
+                maxLength={120}
+              />
+              <div className="mt-1.5 text-right text-xs text-default-400">
+                {formData.name.length} / 120 characters
+              </div>
             </div>
-            <input
-              type="text"
-              className="w-full rounded-lg border border-default-300 bg-background px-4 py-3 text-base text-foreground transition-all placeholder:text-default-400 hover:border-default-400 focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/20"
-              placeholder="e.g., American International Summer Camp – Salzburg"
-              value={formData.name}
-              onChange={e => setFormData({ ...formData, name: e.target.value })}
-              maxLength={120}
-            />
-            <div className="mt-1.5 text-right text-xs text-default-400">
-              {formData.name.length} / 120 characters
+
+            {/* Camp Slug */}
+            <div className="w-full">
+              <div className="mb-2 flex items-center gap-2">
+                <label className="text-base font-semibold text-foreground">
+                  Camp URL Slug
+                  <span className="ml-1 text-danger">*</span>
+                </label>
+                <span className="relative inline-flex cursor-help items-center justify-center text-xs text-default-400">
+                  ⓘ
+                </span>
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  className={`w-full rounded-lg border bg-background px-4 py-3 text-base text-foreground transition-all placeholder:text-default-400 hover:border-default-400 focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/20 ${
+                    slugError ? 'border-danger' : 'border-default-300'
+                  }`}
+                  placeholder="e.g., american-international-summer-camp-salzburg"
+                  value={formData.slug}
+                  onChange={e => {
+                    setFormData({ ...formData, slug: e.target.value })
+                    setSlugError('')
+                  }}
+                  onBlur={() => validateSlug(formData.slug)}
+                  maxLength={150}
+                />
+                {isCheckingSlug && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                  </div>
+                )}
+              </div>
+              {slugError ? (
+                <div className="mt-1.5 text-sm text-danger">{slugError}</div>
+              ) : (
+                <div className="mt-1.5 text-sm text-default-500">
+                  For the camp's public URL. Auto-generated from camp name.
+                </div>
+              )}
             </div>
           </div>
 

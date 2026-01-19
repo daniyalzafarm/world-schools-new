@@ -47,6 +47,15 @@ export class CampsService {
       throw new BadRequestException('Location place ID is required when using different location')
     }
 
+    // Check if slug is already taken
+    const existingCamp = await this.prisma.camp.findUnique({
+      where: { slug: dto.slug },
+    })
+
+    if (existingCamp) {
+      throw new BadRequestException('This slug is already taken. Please choose a different one.')
+    }
+
     // Prepare location data
     let locationData = {
       locationPlaceId: dto.locationPlaceId,
@@ -77,6 +86,7 @@ export class CampsService {
       data: {
         providerId,
         name: dto.name,
+        slug: dto.slug,
         type: dto.type,
         description: dto.description,
         locationType: dto.locationType,
@@ -341,6 +351,17 @@ export class CampsService {
    */
   async updateBasicInfo(campId: string, providerId: string, dto: UpdateBasicInfoDto) {
     await this.verifyCampOwnership(campId, providerId)
+
+    // If slug is being updated, check if it's already taken by another camp
+    if (dto.slug) {
+      const existingCamp = await this.prisma.camp.findUnique({
+        where: { slug: dto.slug },
+      })
+
+      if (existingCamp && existingCamp.id !== campId) {
+        throw new BadRequestException('This slug is already taken. Please choose a different one.')
+      }
+    }
 
     // Prepare update data
     const updateData: any = { ...dto }

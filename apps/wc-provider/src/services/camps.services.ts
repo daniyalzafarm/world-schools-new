@@ -143,6 +143,18 @@ export const deleteCamp = async (campId: string): Promise<void> => {
   if (!response.success) throw new Error((response.data as any).message)
 }
 
+export const checkSlugAvailability = async (
+  slug: string,
+  campId?: string
+): Promise<{ available: boolean }> => {
+  const params = campId ? `?campId=${campId}` : ''
+  const response = await apiClient.get<{ available: boolean }>(
+    `/provider/camps/check-slug/${slug}${params}`
+  )
+  if (!response.success) throw new Error((response.data as any).message)
+  return response.data as { available: boolean }
+}
+
 // ============================================
 // Editor Endpoints
 // ============================================

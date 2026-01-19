@@ -4,6 +4,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   ValidateNested,
 } from 'class-validator'
@@ -13,6 +14,14 @@ export class UpdateBasicInfoDto {
   @IsOptional()
   @IsString()
   name?: string
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message: 'Slug must be lowercase, alphanumeric, and use hyphens to separate words',
+  })
+  slug?: string
 
   @IsOptional()
   @IsEnum(['day', 'residential'])

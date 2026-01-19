@@ -406,6 +406,7 @@ model Camp {
 
   // Basic Info (Step 1 - Wizard & Editor)
   name        String   @db.VarChar(120)
+  slug        String   @unique @db.VarChar(150)
   type        CampType
   description String   @db.Text
 
@@ -465,6 +466,7 @@ model Camp {
   @@index([providerId])
   @@index([status])
   @@index([sessionType])
+  @@index([slug])
   @@map("camps")
 }
 

@@ -9,8 +9,8 @@ import {
   Max,
   MaxLength,
   Min,
-  ValidateNested,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator'
 import { Type } from 'class-transformer'
 
@@ -83,7 +83,7 @@ export class CreateFlexibleSessionDto {
   @IsDateString()
   endDate: string
 
-  @ValidateIf((o) => o.unlimitedCapacity === false || o.unlimitedCapacity === undefined)
+  @ValidateIf(o => o.unlimitedCapacity === false || o.unlimitedCapacity === undefined)
   @IsNumber()
   @Min(1, { message: 'Total capacity is required when unlimited capacity is not enabled' })
   capacity?: number
