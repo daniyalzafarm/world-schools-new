@@ -238,6 +238,20 @@ export class SessionsService {
         blackoutDates: (dto.blackoutDates ?? []) as any,
         capacity: dto.capacity,
         sortOrder,
+        // Pricing & configuration fields
+        basePricePerDay: dto.basePricePerDay,
+        requireConsecutiveDays: dto.requireConsecutiveDays,
+        minDaysLimit: dto.minDaysLimit,
+        maxDaysLimit: dto.maxDaysLimit,
+        availableDaysOfWeek: (dto.availableDaysOfWeek ?? null) as any,
+        specificStartDays: (dto.specificStartDays ?? null) as any,
+        discountTiers: (dto.discountTiers ?? null) as any,
+        dayOfWeekPricing: (dto.dayOfWeekPricing ?? null) as any,
+        ageRange: (dto.ageRange ?? null) as any,
+        unlimitedCapacity: dto.unlimitedCapacity,
+        boysCapacity: dto.boysCapacity,
+        girlsCapacity: dto.girlsCapacity,
+        separateGenderCapacity: dto.separateGenderCapacity,
       },
     })
 
@@ -407,6 +421,26 @@ export class SessionsService {
     if (dto.blackoutDates !== undefined) updateData.blackoutDates = dto.blackoutDates as any
     if (dto.capacity !== undefined) updateData.capacity = dto.capacity
     if (dto.isActive !== undefined) updateData.isActive = dto.isActive
+
+    // Update pricing & configuration fields
+    if (dto.basePricePerDay !== undefined) updateData.basePricePerDay = dto.basePricePerDay
+    if (dto.requireConsecutiveDays !== undefined)
+      updateData.requireConsecutiveDays = dto.requireConsecutiveDays
+    if (dto.minDaysLimit !== undefined) updateData.minDaysLimit = dto.minDaysLimit
+    if (dto.maxDaysLimit !== undefined) updateData.maxDaysLimit = dto.maxDaysLimit
+    if (dto.availableDaysOfWeek !== undefined)
+      updateData.availableDaysOfWeek = dto.availableDaysOfWeek as any
+    if (dto.specificStartDays !== undefined)
+      updateData.specificStartDays = dto.specificStartDays as any
+    if (dto.discountTiers !== undefined) updateData.discountTiers = dto.discountTiers as any
+    if (dto.dayOfWeekPricing !== undefined)
+      updateData.dayOfWeekPricing = dto.dayOfWeekPricing as any
+    if (dto.ageRange !== undefined) updateData.ageRange = dto.ageRange as any
+    if (dto.unlimitedCapacity !== undefined) updateData.unlimitedCapacity = dto.unlimitedCapacity
+    if (dto.boysCapacity !== undefined) updateData.boysCapacity = dto.boysCapacity
+    if (dto.girlsCapacity !== undefined) updateData.girlsCapacity = dto.girlsCapacity
+    if (dto.separateGenderCapacity !== undefined)
+      updateData.separateGenderCapacity = dto.separateGenderCapacity
 
     const updatedSession = await this.prisma.session.update({
       where: { id: sessionId },

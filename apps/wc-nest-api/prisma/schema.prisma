@@ -534,8 +534,22 @@ model Session {
   // Flexible Session Fields (only used when type = 'flexible')
   startDate     DateTime? @map("start_date") // Booking window start
   endDate       DateTime? @map("end_date") // Booking window end
-  durations     Json? // [{weeks: 2, days: 0, price: 500}, ...]
-  blackoutDates Json? // [{start: '2026-07-04', end: '2026-07-04', reason: 'Holiday'}, ...]
+  blackoutDates Json?     @map("blackout_dates") // [{start: '2026-07-04', end: '2026-07-04', reason: 'Holiday'}, ...]
+
+  // Flexible Session Pricing & Configuration
+  basePricePerDay        Decimal? @map("base_price_per_day") @db.Decimal(10, 2)
+  requireConsecutiveDays Boolean? @default(false) @map("require_consecutive_days")
+  minDaysLimit           Int?     @map("min_days_limit")
+  maxDaysLimit           Int?     @map("max_days_limit")
+  availableDaysOfWeek    Json?    @map("available_days_of_week") // [0,1,2,3,4,5,6]
+  specificStartDays      Json?    @map("specific_start_days") // [0,1,2,3,4,5,6]
+  discountTiers          Json?    @map("discount_tiers") // [{minDays: 7, maxDays: 13, discountPercent: 10}, ...]
+  dayOfWeekPricing       Json?    @map("day_of_week_pricing") // [{dayOfWeek: 0, price: 100}, ...]
+  ageRange               Json?    @map("age_range") // {min: 5, max: 12}
+  unlimitedCapacity      Boolean? @default(false) @map("unlimited_capacity")
+  boysCapacity           Int?     @map("boys_capacity")
+  girlsCapacity          Int?     @map("girls_capacity")
+  separateGenderCapacity Boolean? @default(false) @map("separate_gender_capacity")
 
   // Fixed Session Fields (only used when type = 'fixed')
   sessionStartDate DateTime? @map("session_start_date") // Actual session start
@@ -567,16 +581,16 @@ model Booking {
   childId  String @map("child_id")
 
   // Booking Details
-  startDate DateTime  @map("start_date") // When child starts attending
-  endDate   DateTime  @map("end_date") // When child finishes
+  startDate DateTime      @map("start_date") // When child starts attending
+  endDate   DateTime      @map("end_date") // When child finishes
   duration  Json? // For flexible sessions: {weeks: 2, days: 3}
-  price     Decimal   @db.Decimal(10, 2)
+  price     Decimal       @db.Decimal(10, 2)
   status    BookingStatus @default(pending)
 
   // Payment
   paymentStatus PaymentStatus @default(pending) @map("payment_status")
-  paidAmount    Decimal       @default(0) @db.Decimal(10, 2) @map("paid_amount")
-  depositAmount Decimal?      @db.Decimal(10, 2) @map("deposit_amount")
+  paidAmount    Decimal       @default(0) @map("paid_amount") @db.Decimal(10, 2)
+  depositAmount Decimal?      @map("deposit_amount") @db.Decimal(10, 2)
 
   // Add-ons
   addOns Json? @map("add_ons") // [{addOnId, quantity, price}, ...]
@@ -586,8 +600,8 @@ model Booking {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  session Session @relation(fields: [sessionId], references: [id], onDelete: Restrict)
-  parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Restrict)
+  session Session  @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  parent  Parent   @relation(fields: [parentId], references: [id], onDelete: Restrict)
   child   Children @relation(fields: [childId], references: [id], onDelete: Restrict)
 
   @@index([sessionId])

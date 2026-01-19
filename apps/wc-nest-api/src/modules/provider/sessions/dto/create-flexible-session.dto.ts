@@ -1,10 +1,12 @@
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   ValidateNested,
@@ -22,6 +24,45 @@ export class BlackoutDateDto {
   @IsString()
   @MaxLength(200)
   reason?: string
+}
+
+export class DiscountTierDto {
+  @IsNumber()
+  @Min(1)
+  minDays: number
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  maxDays?: number
+
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  discountPercent: number
+}
+
+export class DayOfWeekPricingDto {
+  @IsNumber()
+  @Min(0)
+  @Max(6)
+  dayOfWeek: number
+
+  @IsNumber()
+  @Min(0)
+  price: number
+}
+
+export class AgeRangeDto {
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  min: number
+
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  max: number
 }
 
 export class CreateFlexibleSessionDto {
@@ -51,4 +92,68 @@ export class CreateFlexibleSessionDto {
   @ValidateNested({ each: true })
   @Type(() => BlackoutDateDto)
   blackoutDates?: BlackoutDateDto[]
+
+  // Pricing fields
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  basePricePerDay?: number
+
+  @IsOptional()
+  @IsBoolean()
+  requireConsecutiveDays?: boolean
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  minDaysLimit?: number
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  maxDaysLimit?: number
+
+  @IsOptional()
+  @IsArray()
+  availableDaysOfWeek?: number[]
+
+  @IsOptional()
+  @IsArray()
+  specificStartDays?: number[]
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DiscountTierDto)
+  discountTiers?: DiscountTierDto[]
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DayOfWeekPricingDto)
+  dayOfWeekPricing?: DayOfWeekPricingDto[]
+
+  // Age and capacity fields
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AgeRangeDto)
+  ageRange?: AgeRangeDto
+
+  @IsOptional()
+  @IsBoolean()
+  unlimitedCapacity?: boolean
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  boysCapacity?: number
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  girlsCapacity?: number
+
+  @IsOptional()
+  @IsBoolean()
+  separateGenderCapacity?: boolean
 }
