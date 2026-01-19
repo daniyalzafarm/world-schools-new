@@ -1,12 +1,11 @@
 'use client'
 
-import { useState } from 'react'
 import { Button, Spinner } from '@heroui/react'
 import { Plus } from 'lucide-react'
+import { useConfirmDialog } from '@world-schools/ui-web'
 import type { FixedSession } from '@/types/sessions'
 import { FixedSessionCard } from './FixedSessionCard'
 import { FixedSessionsEmptyState } from './FixedSessionsEmptyState'
-import { DeleteSessionDialog } from '../shared/DeleteSessionDialog'
 
 interface FixedSessionsListProps {
   sessions: FixedSession[]
@@ -35,21 +34,40 @@ export function FixedSessionsList({
   onToggleStatus,
   onChangeSessionType,
 }: FixedSessionsListProps) {
-  const [sessionToDelete, setSessionToDelete] = useState<FixedSession | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const { confirm } = useConfirmDialog()
 
-  // Handle delete confirmation
-  const handleDeleteConfirm = async () => {
-    if (!sessionToDelete) return
+  // Handle delete with confirmation
+  const handleDelete = async (session: FixedSession) => {
+    // Check if session has bookings
+    const hasBookings = !!session.bookedCount
 
-    setIsDeleting(true)
-    try {
-      await onDeleteSession(sessionToDelete.id)
-      setSessionToDelete(null)
-    } catch (error) {
-      console.error('Failed to delete session:', error)
-    } finally {
-      setIsDeleting(false)
+    if (hasBookings) {
+      // Show error message for sessions with bookings
+      await confirm({
+        title: 'Cannot Delete Session',
+        message: `This session has ${session.bookedCount} active ${session.bookedCount === 1 ? 'booking' : 'bookings'}.\n\nYou cannot delete a session with existing bookings. Please contact support if you need to cancel this session.`,
+        confirmText: 'Got It',
+        cancelText: '',
+        variant: 'danger',
+      })
+      return
+    }
+
+    // Show confirmation dialog for sessions without bookings
+    const confirmed = await confirm({
+      title: 'Delete Session?',
+      message: `Are you sure you want to delete "${session.name}"?\n\nThis action cannot be undone and will permanently remove this session from your camp.`,
+      confirmText: 'Delete Session',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    })
+
+    if (confirmed) {
+      try {
+        await onDeleteSession(session.id)
+      } catch (error) {
+        console.error('Failed to delete session:', error)
+      }
     }
   }
 
@@ -101,24 +119,12 @@ export function FixedSessionsList({
             key={session.id}
             session={session}
             onEdit={onEditSession}
-            onDelete={setSessionToDelete}
+            onDelete={handleDelete}
             onDuplicate={() => onDuplicateSession(session.id)}
             onToggleStatus={() => onToggleStatus(session.id)}
           />
         ))}
       </div>
-
-      {/* Delete Confirmation Dialog */}
-      {sessionToDelete && (
-        <DeleteSessionDialog
-          isOpen={!!sessionToDelete}
-          onClose={() => setSessionToDelete(null)}
-          onConfirm={handleDeleteConfirm}
-          sessionName={sessionToDelete.name}
-          bookingCount={sessionToDelete.bookedCount}
-          isDeleting={isDeleting}
-        />
-      )}
     </div>
   )
 }

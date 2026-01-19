@@ -1,12 +1,11 @@
 'use client'
 
-import { useState } from 'react'
 import { Button, Spinner } from '@heroui/react'
 import { Plus } from 'lucide-react'
+import { useConfirmDialog } from '@world-schools/ui-web'
 import type { FlexibleSession } from '@/types/sessions'
 import { FlexibleSessionCard } from './FlexibleSessionCard'
 import { FlexibleSessionsEmptyState } from './FlexibleSessionsEmptyState'
-import { DeleteSessionDialog } from '../shared/DeleteSessionDialog'
 
 interface FlexibleSessionsListProps {
   sessions: FlexibleSession[]
@@ -34,21 +33,28 @@ export function FlexibleSessionsList({
   onToggleStatus,
   onChangeSessionType,
 }: FlexibleSessionsListProps) {
-  const [sessionToDelete, setSessionToDelete] = useState<FlexibleSession | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const { confirm } = useConfirmDialog()
 
-  // Handle delete confirmation
-  const handleDeleteConfirm = async () => {
-    if (!sessionToDelete) return
+  // Handle delete with confirmation
+  const handleDelete = async (session: FlexibleSession) => {
+    // Note: Flexible sessions don't have a bookedCount property in the current implementation
+    // If bookings are tracked in the future, add the same check as FixedSessionsList
 
-    setIsDeleting(true)
-    try {
-      await onDeleteSession(sessionToDelete.id)
-      setSessionToDelete(null)
-    } catch (error) {
-      console.error('Failed to delete session:', error)
-    } finally {
-      setIsDeleting(false)
+    // Show confirmation dialog
+    const confirmed = await confirm({
+      title: 'Delete Session?',
+      message: `Are you sure you want to delete "${session.name}"?\n\nThis action cannot be undone and will permanently remove this session from your camp.`,
+      confirmText: 'Delete Session',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    })
+
+    if (confirmed) {
+      try {
+        await onDeleteSession(session.id)
+      } catch (error) {
+        console.error('Failed to delete session:', error)
+      }
     }
   }
 
@@ -100,23 +106,11 @@ export function FlexibleSessionsList({
             key={session.id}
             session={session}
             onEdit={onEditSession}
-            onDelete={setSessionToDelete}
+            onDelete={handleDelete}
             onToggleStatus={() => onToggleStatus(session.id)}
           />
         ))}
       </div>
-
-      {/* Delete Confirmation Dialog */}
-      {sessionToDelete && (
-        <DeleteSessionDialog
-          isOpen={!!sessionToDelete}
-          onClose={() => setSessionToDelete(null)}
-          onConfirm={handleDeleteConfirm}
-          sessionName={sessionToDelete.name}
-          bookingCount={0}
-          isDeleting={isDeleting}
-        />
-      )}
     </div>
   )
 }

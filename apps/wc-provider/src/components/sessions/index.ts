@@ -6,7 +6,6 @@ export { SessionTypeSelector } from './SessionTypeSelector'
 export { SessionStatusBadge } from './shared/SessionStatusBadge'
 export { SessionCapacityIndicator } from './shared/SessionCapacityIndicator'
 export { SessionPricingDisplay } from './shared/SessionPricingDisplay'
-export { DeleteSessionDialog } from './shared/DeleteSessionDialog'
 
 // Flexible session components
 export { FlexibleSessionsManager } from './flexible/FlexibleSessionsManager'
