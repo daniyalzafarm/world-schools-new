@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { RangeCalendar, Switch } from '@heroui/react'
-import { Input } from '@world-schools/ui-web'
+import { CurrencyInput, Input } from '@world-schools/ui-web'
 import { type CalendarDate, parseDate } from '@internationalized/date'
 import type { RangeValue } from '@react-types/shared'
 import type { FixedSession } from '@/types/sessions'
@@ -167,47 +167,104 @@ export function FixedSessionForm({ session, onSubmit, onSubmitRef }: FixedSessio
         </div>
         <div className="grid md:grid-cols-2 gap-4">
           {/* Left Column: Individual Date Inputs */}
-          <div className="flex gap-4">
-            <Input
-              type="date"
-              label="Start Date"
-              labelPlacement="outside"
-              value={formData.sessionStartDate}
-              onValueChange={value => {
-                setFormData(prev => ({ ...prev, sessionStartDate: value }))
-                clearError('dates')
-                // Update RangeCalendar when start date changes
-                const startCal = stringToCalendarDate(value)
-                const endCal = stringToCalendarDate(formData.sessionEndDate)
-                if (startCal && endCal) {
-                  setDateRange({ start: startCal, end: endCal })
-                } else if (startCal) {
-                  setDateRange(prev => (prev ? { ...prev, start: startCal } : null))
-                }
-              }}
-              isRequired
-              isInvalid={!!errors.dates}
-            />
-            <Input
-              type="date"
-              label="End Date"
-              labelPlacement="outside"
-              value={formData.sessionEndDate}
-              onValueChange={value => {
-                setFormData(prev => ({ ...prev, sessionEndDate: value }))
-                clearError('dates')
-                // Update RangeCalendar when end date changes
-                const startCal = stringToCalendarDate(formData.sessionStartDate)
-                const endCal = stringToCalendarDate(value)
-                if (startCal && endCal) {
-                  setDateRange({ start: startCal, end: endCal })
-                } else if (endCal) {
-                  setDateRange(prev => (prev ? { ...prev, end: endCal } : null))
-                }
-              }}
-              isRequired
-              isInvalid={!!errors.dates}
-            />
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-4">
+              <Input
+                type="date"
+                label="Start Date"
+                labelPlacement="outside"
+                value={formData.sessionStartDate}
+                onValueChange={value => {
+                  setFormData(prev => ({ ...prev, sessionStartDate: value }))
+                  clearError('dates')
+                  // Update RangeCalendar when start date changes
+                  const startCal = stringToCalendarDate(value)
+                  const endCal = stringToCalendarDate(formData.sessionEndDate)
+                  if (startCal && endCal) {
+                    setDateRange({ start: startCal, end: endCal })
+                  } else if (startCal) {
+                    setDateRange(prev => (prev ? { ...prev, start: startCal } : null))
+                  }
+                }}
+                isRequired
+                isInvalid={!!errors.dates}
+              />
+              <Input
+                type="date"
+                label="End Date"
+                labelPlacement="outside"
+                value={formData.sessionEndDate}
+                onValueChange={value => {
+                  setFormData(prev => ({ ...prev, sessionEndDate: value }))
+                  clearError('dates')
+                  // Update RangeCalendar when end date changes
+                  const startCal = stringToCalendarDate(formData.sessionStartDate)
+                  const endCal = stringToCalendarDate(value)
+                  if (startCal && endCal) {
+                    setDateRange({ start: startCal, end: endCal })
+                  } else if (endCal) {
+                    setDateRange(prev => (prev ? { ...prev, end: endCal } : null))
+                  }
+                }}
+                isRequired
+                isInvalid={!!errors.dates}
+              />
+            </div>
+            {/* Pricing */}
+            <div className="m-0">
+              <CurrencyInput
+                label="Price"
+                labelPlacement="outside"
+                placeholder="1200"
+                value={formData.price}
+                onValueChange={value => {
+                  setFormData(prev => ({ ...prev, price: value ?? 0 }))
+                  clearError('price')
+                }}
+                currency="USD"
+                isRequired
+                isInvalid={!!errors.price}
+                errorMessage={errors.price}
+              />
+            </div>
+
+            {/* Capacity */}
+            <div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-base font-semibold text-foreground">Capacity</label>
+                  <p className="mb-4 text-sm leading-normal text-default-500">
+                    Set a maximum number of participants for this session
+                  </p>
+                </div>
+                <Switch isSelected={hasCapacityLimit} onValueChange={handleCapacityToggle} />
+              </div>
+
+              {hasCapacityLimit && (
+                <Input
+                  type="number"
+                  label="Maximum Capacity"
+                  labelPlacement="outside"
+                  placeholder="50"
+                  value={formData.capacity?.toString() || ''}
+                  onValueChange={value =>
+                    setFormData(prev => ({ ...prev, capacity: parseInt(value) || undefined }))
+                  }
+                  min={1}
+                  isRequired
+                  isInvalid={!!errors.capacity}
+                  errorMessage={errors.capacity}
+                />
+              )}
+
+              {!hasCapacityLimit && (
+                <div className="rounded-lg bg-default-100 p-4">
+                  <p className="text-sm text-default-500">
+                    This session will have unlimited capacity
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Right Column: RangeCalendar */}
@@ -231,54 +288,6 @@ export function FixedSessionForm({ session, onSubmit, onSubmitRef }: FixedSessio
           </div>
         </div>
         {errors.dates && <p className="mt-1.5 text-sm text-danger">{errors.dates}</p>}
-      </div>
-
-      {/* Pricing */}
-      <Input
-        type="number"
-        label="Price (USD)"
-        labelPlacement="outside"
-        placeholder="1200"
-        value={formData.price.toString()}
-        onValueChange={value => setFormData(prev => ({ ...prev, price: parseFloat(value) || 0 }))}
-        min={0}
-        isRequired
-        isInvalid={!!errors.price}
-        errorMessage={errors.price}
-      />
-
-      {/* Capacity */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <label className="text-base font-semibold text-foreground">Capacity</label>
-          <Switch isSelected={hasCapacityLimit} onValueChange={handleCapacityToggle} />
-        </div>
-        <p className="mb-4 text-sm leading-normal text-default-500">
-          Set a maximum number of participants for this session
-        </p>
-
-        {hasCapacityLimit && (
-          <Input
-            type="number"
-            label="Maximum Capacity"
-            labelPlacement="outside"
-            placeholder="50"
-            value={formData.capacity?.toString() || ''}
-            onValueChange={value =>
-              setFormData(prev => ({ ...prev, capacity: parseInt(value) || undefined }))
-            }
-            min={1}
-            isRequired
-            isInvalid={!!errors.capacity}
-            errorMessage={errors.capacity}
-          />
-        )}
-
-        {!hasCapacityLimit && (
-          <div className="rounded-lg bg-default-100 p-4">
-            <p className="text-sm text-default-500">This session will have unlimited capacity</p>
-          </div>
-        )}
       </div>
     </div>
   )
