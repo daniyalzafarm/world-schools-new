@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Switch } from '@heroui/react'
+import { RangeCalendar, Switch } from '@heroui/react'
 import { Input } from '@world-schools/ui-web'
+import { type CalendarDate, parseDate } from '@internationalized/date'
+import type { RangeValue } from '@react-types/shared'
 import type { FixedSession } from '@/types/sessions'
 import { useSessionValidation } from '@/hooks/useSessionValidation'
 import { formatDateForInput } from '@/utils/sessionFormatters'
@@ -22,6 +24,20 @@ export interface FixedSessionFormData {
   capacity?: number
 }
 
+// Helper functions to convert between string dates and CalendarDate
+const stringToCalendarDate = (dateString: string): CalendarDate | null => {
+  if (!dateString) return null
+  try {
+    return parseDate(dateString)
+  } catch {
+    return null
+  }
+}
+
+const calendarDateToString = (date: CalendarDate): string => {
+  return `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`
+}
+
 /**
  * Fixed Session Form Component
  * Form for creating/editing fixed sessions
@@ -39,11 +55,33 @@ export function FixedSessionForm({ session, onSubmit, onSubmitRef }: FixedSessio
     capacity: session?.capacity,
   })
 
+  // Date range state for RangeCalendar
+  const [dateRange, setDateRange] = useState<RangeValue<CalendarDate> | null>(() => {
+    const start = stringToCalendarDate(
+      session?.sessionStartDate ? formatDateForInput(session.sessionStartDate) : ''
+    )
+    const end = stringToCalendarDate(
+      session?.sessionEndDate ? formatDateForInput(session.sessionEndDate) : ''
+    )
+    if (start && end) {
+      return { start, end }
+    }
+    return null
+  })
+
   // Capacity toggle
   const [hasCapacityLimit, setHasCapacityLimit] = useState(session?.capacity !== undefined)
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Clear specific error
+  const clearError = (field: string) => {
+    setErrors(prev => {
+      const { [field]: _, ...rest } = prev
+      return rest
+    })
+  }
 
   // Validate form
   const validateForm = (): boolean => {
@@ -128,24 +166,69 @@ export function FixedSessionForm({ session, onSubmit, onSubmitRef }: FixedSessio
           </label>
         </div>
         <div className="grid md:grid-cols-2 gap-4">
-          <Input
-            type="date"
-            label="Start Date"
-            labelPlacement="outside"
-            value={formData.sessionStartDate}
-            onValueChange={value => setFormData(prev => ({ ...prev, sessionStartDate: value }))}
-            isRequired
-            isInvalid={!!errors.dates}
-          />
-          <Input
-            type="date"
-            label="End Date"
-            labelPlacement="outside"
-            value={formData.sessionEndDate}
-            onValueChange={value => setFormData(prev => ({ ...prev, sessionEndDate: value }))}
-            isRequired
-            isInvalid={!!errors.dates}
-          />
+          {/* Left Column: Individual Date Inputs */}
+          <div className="flex gap-4">
+            <Input
+              type="date"
+              label="Start Date"
+              labelPlacement="outside"
+              value={formData.sessionStartDate}
+              onValueChange={value => {
+                setFormData(prev => ({ ...prev, sessionStartDate: value }))
+                clearError('dates')
+                // Update RangeCalendar when start date changes
+                const startCal = stringToCalendarDate(value)
+                const endCal = stringToCalendarDate(formData.sessionEndDate)
+                if (startCal && endCal) {
+                  setDateRange({ start: startCal, end: endCal })
+                } else if (startCal) {
+                  setDateRange(prev => (prev ? { ...prev, start: startCal } : null))
+                }
+              }}
+              isRequired
+              isInvalid={!!errors.dates}
+            />
+            <Input
+              type="date"
+              label="End Date"
+              labelPlacement="outside"
+              value={formData.sessionEndDate}
+              onValueChange={value => {
+                setFormData(prev => ({ ...prev, sessionEndDate: value }))
+                clearError('dates')
+                // Update RangeCalendar when end date changes
+                const startCal = stringToCalendarDate(formData.sessionStartDate)
+                const endCal = stringToCalendarDate(value)
+                if (startCal && endCal) {
+                  setDateRange({ start: startCal, end: endCal })
+                } else if (endCal) {
+                  setDateRange(prev => (prev ? { ...prev, end: endCal } : null))
+                }
+              }}
+              isRequired
+              isInvalid={!!errors.dates}
+            />
+          </div>
+
+          {/* Right Column: RangeCalendar */}
+          <div className="flex justify-center">
+            <RangeCalendar
+              aria-label="Session date range"
+              value={dateRange}
+              onChange={value => {
+                setDateRange(value)
+                if (value) {
+                  setFormData(prev => ({
+                    ...prev,
+                    sessionStartDate: calendarDateToString(value.start),
+                    sessionEndDate: calendarDateToString(value.end),
+                  }))
+                  clearError('dates')
+                }
+              }}
+              isInvalid={!!errors.dates}
+            />
+          </div>
         </div>
         {errors.dates && <p className="mt-1.5 text-sm text-danger">{errors.dates}</p>}
       </div>
