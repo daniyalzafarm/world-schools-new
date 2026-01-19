@@ -41,7 +41,17 @@ export default function EditFlexibleSessionPage() {
 
   // Handle form submit
   const handleSubmit = async (data: FlexibleSessionFormData) => {
-    await updateFlexibleSession(sessionId, data, {
+    // Transform form data to DTO (convert null to undefined)
+    const dto = {
+      ...data,
+      capacity: data.capacity ?? undefined,
+      basePricePerDay: data.basePricePerDay ?? undefined,
+      minDaysLimit: data.minDaysLimit ?? undefined,
+      maxDaysLimit: data.maxDaysLimit ?? undefined,
+      ageRange: data.ageRange ?? undefined,
+    }
+
+    await updateFlexibleSession(sessionId, dto, {
       onSuccess: () => {
         router.push(`/camps/${campId}/edit/sessions`)
       },

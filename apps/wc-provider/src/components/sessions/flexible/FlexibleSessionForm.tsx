@@ -1,10 +1,25 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Button } from '@heroui/react'
-import { Input } from '@world-schools/ui-web'
+import { Button, RangeCalendar, Switch } from '@heroui/react'
+import {
+  CollapsibleSection,
+  CurrencyInput,
+  DayOfWeekSelector,
+  Input,
+  RichTextEditor,
+} from '@world-schools/ui-web'
+import { type CalendarDate, parseDate } from '@internationalized/date'
+import type { RangeValue } from '@react-types/shared'
 import { Plus, Trash2 } from 'lucide-react'
-import type { BlackoutDate, Duration, FlexibleSession } from '@/types/sessions'
+import type {
+  AgeRange,
+  BlackoutDate,
+  DayOfWeekPricing,
+  DiscountTier,
+  Duration,
+  FlexibleSession,
+} from '@/types/sessions'
 import { useSessionValidation } from '@/hooks/useSessionValidation'
 import { formatDateForInput } from '@/utils/sessionFormatters'
 
@@ -16,10 +31,36 @@ interface FlexibleSessionFormProps {
 
 export interface FlexibleSessionFormData {
   name: string
+  description: string
   startDate: string
   endDate: string
   durations: Duration[]
   blackoutDates: BlackoutDate[]
+  basePricePerDay: number | null
+  requireConsecutiveDays: boolean
+  minDaysLimit: number | null
+  maxDaysLimit: number | null
+  availableDaysOfWeek: number[]
+  specificStartDays: number[]
+  discountTiers: DiscountTier[]
+  dayOfWeekPricing: DayOfWeekPricing[]
+  ageRange: AgeRange | null
+  capacity: number | null
+  unlimitedCapacity: boolean
+}
+
+// Helper functions to convert between string dates and CalendarDate
+const stringToCalendarDate = (dateString: string): CalendarDate | null => {
+  if (!dateString) return null
+  try {
+    return parseDate(dateString)
+  } catch {
+    return null
+  }
+}
+
+const calendarDateToString = (date: CalendarDate): string => {
+  return `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`
 }
 
 /**
@@ -33,10 +74,32 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
   // Form state
   const [formData, setFormData] = useState<FlexibleSessionFormData>({
     name: session?.name || '',
+    description: session?.description || '',
     startDate: session?.startDate ? formatDateForInput(session.startDate) : '',
     endDate: session?.endDate ? formatDateForInput(session.endDate) : '',
     durations: session?.durations ?? [{ weeks: 2, price: 0 }],
     blackoutDates: session?.blackoutDates ?? [],
+    basePricePerDay: session?.basePricePerDay ?? null,
+    requireConsecutiveDays: session?.requireConsecutiveDays ?? false,
+    minDaysLimit: session?.minDaysLimit ?? null,
+    maxDaysLimit: session?.maxDaysLimit ?? null,
+    availableDaysOfWeek: session?.availableDaysOfWeek ?? [0, 1, 2, 3, 4, 5, 6],
+    specificStartDays: session?.specificStartDays ?? [0, 1, 2, 3, 4, 5, 6],
+    discountTiers: session?.discountTiers ?? [],
+    dayOfWeekPricing: session?.dayOfWeekPricing ?? [],
+    ageRange: session?.ageRange ?? null,
+    capacity: session?.capacity ?? null,
+    unlimitedCapacity: session?.unlimitedCapacity ?? false,
+  })
+
+  // Date range state for RangeCalendar
+  const [dateRange, setDateRange] = useState<RangeValue<CalendarDate> | null>(() => {
+    const start = stringToCalendarDate(formData.startDate)
+    const end = stringToCalendarDate(formData.endDate)
+    if (start && end) {
+      return { start, end }
+    }
+    return null
   })
 
   // Validation errors
@@ -86,30 +149,6 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
     }
   }, [formData, onSubmitRef])
 
-  // Add duration
-  const addDuration = () => {
-    setFormData(prev => ({
-      ...prev,
-      durations: [...prev.durations, { weeks: 1, price: 0 }],
-    }))
-  }
-
-  // Remove duration
-  const removeDuration = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      durations: prev.durations.filter((_, i) => i !== index),
-    }))
-  }
-
-  // Update duration
-  const updateDuration = (index: number, field: keyof Duration, value: number) => {
-    setFormData(prev => ({
-      ...prev,
-      durations: prev.durations.map((d, i) => (i === index ? { ...d, [field]: value } : d)),
-    }))
-  }
-
   // Add blackout date
   const addBlackoutDate = () => {
     setFormData(prev => ({
@@ -134,191 +173,544 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
     }))
   }
 
+  // Add discount tier
+  const addDiscountTier = () => {
+    setFormData(prev => ({
+      ...prev,
+      discountTiers: [...prev.discountTiers, { minDays: 1, discountPercent: 0 }],
+    }))
+  }
+
+  // Remove discount tier
+  const removeDiscountTier = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      discountTiers: prev.discountTiers.filter((_, i) => i !== index),
+    }))
+  }
+
+  // Update discount tier
+  const updateDiscountTier = (
+    index: number,
+    field: keyof DiscountTier,
+    value: number | undefined
+  ) => {
+    setFormData(prev => ({
+      ...prev,
+      discountTiers: prev.discountTiers.map((d, i) => (i === index ? { ...d, [field]: value } : d)),
+    }))
+  }
+
+  // Add day-of-week pricing
+  const addDayOfWeekPricing = () => {
+    setFormData(prev => ({
+      ...prev,
+      dayOfWeekPricing: [...prev.dayOfWeekPricing, { dayOfWeek: 0, price: 0 }],
+    }))
+  }
+
+  // Remove day-of-week pricing
+  const removeDayOfWeekPricing = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      dayOfWeekPricing: prev.dayOfWeekPricing.filter((_, i) => i !== index),
+    }))
+  }
+
+  // Update day-of-week pricing
+  const updateDayOfWeekPricing = (index: number, field: keyof DayOfWeekPricing, value: number) => {
+    setFormData(prev => ({
+      ...prev,
+      dayOfWeekPricing: prev.dayOfWeekPricing.map((d, i) =>
+        i === index ? { ...d, [field]: value } : d
+      ),
+    }))
+  }
+
   return (
-    <div className="space-y-8">
-      {/* Session Name */}
-      <Input
-        type="text"
-        label="Session Name"
-        labelPlacement="outside"
-        placeholder="e.g., Summer 2024 Language Immersion"
-        value={formData.name}
-        onValueChange={value => setFormData(prev => ({ ...prev, name: value }))}
-        isRequired
-        isInvalid={!!errors.name}
-        errorMessage={errors.name}
-      />
-
-      {/* Date Range */}
-      <div>
-        <div className="mb-2">
-          <label className="text-base font-semibold text-foreground">
-            Session Dates
-            <span className="ml-1 text-danger">*</span>
-          </label>
-        </div>
-        <div className="grid md:grid-cols-2 gap-4">
+    <div className="space-y-6">
+      {/* Section 1: Basic Information */}
+      <CollapsibleSection title="1. Basic Information" defaultOpen={true}>
+        <div className="space-y-6">
           <Input
-            type="date"
-            label="Start Date"
+            type="text"
+            label="Session Title"
             labelPlacement="outside"
-            value={formData.startDate}
-            onValueChange={value => setFormData(prev => ({ ...prev, startDate: value }))}
+            placeholder="e.g., Summer 2024 Language Immersion"
+            value={formData.name}
+            onValueChange={value => setFormData(prev => ({ ...prev, name: value }))}
             isRequired
-            isInvalid={!!errors.dates}
+            isInvalid={!!errors.name}
+            errorMessage={errors.name}
           />
-          <Input
-            type="date"
-            label="End Date"
-            labelPlacement="outside"
-            value={formData.endDate}
-            onValueChange={value => setFormData(prev => ({ ...prev, endDate: value }))}
-            isRequired
-            isInvalid={!!errors.dates}
+
+          <RichTextEditor
+            label="Description"
+            placeholder="Describe your session..."
+            value={formData.description}
+            onChange={value => setFormData(prev => ({ ...prev, description: value }))}
+            minHeight="150px"
           />
         </div>
-        {errors.dates && <p className="mt-1.5 text-sm text-danger">{errors.dates}</p>}
-      </div>
+      </CollapsibleSection>
 
-      {/* Duration Options */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <label className="text-base font-semibold text-foreground">Duration Options</label>
-          <Button
-            size="sm"
-            color="primary"
-            variant="flat"
-            startContent={<Plus className="w-4 h-4" />}
-            onPress={addDuration}
-          >
-            Add Duration
-          </Button>
-        </div>
-        <p className="mb-4 text-sm leading-normal text-default-500">
-          Add different duration options with their respective pricing
-        </p>
-
-        {errors.durations && (
-          <div className="mb-4 rounded-lg border border-danger-200 bg-danger-50 p-3 dark:border-danger-800 dark:bg-danger-950">
-            <p className="text-sm text-danger-700 dark:text-danger-300">{errors.durations}</p>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          {formData.durations.map((duration, index) => (
-            <div key={index} className="flex items-end gap-3">
-              <Input
-                type="number"
-                label="Weeks"
-                labelPlacement="outside"
-                placeholder="2"
-                value={duration.weeks.toString()}
-                onValueChange={value => updateDuration(index, 'weeks', parseInt(value) || 0)}
-                min={1}
-                max={12}
-                className="flex-1"
-              />
-              <Input
-                type="number"
-                label="Days (optional)"
-                labelPlacement="outside"
-                placeholder="0"
-                value={duration.days?.toString() || '0'}
-                onValueChange={value => updateDuration(index, 'days', parseInt(value) || 0)}
-                min={0}
-                max={6}
-                className="flex-1"
-              />
-              <Input
-                type="number"
-                label="Price (USD)"
-                labelPlacement="outside"
-                placeholder="1200"
-                value={duration.price.toString()}
-                onValueChange={value => updateDuration(index, 'price', parseFloat(value) || 0)}
-                min={0}
-                className="flex-1"
-              />
-              {formData.durations.length > 1 && (
-                <Button
-                  isIconOnly
-                  color="danger"
-                  variant="flat"
-                  onPress={() => removeDuration(index)}
-                  className="mb-0"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
+      {/* Section 2: Dates & Availability */}
+      <CollapsibleSection title="2. Dates & Availability" defaultOpen={true}>
+        <div className="space-y-6">
+          {/* Date Range */}
+          <div>
+            <div className="mb-2">
+              <label className="text-base font-semibold text-foreground">
+                Date Range
+                <span className="ml-1 text-danger">*</span>
+              </label>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Blackout Dates */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <label className="text-base font-semibold text-foreground">
-            Blackout Dates (Optional)
-          </label>
-          <Button
-            size="sm"
-            color="default"
-            variant="flat"
-            startContent={<Plus className="w-4 h-4" />}
-            onPress={addBlackoutDate}
-          >
-            Add Blackout
-          </Button>
-        </div>
-        <p className="mb-4 text-sm leading-normal text-default-500">
-          Block specific date ranges when the camp is closed
-        </p>
-
-        {errors.blackoutDates && (
-          <div className="mb-4 rounded-lg border border-danger-200 bg-danger-50 p-3 dark:border-danger-800 dark:bg-danger-950">
-            <p className="text-sm text-danger-700 dark:text-danger-300">{errors.blackoutDates}</p>
-          </div>
-        )}
-
-        {formData.blackoutDates.length > 0 && (
-          <div className="space-y-3">
-            {formData.blackoutDates.map((blackout, index) => (
-              <div key={index} className="flex items-end gap-3">
-                <Input
-                  type="date"
-                  label="Start Date"
-                  labelPlacement="outside"
-                  value={blackout.start}
-                  onValueChange={value => updateBlackoutDate(index, 'start', value)}
-                  className="flex-1"
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Left Column: Individual Date Inputs */}
+              <div className="space-y-6">
+                <div className="flex gap-4">
+                  <Input
+                    type="date"
+                    label="Start Date"
+                    labelPlacement="outside"
+                    value={formData.startDate}
+                    onValueChange={value => {
+                      setFormData(prev => ({ ...prev, startDate: value }))
+                      // Update RangeCalendar when start date changes
+                      const startCal = stringToCalendarDate(value)
+                      const endCal = stringToCalendarDate(formData.endDate)
+                      if (startCal && endCal) {
+                        setDateRange({ start: startCal, end: endCal })
+                      } else if (startCal) {
+                        setDateRange(prev => (prev ? { ...prev, start: startCal } : null))
+                      }
+                    }}
+                    isRequired
+                    isInvalid={!!errors.dates}
+                  />
+                  <Input
+                    type="date"
+                    label="End Date"
+                    labelPlacement="outside"
+                    value={formData.endDate}
+                    onValueChange={value => {
+                      setFormData(prev => ({ ...prev, endDate: value }))
+                      // Update RangeCalendar when end date changes
+                      const startCal = stringToCalendarDate(formData.startDate)
+                      const endCal = stringToCalendarDate(value)
+                      if (startCal && endCal) {
+                        setDateRange({ start: startCal, end: endCal })
+                      } else if (endCal) {
+                        setDateRange(prev => (prev ? { ...prev, end: endCal } : null))
+                      }
+                    }}
+                    isRequired
+                    isInvalid={!!errors.dates}
+                  />
+                </div>
+                {/* Available Days of Week */}
+                <DayOfWeekSelector
+                  label="Available Days of Week"
+                  value={formData.availableDaysOfWeek}
+                  onChange={value => setFormData(prev => ({ ...prev, availableDaysOfWeek: value }))}
                 />
-                <Input
-                  type="date"
-                  label="End Date"
-                  labelPlacement="outside"
-                  value={blackout.end}
-                  onValueChange={value => updateBlackoutDate(index, 'end', value)}
-                  className="flex-1"
+
+                {/* Specific Start Days */}
+                <DayOfWeekSelector
+                  label="Specific Start Days (which days sessions can begin)"
+                  value={formData.specificStartDays}
+                  onChange={value => setFormData(prev => ({ ...prev, specificStartDays: value }))}
                 />
-                <Button
-                  isIconOnly
-                  color="danger"
-                  variant="flat"
-                  onPress={() => removeBlackoutDate(index)}
-                  className="mb-0"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
               </div>
-            ))}
-          </div>
-        )}
 
-        {formData.blackoutDates.length === 0 && (
-          <div className="py-6 text-center text-sm text-default-400">No blackout dates added</div>
-        )}
-      </div>
+              {/* Right Column: RangeCalendar */}
+              <div className="flex justify-center">
+                <RangeCalendar
+                  aria-label="Session date range"
+                  value={dateRange}
+                  onChange={value => {
+                    setDateRange(value)
+                    if (value) {
+                      setFormData(prev => ({
+                        ...prev,
+                        startDate: calendarDateToString(value.start),
+                        endDate: calendarDateToString(value.end),
+                      }))
+                    }
+                  }}
+                  isInvalid={!!errors.dates}
+                  errorMessage={errors.dates}
+                  showHelper={!!errors.dates}
+                  // classNames={{
+                  //   base: 'w-full max-w-full',
+                  // }}
+                />
+              </div>
+            </div>
+            {errors.dates && <p className="mt-1.5 text-sm text-danger">{errors.dates}</p>}
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      {/* Section 3: Rates & Pricing */}
+      <CollapsibleSection title="3. Rates & Pricing" defaultOpen={true}>
+        <div className="space-y-6">
+          {/* Base Price per Day */}
+          <CurrencyInput
+            label="Base Price per Day"
+            labelPlacement="outside"
+            placeholder="50"
+            value={formData.basePricePerDay}
+            onValueChange={value => setFormData(prev => ({ ...prev, basePricePerDay: value }))}
+            currency="USD"
+          />
+
+          {/* Require Consecutive Days */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-foreground">
+                Require Consecutive Days
+              </label>
+              <p className="text-sm text-default-500">
+                Sessions must be booked for consecutive days
+              </p>
+            </div>
+            <Switch
+              isSelected={formData.requireConsecutiveDays}
+              onValueChange={value =>
+                setFormData(prev => ({ ...prev, requireConsecutiveDays: value }))
+              }
+            />
+          </div>
+
+          {/* Min/Max Days Limit */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <Input
+              type="number"
+              label="Minimum Days Limit"
+              labelPlacement="outside"
+              placeholder="1"
+              value={formData.minDaysLimit?.toString() || ''}
+              onValueChange={value =>
+                setFormData(prev => ({ ...prev, minDaysLimit: value ? parseInt(value) : null }))
+              }
+              min={1}
+            />
+            <Input
+              type="number"
+              label="Maximum Days Limit"
+              labelPlacement="outside"
+              placeholder="30"
+              value={formData.maxDaysLimit?.toString() || ''}
+              onValueChange={value =>
+                setFormData(prev => ({ ...prev, maxDaysLimit: value ? parseInt(value) : null }))
+              }
+              min={1}
+            />
+          </div>
+
+          {/* Multi-Day Discount Offers */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-base font-semibold text-foreground">
+                Multi-Day Discount Offers
+              </label>
+              <Button
+                size="sm"
+                color="primary"
+                variant="flat"
+                startContent={<Plus className="w-4 h-4" />}
+                onPress={addDiscountTier}
+              >
+                Add Discount
+              </Button>
+            </div>
+            <p className="mb-4 text-sm leading-normal text-default-500">
+              Offer discounts for booking multiple days
+            </p>
+
+            {formData.discountTiers.length > 0 && (
+              <div className="space-y-3">
+                {formData.discountTiers.map((tier, index) => (
+                  <div key={index} className="flex items-end gap-3">
+                    <Input
+                      type="number"
+                      label="Min Days"
+                      labelPlacement="outside"
+                      placeholder="5"
+                      value={tier.minDays.toString()}
+                      onValueChange={value =>
+                        updateDiscountTier(index, 'minDays', parseInt(value) || 0)
+                      }
+                      min={1}
+                      className="flex-1"
+                    />
+                    <Input
+                      type="number"
+                      label="Max Days (optional)"
+                      labelPlacement="outside"
+                      placeholder="10"
+                      value={tier.maxDays?.toString() || ''}
+                      onValueChange={value =>
+                        updateDiscountTier(index, 'maxDays', value ? parseInt(value) : undefined)
+                      }
+                      min={1}
+                      className="flex-1"
+                    />
+                    <Input
+                      type="number"
+                      label="Discount %"
+                      labelPlacement="outside"
+                      placeholder="10"
+                      value={tier.discountPercent.toString()}
+                      onValueChange={value =>
+                        updateDiscountTier(index, 'discountPercent', parseFloat(value) || 0)
+                      }
+                      min={0}
+                      max={100}
+                      className="flex-1"
+                    />
+                    <Button
+                      isIconOnly
+                      color="danger"
+                      variant="flat"
+                      onPress={() => removeDiscountTier(index)}
+                      className="mb-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {formData.discountTiers.length === 0 && (
+              <div className="py-6 text-center text-sm text-default-400">
+                No discount tiers added
+              </div>
+            )}
+          </div>
+
+          {/* Day-of-Week Pricing */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-base font-semibold text-foreground">Day-of-Week Pricing</label>
+              <Button
+                size="sm"
+                color="primary"
+                variant="flat"
+                startContent={<Plus className="w-4 h-4" />}
+                onPress={addDayOfWeekPricing}
+              >
+                Add Day Pricing
+              </Button>
+            </div>
+            <p className="mb-4 text-sm leading-normal text-default-500">
+              Set different rates for specific days of the week
+            </p>
+
+            {formData.dayOfWeekPricing.length > 0 && (
+              <div className="space-y-3">
+                {formData.dayOfWeekPricing.map((pricing, index) => (
+                  <div key={index} className="flex items-end gap-3">
+                    <div className="flex-1">
+                      <label className="mb-1.5 block text-sm font-medium text-foreground">
+                        Day of Week
+                      </label>
+                      <select
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                        value={pricing.dayOfWeek}
+                        onChange={e =>
+                          updateDayOfWeekPricing(index, 'dayOfWeek', parseInt(e.target.value))
+                        }
+                      >
+                        <option value={0}>Sunday</option>
+                        <option value={1}>Monday</option>
+                        <option value={2}>Tuesday</option>
+                        <option value={3}>Wednesday</option>
+                        <option value={4}>Thursday</option>
+                        <option value={5}>Friday</option>
+                        <option value={6}>Saturday</option>
+                      </select>
+                    </div>
+                    <CurrencyInput
+                      label="Price"
+                      labelPlacement="outside"
+                      placeholder="50"
+                      value={pricing.price}
+                      onValueChange={value => updateDayOfWeekPricing(index, 'price', value ?? 0)}
+                      currency="USD"
+                      className="flex-1"
+                    />
+                    <Button
+                      isIconOnly
+                      color="danger"
+                      variant="flat"
+                      onPress={() => removeDayOfWeekPricing(index)}
+                      className="mb-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {formData.dayOfWeekPricing.length === 0 && (
+              <div className="py-6 text-center text-sm text-default-400">
+                No day-of-week pricing added
+              </div>
+            )}
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      {/* Section 4: Capacity & Availability */}
+      <CollapsibleSection title="4. Capacity & Availability" defaultOpen={true}>
+        <div className="space-y-6">
+          {/* Total Capacity */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <label className="text-sm font-medium text-foreground">Unlimited Capacity</label>
+                <p className="text-sm text-default-500">No limit on number of participants</p>
+              </div>
+              <Switch
+                isSelected={formData.unlimitedCapacity}
+                onValueChange={value =>
+                  setFormData(prev => ({ ...prev, unlimitedCapacity: value }))
+                }
+              />
+            </div>
+
+            {!formData.unlimitedCapacity && (
+              <Input
+                type="number"
+                label="Total Capacity"
+                labelPlacement="outside"
+                placeholder="50"
+                value={formData.capacity?.toString() || ''}
+                onValueChange={value =>
+                  setFormData(prev => ({ ...prev, capacity: value ? parseInt(value) : null }))
+                }
+                min={1}
+              />
+            )}
+          </div>
+
+          {/* Age Group */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-foreground">Age Group</label>
+            <div className="grid md:grid-cols-2 gap-4">
+              <Input
+                type="number"
+                label="Minimum Age"
+                labelPlacement="outside"
+                placeholder="5"
+                value={formData.ageRange?.min.toString() || ''}
+                onValueChange={value =>
+                  setFormData(prev => ({
+                    ...prev,
+                    ageRange: {
+                      min: value ? parseInt(value) : 0,
+                      max: prev.ageRange?.max ?? 18,
+                    },
+                  }))
+                }
+                min={0}
+                max={100}
+              />
+              <Input
+                type="number"
+                label="Maximum Age"
+                labelPlacement="outside"
+                placeholder="18"
+                value={formData.ageRange?.max.toString() || ''}
+                onValueChange={value =>
+                  setFormData(prev => ({
+                    ...prev,
+                    ageRange: {
+                      min: prev.ageRange?.min ?? 0,
+                      max: value ? parseInt(value) : 18,
+                    },
+                  }))
+                }
+                min={0}
+                max={100}
+              />
+            </div>
+          </div>
+
+          {/* Blackout Dates */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-base font-semibold text-foreground">
+                Blackout Dates (Optional)
+              </label>
+              <Button
+                size="sm"
+                color="default"
+                variant="flat"
+                startContent={<Plus className="w-4 h-4" />}
+                onPress={addBlackoutDate}
+              >
+                Add Blackout
+              </Button>
+            </div>
+            <p className="mb-4 text-sm leading-normal text-default-500">
+              Block specific date ranges when the camp is closed
+            </p>
+
+            {errors.blackoutDates && (
+              <div className="mb-4 rounded-lg border border-danger-200 bg-danger-50 p-3 dark:border-danger-800 dark:bg-danger-950">
+                <p className="text-sm text-danger-700 dark:text-danger-300">
+                  {errors.blackoutDates}
+                </p>
+              </div>
+            )}
+
+            {formData.blackoutDates.length > 0 && (
+              <div className="space-y-3">
+                {formData.blackoutDates.map((blackout, index) => (
+                  <div key={index} className="flex items-end gap-3">
+                    <Input
+                      type="date"
+                      label="Start Date"
+                      labelPlacement="outside"
+                      value={blackout.start}
+                      onValueChange={value => updateBlackoutDate(index, 'start', value)}
+                      className="flex-1"
+                    />
+                    <Input
+                      type="date"
+                      label="End Date"
+                      labelPlacement="outside"
+                      value={blackout.end}
+                      onValueChange={value => updateBlackoutDate(index, 'end', value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      isIconOnly
+                      color="danger"
+                      variant="flat"
+                      onPress={() => removeBlackoutDate(index)}
+                      className="mb-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {formData.blackoutDates.length === 0 && (
+              <div className="py-6 text-center text-sm text-default-400">
+                No blackout dates added
+              </div>
+            )}
+          </div>
+        </div>
+      </CollapsibleSection>
     </div>
   )
 }

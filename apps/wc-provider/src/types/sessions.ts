@@ -8,6 +8,25 @@ export interface Duration {
   price: number
 }
 
+// Multi-day discount tier
+export interface DiscountTier {
+  minDays: number
+  maxDays?: number
+  discountPercent: number
+}
+
+// Day-of-week pricing
+export interface DayOfWeekPricing {
+  dayOfWeek: number // 0 = Sunday, 1 = Monday, etc.
+  price: number
+}
+
+// Age range
+export interface AgeRange {
+  min: number
+  max: number
+}
+
 // Blackout dates for flexible sessions
 export interface BlackoutDate {
   start: string // ISO date string
@@ -36,6 +55,18 @@ export interface FlexibleSession extends Session {
   endDate: string // ISO date string - booking window end
   durations: Duration[]
   blackoutDates?: BlackoutDate[]
+
+  // New fields for enhanced flexible sessions
+  basePricePerDay?: number
+  requireConsecutiveDays?: boolean
+  minDaysLimit?: number
+  maxDaysLimit?: number
+  availableDaysOfWeek?: number[] // Array of day indices (0 = Sunday, 1 = Monday, etc.)
+  specificStartDays?: number[] // Which days of the week sessions can begin
+  discountTiers?: DiscountTier[]
+  dayOfWeekPricing?: DayOfWeekPricing[]
+  ageRange?: AgeRange
+  unlimitedCapacity?: boolean
 }
 
 // Fixed Session
@@ -56,6 +87,18 @@ export interface CreateFlexibleSessionDto {
   durations: Duration[]
   capacity?: number
   blackoutDates?: BlackoutDate[]
+
+  // New fields
+  basePricePerDay?: number
+  requireConsecutiveDays?: boolean
+  minDaysLimit?: number
+  maxDaysLimit?: number
+  availableDaysOfWeek?: number[]
+  specificStartDays?: number[]
+  discountTiers?: DiscountTier[]
+  dayOfWeekPricing?: DayOfWeekPricing[]
+  ageRange?: AgeRange
+  unlimitedCapacity?: boolean
 }
 
 export interface CreateFixedSessionDto {
@@ -77,6 +120,18 @@ export interface UpdateFlexibleSessionDto {
   capacity?: number
   blackoutDates?: BlackoutDate[]
   isActive?: boolean
+
+  // New fields
+  basePricePerDay?: number
+  requireConsecutiveDays?: boolean
+  minDaysLimit?: number
+  maxDaysLimit?: number
+  availableDaysOfWeek?: number[]
+  specificStartDays?: number[]
+  discountTiers?: DiscountTier[]
+  dayOfWeekPricing?: DayOfWeekPricing[]
+  ageRange?: AgeRange
+  unlimitedCapacity?: boolean
 }
 
 export interface UpdateFixedSessionDto {
@@ -129,6 +184,18 @@ export interface FlexibleSessionFormData {
   durations: Duration[]
   capacity: number | null
   blackoutDates: BlackoutDate[]
+
+  // New fields
+  basePricePerDay: number | null
+  requireConsecutiveDays: boolean
+  minDaysLimit: number | null
+  maxDaysLimit: number | null
+  availableDaysOfWeek: number[]
+  specificStartDays: number[]
+  discountTiers: DiscountTier[]
+  dayOfWeekPricing: DayOfWeekPricing[]
+  ageRange: AgeRange | null
+  unlimitedCapacity: boolean
 }
 
 export interface FixedSessionFormData {
