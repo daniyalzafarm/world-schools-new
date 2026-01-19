@@ -20,10 +20,10 @@ export function FixedSessionsEmptyState({
   onChangeSessionType,
 }: FixedSessionsEmptyStateProps) {
   return (
-    <div className="max-w-3xl mx-auto py-12">
+    <div className="max-w-3xl mx-auto">
       <Card className="border-2 border-dashed border-default-300">
-        <CardBody className="p-12">
-          <div className="text-center space-y-6">
+        <CardBody className="p-8">
+          <div className="text-center flex flex-col gap-6">
             {/* Icon */}
             <div className="flex justify-center">
               <div className="w-20 h-20 rounded-full bg-secondary-100 dark:bg-secondary-900 flex items-center justify-center">
@@ -43,21 +43,21 @@ export function FixedSessionsEmptyState({
             </div>
 
             {/* Features Grid */}
-            <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto pt-4">
+            <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
               <div className="flex items-start gap-3 text-left">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+                <div className="shrink-0 w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
                   <Calendar className="w-5 h-5 text-primary-600 dark:text-primary-400" />
                 </div>
                 <div>
                   <h4 className="text-[14px] font-semibold text-default-900 mb-1">Fixed Dates</h4>
                   <p className="text-[13px] text-default-600">
-                    Set specific start and end dates for each session
+                    Set specific dates for each session
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3 text-left">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-success-100 dark:bg-success-900 flex items-center justify-center">
+                <div className="shrink-0 w-10 h-10 rounded-lg bg-success-100 dark:bg-success-900 flex items-center justify-center">
                   <DollarSign className="w-5 h-5 text-success-600 dark:text-success-400" />
                 </div>
                 <div>
@@ -65,13 +65,13 @@ export function FixedSessionsEmptyState({
                     Simple Pricing
                   </h4>
                   <p className="text-[13px] text-default-600">
-                    One price per session, easy for parents to understand
+                    One price per session, easier to understand
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3 text-left">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-warning-100 dark:bg-warning-900 flex items-center justify-center">
+                <div className="shrink-0 w-10 h-10 rounded-lg bg-warning-100 dark:bg-warning-900 flex items-center justify-center">
                   <Users className="w-5 h-5 text-warning-600 dark:text-warning-400" />
                 </div>
                 <div>
@@ -85,7 +85,7 @@ export function FixedSessionsEmptyState({
               </div>
 
               <div className="flex items-start gap-3 text-left">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-secondary-100 dark:bg-secondary-900 flex items-center justify-center">
+                <div className="shrink-0 w-10 h-10 rounded-lg bg-secondary-100 dark:bg-secondary-900 flex items-center justify-center">
                   <Copy className="w-5 h-5 text-secondary-600 dark:text-secondary-400" />
                 </div>
                 <div>
@@ -93,14 +93,14 @@ export function FixedSessionsEmptyState({
                     Easy Duplication
                   </h4>
                   <p className="text-[13px] text-default-600">
-                    Quickly create multiple sessions with same settings
+                    Quickly duplicate sessions with same settings
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Example */}
-            <div className="bg-default-100 dark:bg-default-800 rounded-xl p-6 max-w-xl mx-auto">
+            <div className="bg-default-100 dark:bg-default-800 rounded-xl p-6 w-full max-w-xl mx-auto">
               <p className="text-[12px] font-semibold text-default-500 uppercase tracking-wide mb-3">
                 Example
               </p>
@@ -123,7 +123,7 @@ export function FixedSessionsEmptyState({
             </div>
 
             {/* Action Buttons */}
-            <div className="pt-4 flex items-center justify-center gap-3">
+            <div className="flex items-center justify-center gap-3">
               {canChangeType && onChangeSessionType && (
                 <Button
                   variant="bordered"
