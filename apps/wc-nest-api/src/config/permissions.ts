@@ -77,6 +77,27 @@ const providerDocumentsPermissions: PermissionGroup = {
   ],
 }
 
+const campsPermissions: PermissionGroup = {
+  name: 'Camps',
+  permissions: [
+    { id: 'camps.create', name: 'Create camps' },
+    { id: 'camps.read', name: 'Read camps' },
+    { id: 'camps.update', name: 'Update camps' },
+    { id: 'camps.delete', name: 'Delete camps' },
+    { id: 'camps.publish', name: 'Publish camps' },
+  ],
+}
+
+const addonsPermissions: PermissionGroup = {
+  name: 'Add-ons',
+  permissions: [
+    { id: 'addons.create', name: 'Create add-ons' },
+    { id: 'addons.read', name: 'Read add-ons' },
+    { id: 'addons.update', name: 'Update add-ons' },
+    { id: 'addons.delete', name: 'Delete add-ons' },
+  ],
+}
+
 // Context-based main groups
 export const superadminContext: PermissionContext = {
   name: 'SuperAdmin',
@@ -86,12 +107,14 @@ export const superadminContext: PermissionContext = {
     providersPermissions,
     providerApplicationsPermissions,
     providerDocumentsPermissions,
+    campsPermissions,
+    addonsPermissions,
   ],
 }
 
 export const providerContext: PermissionContext = {
   name: 'Provider',
-  groups: [usersPermissions, rolesPermissions],
+  groups: [usersPermissions, rolesPermissions, campsPermissions, addonsPermissions],
 }
 
 /**

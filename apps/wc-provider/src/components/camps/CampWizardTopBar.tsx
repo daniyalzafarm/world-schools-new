@@ -15,6 +15,7 @@ const STEP_TITLES: Record<number, string> = {
   2: 'Target Audience',
   3: 'Programs & Activities',
   4: 'Photos',
+  5: 'Sessions',
 }
 
 export function CampWizardTopBar({ currentStep, campId }: CampWizardTopBarProps) {

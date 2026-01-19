@@ -16,6 +16,7 @@ const WIZARD_STEPS = [
   { number: 2, title: 'Audience', subtitle: 'Target campers', path: 'audience' },
   { number: 3, title: 'Programs', subtitle: 'Activities', path: 'programs' },
   { number: 4, title: 'Photos', subtitle: 'Gallery', path: 'photos' },
+  { number: 5, title: 'Sessions', subtitle: 'Dates & pricing', path: 'sessions' },
 ]
 
 // Helper function to check if a step is completed
@@ -38,6 +39,8 @@ function isStepCompleted(step: number, camp: Camp | null): boolean {
       return !!(camp.activities && camp.activities.length > 0)
     case 4: // Photos - completed if at least 5 photos are uploaded
       return !!(camp.photos && Array.isArray(camp.photos) && camp.photos.length >= 5)
+    case 5: // Sessions - completed if sessionType is set
+      return !!camp.sessionType
     default:
       return false
   }
@@ -92,6 +95,13 @@ export function CampWizardSidebar({ currentStep, campId }: CampWizardSidebarProp
               isStepCompleted(1, wizardCamp) &&
               isStepCompleted(2, wizardCamp) &&
               isStepCompleted(3, wizardCamp)
+          } else if (step.number === 5) {
+            isEnabled =
+              campId !== undefined &&
+              isStepCompleted(1, wizardCamp) &&
+              isStepCompleted(2, wizardCamp) &&
+              isStepCompleted(3, wizardCamp) &&
+              isStepCompleted(4, wizardCamp)
           }
 
           const content = (

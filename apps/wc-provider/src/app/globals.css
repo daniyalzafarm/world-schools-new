@@ -201,6 +201,11 @@
   .elevation-card {
     box-shadow: var(--box-shadow-soft);
   }
+
+  /* Hide the main CampEditorFooter on session form pages */
+  body.session-form-page main > .sticky.bottom-0.z-40 {
+    display: none;
+  }
 }
 
 /* Google Places Autocomplete Custom Styling */

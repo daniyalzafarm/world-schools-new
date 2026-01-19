@@ -109,6 +109,7 @@ export interface Camp {
   accommodation?: Accommodation
   gettingThere?: GettingThere
   campFocus?: CampFocus
+  sessionType?: 'flexible' | 'fixed' | null
   status: CampStatus
   publishedAt?: string
   createdAt: string
