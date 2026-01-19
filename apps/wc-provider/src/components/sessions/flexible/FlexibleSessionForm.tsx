@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Button, RangeCalendar, Select, SelectItem, Switch } from '@heroui/react'
+import { Button, RangeCalendar, Switch } from '@heroui/react'
 import {
   CollapsibleSection,
   CurrencyInput,
   DayOfWeekSelector,
   Input,
   RichTextEditor,
+  SelectField,
 } from '@world-schools/ui-web'
 import { type CalendarDate, parseDate } from '@internationalized/date'
 import type { RangeValue } from '@react-types/shared'
@@ -553,46 +554,55 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
 
             {formData.dayOfWeekPricing.length > 0 && (
               <div className="space-y-3">
-                {formData.dayOfWeekPricing.map((pricing, index) => (
-                  <div key={index} className="flex items-end gap-3">
-                    <Select
-                      label="Day of Week"
-                      labelPlacement="outside"
-                      selectedKeys={[pricing.dayOfWeek.toString()]}
-                      onSelectionChange={keys => {
-                        const value = Array.from(keys)[0] as string
-                        updateDayOfWeekPricing(index, 'dayOfWeek', parseInt(value))
-                      }}
-                      className="flex-1"
-                    >
-                      <SelectItem key="0">Sunday</SelectItem>
-                      <SelectItem key="1">Monday</SelectItem>
-                      <SelectItem key="2">Tuesday</SelectItem>
-                      <SelectItem key="3">Wednesday</SelectItem>
-                      <SelectItem key="4">Thursday</SelectItem>
-                      <SelectItem key="5">Friday</SelectItem>
-                      <SelectItem key="6">Saturday</SelectItem>
-                    </Select>
-                    <CurrencyInput
-                      label="Price"
-                      labelPlacement="outside"
-                      placeholder="50"
-                      value={pricing.price}
-                      onValueChange={value => updateDayOfWeekPricing(index, 'price', value ?? 0)}
-                      currency="USD"
-                      className="flex-1"
-                    />
-                    <Button
-                      isIconOnly
-                      color="danger"
-                      variant="flat"
-                      onPress={() => removeDayOfWeekPricing(index)}
-                      className="mb-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
+                {formData.dayOfWeekPricing.map((pricing, index) => {
+                  const dayOptions = [
+                    'Sunday',
+                    'Monday',
+                    'Tuesday',
+                    'Wednesday',
+                    'Thursday',
+                    'Friday',
+                    'Saturday',
+                  ]
+                  const selectedDay = dayOptions[pricing.dayOfWeek]
+
+                  return (
+                    <div key={index} className="flex items-end gap-3">
+                      <div className="flex-1">
+                        <label className="mb-1.5 block text-sm font-semibold text-foreground">
+                          Day of Week
+                        </label>
+                        <SelectField
+                          value={selectedDay}
+                          onChange={value => {
+                            const dayIndex = dayOptions.indexOf(value)
+                            updateDayOfWeekPricing(index, 'dayOfWeek', dayIndex)
+                          }}
+                          options={dayOptions}
+                          placeholder="Select day"
+                        />
+                      </div>
+                      <CurrencyInput
+                        label="Price"
+                        labelPlacement="outside"
+                        placeholder="50"
+                        value={pricing.price}
+                        onValueChange={value => updateDayOfWeekPricing(index, 'price', value ?? 0)}
+                        currency="USD"
+                        className="flex-1"
+                      />
+                      <Button
+                        isIconOnly
+                        color="danger"
+                        variant="flat"
+                        onPress={() => removeDayOfWeekPricing(index)}
+                        className="mb-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )
+                })}
               </div>
             )}
 
