@@ -7,6 +7,7 @@ import type { SessionType } from '@/types/sessions'
 
 interface SessionTypeSelectorProps {
   campId: string
+  currentType?: SessionType | null
   onTypeSelected: (type: SessionType) => void
   isLoading?: boolean
 }
@@ -18,10 +19,11 @@ interface SessionTypeSelectorProps {
  */
 export function SessionTypeSelector({
   campId,
+  currentType = null,
   onTypeSelected,
   isLoading = false,
 }: SessionTypeSelectorProps) {
-  const [selectedType, setSelectedType] = useState<SessionType | null>(null)
+  const [selectedType, setSelectedType] = useState<SessionType | null>(currentType)
 
   const handleSelect = (type: SessionType) => {
     setSelectedType(type)

@@ -70,6 +70,7 @@ export function SessionsPage({ campId }: SessionsPageProps) {
     return (
       <SessionTypeSelector
         campId={campId}
+        currentType={sessionType}
         onTypeSelected={handleTypeSelected}
         isLoading={isSettingType}
       />
