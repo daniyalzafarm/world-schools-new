@@ -27,6 +27,9 @@ export interface AgeRange {
   max: number
 }
 
+// Gender type for sessions
+export type SessionGender = 'all' | 'male' | 'female'
+
 // Blackout dates for flexible sessions
 export interface BlackoutDate {
   start: string // ISO date string
@@ -67,6 +70,10 @@ export interface FlexibleSession extends Session {
   dayOfWeekPricing?: DayOfWeekPricing[]
   ageRange?: AgeRange
   unlimitedCapacity?: boolean
+  gender?: SessionGender
+  boysCapacity?: number
+  girlsCapacity?: number
+  separateGenderCapacity?: boolean
 }
 
 // Fixed Session
@@ -99,6 +106,10 @@ export interface CreateFlexibleSessionDto {
   dayOfWeekPricing?: DayOfWeekPricing[]
   ageRange?: AgeRange
   unlimitedCapacity?: boolean
+  gender?: SessionGender
+  boysCapacity?: number
+  girlsCapacity?: number
+  separateGenderCapacity?: boolean
 }
 
 export interface CreateFixedSessionDto {
@@ -132,6 +143,10 @@ export interface UpdateFlexibleSessionDto {
   dayOfWeekPricing?: DayOfWeekPricing[]
   ageRange?: AgeRange
   unlimitedCapacity?: boolean
+  gender?: SessionGender
+  boysCapacity?: number
+  girlsCapacity?: number
+  separateGenderCapacity?: boolean
 }
 
 export interface UpdateFixedSessionDto {
@@ -196,6 +211,9 @@ export interface FlexibleSessionFormData {
   dayOfWeekPricing: DayOfWeekPricing[]
   ageRange: AgeRange | null
   unlimitedCapacity: boolean
+  gender: SessionGender
+  minParticipantsPerBooking: number | null
+  maxParticipantsPerBooking: number | null
 }
 
 export interface FixedSessionFormData {

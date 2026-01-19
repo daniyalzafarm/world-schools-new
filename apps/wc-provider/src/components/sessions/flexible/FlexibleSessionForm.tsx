@@ -22,6 +22,7 @@ import type {
   Duration,
   FlexibleSession,
 } from '@/types/sessions'
+import type { Gender } from '@/types/camps'
 import { useSessionValidation } from '@/hooks/useSessionValidation'
 import { formatDateForInput } from '@/utils/sessionFormatters'
 
@@ -29,6 +30,7 @@ interface FlexibleSessionFormProps {
   session?: FlexibleSession
   onSubmit: (data: FlexibleSessionFormData) => void
   onSubmitRef?: { current?: () => void }
+  campGender: Gender
 }
 
 export interface FlexibleSessionFormData {
@@ -49,6 +51,9 @@ export interface FlexibleSessionFormData {
   ageRange: AgeRange | null
   capacity: number | null
   unlimitedCapacity: boolean
+  boysCapacity: number | null
+  girlsCapacity: number | null
+  separateGenderCapacity: boolean
 }
 
 // Helper functions to convert between string dates and CalendarDate
@@ -70,7 +75,12 @@ const calendarDateToString = (date: CalendarDate): string => {
  * Form for creating/editing flexible sessions
  * Reference: Design flex-session-3.2.png
  */
-export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: FlexibleSessionFormProps) {
+export function FlexibleSessionForm({
+  session,
+  onSubmit,
+  onSubmitRef,
+  campGender,
+}: FlexibleSessionFormProps) {
   const validation = useSessionValidation()
 
   // Form state
@@ -92,6 +102,9 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
     ageRange: session?.ageRange ?? null,
     capacity: session?.capacity ?? null,
     unlimitedCapacity: session?.unlimitedCapacity ?? false,
+    boysCapacity: session?.boysCapacity ?? null,
+    girlsCapacity: session?.girlsCapacity ?? null,
+    separateGenderCapacity: session?.separateGenderCapacity ?? false,
   })
 
   // Date range state for RangeCalendar
@@ -363,6 +376,28 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
             </div>
             {errors.dates && <p className="mt-1.5 text-sm text-danger">{errors.dates}</p>}
           </div>
+
+          <div className="flex gap-4">
+            {/* Require Consecutive Days */}
+            <div className="flex w-full items-center justify-between">
+              <div>
+                <label className="text-sm font-medium text-foreground">
+                  Require Consecutive Days
+                </label>
+                <p className="text-sm text-default-500">
+                  Sessions must be booked for consecutive days
+                </p>
+              </div>
+              <Switch
+                isSelected={formData.requireConsecutiveDays}
+                onValueChange={value =>
+                  setFormData(prev => ({ ...prev, requireConsecutiveDays: value }))
+                }
+              />
+            </div>
+            <div className="flex w-full items-center justify-between"></div>
+          </div>
+
           {/* Blackout Dates */}
           <div>
             <div className="mb-2 flex items-center justify-between">
@@ -440,7 +475,7 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
 
       {/* Section 3: Rates & Pricing */}
       <CollapsibleSection title="3. Rates & Pricing" defaultOpen={true}>
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div className="flex gap-4">
             {/* Base Price per Day */}
             <CurrencyInput
@@ -452,51 +487,29 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
               currency="USD"
             />
 
-            <div className="flex w-full items-center justify-between"></div>
+            <div className="flex w-full items-center justify-between">
+              <div>
+                <label className="text-sm font-medium text-foreground">
+                  Set minimum/maximum days limit
+                </label>
+                <p className="text-sm text-default-500">
+                  Restrict the number of days participants can book
+                </p>
+              </div>
+              <Switch
+                isSelected={showDaysLimit}
+                onValueChange={value => {
+                  setShowDaysLimit(value)
+                  // Clear values when toggling off
+                  if (!value) {
+                    setFormData(prev => ({ ...prev, minDaysLimit: null, maxDaysLimit: null }))
+                  }
+                }}
+              />
+            </div>
           </div>
 
-          {/* Min/Max Days Limit */}
           <div>
-            <div className="mb-4 flex gap-4">
-              <div className="flex w-full items-center justify-between">
-                {/* Require Consecutive Days */}
-                <div>
-                  <label className="text-sm font-medium text-foreground">
-                    Require Consecutive Days
-                  </label>
-                  <p className="text-sm text-default-500">
-                    Sessions must be booked for consecutive days
-                  </p>
-                </div>
-                <Switch
-                  isSelected={formData.requireConsecutiveDays}
-                  onValueChange={value =>
-                    setFormData(prev => ({ ...prev, requireConsecutiveDays: value }))
-                  }
-                />
-              </div>
-              <div className="flex w-full items-center justify-between">
-                <div>
-                  <label className="text-sm font-medium text-foreground">
-                    Set minimum/maximum days limit
-                  </label>
-                  <p className="text-sm text-default-500">
-                    Restrict the number of days participants can book
-                  </p>
-                </div>
-                <Switch
-                  isSelected={showDaysLimit}
-                  onValueChange={value => {
-                    setShowDaysLimit(value)
-                    // Clear values when toggling off
-                    if (!value) {
-                      setFormData(prev => ({ ...prev, minDaysLimit: null, maxDaysLimit: null }))
-                    }
-                  }}
-                />
-              </div>
-            </div>
-
             {showDaysLimit && (
               <div className="grid md:grid-cols-2 gap-4">
                 <Input
@@ -764,6 +777,84 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
               />
             </div>
           </div>
+
+          {/* Gender-based Capacity Limits */}
+          {!formData.unlimitedCapacity && formData.capacity && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <label className="text-sm font-medium text-foreground">
+                    Do you want to limit boys and girls separately?
+                  </label>
+                  {campGender !== 'coed' && (
+                    <p className="text-sm text-warning-400">
+                      This option is only available for coed camps
+                    </p>
+                  )}
+                </div>
+                <Switch
+                  isSelected={formData.separateGenderCapacity}
+                  onValueChange={value => {
+                    setFormData(prev => ({
+                      ...prev,
+                      separateGenderCapacity: value,
+                      // Reset gender capacities when toggling off
+                      boysCapacity: value ? prev.boysCapacity : null,
+                      girlsCapacity: value ? prev.girlsCapacity : null,
+                    }))
+                  }}
+                  isDisabled={campGender !== 'coed'}
+                />
+              </div>
+
+              {formData.separateGenderCapacity && campGender === 'coed' && (
+                <div className="grid md:grid-cols-2 gap-4">
+                  <Input
+                    type="number"
+                    label="Boys Capacity"
+                    labelPlacement="outside"
+                    placeholder="25"
+                    value={formData.boysCapacity?.toString() || ''}
+                    onValueChange={value => {
+                      const boysCapacity = value ? parseInt(value) : null
+                      setFormData(prev => ({
+                        ...prev,
+                        boysCapacity,
+                        // Auto-calculate girls capacity
+                        girlsCapacity:
+                          boysCapacity && prev.capacity
+                            ? Math.max(0, prev.capacity - boysCapacity)
+                            : prev.girlsCapacity,
+                      }))
+                    }}
+                    min={0}
+                    max={formData.capacity}
+                  />
+                  <Input
+                    type="number"
+                    label="Girls Capacity"
+                    labelPlacement="outside"
+                    placeholder="25"
+                    value={formData.girlsCapacity?.toString() || ''}
+                    onValueChange={value => {
+                      const girlsCapacity = value ? parseInt(value) : null
+                      setFormData(prev => ({
+                        ...prev,
+                        girlsCapacity,
+                        // Auto-calculate boys capacity
+                        boysCapacity:
+                          girlsCapacity && prev.capacity
+                            ? Math.max(0, prev.capacity - girlsCapacity)
+                            : prev.boysCapacity,
+                      }))
+                    }}
+                    min={0}
+                    max={formData.capacity}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </CollapsibleSection>
     </div>

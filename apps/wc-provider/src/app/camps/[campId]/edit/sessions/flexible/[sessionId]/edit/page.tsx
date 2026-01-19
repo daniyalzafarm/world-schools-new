@@ -12,6 +12,7 @@ import { SessionFormFooter } from '@/components/sessions/SessionFormFooter'
 import { useSessionsData } from '@/hooks/useSessionsData'
 import { useSessionMutations } from '@/hooks/useSessionMutations'
 import type { FlexibleSession } from '@/types/sessions'
+import { useCampsStore } from '@/stores/camps-store'
 
 /**
  * Edit Flexible Session Page
@@ -26,8 +27,18 @@ export default function EditFlexibleSessionPage() {
 
   const { flexibleSessions, isLoading } = useSessionsData(campId)
   const { updateFlexibleSession, isUpdatingFlexible } = useSessionMutations(campId)
+  const { currentCamp, fetchCamp, isLoading: isCampLoading } = useCampsStore()
 
   const [session, setSession] = useState<FlexibleSession | null>(null)
+
+  // Fetch camp data to get gender setting
+  useEffect(() => {
+    if (campId) {
+      fetchCamp(campId).catch(error => {
+        console.error('Failed to fetch camp:', error)
+      })
+    }
+  }, [campId, fetchCamp])
 
   // Find the session to edit
   useEffect(() => {
@@ -49,6 +60,9 @@ export default function EditFlexibleSessionPage() {
       minDaysLimit: data.minDaysLimit ?? undefined,
       maxDaysLimit: data.maxDaysLimit ?? undefined,
       ageRange: data.ageRange ?? undefined,
+      boysCapacity: data.boysCapacity ?? undefined,
+      girlsCapacity: data.girlsCapacity ?? undefined,
+      separateGenderCapacity: data.separateGenderCapacity,
     }
 
     await updateFlexibleSession(sessionId, dto, {
@@ -82,7 +96,7 @@ export default function EditFlexibleSessionPage() {
   }, [])
 
   // Loading state
-  if (isLoading || !session) {
+  if (isLoading || isCampLoading || !session || !currentCamp) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Spinner size="lg" />
@@ -99,7 +113,12 @@ export default function EditFlexibleSessionPage() {
           subtitle="Update the flexible session details."
         />
 
-        <FlexibleSessionForm session={session} onSubmit={handleSubmit} onSubmitRef={submitRef} />
+        <FlexibleSessionForm
+          session={session}
+          onSubmit={handleSubmit}
+          onSubmitRef={submitRef}
+          campGender={currentCamp.gender}
+        />
       </div>
 
       <SessionFormFooter
