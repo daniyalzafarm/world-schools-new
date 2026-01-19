@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Button, RangeCalendar, Switch } from '@heroui/react'
+import { Button, RangeCalendar, Select, SelectItem, Switch } from '@heroui/react'
 import {
   CollapsibleSection,
   CurrencyInput,
@@ -102,6 +102,11 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
     return null
   })
 
+  // Days limit toggle state
+  const [showDaysLimit, setShowDaysLimit] = useState<boolean>(
+    () => formData.minDaysLimit !== null || formData.maxDaysLimit !== null
+  )
+
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -138,7 +143,14 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
   // Handle submit
   const handleSubmit = () => {
     if (validateForm()) {
-      onSubmit(formData)
+      // Prepare submission data, respecting toggle states
+      const submissionData: FlexibleSessionFormData = {
+        ...formData,
+        // Only include min/max days limit if toggle is ON
+        minDaysLimit: showDaysLimit ? formData.minDaysLimit : null,
+        maxDaysLimit: showDaysLimit ? formData.maxDaysLimit : null,
+      }
+      onSubmit(submissionData)
     }
   }
 
@@ -147,7 +159,7 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
     if (onSubmitRef) {
       onSubmitRef.current = handleSubmit
     }
-  }, [formData, onSubmitRef])
+  }, [formData, showDaysLimit, onSubmitRef])
 
   // Add blackout date
   const addBlackoutDate = () => {
@@ -355,58 +367,88 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
       {/* Section 3: Rates & Pricing */}
       <CollapsibleSection title="3. Rates & Pricing" defaultOpen={true}>
         <div className="space-y-6">
-          {/* Base Price per Day */}
-          <CurrencyInput
-            label="Base Price per Day"
-            labelPlacement="outside"
-            placeholder="50"
-            value={formData.basePricePerDay}
-            onValueChange={value => setFormData(prev => ({ ...prev, basePricePerDay: value }))}
-            currency="USD"
-          />
-
-          {/* Require Consecutive Days */}
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="text-sm font-medium text-foreground">
-                Require Consecutive Days
-              </label>
-              <p className="text-sm text-default-500">
-                Sessions must be booked for consecutive days
-              </p>
-            </div>
-            <Switch
-              isSelected={formData.requireConsecutiveDays}
-              onValueChange={value =>
-                setFormData(prev => ({ ...prev, requireConsecutiveDays: value }))
-              }
+          <div className="flex gap-4">
+            {/* Base Price per Day */}
+            <CurrencyInput
+              label="Base Price per Day"
+              labelPlacement="outside"
+              placeholder="50"
+              value={formData.basePricePerDay}
+              onValueChange={value => setFormData(prev => ({ ...prev, basePricePerDay: value }))}
+              currency="USD"
             />
+
+            <div className="flex w-full items-center justify-between"></div>
           </div>
 
           {/* Min/Max Days Limit */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <Input
-              type="number"
-              label="Minimum Days Limit"
-              labelPlacement="outside"
-              placeholder="1"
-              value={formData.minDaysLimit?.toString() || ''}
-              onValueChange={value =>
-                setFormData(prev => ({ ...prev, minDaysLimit: value ? parseInt(value) : null }))
-              }
-              min={1}
-            />
-            <Input
-              type="number"
-              label="Maximum Days Limit"
-              labelPlacement="outside"
-              placeholder="30"
-              value={formData.maxDaysLimit?.toString() || ''}
-              onValueChange={value =>
-                setFormData(prev => ({ ...prev, maxDaysLimit: value ? parseInt(value) : null }))
-              }
-              min={1}
-            />
+          <div>
+            <div className="mb-4 flex gap-4">
+              <div className="flex w-full items-center justify-between">
+                {/* Require Consecutive Days */}
+                <div>
+                  <label className="text-sm font-medium text-foreground">
+                    Require Consecutive Days
+                  </label>
+                  <p className="text-sm text-default-500">
+                    Sessions must be booked for consecutive days
+                  </p>
+                </div>
+                <Switch
+                  isSelected={formData.requireConsecutiveDays}
+                  onValueChange={value =>
+                    setFormData(prev => ({ ...prev, requireConsecutiveDays: value }))
+                  }
+                />
+              </div>
+              <div className="flex w-full items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium text-foreground">
+                    Set minimum/maximum days limit
+                  </label>
+                  <p className="text-sm text-default-500">
+                    Restrict the number of days participants can book
+                  </p>
+                </div>
+                <Switch
+                  isSelected={showDaysLimit}
+                  onValueChange={value => {
+                    setShowDaysLimit(value)
+                    // Clear values when toggling off
+                    if (!value) {
+                      setFormData(prev => ({ ...prev, minDaysLimit: null, maxDaysLimit: null }))
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            {showDaysLimit && (
+              <div className="grid md:grid-cols-2 gap-4">
+                <Input
+                  type="number"
+                  label="Minimum Days Limit"
+                  labelPlacement="outside"
+                  placeholder="1"
+                  value={formData.minDaysLimit?.toString() || ''}
+                  onValueChange={value =>
+                    setFormData(prev => ({ ...prev, minDaysLimit: value ? parseInt(value) : null }))
+                  }
+                  min={1}
+                />
+                <Input
+                  type="number"
+                  label="Maximum Days Limit"
+                  labelPlacement="outside"
+                  placeholder="30"
+                  value={formData.maxDaysLimit?.toString() || ''}
+                  onValueChange={value =>
+                    setFormData(prev => ({ ...prev, maxDaysLimit: value ? parseInt(value) : null }))
+                  }
+                  min={1}
+                />
+              </div>
+            )}
           </div>
 
           {/* Multi-Day Discount Offers */}
@@ -513,26 +555,24 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
               <div className="space-y-3">
                 {formData.dayOfWeekPricing.map((pricing, index) => (
                   <div key={index} className="flex items-end gap-3">
-                    <div className="flex-1">
-                      <label className="mb-1.5 block text-sm font-medium text-foreground">
-                        Day of Week
-                      </label>
-                      <select
-                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-                        value={pricing.dayOfWeek}
-                        onChange={e =>
-                          updateDayOfWeekPricing(index, 'dayOfWeek', parseInt(e.target.value))
-                        }
-                      >
-                        <option value={0}>Sunday</option>
-                        <option value={1}>Monday</option>
-                        <option value={2}>Tuesday</option>
-                        <option value={3}>Wednesday</option>
-                        <option value={4}>Thursday</option>
-                        <option value={5}>Friday</option>
-                        <option value={6}>Saturday</option>
-                      </select>
-                    </div>
+                    <Select
+                      label="Day of Week"
+                      labelPlacement="outside"
+                      selectedKeys={[pricing.dayOfWeek.toString()]}
+                      onSelectionChange={keys => {
+                        const value = Array.from(keys)[0] as string
+                        updateDayOfWeekPricing(index, 'dayOfWeek', parseInt(value))
+                      }}
+                      className="flex-1"
+                    >
+                      <SelectItem key="0">Sunday</SelectItem>
+                      <SelectItem key="1">Monday</SelectItem>
+                      <SelectItem key="2">Tuesday</SelectItem>
+                      <SelectItem key="3">Wednesday</SelectItem>
+                      <SelectItem key="4">Thursday</SelectItem>
+                      <SelectItem key="5">Friday</SelectItem>
+                      <SelectItem key="6">Saturday</SelectItem>
+                    </Select>
                     <CurrencyInput
                       label="Price"
                       labelPlacement="outside"
