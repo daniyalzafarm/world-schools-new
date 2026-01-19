@@ -1,11 +1,13 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { SessionBreadcrumb } from '@/components/sessions/SessionBreadcrumb'
 import {
   FlexibleSessionForm,
   type FlexibleSessionFormData,
 } from '@/components/sessions/flexible/FlexibleSessionForm'
+import { SessionFormFooter } from '@/components/sessions/SessionFormFooter'
 import { useSessionMutations } from '@/hooks/useSessionMutations'
 
 /**
@@ -16,6 +18,7 @@ export default function CreateFlexibleSessionPage() {
   const params = useParams()
   const router = useRouter()
   const campId = params.campId as string
+  const submitRef = useRef<(() => void) | undefined>(undefined)
 
   const { createFlexibleSession, isCreatingFlexible } = useSessionMutations(campId)
 
@@ -33,19 +36,43 @@ export default function CreateFlexibleSessionPage() {
     router.push(`/camps/${campId}/edit/sessions`)
   }
 
-  return (
-    <div>
-      <SessionBreadcrumb
-        campId={campId}
-        title="Create Flexible Session"
-        subtitle="Set up a flexible session where parents can choose their own start date and duration."
-      />
+  // Handle footer submit
+  const handleFooterSubmit = () => {
+    if (submitRef.current) {
+      submitRef.current()
+    }
+  }
 
-      <FlexibleSessionForm
-        onSubmit={handleSubmit}
+  // Hide the main CampEditorFooter when this component mounts
+  useEffect(() => {
+    // Add a class to the body to indicate we're on a session form page
+    document.body.classList.add('session-form-page')
+
+    // Cleanup: remove the class when component unmounts
+    return () => {
+      document.body.classList.remove('session-form-page')
+    }
+  }, [])
+
+  return (
+    <>
+      {/* Add padding-bottom to prevent content from being hidden behind fixed footer */}
+      <div className="pb-20">
+        <SessionBreadcrumb
+          title="Create Flexible Session"
+          subtitle="Set up a flexible session where parents can choose their own start date and duration."
+        />
+
+        <FlexibleSessionForm onSubmit={handleSubmit} onSubmitRef={submitRef} />
+      </div>
+
+      <SessionFormFooter
+        campId={campId}
         onCancel={handleCancel}
+        onSubmit={handleFooterSubmit}
         isSubmitting={isCreatingFlexible}
+        mode="create"
       />
-    </div>
+    </>
   )
 }

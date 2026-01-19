@@ -1,38 +1,18 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { ChevronLeft } from 'lucide-react'
-import { Button } from '@heroui/react'
-
 interface SessionBreadcrumbProps {
-  campId: string
   title: string
   subtitle?: string
 }
 
 /**
  * Session Breadcrumb Component
- * Provides navigation breadcrumb for session forms
+ * Displays page title and subtitle for session forms
+ * Note: Back button has been moved to SessionFormFooter
  */
-export function SessionBreadcrumb({ campId, title, subtitle }: SessionBreadcrumbProps) {
-  const router = useRouter()
-
-  const handleBack = () => {
-    router.push(`/camps/${campId}/edit/sessions`)
-  }
-
+export function SessionBreadcrumb({ title, subtitle }: SessionBreadcrumbProps) {
   return (
     <div className="mb-8">
-      {/* Back Button */}
-      <Button
-        variant="light"
-        startContent={<ChevronLeft className="w-4 h-4" />}
-        onPress={handleBack}
-        className="mb-4 -ml-2 text-default-600 hover:text-default-900"
-      >
-        Back to Sessions
-      </Button>
-
       {/* Page Title */}
       <div>
         <h1 className="mb-1.5 text-2xl font-semibold text-foreground">{title}</h1>

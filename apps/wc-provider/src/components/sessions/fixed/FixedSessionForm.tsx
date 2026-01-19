@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Button, Switch } from '@heroui/react'
+import { useEffect, useState } from 'react'
+import { Switch } from '@heroui/react'
 import { Input } from '@world-schools/ui-web'
 import type { FixedSession } from '@/types/sessions'
 import { useSessionValidation } from '@/hooks/useSessionValidation'
@@ -10,8 +10,7 @@ import { formatDateForInput } from '@/utils/sessionFormatters'
 interface FixedSessionFormProps {
   session?: FixedSession
   onSubmit: (data: FixedSessionFormData) => void
-  onCancel: () => void
-  isSubmitting?: boolean
+  onSubmitRef?: { current?: () => void }
 }
 
 export interface FixedSessionFormData {
@@ -27,12 +26,7 @@ export interface FixedSessionFormData {
  * Fixed Session Form Component
  * Form for creating/editing fixed sessions
  */
-export function FixedSessionForm({
-  session,
-  onSubmit,
-  onCancel,
-  isSubmitting = false,
-}: FixedSessionFormProps) {
+export function FixedSessionForm({ session, onSubmit, onSubmitRef }: FixedSessionFormProps) {
   const validation = useSessionValidation()
 
   // Form state
@@ -90,6 +84,13 @@ export function FixedSessionForm({
       onSubmit(submitData)
     }
   }
+
+  // Expose submit handler via ref
+  useEffect(() => {
+    if (onSubmitRef) {
+      onSubmitRef.current = handleSubmit
+    }
+  }, [formData, hasCapacityLimit, onSubmitRef])
 
   // Handle capacity toggle
   const handleCapacityToggle = (enabled: boolean) => {
@@ -195,21 +196,6 @@ export function FixedSessionForm({
             <p className="text-sm text-default-500">This session will have unlimited capacity</p>
           </div>
         )}
-      </div>
-
-      {/* Form Actions */}
-      <div className="flex items-center justify-end gap-3 pt-4">
-        <Button variant="flat" onPress={onCancel} isDisabled={isSubmitting}>
-          Cancel
-        </Button>
-        <Button
-          color="primary"
-          onPress={handleSubmit}
-          isLoading={isSubmitting}
-          className="font-semibold"
-        >
-          {session ? 'Update Session' : 'Create Session'}
-        </Button>
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@heroui/react'
 import { Input } from '@world-schools/ui-web'
 import { Plus, Trash2 } from 'lucide-react'
@@ -11,8 +11,7 @@ import { formatDateForInput } from '@/utils/sessionFormatters'
 interface FlexibleSessionFormProps {
   session?: FlexibleSession
   onSubmit: (data: FlexibleSessionFormData) => void
-  onCancel: () => void
-  isSubmitting?: boolean
+  onSubmitRef?: { current?: () => void }
 }
 
 export interface FlexibleSessionFormData {
@@ -28,12 +27,7 @@ export interface FlexibleSessionFormData {
  * Form for creating/editing flexible sessions
  * Reference: Design flex-session-3.2.png
  */
-export function FlexibleSessionForm({
-  session,
-  onSubmit,
-  onCancel,
-  isSubmitting = false,
-}: FlexibleSessionFormProps) {
+export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: FlexibleSessionFormProps) {
   const validation = useSessionValidation()
 
   // Form state
@@ -84,6 +78,13 @@ export function FlexibleSessionForm({
       onSubmit(formData)
     }
   }
+
+  // Expose submit handler via ref
+  useEffect(() => {
+    if (onSubmitRef) {
+      onSubmitRef.current = handleSubmit
+    }
+  }, [formData, onSubmitRef])
 
   // Add duration
   const addDuration = () => {
@@ -317,21 +318,6 @@ export function FlexibleSessionForm({
         {formData.blackoutDates.length === 0 && (
           <div className="py-6 text-center text-sm text-default-400">No blackout dates added</div>
         )}
-      </div>
-
-      {/* Form Actions */}
-      <div className="flex items-center justify-end gap-3 pt-4">
-        <Button variant="flat" onPress={onCancel} isDisabled={isSubmitting}>
-          Cancel
-        </Button>
-        <Button
-          color="primary"
-          onPress={handleSubmit}
-          isLoading={isSubmitting}
-          className="font-semibold"
-        >
-          {session ? 'Update Session' : 'Create Session'}
-        </Button>
       </div>
     </div>
   )

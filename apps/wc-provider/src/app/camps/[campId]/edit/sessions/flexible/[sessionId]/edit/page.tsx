@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Spinner } from '@heroui/react'
 import { SessionBreadcrumb } from '@/components/sessions/SessionBreadcrumb'
@@ -8,6 +8,7 @@ import {
   FlexibleSessionForm,
   type FlexibleSessionFormData,
 } from '@/components/sessions/flexible/FlexibleSessionForm'
+import { SessionFormFooter } from '@/components/sessions/SessionFormFooter'
 import { useSessionsData } from '@/hooks/useSessionsData'
 import { useSessionMutations } from '@/hooks/useSessionMutations'
 import type { FlexibleSession } from '@/types/sessions'
@@ -21,6 +22,7 @@ export default function EditFlexibleSessionPage() {
   const router = useRouter()
   const campId = params.campId as string
   const sessionId = params.sessionId as string
+  const submitRef = useRef<(() => void) | undefined>(undefined)
 
   const { flexibleSessions, isLoading } = useSessionsData(campId)
   const { updateFlexibleSession, isUpdatingFlexible } = useSessionMutations(campId)
@@ -51,6 +53,24 @@ export default function EditFlexibleSessionPage() {
     router.push(`/camps/${campId}/edit/sessions`)
   }
 
+  // Handle footer submit
+  const handleFooterSubmit = () => {
+    if (submitRef.current) {
+      submitRef.current()
+    }
+  }
+
+  // Hide the main CampEditorFooter when this component mounts
+  useEffect(() => {
+    // Add a class to the body to indicate we're on a session form page
+    document.body.classList.add('session-form-page')
+
+    // Cleanup: remove the class when component unmounts
+    return () => {
+      document.body.classList.remove('session-form-page')
+    }
+  }, [])
+
   // Loading state
   if (isLoading || !session) {
     return (
@@ -61,19 +81,24 @@ export default function EditFlexibleSessionPage() {
   }
 
   return (
-    <div>
-      <SessionBreadcrumb
-        campId={campId}
-        title={`Edit Session: ${session.name}`}
-        subtitle="Update the flexible session details."
-      />
+    <>
+      {/* Add padding-bottom to prevent content from being hidden behind fixed footer */}
+      <div className="pb-20">
+        <SessionBreadcrumb
+          title={`Edit Session: ${session.name}`}
+          subtitle="Update the flexible session details."
+        />
 
-      <FlexibleSessionForm
-        session={session}
-        onSubmit={handleSubmit}
+        <FlexibleSessionForm session={session} onSubmit={handleSubmit} onSubmitRef={submitRef} />
+      </div>
+
+      <SessionFormFooter
+        campId={campId}
         onCancel={handleCancel}
+        onSubmit={handleFooterSubmit}
         isSubmitting={isUpdatingFlexible}
+        mode="edit"
       />
-    </div>
+    </>
   )
 }

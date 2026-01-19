@@ -56,6 +56,9 @@ const autoSaveOnlySections = [
   'getting-there',
 ]
 
+// Sections that are navigation/listing pages only (no save functionality at all)
+const navigationOnlySections = ['sessions']
+
 export function CampEditorFooter({ campId }: CampEditorFooterProps) {
   const pathname = usePathname()
   const router = useRouter()
@@ -81,6 +84,9 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
 
   // Check if current section uses auto-save only
   const isAutoSaveOnly = currentSection ? autoSaveOnlySections.includes(currentSection) : false
+
+  // Check if current section is navigation-only (no save functionality)
+  const isNavigationOnly = currentSection ? navigationOnlySections.includes(currentSection) : false
 
   // Helper to wait for auto-save completion
   const waitForAutoSave = (): Promise<void> => {
@@ -248,9 +254,12 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
 
         {/* Save Action Buttons or Auto-Save Message */}
         <div className="flex items-center gap-3">
-          {isAutoSaveOnly ? (
+          {isNavigationOnly ? (
+            // For navigation-only sections (like sessions list), show nothing
+            // These pages don't have any save functionality
+            <div />
+          ) : isAutoSaveOnly ? (
             // For auto-save only sections, show a message instead of save button
-
             <div className="flex items-center gap-2 text-sm text-default-500">
               <div className="h-2 w-2 animate-pulse rounded-full bg-success-500" />
               {isWaitingForAutoSave ? 'Saving changes...' : 'Changes are saved automatically'}
