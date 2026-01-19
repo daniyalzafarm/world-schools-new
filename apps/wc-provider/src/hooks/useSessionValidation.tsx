@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import type { AgeRange, BlackoutDate, DiscountTier } from '@/types/sessions'
+import type { AgeRange, BlackoutDate, DayOfWeekPricing, DiscountTier } from '@/types/sessions'
 
 interface ValidationError {
   field: string
@@ -27,7 +27,12 @@ interface UseSessionValidationReturn {
   ) => string | null
   validateDaysLimit: (minDays: number | null, maxDays: number | null) => string | null
   validateDiscountTiers: (tiers: DiscountTier[]) => string | null
-  validateBasePricePerDay: (price: number | null) => string | null
+  validateBasePricePerDay: (price: number | null, isRequired?: boolean) => string | null
+  validateConditionalCapacity: (
+    capacity: number | null,
+    unlimitedCapacity: boolean
+  ) => string | null
+  validateDayOfWeekPricing: (pricing: DayOfWeekPricing[]) => string | null
   validateFlexibleSession: (data: {
     name: string
     startDate: string
@@ -166,11 +171,7 @@ export function useSessionValidation(): UseSessionValidationReturn {
   // Validate complete flexible session
   const validateFlexibleSession = useMemo(
     () =>
-      (data: {
-        name: string
-        startDate: string
-        endDate: string
-      }): ValidationError[] => {
+      (data: { name: string; startDate: string; endDate: string }): ValidationError[] => {
         const errors: ValidationError[] = []
 
         const nameError = validateSessionName(data.name)
@@ -352,11 +353,13 @@ export function useSessionValidation(): UseSessionValidationReturn {
     []
   )
 
-  // Validate base price per day
+  // Validate base price per day (now required by default)
   const validateBasePricePerDay = useMemo(
     () =>
-      (price: number | null): string | null => {
-        if (price === null) return null // Optional
+      (price: number | null, isRequired = true): string | null => {
+        if (price === null || price === undefined) {
+          return isRequired ? 'Base price per day is required' : null
+        }
 
         if (price <= 0) {
           return 'Base price per day must be greater than 0'
@@ -364,6 +367,82 @@ export function useSessionValidation(): UseSessionValidationReturn {
 
         if (price > 100000) {
           return 'Base price per day seems unreasonably high'
+        }
+
+        return null
+      },
+    []
+  )
+
+  // Validate conditional capacity (required when unlimitedCapacity is false)
+  const validateConditionalCapacity = useMemo(
+    () =>
+      (capacity: number | null, unlimitedCapacity: boolean): string | null => {
+        // If unlimited capacity is enabled, capacity is not required
+        if (unlimitedCapacity) {
+          return null
+        }
+
+        // If unlimited capacity is disabled, capacity is required
+        if (capacity === null || capacity === undefined) {
+          return 'Total capacity is required when unlimited capacity is not enabled'
+        }
+
+        if (capacity < 1) {
+          return 'Capacity must be at least 1'
+        }
+
+        if (capacity > 10000) {
+          return 'Capacity seems unreasonably high'
+        }
+
+        return null
+      },
+    []
+  )
+
+  // Validate day-of-week pricing
+  const validateDayOfWeekPricing = useMemo(
+    () =>
+      (pricing: DayOfWeekPricing[]): string | null => {
+        if (!pricing || pricing.length === 0) return null // Optional
+
+        // Track which days have been used
+        const usedDays = new Set<number>()
+
+        for (let i = 0; i < pricing.length; i++) {
+          const item = pricing[i]
+
+          // Validate day of week is selected
+          if (item.dayOfWeek === null || item.dayOfWeek === undefined) {
+            return 'Day of week must be selected'
+          }
+
+          // Validate day of week is in valid range (0-6)
+          if (item.dayOfWeek < 0 || item.dayOfWeek > 6) {
+            return 'Day of week must be between 0 (Sunday) and 6 (Saturday)'
+          }
+
+          // Check for duplicate days
+          if (usedDays.has(item.dayOfWeek)) {
+            return 'Each day can only have one price entry'
+          }
+          usedDays.add(item.dayOfWeek)
+
+          // Validate price is not empty/null
+          if (item.price === null || item.price === undefined) {
+            return 'Price is required'
+          }
+
+          // Validate price is greater than 0
+          if (item.price <= 0) {
+            return 'Price must be greater than 0'
+          }
+
+          // Validate price is reasonable
+          if (item.price > 100000) {
+            return 'Price seems unreasonably high'
+          }
         }
 
         return null
@@ -384,5 +463,7 @@ export function useSessionValidation(): UseSessionValidationReturn {
     validateDaysLimit,
     validateDiscountTiers,
     validateBasePricePerDay,
+    validateConditionalCapacity,
+    validateDayOfWeekPricing,
   }
 }

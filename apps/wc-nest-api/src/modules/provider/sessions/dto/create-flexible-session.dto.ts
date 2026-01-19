@@ -10,6 +10,7 @@ import {
   MaxLength,
   Min,
   ValidateNested,
+  ValidateIf,
 } from 'class-validator'
 import { Type } from 'class-transformer'
 
@@ -49,7 +50,7 @@ export class DayOfWeekPricingDto {
   dayOfWeek: number
 
   @IsNumber()
-  @Min(0)
+  @Min(0.01, { message: 'Price must be greater than 0' })
   price: number
 }
 
@@ -82,9 +83,9 @@ export class CreateFlexibleSessionDto {
   @IsDateString()
   endDate: string
 
-  @IsOptional()
+  @ValidateIf((o) => o.unlimitedCapacity === false || o.unlimitedCapacity === undefined)
   @IsNumber()
-  @Min(1)
+  @Min(1, { message: 'Total capacity is required when unlimited capacity is not enabled' })
   capacity?: number
 
   @IsOptional()
@@ -94,10 +95,9 @@ export class CreateFlexibleSessionDto {
   blackoutDates?: BlackoutDateDto[]
 
   // Pricing fields
-  @IsOptional()
   @IsNumber()
-  @Min(0)
-  basePricePerDay?: number
+  @Min(0.01, { message: 'Base price per day is required and must be greater than 0' })
+  basePricePerDay: number
 
   @IsOptional()
   @IsBoolean()

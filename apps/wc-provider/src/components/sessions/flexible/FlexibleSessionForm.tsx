@@ -153,20 +153,30 @@ export function FlexibleSessionForm({
     }
 
     // Section 3: Pricing
-    const basePriceError = validation.validateBasePricePerDay(formData.basePricePerDay)
+    // Base price per day is now REQUIRED
+    const basePriceError = validation.validateBasePricePerDay(formData.basePricePerDay, true)
     if (basePriceError) newErrors.basePricePerDay = basePriceError
 
-    const daysLimitError = validation.validateDaysLimit(formData.minDaysLimit, formData.maxDaysLimit)
+    const daysLimitError = validation.validateDaysLimit(
+      formData.minDaysLimit,
+      formData.maxDaysLimit
+    )
     if (daysLimitError) newErrors.daysLimit = daysLimitError
 
     const discountTiersError = validation.validateDiscountTiers(formData.discountTiers)
     if (discountTiersError) newErrors.discountTiers = discountTiersError
 
+    // Validate day-of-week pricing
+    const dayOfWeekPricingError = validation.validateDayOfWeekPricing(formData.dayOfWeekPricing)
+    if (dayOfWeekPricingError) newErrors.dayOfWeekPricing = dayOfWeekPricingError
+
     // Section 4: Capacity & Availability
-    if (!formData.unlimitedCapacity) {
-      const capacityError = validation.validateCapacity(formData.capacity ?? undefined)
-      if (capacityError) newErrors.capacity = capacityError
-    }
+    // Use conditional capacity validation (required when unlimitedCapacity is false)
+    const capacityError = validation.validateConditionalCapacity(
+      formData.capacity,
+      formData.unlimitedCapacity
+    )
+    if (capacityError) newErrors.capacity = capacityError
 
     const ageRangeError = validation.validateAgeRange(formData.ageRange)
     if (ageRangeError) newErrors.ageRange = ageRangeError
@@ -183,7 +193,12 @@ export function FlexibleSessionForm({
     setSectionErrors({
       basicInfo: !!newErrors.name,
       dates: !!(newErrors.dates || newErrors.blackoutDates),
-      pricing: !!(newErrors.basePricePerDay || newErrors.daysLimit || newErrors.discountTiers),
+      pricing: !!(
+        newErrors.basePricePerDay ||
+        newErrors.daysLimit ||
+        newErrors.discountTiers ||
+        newErrors.dayOfWeekPricing
+      ),
       capacity: !!(newErrors.capacity || newErrors.ageRange || newErrors.genderCapacity),
     })
 
@@ -245,6 +260,8 @@ export function FlexibleSessionForm({
       ...prev,
       blackoutDates: prev.blackoutDates.filter((_, i) => i !== index),
     }))
+    // Clear blackout dates error when item is removed
+    clearError('blackoutDates')
   }
 
   // Update blackout date
@@ -269,6 +286,8 @@ export function FlexibleSessionForm({
       ...prev,
       discountTiers: prev.discountTiers.filter((_, i) => i !== index),
     }))
+    // Clear discount tiers error when item is removed
+    clearError('discountTiers')
   }
 
   // Update discount tier
@@ -297,6 +316,8 @@ export function FlexibleSessionForm({
       ...prev,
       dayOfWeekPricing: prev.dayOfWeekPricing.filter((_, i) => i !== index),
     }))
+    // Clear day-of-week pricing error when item is removed
+    clearError('dayOfWeekPricing')
   }
 
   // Update day-of-week pricing
@@ -563,6 +584,7 @@ export function FlexibleSessionForm({
                 clearError('basePricePerDay')
               }}
               currency="USD"
+              isRequired
               isInvalid={!!errors.basePricePerDay}
               errorMessage={errors.basePricePerDay}
             />
@@ -832,6 +854,7 @@ export function FlexibleSessionForm({
                     clearError('genderCapacity')
                   }}
                   min={1}
+                  isRequired
                   isInvalid={!!errors.capacity}
                   errorMessage={errors.capacity}
                 />
