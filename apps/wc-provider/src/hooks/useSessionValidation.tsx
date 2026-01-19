@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import type { BlackoutDate, Duration } from '@/types/sessions'
+import type { AgeRange, BlackoutDate, DiscountTier } from '@/types/sessions'
 
 interface ValidationError {
   field: string
@@ -11,7 +11,6 @@ interface ValidationError {
 interface UseSessionValidationReturn {
   validateSessionName: (name: string) => string | null
   validateDateRange: (startDate: string, endDate: string) => string | null
-  validateDurations: (durations: Duration[]) => string | null
   validatePricing: (price: number) => string | null
   validateCapacity: (capacity?: number) => string | null
   validateBlackoutDates: (
@@ -19,11 +18,20 @@ interface UseSessionValidationReturn {
     sessionStart: string,
     sessionEnd: string
   ) => string | null
+  validateAgeRange: (ageRange: AgeRange | null) => string | null
+  validateGenderCapacity: (
+    boysCapacity: number | null,
+    girlsCapacity: number | null,
+    totalCapacity: number | null,
+    separateGenderCapacity: boolean
+  ) => string | null
+  validateDaysLimit: (minDays: number | null, maxDays: number | null) => string | null
+  validateDiscountTiers: (tiers: DiscountTier[]) => string | null
+  validateBasePricePerDay: (price: number | null) => string | null
   validateFlexibleSession: (data: {
     name: string
     startDate: string
     endDate: string
-    durations: Duration[]
   }) => ValidationError[]
   validateFixedSession: (data: {
     name: string
@@ -79,31 +87,6 @@ export function useSessionValidation(): UseSessionValidationReturn {
         }
         if (start >= end) {
           return 'End date must be after start date'
-        }
-
-        return null
-      },
-    []
-  )
-
-  // Validate durations (for flexible sessions)
-  const validateDurations = useMemo(
-    () =>
-      (durations: Duration[]): string | null => {
-        if (!durations || durations.length === 0) {
-          return 'At least one duration option is required'
-        }
-
-        for (const duration of durations) {
-          if (!duration.weeks || duration.weeks < 1) {
-            return 'Duration must be at least 1 week'
-          }
-          if (duration.weeks > 12) {
-            return 'Duration cannot exceed 12 weeks'
-          }
-          if (!duration.price || duration.price <= 0) {
-            return 'Duration price must be greater than 0'
-          }
         }
 
         return null
@@ -187,7 +170,6 @@ export function useSessionValidation(): UseSessionValidationReturn {
         name: string
         startDate: string
         endDate: string
-        durations: Duration[]
       }): ValidationError[] => {
         const errors: ValidationError[] = []
 
@@ -201,14 +183,9 @@ export function useSessionValidation(): UseSessionValidationReturn {
           errors.push({ field: 'dates', message: dateError })
         }
 
-        const durationsError = validateDurations(data.durations)
-        if (durationsError) {
-          errors.push({ field: 'durations', message: durationsError })
-        }
-
         return errors
       },
-    [validateSessionName, validateDateRange, validateDurations]
+    [validateSessionName, validateDateRange]
   )
 
   // Validate complete fixed session
@@ -248,14 +225,164 @@ export function useSessionValidation(): UseSessionValidationReturn {
     [validateSessionName, validateDateRange, validatePricing, validateCapacity]
   )
 
+  // Validate age range
+  const validateAgeRange = useMemo(
+    () =>
+      (ageRange: AgeRange | null): string | null => {
+        if (!ageRange) return null // Age range is optional
+
+        if (ageRange.min < 0) {
+          return 'Minimum age cannot be negative'
+        }
+        if (ageRange.max < 0) {
+          return 'Maximum age cannot be negative'
+        }
+        if (ageRange.min > ageRange.max) {
+          return 'Minimum age cannot be greater than maximum age'
+        }
+        if (ageRange.max > 100) {
+          return 'Maximum age seems unreasonably high'
+        }
+
+        return null
+      },
+    []
+  )
+
+  // Validate gender capacity
+  const validateGenderCapacity = useMemo(
+    () =>
+      (
+        boysCapacity: number | null,
+        girlsCapacity: number | null,
+        totalCapacity: number | null,
+        separateGenderCapacity: boolean
+      ): string | null => {
+        if (!separateGenderCapacity) return null // Not using separate gender capacity
+
+        if (!totalCapacity) {
+          return 'Total capacity must be set to use separate gender capacity'
+        }
+
+        if (boysCapacity === null && girlsCapacity === null) {
+          return 'At least one gender capacity must be set'
+        }
+
+        if (boysCapacity !== null && boysCapacity < 0) {
+          return 'Boys capacity cannot be negative'
+        }
+
+        if (girlsCapacity !== null && girlsCapacity < 0) {
+          return 'Girls capacity cannot be negative'
+        }
+
+        if (boysCapacity !== null && girlsCapacity !== null) {
+          const sum = boysCapacity + girlsCapacity
+          if (sum !== totalCapacity) {
+            return `Boys capacity (${boysCapacity}) + Girls capacity (${girlsCapacity}) must equal total capacity (${totalCapacity})`
+          }
+        }
+
+        return null
+      },
+    []
+  )
+
+  // Validate days limit
+  const validateDaysLimit = useMemo(
+    () =>
+      (minDays: number | null, maxDays: number | null): string | null => {
+        if (minDays === null && maxDays === null) return null // Both optional
+
+        if (minDays !== null && minDays < 1) {
+          return 'Minimum days must be at least 1'
+        }
+
+        if (maxDays !== null && maxDays < 1) {
+          return 'Maximum days must be at least 1'
+        }
+
+        if (minDays !== null && maxDays !== null && minDays > maxDays) {
+          return 'Minimum days cannot be greater than maximum days'
+        }
+
+        return null
+      },
+    []
+  )
+
+  // Validate discount tiers
+  const validateDiscountTiers = useMemo(
+    () =>
+      (tiers: DiscountTier[]): string | null => {
+        if (!tiers || tiers.length === 0) return null // Optional
+
+        for (let i = 0; i < tiers.length; i++) {
+          const tier = tiers[i]
+
+          if (tier.minDays < 1) {
+            return `Discount tier ${i + 1}: Minimum days must be at least 1`
+          }
+
+          if (tier.maxDays !== undefined && tier.maxDays < tier.minDays) {
+            return `Discount tier ${i + 1}: Maximum days cannot be less than minimum days`
+          }
+
+          if (tier.discountPercent < 0 || tier.discountPercent > 100) {
+            return `Discount tier ${i + 1}: Discount percent must be between 0 and 100`
+          }
+
+          // Check for overlapping tiers
+          for (let j = i + 1; j < tiers.length; j++) {
+            const otherTier = tiers[j]
+            const tier1Max = tier.maxDays ?? Infinity
+            const tier2Max = otherTier.maxDays ?? Infinity
+
+            if (
+              (tier.minDays <= otherTier.minDays && tier1Max >= otherTier.minDays) ||
+              (otherTier.minDays <= tier.minDays && tier2Max >= tier.minDays)
+            ) {
+              return `Discount tiers ${i + 1} and ${j + 1} overlap`
+            }
+          }
+        }
+
+        return null
+      },
+    []
+  )
+
+  // Validate base price per day
+  const validateBasePricePerDay = useMemo(
+    () =>
+      (price: number | null): string | null => {
+        if (price === null) return null // Optional
+
+        if (price <= 0) {
+          return 'Base price per day must be greater than 0'
+        }
+
+        if (price > 100000) {
+          return 'Base price per day seems unreasonably high'
+        }
+
+        return null
+      },
+    []
+  )
+
   return {
     validateSessionName,
     validateDateRange,
-    validateDurations,
     validatePricing,
     validateCapacity,
     validateBlackoutDates,
     validateFlexibleSession,
     validateFixedSession,
+    validateAgeRange,
+    validateGenderCapacity,
+    validateDaysLimit,
+    validateDiscountTiers,
+    validateBasePricePerDay,
   }
 }

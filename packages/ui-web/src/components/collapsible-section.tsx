@@ -12,6 +12,8 @@ interface CollapsibleSectionProps {
   className?: string;
   isExpanded?: boolean;
   onToggle?: () => void;
+  hasError?: boolean;
+  errorMessage?: string;
 }
 
 export function CollapsibleSection({
@@ -21,6 +23,8 @@ export function CollapsibleSection({
   className,
   isExpanded,
   onToggle,
+  hasError = false,
+  errorMessage,
 }: CollapsibleSectionProps) {
   const [internalIsOpen, setInternalIsOpen] = useState(defaultOpen);
 
@@ -31,22 +35,48 @@ export function CollapsibleSection({
   return (
     <div
       className={cn(
-        'border border-gray-200 dark:border-gray-700 rounded-lg',
+        'border rounded-lg',
+        hasError
+          ? 'border-danger-500 dark:border-danger-400'
+          : 'border-gray-200 dark:border-gray-700',
         className,
       )}
     >
       <Button
         variant="light"
         onPress={() => setIsOpen()}
-        className="w-full justify-between p-4 h-auto rounded-none rounded-t-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+        className={cn(
+          'w-full justify-between p-4 h-auto rounded-none rounded-t-lg hover:bg-gray-50 dark:hover:bg-gray-800',
+          hasError && 'bg-danger-50 dark:bg-danger-900/20',
+        )}
       >
-        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-          {title}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              'text-sm font-medium',
+              hasError
+                ? 'text-danger-600 dark:text-danger-400'
+                : 'text-gray-900 dark:text-gray-100',
+            )}
+          >
+            {title}
+          </span>
+          {hasError && errorMessage && (
+            <span className="text-xs text-danger-600 dark:text-danger-400">
+              ({errorMessage})
+            </span>
+          )}
+        </div>
         {isOpen ? (
-          <ChevronUp size={20} className="text-gray-500" />
+          <ChevronUp
+            size={20}
+            className={hasError ? 'text-danger-500' : 'text-gray-500'}
+          />
         ) : (
-          <ChevronDown size={20} className="text-gray-500" />
+          <ChevronDown
+            size={20}
+            className={hasError ? 'text-danger-500' : 'text-gray-500'}
+          />
         )}
       </Button>
 

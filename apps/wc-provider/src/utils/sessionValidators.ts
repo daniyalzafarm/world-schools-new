@@ -1,4 +1,4 @@
-import type { BlackoutDate, Duration } from '@/types/sessions'
+import type { BlackoutDate } from '@/types/sessions'
 
 /**
  * Validation utilities for sessions
@@ -17,31 +17,6 @@ export function validateDateRange(startDate: string, endDate: string): boolean {
   if (start >= end) return false
 
   return true
-}
-
-/**
- * Validate duration weeks
- */
-export function validateDurationWeeks(weeks: number): boolean {
-  return weeks >= 1 && weeks <= 12
-}
-
-/**
- * Validate duration price
- */
-export function validateDurationPrice(price: number): boolean {
-  return price > 0 && price <= 1000000
-}
-
-/**
- * Validate durations array
- */
-export function validateDurations(durations: Duration[]): boolean {
-  if (!durations || durations.length === 0) return false
-
-  return durations.every(
-    duration => validateDurationWeeks(duration.weeks) && validateDurationPrice(duration.price)
-  )
 }
 
 /**

@@ -235,7 +235,6 @@ export class SessionsService {
         description: dto.description,
         startDate,
         endDate,
-        durations: dto.durations as any,
         blackoutDates: (dto.blackoutDates ?? []) as any,
         capacity: dto.capacity,
         sortOrder,
@@ -382,9 +381,6 @@ export class SessionsService {
       if (dto.startDate || dto.endDate) {
         throw new BadRequestException('Cannot change dates for a session with existing bookings')
       }
-      if (dto.durations) {
-        throw new BadRequestException('Cannot change pricing for a session with existing bookings')
-      }
       if (dto.capacity && dto.capacity < bookingsCount) {
         throw new BadRequestException(
           `Cannot reduce capacity to ${dto.capacity}. Current bookings: ${bookingsCount}`
@@ -408,7 +404,6 @@ export class SessionsService {
     if (dto.description !== undefined) updateData.description = dto.description
     if (dto.startDate) updateData.startDate = new Date(dto.startDate)
     if (dto.endDate) updateData.endDate = new Date(dto.endDate)
-    if (dto.durations) updateData.durations = dto.durations as any
     if (dto.blackoutDates !== undefined) updateData.blackoutDates = dto.blackoutDates as any
     if (dto.capacity !== undefined) updateData.capacity = dto.capacity
     if (dto.isActive !== undefined) updateData.isActive = dto.isActive

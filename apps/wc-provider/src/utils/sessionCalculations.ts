@@ -1,4 +1,4 @@
-import type { Duration, FixedSession, FlexibleSession } from '@/types/sessions'
+import type { FixedSession, FlexibleSession } from '@/types/sessions'
 
 /**
  * Calculation utilities for sessions
@@ -97,36 +97,6 @@ export function getCapacityStatus(
   if (isSessionFull(capacity, booked)) return 'full'
   if (isSessionAlmostFull(capacity, booked)) return 'almost-full'
   return 'available'
-}
-
-/**
- * Find duration by weeks
- */
-export function findDurationByWeeks(durations: Duration[], weeks: number): Duration | undefined {
-  return durations.find(d => d.weeks === weeks)
-}
-
-/**
- * Get minimum price from durations
- */
-export function getMinimumPrice(durations: Duration[]): number {
-  if (durations.length === 0) return 0
-  return Math.min(...durations.map(d => d.price))
-}
-
-/**
- * Get maximum price from durations
- */
-export function getMaximumPrice(durations: Duration[]): number {
-  if (durations.length === 0) return 0
-  return Math.max(...durations.map(d => d.price))
-}
-
-/**
- * Sort durations by weeks (ascending)
- */
-export function sortDurationsByWeeks(durations: Duration[]): Duration[] {
-  return [...durations].sort((a, b) => a.weeks - b.weeks)
 }
 
 /**

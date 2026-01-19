@@ -1,35 +1,15 @@
 import {
-  ArrayMaxSize,
-  ArrayMinSize,
   IsArray,
   IsDateString,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
-  Max,
   MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator'
 import { Type } from 'class-transformer'
-
-export class DurationDto {
-  @IsNumber()
-  @Min(1)
-  @Max(52)
-  weeks: number
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(6)
-  days?: number
-
-  @IsNumber()
-  @Min(0)
-  price: number
-}
 
 export class BlackoutDateDto {
   @IsDateString()
@@ -60,13 +40,6 @@ export class CreateFlexibleSessionDto {
 
   @IsDateString()
   endDate: string
-
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(10)
-  @ValidateNested({ each: true })
-  @Type(() => DurationDto)
-  durations: DurationDto[]
 
   @IsOptional()
   @IsNumber()

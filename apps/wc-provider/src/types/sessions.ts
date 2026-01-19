@@ -1,13 +1,6 @@
 // Session Types
 export type SessionType = 'flexible' | 'fixed'
 
-// Duration for flexible sessions
-export interface Duration {
-  weeks: number
-  days?: number
-  price: number
-}
-
 // Multi-day discount tier
 export interface DiscountTier {
   minDays: number
@@ -56,7 +49,6 @@ export interface FlexibleSession extends Session {
   type: 'flexible'
   startDate: string // ISO date string - booking window start
   endDate: string // ISO date string - booking window end
-  durations: Duration[]
   blackoutDates?: BlackoutDate[]
 
   // New fields for enhanced flexible sessions
@@ -91,7 +83,6 @@ export interface CreateFlexibleSessionDto {
   description?: string
   startDate: string
   endDate: string
-  durations: Duration[]
   capacity?: number
   blackoutDates?: BlackoutDate[]
 
@@ -127,7 +118,6 @@ export interface UpdateFlexibleSessionDto {
   description?: string
   startDate?: string
   endDate?: string
-  durations?: Duration[]
   capacity?: number
   blackoutDates?: BlackoutDate[]
   isActive?: boolean
@@ -196,7 +186,6 @@ export interface FlexibleSessionFormData {
   description: string
   startDate: Date | null
   endDate: Date | null
-  durations: Duration[]
   capacity: number | null
   blackoutDates: BlackoutDate[]
 

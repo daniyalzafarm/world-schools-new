@@ -1,5 +1,3 @@
-import type { Duration } from '@/types/sessions'
-
 /**
  * Formatting utilities for sessions
  */
@@ -99,15 +97,6 @@ export function formatDuration(weeks: number, days = 0): string {
   }
 
   return parts.join(', ') || '0 days'
-}
-
-/**
- * Format duration with price (e.g., "2 weeks - $1,200")
- */
-export function formatDurationWithPrice(duration: Duration, currency = 'USD'): string {
-  const durationText = formatDuration(duration.weeks, duration.days)
-  const priceText = formatCurrency(duration.price, currency)
-  return `${durationText} - ${priceText}`
 }
 
 /**

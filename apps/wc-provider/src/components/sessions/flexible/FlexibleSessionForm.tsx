@@ -19,7 +19,6 @@ import type {
   BlackoutDate,
   DayOfWeekPricing,
   DiscountTier,
-  Duration,
   FlexibleSession,
 } from '@/types/sessions'
 import type { Gender } from '@/types/camps'
@@ -38,7 +37,6 @@ export interface FlexibleSessionFormData {
   description: string
   startDate: string
   endDate: string
-  durations: Duration[]
   blackoutDates: BlackoutDate[]
   basePricePerDay: number | null
   requireConsecutiveDays: boolean
@@ -89,7 +87,6 @@ export function FlexibleSessionForm({
     description: session?.description || '',
     startDate: session?.startDate ? formatDateForInput(session.startDate) : '',
     endDate: session?.endDate ? formatDateForInput(session.endDate) : '',
-    durations: session?.durations ?? [{ weeks: 2, price: 0 }],
     blackoutDates: session?.blackoutDates ?? [],
     basePricePerDay: session?.basePricePerDay ?? null,
     requireConsecutiveDays: session?.requireConsecutiveDays ?? false,
@@ -122,24 +119,28 @@ export function FlexibleSessionForm({
     () => formData.minDaysLimit !== null || formData.maxDaysLimit !== null
   )
 
-  // Validation errors
+  // Validation errors - organized by section
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Section error states
+  const [sectionErrors, setSectionErrors] = useState({
+    basicInfo: false,
+    dates: false,
+    pricing: false,
+    capacity: false,
+  })
 
   // Validate form
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
 
-    // Validate name
+    // Section 1: Basic Information
     const nameError = validation.validateSessionName(formData.name)
     if (nameError) newErrors.name = nameError
 
-    // Validate dates
+    // Section 2: Dates & Availability
     const dateError = validation.validateDateRange(formData.startDate, formData.endDate)
     if (dateError) newErrors.dates = dateError
-
-    // Validate durations
-    const durationsError = validation.validateDurations(formData.durations)
-    if (durationsError) newErrors.durations = durationsError
 
     // Validate blackout dates
     if (formData.blackoutDates.length > 0) {
@@ -151,8 +152,62 @@ export function FlexibleSessionForm({
       if (blackoutError) newErrors.blackoutDates = blackoutError
     }
 
+    // Section 3: Pricing
+    const basePriceError = validation.validateBasePricePerDay(formData.basePricePerDay)
+    if (basePriceError) newErrors.basePricePerDay = basePriceError
+
+    const daysLimitError = validation.validateDaysLimit(formData.minDaysLimit, formData.maxDaysLimit)
+    if (daysLimitError) newErrors.daysLimit = daysLimitError
+
+    const discountTiersError = validation.validateDiscountTiers(formData.discountTiers)
+    if (discountTiersError) newErrors.discountTiers = discountTiersError
+
+    // Section 4: Capacity & Availability
+    if (!formData.unlimitedCapacity) {
+      const capacityError = validation.validateCapacity(formData.capacity ?? undefined)
+      if (capacityError) newErrors.capacity = capacityError
+    }
+
+    const ageRangeError = validation.validateAgeRange(formData.ageRange)
+    if (ageRangeError) newErrors.ageRange = ageRangeError
+
+    const genderCapacityError = validation.validateGenderCapacity(
+      formData.boysCapacity,
+      formData.girlsCapacity,
+      formData.capacity,
+      formData.separateGenderCapacity
+    )
+    if (genderCapacityError) newErrors.genderCapacity = genderCapacityError
+
+    // Update section error states
+    setSectionErrors({
+      basicInfo: !!newErrors.name,
+      dates: !!(newErrors.dates || newErrors.blackoutDates),
+      pricing: !!(newErrors.basePricePerDay || newErrors.daysLimit || newErrors.discountTiers),
+      capacity: !!(newErrors.capacity || newErrors.ageRange || newErrors.genderCapacity),
+    })
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
+  }
+
+  // Clear specific field error when user fixes it
+  const clearError = (field: string) => {
+    setErrors(prev => {
+      const newErrors = { ...prev }
+      delete newErrors[field]
+      return newErrors
+    })
+
+    // Update section errors
+    setTimeout(() => {
+      setSectionErrors({
+        basicInfo: !!errors.name,
+        dates: !!(errors.dates || errors.blackoutDates),
+        pricing: !!(errors.basePricePerDay || errors.daysLimit || errors.discountTiers),
+        capacity: !!(errors.capacity || errors.ageRange || errors.genderCapacity),
+      })
+    }, 0)
   }
 
   // Handle submit
@@ -257,7 +312,12 @@ export function FlexibleSessionForm({
   return (
     <div className="space-y-6">
       {/* Section 1: Basic Information */}
-      <CollapsibleSection title="1. Basic Information" defaultOpen={true}>
+      <CollapsibleSection
+        title="1. Basic Information"
+        defaultOpen={true}
+        hasError={sectionErrors.basicInfo}
+        errorMessage={sectionErrors.basicInfo ? 'Please fix errors' : undefined}
+      >
         <div className="space-y-6">
           <Input
             type="text"
@@ -265,7 +325,10 @@ export function FlexibleSessionForm({
             labelPlacement="outside"
             placeholder="e.g., Summer 2024 Language Immersion"
             value={formData.name}
-            onValueChange={value => setFormData(prev => ({ ...prev, name: value }))}
+            onValueChange={value => {
+              setFormData(prev => ({ ...prev, name: value }))
+              clearError('name')
+            }}
             isRequired
             isInvalid={!!errors.name}
             errorMessage={errors.name}
@@ -282,7 +345,12 @@ export function FlexibleSessionForm({
       </CollapsibleSection>
 
       {/* Section 2: Dates & Availability */}
-      <CollapsibleSection title="2. Dates & Availability" defaultOpen={true}>
+      <CollapsibleSection
+        title="2. Dates & Availability"
+        defaultOpen={true}
+        hasError={sectionErrors.dates}
+        errorMessage={sectionErrors.dates ? 'Please fix errors' : undefined}
+      >
         <div className="space-y-6">
           {/* Date Range */}
           <div>
@@ -303,6 +371,7 @@ export function FlexibleSessionForm({
                     value={formData.startDate}
                     onValueChange={value => {
                       setFormData(prev => ({ ...prev, startDate: value }))
+                      clearError('dates')
                       // Update RangeCalendar when start date changes
                       const startCal = stringToCalendarDate(value)
                       const endCal = stringToCalendarDate(formData.endDate)
@@ -322,6 +391,7 @@ export function FlexibleSessionForm({
                     value={formData.endDate}
                     onValueChange={value => {
                       setFormData(prev => ({ ...prev, endDate: value }))
+                      clearError('dates')
                       // Update RangeCalendar when end date changes
                       const startCal = stringToCalendarDate(formData.startDate)
                       const endCal = stringToCalendarDate(value)
@@ -474,7 +544,12 @@ export function FlexibleSessionForm({
       </CollapsibleSection>
 
       {/* Section 3: Rates & Pricing */}
-      <CollapsibleSection title="3. Rates & Pricing" defaultOpen={true}>
+      <CollapsibleSection
+        title="3. Rates & Pricing"
+        defaultOpen={true}
+        hasError={sectionErrors.pricing}
+        errorMessage={sectionErrors.pricing ? 'Please fix errors' : undefined}
+      >
         <div className="space-y-4">
           <div className="flex gap-4">
             {/* Base Price per Day */}
@@ -483,8 +558,13 @@ export function FlexibleSessionForm({
               labelPlacement="outside"
               placeholder="50"
               value={formData.basePricePerDay}
-              onValueChange={value => setFormData(prev => ({ ...prev, basePricePerDay: value }))}
+              onValueChange={value => {
+                setFormData(prev => ({ ...prev, basePricePerDay: value }))
+                clearError('basePricePerDay')
+              }}
               currency="USD"
+              isInvalid={!!errors.basePricePerDay}
+              errorMessage={errors.basePricePerDay}
             />
 
             <div className="flex w-full items-center justify-between">
@@ -518,10 +598,12 @@ export function FlexibleSessionForm({
                   labelPlacement="outside"
                   placeholder="1"
                   value={formData.minDaysLimit?.toString() || ''}
-                  onValueChange={value =>
+                  onValueChange={value => {
                     setFormData(prev => ({ ...prev, minDaysLimit: value ? parseInt(value) : null }))
-                  }
+                    clearError('daysLimit')
+                  }}
                   min={1}
+                  isInvalid={!!errors.daysLimit}
                 />
                 <Input
                   type="number"
@@ -529,13 +611,16 @@ export function FlexibleSessionForm({
                   labelPlacement="outside"
                   placeholder="30"
                   value={formData.maxDaysLimit?.toString() || ''}
-                  onValueChange={value =>
+                  onValueChange={value => {
                     setFormData(prev => ({ ...prev, maxDaysLimit: value ? parseInt(value) : null }))
-                  }
+                    clearError('daysLimit')
+                  }}
                   min={1}
+                  isInvalid={!!errors.daysLimit}
                 />
               </div>
             )}
+            {errors.daysLimit && <p className="mt-1.5 text-sm text-danger">{errors.daysLimit}</p>}
           </div>
 
           {/* Multi-Day Discount Offers */}
@@ -568,11 +653,13 @@ export function FlexibleSessionForm({
                       labelPlacement="outside"
                       placeholder="5"
                       value={tier.minDays.toString()}
-                      onValueChange={value =>
+                      onValueChange={value => {
                         updateDiscountTier(index, 'minDays', parseInt(value) || 0)
-                      }
+                        clearError('discountTiers')
+                      }}
                       min={1}
                       className="flex-1"
+                      isInvalid={!!errors.discountTiers}
                     />
                     <Input
                       type="number"
@@ -580,11 +667,13 @@ export function FlexibleSessionForm({
                       labelPlacement="outside"
                       placeholder="10"
                       value={tier.maxDays?.toString() || ''}
-                      onValueChange={value =>
+                      onValueChange={value => {
                         updateDiscountTier(index, 'maxDays', value ? parseInt(value) : undefined)
-                      }
+                        clearError('discountTiers')
+                      }}
                       min={1}
                       className="flex-1"
+                      isInvalid={!!errors.discountTiers}
                     />
                     <Input
                       type="number"
@@ -592,12 +681,14 @@ export function FlexibleSessionForm({
                       labelPlacement="outside"
                       placeholder="10"
                       value={tier.discountPercent.toString()}
-                      onValueChange={value =>
+                      onValueChange={value => {
                         updateDiscountTier(index, 'discountPercent', parseFloat(value) || 0)
-                      }
+                        clearError('discountTiers')
+                      }}
                       min={0}
                       max={100}
                       className="flex-1"
+                      isInvalid={!!errors.discountTiers}
                     />
                     <Button
                       isIconOnly
@@ -617,6 +708,9 @@ export function FlexibleSessionForm({
               <div className="py-6 text-center text-sm text-default-400">
                 No discount tiers added
               </div>
+            )}
+            {errors.discountTiers && (
+              <p className="mt-1.5 text-sm text-danger">{errors.discountTiers}</p>
             )}
           </div>
 
@@ -702,7 +796,12 @@ export function FlexibleSessionForm({
       </CollapsibleSection>
 
       {/* Section 4: Capacity & Availability */}
-      <CollapsibleSection title="4. Capacity & Availability" defaultOpen={true}>
+      <CollapsibleSection
+        title="4. Capacity & Availability"
+        defaultOpen={true}
+        hasError={sectionErrors.capacity}
+        errorMessage={sectionErrors.capacity ? 'Please fix errors' : undefined}
+      >
         <div className="space-y-6">
           {/* Total Capacity */}
           <div className="flex gap-4 mb-4">
@@ -713,9 +812,10 @@ export function FlexibleSessionForm({
               </div>
               <Switch
                 isSelected={formData.unlimitedCapacity}
-                onValueChange={value =>
+                onValueChange={value => {
                   setFormData(prev => ({ ...prev, unlimitedCapacity: value }))
-                }
+                  clearError('capacity')
+                }}
               />
             </div>
             <div className="flex w-full">
@@ -726,10 +826,14 @@ export function FlexibleSessionForm({
                   labelPlacement="outside"
                   placeholder="50"
                   value={formData.capacity?.toString() || ''}
-                  onValueChange={value =>
+                  onValueChange={value => {
                     setFormData(prev => ({ ...prev, capacity: value ? parseInt(value) : null }))
-                  }
+                    clearError('capacity')
+                    clearError('genderCapacity')
+                  }}
                   min={1}
+                  isInvalid={!!errors.capacity}
+                  errorMessage={errors.capacity}
                 />
               )}
             </div>
@@ -745,7 +849,7 @@ export function FlexibleSessionForm({
                 labelPlacement="outside"
                 placeholder="5"
                 value={formData.ageRange?.min.toString() || ''}
-                onValueChange={value =>
+                onValueChange={value => {
                   setFormData(prev => ({
                     ...prev,
                     ageRange: {
@@ -753,9 +857,11 @@ export function FlexibleSessionForm({
                       max: prev.ageRange?.max ?? 18,
                     },
                   }))
-                }
+                  clearError('ageRange')
+                }}
                 min={0}
                 max={100}
+                isInvalid={!!errors.ageRange}
               />
               <Input
                 type="number"
@@ -763,7 +869,7 @@ export function FlexibleSessionForm({
                 labelPlacement="outside"
                 placeholder="18"
                 value={formData.ageRange?.max.toString() || ''}
-                onValueChange={value =>
+                onValueChange={value => {
                   setFormData(prev => ({
                     ...prev,
                     ageRange: {
@@ -771,11 +877,14 @@ export function FlexibleSessionForm({
                       max: value ? parseInt(value) : 18,
                     },
                   }))
-                }
+                  clearError('ageRange')
+                }}
                 min={0}
                 max={100}
+                isInvalid={!!errors.ageRange}
               />
             </div>
+            {errors.ageRange && <p className="mt-1.5 text-sm text-danger">{errors.ageRange}</p>}
           </div>
 
           {/* Gender-based Capacity Limits */}
@@ -802,6 +911,7 @@ export function FlexibleSessionForm({
                       boysCapacity: value ? prev.boysCapacity : null,
                       girlsCapacity: value ? prev.girlsCapacity : null,
                     }))
+                    clearError('genderCapacity')
                   }}
                   isDisabled={campGender !== 'coed'}
                 />
@@ -826,9 +936,11 @@ export function FlexibleSessionForm({
                             ? Math.max(0, prev.capacity - boysCapacity)
                             : prev.girlsCapacity,
                       }))
+                      clearError('genderCapacity')
                     }}
                     min={0}
                     max={formData.capacity}
+                    isInvalid={!!errors.genderCapacity}
                   />
                   <Input
                     type="number"
@@ -847,11 +959,16 @@ export function FlexibleSessionForm({
                             ? Math.max(0, prev.capacity - girlsCapacity)
                             : prev.boysCapacity,
                       }))
+                      clearError('genderCapacity')
                     }}
                     min={0}
                     max={formData.capacity}
+                    isInvalid={!!errors.genderCapacity}
                   />
                 </div>
+              )}
+              {errors.genderCapacity && (
+                <p className="mt-1.5 text-sm text-danger">{errors.genderCapacity}</p>
               )}
             </div>
           )}

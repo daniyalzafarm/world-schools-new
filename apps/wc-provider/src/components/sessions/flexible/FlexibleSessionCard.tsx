@@ -94,14 +94,6 @@ export function FlexibleSessionCard({
             </Dropdown>
           </div>
 
-          {/* Durations */}
-          <div>
-            <p className="text-[12px] font-semibold text-default-500 uppercase tracking-wide mb-2">
-              Duration Options
-            </p>
-            <SessionPricingDisplay durations={session.durations} variant="chips" />
-          </div>
-
           {/* Blackout Dates */}
           {hasBlackoutDates && (
             <div>
