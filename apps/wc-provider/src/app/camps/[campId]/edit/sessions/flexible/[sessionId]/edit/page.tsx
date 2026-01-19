@@ -45,7 +45,15 @@ export default function EditFlexibleSessionPage() {
     if (!isLoading && flexibleSessions) {
       const foundSession = flexibleSessions.find(s => s.id === sessionId)
       if (foundSession) {
-        setSession(foundSession)
+        // Ensure basePricePerDay is a number (defensive conversion in case backend returns string)
+        const normalizedSession = {
+          ...foundSession,
+          basePricePerDay:
+            foundSession.basePricePerDay !== null && foundSession.basePricePerDay !== undefined
+              ? Number(foundSession.basePricePerDay)
+              : foundSession.basePricePerDay,
+        }
+        setSession(normalizedSession)
       }
     }
   }, [isLoading, flexibleSessions, sessionId])

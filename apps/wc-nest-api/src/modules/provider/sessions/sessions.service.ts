@@ -16,6 +16,24 @@ export class SessionsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * Transform Prisma Decimal fields to numbers for JSON serialization
+   * Prisma Decimal is serialized as string by default, but we need numbers for frontend validation
+   */
+  private transformSessionForResponse(session: any) {
+    return {
+      ...session,
+      basePricePerDay:
+        session.basePricePerDay !== null && session.basePricePerDay !== undefined
+          ? Number(session.basePricePerDay)
+          : session.basePricePerDay,
+      price:
+        session.price !== null && session.price !== undefined
+          ? Number(session.price)
+          : session.price,
+    }
+  }
+
+  /**
    * Verify camp ownership and return camp
    */
   private async validateCampOwnership(campId: string, providerId: string) {
@@ -124,9 +142,12 @@ export class SessionsService {
       },
     })
 
+    // Transform Decimal fields to numbers for proper JSON serialization
+    const transformedSessions = sessions.map((session) => this.transformSessionForResponse(session))
+
     return {
-      sessions,
-      total: sessions.length,
+      sessions: transformedSessions,
+      total: transformedSessions.length,
     }
   }
 
@@ -155,12 +176,15 @@ export class SessionsService {
       },
     })
 
+    // Transform Decimal fields to numbers and add booked count
+    const transformedSessions = sessions.map((session) => ({
+      ...this.transformSessionForResponse(session),
+      bookedCount: session._count.bookings,
+    }))
+
     return {
-      sessions: sessions.map(session => ({
-        ...session,
-        bookedCount: session._count.bookings,
-      })),
-      total: sessions.length,
+      sessions: transformedSessions,
+      total: transformedSessions.length,
     }
   }
 
@@ -256,7 +280,7 @@ export class SessionsService {
     })
 
     return {
-      session,
+      session: this.transformSessionForResponse(session),
       message: 'Flexible session created successfully',
     }
   }
@@ -365,7 +389,7 @@ export class SessionsService {
     })
 
     return {
-      session,
+      session: this.transformSessionForResponse(session),
       message: 'Fixed session created successfully',
     }
   }
@@ -448,7 +472,7 @@ export class SessionsService {
     })
 
     return {
-      session: updatedSession,
+      session: this.transformSessionForResponse(updatedSession),
       message: 'Session updated successfully',
     }
   }
@@ -553,7 +577,7 @@ export class SessionsService {
     })
 
     return {
-      session: updatedSession,
+      session: this.transformSessionForResponse(updatedSession),
       message: 'Session updated successfully',
     }
   }
@@ -597,7 +621,7 @@ export class SessionsService {
     })
 
     return {
-      session: updatedSession,
+      session: this.transformSessionForResponse(updatedSession),
       message: `Session ${updatedSession.isActive ? 'activated' : 'deactivated'} successfully`,
     }
   }
@@ -637,7 +661,7 @@ export class SessionsService {
     })
 
     return {
-      session: duplicatedSession,
+      session: this.transformSessionForResponse(duplicatedSession),
       message: 'Session duplicated successfully',
     }
   }
