@@ -25,5 +25,5 @@ export const Input: React.FC<CustomInputProps> = ({ classNames: customClassNames
     },
   }
 
-  return <HeroInput {...{ size: 'lg', ...props }} classNames={mergedClassNames} />
+  return <HeroInput {...props} classNames={mergedClassNames} />
 }
