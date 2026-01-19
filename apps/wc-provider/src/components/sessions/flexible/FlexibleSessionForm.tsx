@@ -331,7 +331,7 @@ export function FlexibleSessionForm({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-4">
       {/* Section 1: Basic Information */}
       <CollapsibleSection
         title="1. Basic Information"
@@ -339,7 +339,7 @@ export function FlexibleSessionForm({
         hasError={sectionErrors.basicInfo}
         errorMessage={sectionErrors.basicInfo ? 'Please fix errors' : undefined}
       >
-        <div className="space-y-6">
+        <div className="flex flex-col gap-4">
           <Input
             type="text"
             label="Session Title"
@@ -372,7 +372,7 @@ export function FlexibleSessionForm({
         hasError={sectionErrors.dates}
         errorMessage={sectionErrors.dates ? 'Please fix errors' : undefined}
       >
-        <div className="space-y-6">
+        <div className="flex flex-col gap-4">
           {/* Date Range */}
           <div>
             <div className="mb-2">
@@ -383,7 +383,7 @@ export function FlexibleSessionForm({
             </div>
             <div className="grid md:grid-cols-2 gap-4">
               {/* Left Column: Individual Date Inputs */}
-              <div className="space-y-6">
+              <div className="flex flex-col gap-4">
                 <div className="flex gap-4">
                   <Input
                     type="date"
@@ -518,7 +518,7 @@ export function FlexibleSessionForm({
             )}
 
             {formData.blackoutDates.length > 0 && (
-              <div className="space-y-3">
+              <div className="flex flex-col gap-4">
                 {formData.blackoutDates.map((blackout, index) => (
                   <div key={index} className="flex items-end gap-3">
                     <DatePicker
@@ -571,7 +571,7 @@ export function FlexibleSessionForm({
         hasError={sectionErrors.pricing}
         errorMessage={sectionErrors.pricing ? 'Please fix errors' : undefined}
       >
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <div className="flex gap-4">
             {/* Base Price per Day */}
             <CurrencyInput
@@ -666,7 +666,7 @@ export function FlexibleSessionForm({
             </p>
 
             {formData.discountTiers.length > 0 && (
-              <div className="space-y-3">
+              <div className="flex flex-col gap-4">
                 {formData.discountTiers.map((tier, index) => (
                   <div key={index} className="flex items-end gap-3">
                     <Input
@@ -755,7 +755,7 @@ export function FlexibleSessionForm({
             </p>
 
             {formData.dayOfWeekPricing.length > 0 && (
-              <div className="space-y-3">
+              <div className="flex flex-col gap-4">
                 {formData.dayOfWeekPricing.map((pricing, index) => {
                   const dayOptions = [
                     'Sunday',
@@ -825,7 +825,7 @@ export function FlexibleSessionForm({
         hasError={sectionErrors.capacity}
         errorMessage={sectionErrors.capacity ? 'Please fix errors' : undefined}
       >
-        <div className="space-y-6">
+        <div className="flex flex-col gap-4">
           {/* Total Capacity */}
           <div className="flex gap-4 mb-4">
             <div className="flex w-full items-center justify-between">

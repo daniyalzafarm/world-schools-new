@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { RangeCalendar, Switch } from '@heroui/react'
-import { CurrencyInput, Input } from '@world-schools/ui-web'
+import { CollapsibleSection, CurrencyInput, Input, RichTextEditor } from '@world-schools/ui-web'
 import { type CalendarDate, parseDate } from '@internationalized/date'
 import type { RangeValue } from '@react-types/shared'
 import type { FixedSession } from '@/types/sessions'
@@ -75,6 +75,14 @@ export function FixedSessionForm({ session, onSubmit, onSubmitRef }: FixedSessio
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // Section-level error tracking
+  const [sectionErrors, setSectionErrors] = useState({
+    basicInfo: false,
+    dates: false,
+    pricing: false,
+    capacity: false,
+  })
+
   // Clear specific error
   const clearError = (field: string) => {
     setErrors(prev => {
@@ -108,6 +116,14 @@ export function FixedSessionForm({ session, onSubmit, onSubmitRef }: FixedSessio
       if (capacityError) newErrors.capacity = capacityError
     }
 
+    // Update section-level errors
+    setSectionErrors({
+      basicInfo: !!newErrors.name,
+      dates: !!newErrors.dates,
+      pricing: !!newErrors.price,
+      capacity: !!newErrors.capacity,
+    })
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -130,6 +146,20 @@ export function FixedSessionForm({ session, onSubmit, onSubmitRef }: FixedSessio
     }
   }, [formData, hasCapacityLimit, onSubmitRef])
 
+  // Update section errors when individual errors change
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      setTimeout(() => {
+        setSectionErrors({
+          basicInfo: !!errors.name,
+          dates: !!errors.dates,
+          pricing: !!errors.price,
+          capacity: !!errors.capacity,
+        })
+      }, 0)
+    }
+  }, [errors])
+
   // Handle capacity toggle
   const handleCapacityToggle = (enabled: boolean) => {
     setHasCapacityLimit(enabled)
@@ -143,152 +173,194 @@ export function FixedSessionForm({ session, onSubmit, onSubmitRef }: FixedSessio
   }
 
   return (
-    <div className="space-y-8">
-      {/* Session Name */}
-      <Input
-        type="text"
-        label="Session Name"
-        labelPlacement="outside"
-        placeholder="e.g., Week 1 - Summer Camp"
-        value={formData.name}
-        onValueChange={value => setFormData(prev => ({ ...prev, name: value }))}
-        isRequired
-        isInvalid={!!errors.name}
-        errorMessage={errors.name}
-      />
+    <div className="flex flex-col gap-4">
+      {/* Section 1: Basic Information */}
+      <CollapsibleSection
+        title="1. Basic Information"
+        defaultOpen={true}
+        hasError={sectionErrors.basicInfo}
+        errorMessage={sectionErrors.basicInfo ? 'Please fix errors' : undefined}
+      >
+        <div className="flex flex-col gap-4">
+          <Input
+            type="text"
+            label="Session Name"
+            labelPlacement="outside"
+            placeholder="e.g., Week 1 - Summer Camp"
+            value={formData.name}
+            onValueChange={value => {
+              setFormData(prev => ({ ...prev, name: value }))
+              clearError('name')
+            }}
+            isRequired
+            isInvalid={!!errors.name}
+            errorMessage={errors.name}
+          />
 
-      {/* Date Range */}
-      <div>
-        <div className="mb-2">
-          <label className="text-base font-semibold text-foreground">
-            Session Dates
-            <span className="ml-1 text-danger">*</span>
-          </label>
+          <RichTextEditor
+            label="Description"
+            placeholder="Describe your session..."
+            value={formData.description}
+            onChange={value => setFormData(prev => ({ ...prev, description: value }))}
+            minHeight="150px"
+          />
         </div>
-        <div className="grid md:grid-cols-2 gap-4">
-          {/* Left Column: Individual Date Inputs */}
-          <div className="flex flex-col gap-4">
-            <div className="flex gap-4">
-              <Input
-                type="date"
-                label="Start Date"
-                labelPlacement="outside"
-                value={formData.sessionStartDate}
-                onValueChange={value => {
-                  setFormData(prev => ({ ...prev, sessionStartDate: value }))
-                  clearError('dates')
-                  // Update RangeCalendar when start date changes
-                  const startCal = stringToCalendarDate(value)
-                  const endCal = stringToCalendarDate(formData.sessionEndDate)
-                  if (startCal && endCal) {
-                    setDateRange({ start: startCal, end: endCal })
-                  } else if (startCal) {
-                    setDateRange(prev => (prev ? { ...prev, start: startCal } : null))
-                  }
-                }}
-                isRequired
-                isInvalid={!!errors.dates}
-              />
-              <Input
-                type="date"
-                label="End Date"
-                labelPlacement="outside"
-                value={formData.sessionEndDate}
-                onValueChange={value => {
-                  setFormData(prev => ({ ...prev, sessionEndDate: value }))
-                  clearError('dates')
-                  // Update RangeCalendar when end date changes
-                  const startCal = stringToCalendarDate(formData.sessionStartDate)
-                  const endCal = stringToCalendarDate(value)
-                  if (startCal && endCal) {
-                    setDateRange({ start: startCal, end: endCal })
-                  } else if (endCal) {
-                    setDateRange(prev => (prev ? { ...prev, end: endCal } : null))
-                  }
-                }}
-                isRequired
-                isInvalid={!!errors.dates}
-              />
-            </div>
-            {/* Pricing */}
-            <div className="m-0">
-              <CurrencyInput
-                label="Price"
-                labelPlacement="outside"
-                placeholder="1200"
-                value={formData.price}
-                onValueChange={value => {
-                  setFormData(prev => ({ ...prev, price: value ?? 0 }))
-                  clearError('price')
-                }}
-                currency="USD"
-                isRequired
-                isInvalid={!!errors.price}
-                errorMessage={errors.price}
-              />
-            </div>
+      </CollapsibleSection>
 
-            {/* Capacity */}
-            <div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-base font-semibold text-foreground">Capacity</label>
-                  <p className="mb-4 text-sm leading-normal text-default-500">
-                    Set a maximum number of participants for this session
-                  </p>
-                </div>
-                <Switch isSelected={hasCapacityLimit} onValueChange={handleCapacityToggle} />
+      {/* Section 2: Dates & Availability */}
+      <CollapsibleSection
+        title="2. Dates & Availability"
+        defaultOpen={true}
+        hasError={sectionErrors.dates}
+        errorMessage={sectionErrors.dates ? 'Please fix errors' : undefined}
+      >
+        <div className="flex flex-col gap-4">
+          {/* Date Range */}
+          <div>
+            <div className="mb-2">
+              <label className="text-base font-semibold text-foreground">
+                Session Dates
+                <span className="ml-1 text-danger">*</span>
+              </label>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Left Column: Individual Date Inputs */}
+              <div className="flex gap-4">
+                <Input
+                  type="date"
+                  label="Start Date"
+                  labelPlacement="outside"
+                  value={formData.sessionStartDate}
+                  onValueChange={value => {
+                    setFormData(prev => ({ ...prev, sessionStartDate: value }))
+                    clearError('dates')
+                    // Update RangeCalendar when start date changes
+                    const startCal = stringToCalendarDate(value)
+                    const endCal = stringToCalendarDate(formData.sessionEndDate)
+                    if (startCal && endCal) {
+                      setDateRange({ start: startCal, end: endCal })
+                    } else if (startCal) {
+                      setDateRange(prev => (prev ? { ...prev, start: startCal } : null))
+                    }
+                  }}
+                  isRequired
+                  isInvalid={!!errors.dates}
+                />
+                <Input
+                  type="date"
+                  label="End Date"
+                  labelPlacement="outside"
+                  value={formData.sessionEndDate}
+                  onValueChange={value => {
+                    setFormData(prev => ({ ...prev, sessionEndDate: value }))
+                    clearError('dates')
+                    // Update RangeCalendar when end date changes
+                    const startCal = stringToCalendarDate(formData.sessionStartDate)
+                    const endCal = stringToCalendarDate(value)
+                    if (startCal && endCal) {
+                      setDateRange({ start: startCal, end: endCal })
+                    } else if (endCal) {
+                      setDateRange(prev => (prev ? { ...prev, end: endCal } : null))
+                    }
+                  }}
+                  isRequired
+                  isInvalid={!!errors.dates}
+                />
               </div>
 
-              {hasCapacityLimit && (
-                <Input
-                  type="number"
-                  label="Maximum Capacity"
-                  labelPlacement="outside"
-                  placeholder="50"
-                  value={formData.capacity?.toString() || ''}
-                  onValueChange={value =>
-                    setFormData(prev => ({ ...prev, capacity: parseInt(value) || undefined }))
-                  }
-                  min={1}
-                  isRequired
-                  isInvalid={!!errors.capacity}
-                  errorMessage={errors.capacity}
+              {/* Right Column: RangeCalendar */}
+              <div className="flex justify-center">
+                <RangeCalendar
+                  aria-label="Session date range"
+                  value={dateRange}
+                  onChange={value => {
+                    setDateRange(value)
+                    if (value) {
+                      setFormData(prev => ({
+                        ...prev,
+                        sessionStartDate: calendarDateToString(value.start),
+                        sessionEndDate: calendarDateToString(value.end),
+                      }))
+                      clearError('dates')
+                    }
+                  }}
+                  isInvalid={!!errors.dates}
                 />
-              )}
-
-              {!hasCapacityLimit && (
-                <div className="rounded-lg bg-default-100 p-4">
-                  <p className="text-sm text-default-500">
-                    This session will have unlimited capacity
-                  </p>
-                </div>
-              )}
+              </div>
             </div>
-          </div>
-
-          {/* Right Column: RangeCalendar */}
-          <div className="flex justify-center">
-            <RangeCalendar
-              aria-label="Session date range"
-              value={dateRange}
-              onChange={value => {
-                setDateRange(value)
-                if (value) {
-                  setFormData(prev => ({
-                    ...prev,
-                    sessionStartDate: calendarDateToString(value.start),
-                    sessionEndDate: calendarDateToString(value.end),
-                  }))
-                  clearError('dates')
-                }
-              }}
-              isInvalid={!!errors.dates}
-            />
+            {errors.dates && <p className="mt-1.5 text-sm text-danger">{errors.dates}</p>}
           </div>
         </div>
-        {errors.dates && <p className="mt-1.5 text-sm text-danger">{errors.dates}</p>}
-      </div>
+      </CollapsibleSection>
+
+      {/* Section 3: Rates & Pricing */}
+      <CollapsibleSection
+        title="3. Rates & Pricing"
+        defaultOpen={true}
+        hasError={sectionErrors.pricing}
+        errorMessage={sectionErrors.pricing ? 'Please fix errors' : undefined}
+      >
+        <div className="flex flex-col gap-4">
+          <CurrencyInput
+            label="Price"
+            labelPlacement="outside"
+            placeholder="1200"
+            value={formData.price}
+            onValueChange={value => {
+              setFormData(prev => ({ ...prev, price: value ?? 0 }))
+              clearError('price')
+            }}
+            currency="USD"
+            isRequired
+            isInvalid={!!errors.price}
+            errorMessage={errors.price}
+          />
+        </div>
+      </CollapsibleSection>
+
+      {/* Section 4: Capacity & Availability */}
+      <CollapsibleSection
+        title="4. Capacity & Availability"
+        defaultOpen={true}
+        hasError={sectionErrors.capacity}
+        errorMessage={sectionErrors.capacity ? 'Please fix errors' : undefined}
+      >
+        <div className="flex flex-col gap-4">
+          {/* Total Capacity */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-base font-semibold text-foreground">Set Capacity Limit</label>
+              <p className="text-sm text-default-500">
+                Set a maximum number of participants for this session
+              </p>
+            </div>
+            <Switch isSelected={hasCapacityLimit} onValueChange={handleCapacityToggle} />
+          </div>
+
+          {hasCapacityLimit && (
+            <Input
+              type="number"
+              label="Maximum Capacity"
+              labelPlacement="outside"
+              placeholder="50"
+              value={formData.capacity?.toString() || ''}
+              onValueChange={value =>
+                setFormData(prev => ({ ...prev, capacity: parseInt(value) || undefined }))
+              }
+              min={1}
+              isRequired
+              isInvalid={!!errors.capacity}
+              errorMessage={errors.capacity}
+            />
+          )}
+
+          {!hasCapacityLimit && (
+            <div className="rounded-lg bg-default-100 p-4">
+              <p className="text-sm text-default-500">This session will have unlimited capacity</p>
+            </div>
+          )}
+        </div>
+      </CollapsibleSection>
     </div>
   )
 }
