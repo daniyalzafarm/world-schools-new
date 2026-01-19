@@ -5,6 +5,7 @@ import { Button, RangeCalendar, Switch } from '@heroui/react'
 import {
   CollapsibleSection,
   CurrencyInput,
+  DatePicker,
   DayOfWeekSelector,
   Input,
   RichTextEditor,
@@ -362,6 +363,78 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
             </div>
             {errors.dates && <p className="mt-1.5 text-sm text-danger">{errors.dates}</p>}
           </div>
+          {/* Blackout Dates */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-base font-semibold text-foreground">
+                Blackout Dates (Optional)
+              </label>
+              <Button
+                size="sm"
+                color="default"
+                variant="flat"
+                startContent={<Plus className="w-4 h-4" />}
+                onPress={addBlackoutDate}
+              >
+                Add Blackout
+              </Button>
+            </div>
+            <p className="mb-4 text-sm leading-normal text-default-500">
+              Block specific date ranges when the camp is closed
+            </p>
+
+            {errors.blackoutDates && (
+              <div className="mb-4 rounded-lg border border-danger-200 bg-danger-50 p-3 dark:border-danger-800 dark:bg-danger-950">
+                <p className="text-sm text-danger-700 dark:text-danger-300">
+                  {errors.blackoutDates}
+                </p>
+              </div>
+            )}
+
+            {formData.blackoutDates.length > 0 && (
+              <div className="space-y-3">
+                {formData.blackoutDates.map((blackout, index) => (
+                  <div key={index} className="flex items-end gap-3">
+                    <DatePicker
+                      label="Start Date"
+                      labelPlacement="outside"
+                      value={stringToCalendarDate(blackout.start)}
+                      onChange={value => {
+                        const dateString = value ? value.toString() : ''
+                        updateBlackoutDate(index, 'start', dateString)
+                      }}
+                      className="flex-1"
+                    />
+                    <DatePicker
+                      label="End Date"
+                      labelPlacement="outside"
+                      value={stringToCalendarDate(blackout.end)}
+                      onChange={value => {
+                        const dateString = value ? value.toString() : ''
+                        updateBlackoutDate(index, 'end', dateString)
+                      }}
+                      className="flex-1"
+                    />
+                    <Button
+                      isIconOnly
+                      color="danger"
+                      variant="flat"
+                      onPress={() => removeBlackoutDate(index)}
+                      className="mb-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {formData.blackoutDates.length === 0 && (
+              <div className="py-6 text-center text-sm text-default-400">
+                No blackout dates added
+              </div>
+            )}
+          </div>
         </div>
       </CollapsibleSection>
 
@@ -689,75 +762,6 @@ export function FlexibleSessionForm({ session, onSubmit, onSubmitRef }: Flexible
                 max={100}
               />
             </div>
-          </div>
-
-          {/* Blackout Dates */}
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <label className="text-base font-semibold text-foreground">
-                Blackout Dates (Optional)
-              </label>
-              <Button
-                size="sm"
-                color="default"
-                variant="flat"
-                startContent={<Plus className="w-4 h-4" />}
-                onPress={addBlackoutDate}
-              >
-                Add Blackout
-              </Button>
-            </div>
-            <p className="mb-4 text-sm leading-normal text-default-500">
-              Block specific date ranges when the camp is closed
-            </p>
-
-            {errors.blackoutDates && (
-              <div className="mb-4 rounded-lg border border-danger-200 bg-danger-50 p-3 dark:border-danger-800 dark:bg-danger-950">
-                <p className="text-sm text-danger-700 dark:text-danger-300">
-                  {errors.blackoutDates}
-                </p>
-              </div>
-            )}
-
-            {formData.blackoutDates.length > 0 && (
-              <div className="space-y-3">
-                {formData.blackoutDates.map((blackout, index) => (
-                  <div key={index} className="flex items-end gap-3">
-                    <Input
-                      type="date"
-                      label="Start Date"
-                      labelPlacement="outside"
-                      value={blackout.start}
-                      onValueChange={value => updateBlackoutDate(index, 'start', value)}
-                      className="flex-1"
-                    />
-                    <Input
-                      type="date"
-                      label="End Date"
-                      labelPlacement="outside"
-                      value={blackout.end}
-                      onValueChange={value => updateBlackoutDate(index, 'end', value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      isIconOnly
-                      color="danger"
-                      variant="flat"
-                      onPress={() => removeBlackoutDate(index)}
-                      className="mb-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {formData.blackoutDates.length === 0 && (
-              <div className="py-6 text-center text-sm text-default-400">
-                No blackout dates added
-              </div>
-            )}
           </div>
         </div>
       </CollapsibleSection>
