@@ -1,56 +1,63 @@
 'use client'
 
-import { useState } from 'react'
-
-interface Activity {
-  icon: string
-  name: string
-}
+import { useEffect, useState } from 'react'
+import type { ActivityItem } from '../../types/camps'
 
 interface ActivityGridProps {
-  activities: Activity[]
-  initialCount?: number
+  activities: ActivityItem[]
   mobileCount?: number
   desktopCount?: number
+  totalCount?: number
   className?: string
 }
 
 export function ActivityGrid({
   activities,
-  initialCount,
   mobileCount = 4,
   desktopCount = 6,
+  totalCount,
   className = '',
 }: ActivityGridProps) {
   const [showAll, setShowAll] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   if (!activities || activities.length === 0) return null
 
-  const displayCount =
-    initialCount ??
-    (typeof window !== 'undefined' && window.innerWidth >= 768 ? desktopCount : mobileCount)
-  const visibleActivities = showAll ? activities : activities.slice(0, displayCount)
-  const hasMore = activities.length > displayCount
+  const displayLimit = isMobile ? mobileCount : desktopCount
+  const visibleActivities = showAll ? activities : activities.slice(0, displayLimit)
+  const hasMore = activities.length > displayLimit
+  const total = totalCount ?? activities.length
 
   return (
     <div className={className}>
-      <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 ${showAll ? '' : ''}`}>
-        {visibleActivities.map((activity, index) => (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        {visibleActivities.map(activity => (
           <div
-            key={index}
-            className="bg-gray-100 rounded-xl p-4 cursor-pointer transition-colors hover:bg-gray-200"
+            key={activity.id}
+            className="bg-gray-100 rounded-xl p-4 transition-colors hover:bg-gray-200"
           >
             <div className="text-3xl mb-3">{activity.icon}</div>
-            <div className="text-base font-semibold text-gray-900 mb-1">{activity.name}</div>
+            <div className="text-base font-semibold text-gray-900">{activity.name}</div>
           </div>
         ))}
       </div>
       {hasMore && (
         <button
           onClick={() => setShowAll(!showAll)}
-          className="w-full py-3 px-4 mt-4 bg-white border border-gray-900 rounded-lg text-base font-semibold hover:bg-gray-100 transition-colors"
+          className="w-full py-3 px-4 bg-white border border-gray-900 rounded-lg text-base font-semibold hover:bg-gray-50 transition-colors"
         >
-          {showAll ? 'Show less' : `Show all ${activities.length} activities`}
+          {showAll ? 'Show less' : `Show all ${total} activities`}
         </button>
       )}
     </div>

@@ -3,15 +3,29 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { getCampBySlug } from '@/services/camps.services'
-import type { Camp } from '@/types/camps'
+import type { Camp, MetaCard } from '@/types/camps'
 import config from '@/config/config'
 import { InnerPageNav } from '@/components/camp/InnerPageNav'
 import { SectionHeader, SectionSubheader } from '@/components/camp/SectionHeader'
 import { ExpandableText } from '@/components/camp/ExpandableText'
-import { ActivityGrid } from '@/components/camp/ActivityGrid'
 import { IncludedGrid } from '@/components/camp/IncludedGrid'
 import { DailySchedule } from '@/components/camp/DailySchedule'
 import { SafetyCard } from '@/components/camp/SafetyCard'
+import { ActivitySection } from '@/components/camp/ActivitySection'
+import {
+  getCoachingTypeLabel,
+  getSkillLevelLabel,
+  getTeachingApproachLabel,
+  transformAcademics,
+  transformAdventureActivities,
+  transformArtsAndCrafts,
+  transformEnvironmentalActivities,
+  transformExcursionsTrips,
+  transformLanguagePrograms,
+  transformReligionPrograms,
+  transformSportsActivities,
+  transformWaterActivities,
+} from '@/utils/activity-transformers'
 
 export default function CampPage() {
   const params = useParams()
@@ -412,18 +426,119 @@ function BookingSidebar({ camp }: { camp: Camp }) {
   )
 }
 
+// Helper function to build meta cards for sports
+function getSportsMetaCards(sports: any): MetaCard[] {
+  const cards: MetaCard[] = []
+
+  if (sports.skillLevel) {
+    const label = getSkillLevelLabel(sports.skillLevel)
+    if (label) {
+      cards.push({ label: 'Skill Level', value: label })
+    }
+  }
+
+  if (sports.coachingType) {
+    const label = getCoachingTypeLabel(sports.coachingType)
+    if (label) {
+      cards.push({ label: 'Coaching Type', value: label })
+    }
+  }
+
+  return cards
+}
+
+// Helper function to build meta cards for academics
+function getAcademicsMetaCards(academics: any): MetaCard[] {
+  const cards: MetaCard[] = []
+
+  if (academics.teachingApproach) {
+    const label = getTeachingApproachLabel(academics.teachingApproach)
+    if (label) {
+      cards.push({ label: 'Teaching Approach', value: label })
+    }
+  }
+
+  return cards
+}
+
 // Activity Sections Component
 function ActivitySections({ camp }: { camp: Camp }) {
-  const activityConfig: Record<string, { title: string; icon: string; field: keyof Camp }> = {
-    sports: { title: 'Sports', icon: '⚽', field: 'sports' },
-    languages: { title: 'Languages', icon: '🗣️', field: 'languages' },
-    academics: { title: 'Academics', icon: '📚', field: 'academics' },
-    adventure: { title: 'Adventure Activities', icon: '🧗', field: 'adventure' },
-    arts: { title: 'Arts & Crafts', icon: '🎨', field: 'arts' },
-    water: { title: 'Water Activities', icon: '🏊', field: 'water' },
-    excursions: { title: 'Excursions & Trips', icon: '🚌', field: 'excursions' },
-    environmental: { title: 'Environmental Activities', icon: '🌱', field: 'environmental' },
-    religion: { title: 'Religion', icon: '🕊️', field: 'religion' },
+  const activityConfig: Record<
+    string,
+    {
+      title: string
+      icon: string
+      dataField: string
+      transformData: (data: any) => any
+      getMetaCards?: (data: any) => MetaCard[]
+      getBadges?: (data: any) => string[]
+    }
+  > = {
+    sports: {
+      title: 'Sports',
+      icon: '⚽',
+      dataField: 'sportsActivities',
+      transformData: transformSportsActivities,
+      getMetaCards: getSportsMetaCards,
+      getBadges: (data: any) => data.badges || [],
+    },
+    languages: {
+      title: 'Languages',
+      icon: '🗣️',
+      dataField: 'languagePrograms',
+      transformData: transformLanguagePrograms,
+    },
+    academics: {
+      title: 'Academics',
+      icon: '📚',
+      dataField: 'academics',
+      transformData: transformAcademics,
+      getMetaCards: getAcademicsMetaCards,
+      getBadges: (data: any) => data.badges || [],
+    },
+    adventure: {
+      title: 'Adventure Activities',
+      icon: '🧗',
+      dataField: 'adventureActivities',
+      transformData: transformAdventureActivities,
+    },
+    arts: {
+      title: 'Arts & Crafts',
+      icon: '🎨',
+      dataField: 'artsAndCrafts',
+      transformData: transformArtsAndCrafts,
+    },
+    water: {
+      title: 'Water Activities',
+      icon: '🏊',
+      dataField: 'waterActivities',
+      transformData: transformWaterActivities,
+    },
+    excursions: {
+      title: 'Excursions & Trips',
+      icon: '🚌',
+      dataField: 'excursionsTrips',
+      transformData: transformExcursionsTrips,
+    },
+    // Handle both 'environment' and 'environmental' from backend
+    environment: {
+      title: 'Environmental Activities',
+      icon: '🌱',
+      dataField: 'environmentalActivities',
+      transformData: transformEnvironmentalActivities,
+    },
+    environmental: {
+      title: 'Environmental Activities',
+      icon: '🌱',
+      dataField: 'environmentalActivities',
+      transformData: transformEnvironmentalActivities,
+    },
+    religion: {
+      title: 'Religion',
+      icon: '🕊️',
+      dataField: 'religionPrograms',
+      transformData: transformReligionPrograms,
+    },
   }
 
   return (
@@ -432,19 +547,30 @@ function ActivitySections({ camp }: { camp: Camp }) {
         const config = activityConfig[activityType]
         if (!config) return null
 
-        const activityData = camp[config.field]
+        // Get activity data from the correct field
+        const activityData = (camp as any)[config.dataField]
         if (!activityData) return null
 
+        // Transform the data to get ActivityItem[] with icons
+        const items = config.transformData(activityData)
+
+        // Build meta cards if function exists
+        const metaCards = config.getMetaCards ? config.getMetaCards(activityData) : undefined
+
+        // Build badges if function exists
+        const badges = config.getBadges ? config.getBadges(activityData) : undefined
+
         return (
-          <div key={activityType} className="pb-6 border-b border-gray-200 last:border-0">
-            <SectionSubheader title={config.title} className="flex items-center gap-2 mb-4" />
-            {activityData.description && (
-              <p className="text-base text-gray-500 mb-4">{activityData.description}</p>
-            )}
-            {activityData.items && activityData.items.length > 0 && (
-              <ActivityGrid activities={activityData.items} mobileCount={4} desktopCount={6} />
-            )}
-          </div>
+          <ActivitySection
+            key={activityType}
+            title={config.title}
+            icon={config.icon}
+            description={activityData.description}
+            metaCards={metaCards}
+            badges={badges}
+            items={items}
+            totalCount={items.length}
+          />
         )
       })}
       {(!camp.activities || camp.activities.length === 0) && (
