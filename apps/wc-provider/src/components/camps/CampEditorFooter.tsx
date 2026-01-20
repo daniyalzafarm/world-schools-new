@@ -51,13 +51,15 @@ const autoSaveOnlySections = [
   'excursions',
   'accommodation',
   'meals',
-  'daily-schedule',
   'location-campus',
   'getting-there',
 ]
 
 // Sections that are navigation/listing pages only (no save functionality at all)
 const navigationOnlySections = ['sessions']
+
+// Sections that show only "Save Changes" button (no "Save & Continue")
+const saveOnlySections = ['daily-schedule']
 
 export function CampEditorFooter({ campId }: CampEditorFooterProps) {
   const pathname = usePathname()
@@ -119,6 +121,9 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
 
   // Check if current section is navigation-only (no save functionality)
   const isNavigationOnly = currentSection ? navigationOnlySections.includes(currentSection) : false
+
+  // Check if current section shows only "Save Changes" button (no "Save & Continue")
+  const isSaveOnly = currentSection ? saveOnlySections.includes(currentSection) : false
 
   // Helper to wait for auto-save completion
   const waitForAutoSave = (): Promise<void> => {
@@ -296,8 +301,19 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
               <div className="h-2 w-2 animate-pulse rounded-full bg-success-500" />
               {isWaitingForAutoSave ? 'Saving changes...' : 'Changes are saved automatically'}
             </div>
+          ) : isSaveOnly ? (
+            // For save-only sections, always show "Save Changes" button (no "Save & Continue")
+            <Button
+              color="primary"
+              size="lg"
+              onPress={handleSave}
+              isDisabled={isSaveDisabled}
+              isLoading={isLoading}
+            >
+              Save Changes
+            </Button>
           ) : (
-            // For other sections, show save buttons
+            // For other sections, show save buttons based on navigation
             <>
               {hasNext ? (
                 <Button

@@ -1,10 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { Radio, RadioGroup, Tab, Tabs } from '@heroui/react'
 import { useCampsStore } from '../../../../../stores/camps-store'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import { TimelineBuilder } from '../../../../../components/camp-editor/TimelineBuilder'
 import type { TimeSlot } from '../../../../../types/daily-schedule'
 
@@ -20,10 +19,18 @@ const DAY_LABELS: Record<string, string> = {
 }
 
 export default function DailyScheduleEditorPage() {
+  const router = useRouter()
   const params = useParams()
   const campId = params.campId as string
 
-  const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const {
+    currentCamp,
+    updateSection,
+    fetchCamp,
+    setHasUnsavedChanges,
+    setWizardFormValid,
+    setWizardFormSubmit,
+  } = useCampsStore()
 
   const [scheduleType, setScheduleType] = useState<'daily' | 'weekly'>('daily')
   const [dailyTimeSlots, setDailyTimeSlots] = useState<TimeSlot[]>([])
@@ -38,122 +45,151 @@ export default function DailyScheduleEditorPage() {
   })
   const [selectedDay, setSelectedDay] = useState<string>('monday')
 
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [originalData, setOriginalData] = useState<{
+    scheduleType: 'daily' | 'weekly'
+    dailyTimeSlots: TimeSlot[]
+    weeklyTimeSlots: Record<string, TimeSlot[]>
+  } | null>(null)
 
-  // Load existing data
+  // Fetch camp data on mount
   useEffect(() => {
-    if (currentCamp?.scheduleType) {
-      setScheduleType(currentCamp.scheduleType as 'daily' | 'weekly')
+    if (campId) {
+      fetchCamp(campId).catch(error => {
+        console.error('Failed to fetch camp:', error)
+        router.push('/camps')
+      })
     }
 
-    if (currentCamp?.dailySchedule) {
-      const existing = currentCamp.dailySchedule as any
-      setDailyTimeSlots(existing.timeSlots || [])
+    // Cleanup on unmount
+    return () => {
+      setHasUnsavedChanges(false)
+      setWizardFormValid(false)
+      setWizardFormSubmit(null)
     }
+  }, [campId, fetchCamp, router, setHasUnsavedChanges, setWizardFormValid, setWizardFormSubmit])
 
-    if (currentCamp?.weeklySchedule) {
-      const existing = currentCamp.weeklySchedule as any
-      setWeeklyTimeSlots({
-        monday: existing.monday?.timeSlots || [],
-        tuesday: existing.tuesday?.timeSlots || [],
-        wednesday: existing.wednesday?.timeSlots || [],
-        thursday: existing.thursday?.timeSlots || [],
-        friday: existing.friday?.timeSlots || [],
-        saturday: existing.saturday?.timeSlots || [],
-        sunday: existing.sunday?.timeSlots || [],
+  // Load existing data from currentCamp
+  useEffect(() => {
+    if (currentCamp) {
+      const type = (currentCamp.scheduleType as 'daily' | 'weekly') || 'daily'
+      const dailySlots =
+        currentCamp.dailySchedule && typeof currentCamp.dailySchedule === 'object'
+          ? (currentCamp.dailySchedule as any).timeSlots || []
+          : []
+      const weeklySlots = currentCamp.weeklySchedule
+        ? {
+            monday: (currentCamp.weeklySchedule as any).monday?.timeSlots || [],
+            tuesday: (currentCamp.weeklySchedule as any).tuesday?.timeSlots || [],
+            wednesday: (currentCamp.weeklySchedule as any).wednesday?.timeSlots || [],
+            thursday: (currentCamp.weeklySchedule as any).thursday?.timeSlots || [],
+            friday: (currentCamp.weeklySchedule as any).friday?.timeSlots || [],
+            saturday: (currentCamp.weeklySchedule as any).saturday?.timeSlots || [],
+            sunday: (currentCamp.weeklySchedule as any).sunday?.timeSlots || [],
+          }
+        : {
+            monday: [],
+            tuesday: [],
+            wednesday: [],
+            thursday: [],
+            friday: [],
+            saturday: [],
+            sunday: [],
+          }
+
+      setScheduleType(type)
+      setDailyTimeSlots(dailySlots)
+      setWeeklyTimeSlots(weeklySlots)
+      setOriginalData({
+        scheduleType: type,
+        dailyTimeSlots: dailySlots,
+        weeklyTimeSlots: weeklySlots,
       })
     }
   }, [currentCamp])
 
-  // Cleanup on unmount - clear pending auto-save state
+  // Detect form changes
   useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
+    if (!originalData) return
 
-  // Auto-save handler
-  const triggerAutoSave = (
-    type: 'daily' | 'weekly',
-    dailySlots: TimeSlot[],
-    weeklySlots: Record<string, TimeSlot[]>
-  ) => {
-    setHasUnsavedChanges(true)
+    const hasChanges =
+      scheduleType !== originalData.scheduleType ||
+      JSON.stringify(dailyTimeSlots) !== JSON.stringify(originalData.dailyTimeSlots) ||
+      JSON.stringify(weeklyTimeSlots) !== JSON.stringify(originalData.weeklyTimeSlots)
 
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
+    setHasUnsavedChanges(hasChanges)
+  }, [scheduleType, dailyTimeSlots, weeklyTimeSlots, originalData, setHasUnsavedChanges])
 
-    setAutoSaveStatus('saving')
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
+  // Update form validity (always valid for schedule)
+  useEffect(() => {
+    setWizardFormValid(true)
+  }, [setWizardFormValid])
 
-    const timeout = setTimeout(async () => {
+  // Register submit handler
+  useEffect(() => {
+    const handleFormSubmit = async () => {
+      if (!campId) return
+
       try {
         const payload: any = {
-          scheduleType: type,
-          dailySchedule: type === 'daily' ? { timeSlots: dailySlots } : null,
+          scheduleType: scheduleType,
+          dailySchedule: scheduleType === 'daily' ? { timeSlots: dailyTimeSlots } : null,
           weeklySchedule:
-            type === 'weekly'
+            scheduleType === 'weekly'
               ? {
-                  monday: { timeSlots: weeklySlots.monday },
-                  tuesday: { timeSlots: weeklySlots.tuesday },
-                  wednesday: { timeSlots: weeklySlots.wednesday },
-                  thursday: { timeSlots: weeklySlots.thursday },
-                  friday: { timeSlots: weeklySlots.friday },
-                  saturday: { timeSlots: weeklySlots.saturday },
-                  sunday: { timeSlots: weeklySlots.sunday },
+                  monday: { timeSlots: weeklyTimeSlots.monday },
+                  tuesday: { timeSlots: weeklyTimeSlots.tuesday },
+                  wednesday: { timeSlots: weeklyTimeSlots.wednesday },
+                  thursday: { timeSlots: weeklyTimeSlots.thursday },
+                  friday: { timeSlots: weeklyTimeSlots.friday },
+                  saturday: { timeSlots: weeklyTimeSlots.saturday },
+                  sunday: { timeSlots: weeklyTimeSlots.sunday },
                 }
               : null,
         }
 
         await updateSection(campId, 'daily-schedule', payload)
-        setAutoSaveStatus('saved')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-        setHasUnsavedChanges(false)
-        setTimeout(() => {
-          setAutoSaveStatus('idle')
-          useCampsStore.setState({ autoSaveStatus: 'idle' })
-        }, 2000)
+        await fetchCamp(campId)
       } catch (error) {
         console.error('Failed to save schedule:', error)
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
+        throw error
       }
-    }, 1500)
+    }
 
-    setSaveTimeout(timeout)
-  }
+    setWizardFormSubmit(handleFormSubmit)
+
+    return () => {
+      setWizardFormSubmit(null)
+    }
+  }, [
+    campId,
+    scheduleType,
+    dailyTimeSlots,
+    weeklyTimeSlots,
+    updateSection,
+    fetchCamp,
+    setWizardFormSubmit,
+  ])
 
   const handleScheduleTypeChange = (type: 'daily' | 'weekly') => {
     setScheduleType(type)
-    triggerAutoSave(type, dailyTimeSlots, weeklyTimeSlots)
   }
 
   const handleDailyTimeSlotsChange = (timeSlots: TimeSlot[]) => {
     setDailyTimeSlots(timeSlots)
-    triggerAutoSave(scheduleType, timeSlots, weeklyTimeSlots)
   }
 
   const handleWeeklyTimeSlotsChange = (day: string, timeSlots: TimeSlot[]) => {
-    const updated = { ...weeklyTimeSlots, [day]: timeSlots }
-    setWeeklyTimeSlots(updated)
-    triggerAutoSave(scheduleType, dailyTimeSlots, updated)
+    setWeeklyTimeSlots({ ...weeklyTimeSlots, [day]: timeSlots })
   }
 
   return (
     <div>
       {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Daily Schedule</h1>
-          <p className="text-base leading-normal text-default-500">
-            Create a detailed timeline for your camp
-          </p>
-        </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Daily Schedule</h1>
+        <p className="text-base leading-normal text-default-500">
+          Create a detailed timeline for your camp
+        </p>
       </div>
 
       <div className="space-y-8">
