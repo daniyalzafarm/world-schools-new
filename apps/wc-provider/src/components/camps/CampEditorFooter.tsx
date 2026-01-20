@@ -69,18 +69,50 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
     wizardFormSubmit,
     hasPendingAutoSave,
     autoSaveStatus,
+    currentCamp,
   } = useCampsStore()
   const { confirm } = useConfirmDialog()
   const [waitingButton, setWaitingButton] = useState<'previous' | 'next' | null>(null)
 
+  // Filter sections based on camp configuration (same logic as sidebar)
+  const shouldShowSection = (section: string) => {
+    // Filter residential-only sections
+    if (section === 'accommodation' || section === 'getting-there') {
+      if (currentCamp?.type !== 'residential') return false
+    }
+
+    // Filter activity sections based on selected activities
+    const activitySections: Record<string, string> = {
+      sports: 'sports',
+      languages: 'languages',
+      arts: 'arts',
+      adventure: 'adventure',
+      water: 'water',
+      environmental: 'environment',
+      academics: 'academics',
+      religion: 'religion',
+      excursions: 'excursions',
+    }
+
+    if (activitySections[section]) {
+      const selectedActivities = currentCamp?.activities ?? []
+      return selectedActivities.includes(activitySections[section])
+    }
+
+    return true
+  }
+
+  // Get filtered sections
+  const filteredSections = editorSections.filter(shouldShowSection)
+
   // Get current section from pathname
-  const currentSection = editorSections.find(section => pathname.includes(section))
-  const currentIndex = currentSection ? editorSections.indexOf(currentSection) : -1
+  const currentSection = filteredSections.find(section => pathname.includes(section))
+  const currentIndex = currentSection ? filteredSections.indexOf(currentSection) : -1
 
   const hasPrevious = currentIndex > 0
-  const hasNext = currentIndex >= 0 && currentIndex < editorSections.length - 1
-  const previousSection = hasPrevious ? editorSections[currentIndex - 1] : null
-  const nextSection = hasNext ? editorSections[currentIndex + 1] : null
+  const hasNext = currentIndex >= 0 && currentIndex < filteredSections.length - 1
+  const previousSection = hasPrevious ? filteredSections[currentIndex - 1] : null
+  const nextSection = hasNext ? filteredSections[currentIndex + 1] : null
 
   // Check if current section uses auto-save only
   const isAutoSaveOnly = currentSection ? autoSaveOnlySections.includes(currentSection) : false

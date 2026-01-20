@@ -18,8 +18,8 @@ const MAX_DESCRIPTION_LENGTH = 1200
 
 interface LanguagesData {
   description: string
-  proficiencyLevel: string
-  teachingMethod: string
+  proficiency: string
+  methodology: string
   selectedLanguages: string[]
   customLanguages: string[]
 }
@@ -32,8 +32,8 @@ export default function LanguagesEditorPage() {
 
   const [languagesData, setLanguagesData] = useState<LanguagesData>({
     description: '',
-    proficiencyLevel: 'all',
-    teachingMethod: 'mixed',
+    proficiency: 'all',
+    methodology: 'mixed',
     selectedLanguages: [],
     customLanguages: [],
   })
@@ -48,8 +48,8 @@ export default function LanguagesEditorPage() {
     if (currentCamp?.languagePrograms) {
       setLanguagesData({
         description: currentCamp.languagePrograms.description || '',
-        proficiencyLevel: (currentCamp.languagePrograms as any).proficiencyLevel || 'all',
-        teachingMethod: (currentCamp.languagePrograms as any).teachingMethod || 'mixed',
+        proficiency: (currentCamp.languagePrograms as any).proficiency || 'all',
+        methodology: (currentCamp.languagePrograms as any).methodology || 'mixed',
         selectedLanguages: (currentCamp.languagePrograms as any).selectedLanguages || [],
         customLanguages: (currentCamp.languagePrograms as any).customLanguages || [],
       })
@@ -102,13 +102,13 @@ export default function LanguagesEditorPage() {
   }
 
   const handleProficiencyLevelChange = (value: string) => {
-    const updated = { ...languagesData, proficiencyLevel: value }
+    const updated = { ...languagesData, proficiency: value }
     setLanguagesData(updated)
     triggerAutoSave(updated)
   }
 
   const handleTeachingMethodChange = (value: string) => {
-    const updated = { ...languagesData, teachingMethod: value }
+    const updated = { ...languagesData, methodology: value }
     setLanguagesData(updated)
     triggerAutoSave(updated)
   }
@@ -191,7 +191,7 @@ export default function LanguagesEditorPage() {
             What language proficiency levels can participate?
           </p>
           <RadioGroup
-            value={languagesData.proficiencyLevel}
+            value={languagesData.proficiency}
             onValueChange={handleProficiencyLevelChange}
             classNames={{
               wrapper: 'flex flex-row flex-wrap gap-3',
@@ -226,7 +226,7 @@ export default function LanguagesEditorPage() {
             What teaching approach do you use for language instruction?
           </p>
           <RadioGroup
-            value={languagesData.teachingMethod}
+            value={languagesData.methodology}
             onValueChange={handleTeachingMethodChange}
             classNames={{
               wrapper: 'flex flex-row flex-wrap gap-3',

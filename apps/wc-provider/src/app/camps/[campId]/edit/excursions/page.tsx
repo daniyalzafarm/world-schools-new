@@ -18,10 +18,10 @@ const MAX_DESCRIPTION_LENGTH = 1200
 
 interface ExcursionsData {
   description: string
-  transportationIncluded: string
+  transportIncluded: string
   frequency: string
-  selectedExcursions: string[]
-  customExcursions: string[]
+  selectedTrips: string[]
+  customTrips: string[]
 }
 
 export default function ExcursionsEditorPage() {
@@ -32,10 +32,10 @@ export default function ExcursionsEditorPage() {
 
   const [excursionsData, setExcursionsData] = useState<ExcursionsData>({
     description: '',
-    transportationIncluded: 'some',
+    transportIncluded: 'some',
     frequency: 'weekly',
-    selectedExcursions: [],
-    customExcursions: [],
+    selectedTrips: [],
+    customTrips: [],
   })
 
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
@@ -47,11 +47,10 @@ export default function ExcursionsEditorPage() {
     if (currentCamp?.excursionsTrips) {
       setExcursionsData({
         description: currentCamp.excursionsTrips.description || '',
-        transportationIncluded:
-          (currentCamp.excursionsTrips as any).transportationIncluded || 'some',
+        transportIncluded: (currentCamp.excursionsTrips as any).transportIncluded || 'some',
         frequency: (currentCamp.excursionsTrips as any).frequency || 'weekly',
-        selectedExcursions: (currentCamp.excursionsTrips as any).selectedExcursions || [],
-        customExcursions: (currentCamp.excursionsTrips as any).customExcursions || [],
+        selectedTrips: (currentCamp.excursionsTrips as any).selectedTrips || [],
+        customTrips: (currentCamp.excursionsTrips as any).customTrips || [],
       })
     }
   }, [currentCamp])
@@ -101,7 +100,7 @@ export default function ExcursionsEditorPage() {
   }
 
   const handleTransportationChange = (value: string) => {
-    const updated = { ...excursionsData, transportationIncluded: value }
+    const updated = { ...excursionsData, transportIncluded: value }
     setExcursionsData(updated)
     triggerAutoSave(updated)
   }
@@ -115,9 +114,9 @@ export default function ExcursionsEditorPage() {
   const toggleExcursion = (excursionId: string) => {
     const updated = {
       ...excursionsData,
-      selectedExcursions: excursionsData.selectedExcursions.includes(excursionId)
-        ? excursionsData.selectedExcursions.filter(id => id !== excursionId)
-        : [...excursionsData.selectedExcursions, excursionId],
+      selectedTrips: excursionsData.selectedTrips.includes(excursionId)
+        ? excursionsData.selectedTrips.filter(id => id !== excursionId)
+        : [...excursionsData.selectedTrips, excursionId],
     }
     setExcursionsData(updated)
     triggerAutoSave(updated)
@@ -126,7 +125,7 @@ export default function ExcursionsEditorPage() {
   const addCustomExcursion = (excursionName: string) => {
     const updated = {
       ...excursionsData,
-      customExcursions: [...excursionsData.customExcursions, excursionName],
+      customTrips: [...excursionsData.customTrips, excursionName],
     }
     setExcursionsData(updated)
     triggerAutoSave(updated)
@@ -135,7 +134,7 @@ export default function ExcursionsEditorPage() {
   const removeCustomExcursion = (index: number) => {
     const updated = {
       ...excursionsData,
-      customExcursions: excursionsData.customExcursions.filter((_, i) => i !== index),
+      customTrips: excursionsData.customTrips.filter((_, i) => i !== index),
     }
     setExcursionsData(updated)
     triggerAutoSave(updated)
@@ -185,7 +184,7 @@ export default function ExcursionsEditorPage() {
             Is transportation to excursions included in the camp fee?
           </p>
           <RadioGroup
-            value={excursionsData.transportationIncluded}
+            value={excursionsData.transportIncluded}
             onValueChange={handleTransportationChange}
             classNames={{
               wrapper: 'flex flex-row flex-wrap gap-3',
@@ -254,19 +253,19 @@ export default function ExcursionsEditorPage() {
               </p>
             </div>
             <span className="rounded-full bg-default-100 px-3 py-1 text-xs font-medium text-default-700">
-              {excursionsData.selectedExcursions.length} selected
+              {excursionsData.selectedTrips.length} selected
             </span>
           </div>
 
           <ActivityGrid
             activities={PREDEFINED_EXCURSIONS}
-            selectedActivities={excursionsData.selectedExcursions}
+            selectedActivities={excursionsData.selectedTrips}
             onToggle={toggleExcursion}
           />
 
-          {excursionsData.customExcursions.length > 0 && (
+          {excursionsData.customTrips.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
-              {excursionsData.customExcursions.map((excursion, index) => (
+              {excursionsData.customTrips.map((excursion, index) => (
                 <div
                   key={index}
                   className="flex items-center gap-2 rounded-lg border-2 border-primary bg-primary/5 px-3 py-2"

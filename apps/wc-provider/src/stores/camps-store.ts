@@ -304,7 +304,7 @@ export const useCampsStore = create<CampsState>((set, get) => ({
           camp = await campsService.updateReligion(campId, data.religionPrograms)
           break
         case 'excursions':
-          camp = await campsService.updateExcursions(campId, data.excursions)
+          camp = await campsService.updateExcursions(campId, data.excursionsTrips)
           break
         case 'location-campus':
           camp = await campsService.updateLocationCampus(campId, data.campusFacilities)
