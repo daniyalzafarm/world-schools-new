@@ -425,7 +425,11 @@ export class CampsService {
 
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { dailySchedule: dto.dailySchedule },
+      data: {
+        scheduleType: dto.scheduleType,
+        dailySchedule: dto.dailySchedule,
+        weeklySchedule: dto.weeklySchedule,
+      },
     })
 
     return camp

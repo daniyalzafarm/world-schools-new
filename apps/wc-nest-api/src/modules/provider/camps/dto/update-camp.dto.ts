@@ -84,8 +84,16 @@ export class UpdateWhatsIncludedDto {
 
 export class UpdateDailyScheduleDto {
   @IsOptional()
+  @IsString()
+  scheduleType?: string
+
+  @IsOptional()
   @IsObject()
   dailySchedule?: any
+
+  @IsOptional()
+  @IsObject()
+  weeklySchedule?: any
 }
 
 // Meals DTO

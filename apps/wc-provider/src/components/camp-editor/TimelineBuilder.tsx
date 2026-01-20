@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Button, Input, Textarea } from '@heroui/react'
+import { Trash2 } from 'lucide-react'
 
 export interface TimeSlot {
   id: string
@@ -19,11 +20,11 @@ export interface Schedule {
 }
 
 interface TimelineBuilderProps {
-  schedule: Schedule
-  onChange: (schedule: Schedule) => void
+  timeSlots: TimeSlot[]
+  onChange: (timeSlots: TimeSlot[]) => void
 }
 
-export function TimelineBuilder({ schedule, onChange }: TimelineBuilderProps) {
+export function TimelineBuilder({ timeSlots, onChange }: TimelineBuilderProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
   const addTimeSlot = () => {
@@ -34,28 +35,17 @@ export function TimelineBuilder({ schedule, onChange }: TimelineBuilderProps) {
       description: '',
     }
 
-    onChange({
-      ...schedule,
-      timeSlots: [...schedule.timeSlots, newSlot],
-    })
+    onChange([...timeSlots, newSlot])
   }
 
   const updateTimeSlot = (index: number, updates: Partial<TimeSlot>) => {
-    const updated = schedule.timeSlots.map((slot, i) =>
-      i === index ? { ...slot, ...updates } : slot
-    )
+    const updated = timeSlots.map((slot, i) => (i === index ? { ...slot, ...updates } : slot))
 
-    onChange({
-      ...schedule,
-      timeSlots: updated,
-    })
+    onChange(updated)
   }
 
   const deleteTimeSlot = (index: number) => {
-    onChange({
-      ...schedule,
-      timeSlots: schedule.timeSlots.filter((_, i) => i !== index),
-    })
+    onChange(timeSlots.filter((_, i) => i !== index))
   }
 
   const handleDragStart = (index: number) => {
@@ -67,15 +57,12 @@ export function TimelineBuilder({ schedule, onChange }: TimelineBuilderProps) {
 
     if (draggedIndex === null || draggedIndex === index) return
 
-    const items = [...schedule.timeSlots]
+    const items = [...timeSlots]
     const draggedItem = items[draggedIndex]
     items.splice(draggedIndex, 1)
     items.splice(index, 0, draggedItem)
 
-    onChange({
-      ...schedule,
-      timeSlots: items,
-    })
+    onChange(items)
 
     setDraggedIndex(index)
   }
@@ -88,7 +75,7 @@ export function TimelineBuilder({ schedule, onChange }: TimelineBuilderProps) {
     <div className="space-y-4">
       {/* Time Slots */}
       <div className="space-y-3">
-        {schedule.timeSlots.map((slot, index) => (
+        {timeSlots.map((slot, index) => (
           <div
             key={slot.id}
             draggable
@@ -108,9 +95,7 @@ export function TimelineBuilder({ schedule, onChange }: TimelineBuilderProps) {
             {/* Timeline Dot */}
             <div className="relative flex flex-col items-center">
               <div className="h-3 w-3 rounded-full border-2 border-primary bg-white" />
-              {index < schedule.timeSlots.length - 1 && (
-                <div className="h-full w-0.5 bg-default-200" />
-              )}
+              {index < timeSlots.length - 1 && <div className="h-full w-0.5 bg-default-200" />}
             </div>
 
             {/* Content */}
@@ -142,14 +127,16 @@ export function TimelineBuilder({ schedule, onChange }: TimelineBuilderProps) {
             </div>
 
             {/* Delete Button */}
-            <button
-              type="button"
-              onClick={() => deleteTimeSlot(index)}
-              className="text-default-400 hover:text-danger-600"
+            <Button
+              onPress={() => deleteTimeSlot(index)}
+              isIconOnly
               title="Delete time slot"
+              color="danger"
+              size="sm"
+              variant="flat"
             >
-              🗑️
-            </button>
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
         ))}
       </div>

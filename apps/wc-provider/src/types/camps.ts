@@ -95,7 +95,9 @@ export interface Camp {
   activities: string[]
   photos?: CampPhoto[]
   whatsIncluded?: WhatsIncluded
-  dailySchedule?: DailyScheduleItem[]
+  scheduleType?: 'daily' | 'weekly' | null
+  dailySchedule?: DailyScheduleItem[] | any
+  weeklySchedule?: any
   meals?: MealsInfo
   sportsActivities?: ActivityDetails
   languagePrograms?: ActivityDetails

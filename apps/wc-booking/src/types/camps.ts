@@ -44,7 +44,9 @@ export interface Camp {
 
   // Additional JSON fields from schema
   whatsIncluded?: any
+  scheduleType?: 'daily' | 'weekly' | null
   dailySchedule?: any
+  weeklySchedule?: any
   meals?: any
   sports?: any
   arts?: any
