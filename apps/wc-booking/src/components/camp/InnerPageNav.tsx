@@ -48,8 +48,8 @@ export function InnerPageNav({ links }: InnerPageNavProps) {
   }
 
   return (
-    <div className="sticky top-0 bg-white border-b border-[#DDDDDD] z-50">
-      <div className="max-w-[1760px] mx-auto px-5 md:px-20 lg:px-[120px]">
+    <div className="sticky top-0 bg-white border-b border-gray-300 z-50">
+      <div className="max-w-screen-2xl mx-auto px-5 md:px-20 lg:px-32">
         <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide py-2.5">
           <div className="flex gap-1 overflow-x-auto scrollbar-hide flex-1">
             {links.map(link => (
@@ -57,20 +57,18 @@ export function InnerPageNav({ links }: InnerPageNavProps) {
                 key={link.href}
                 href={link.href}
                 onClick={e => scrollToSection(link.href, e)}
-                className={`px-4 py-2 text-[14px] font-medium rounded-[20px] whitespace-nowrap transition-all ${
+                className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all ${
                   activeSection === link.href
-                    ? 'bg-[#222222] text-white'
-                    : 'text-[#717171] hover:bg-[#F7F7F7] hover:text-[#222222]'
+                    ? 'bg-gray-900 text-white'
+                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
                 }`}
               >
                 {link.label}
               </a>
             ))}
           </div>
-          <div className="flex gap-3 flex-shrink-0">
-            <button className="text-[20px] text-[#222222] hover:opacity-70 transition-opacity">
-              ⋮
-            </button>
+          <div className="flex gap-3 shrink-0">
+            <button className="text-xl text-gray-900 hover:opacity-70 transition-opacity">⋮</button>
           </div>
         </div>
       </div>

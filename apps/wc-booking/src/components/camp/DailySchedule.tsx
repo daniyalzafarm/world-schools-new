@@ -17,17 +17,15 @@ export function DailySchedule({ schedule, className = '' }: DailyScheduleProps) 
       {schedule.map((item, index) => (
         <div key={index} className="flex gap-4">
           <div className="flex flex-col items-center">
-            <div className="w-3 h-3 rounded-full bg-[#45F0B5] flex-shrink-0 mt-1.5"></div>
+            <div className="w-3 h-3 rounded-full bg-primary shrink-0 mt-1.5"></div>
             {index < schedule.length - 1 && (
-              <div className="w-0.5 h-full bg-[#DDDDDD] flex-1 mt-1"></div>
+              <div className="w-0.5 h-full bg-gray-300 flex-1 mt-1"></div>
             )}
           </div>
           <div className="flex-1 pb-6">
-            <div className="text-[14px] font-semibold text-[#717171] mb-1">{item.time}</div>
-            <div className="text-[16px] font-semibold text-[#222222] mb-1">{item.activity}</div>
-            {item.description && (
-              <div className="text-[15px] text-[#717171]">{item.description}</div>
-            )}
+            <div className="text-sm font-semibold text-gray-500 mb-1">{item.time}</div>
+            <div className="text-base font-semibold text-gray-900 mb-1">{item.activity}</div>
+            {item.description && <div className="text-base text-gray-500">{item.description}</div>}
           </div>
         </div>
       ))}

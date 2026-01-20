@@ -38,17 +38,17 @@ export function ActivityGrid({
         {visibleActivities.map((activity, index) => (
           <div
             key={index}
-            className="bg-[#F7F7F7] rounded-xl p-4 cursor-pointer transition-colors hover:bg-[#E8E9EB]"
+            className="bg-gray-100 rounded-xl p-4 cursor-pointer transition-colors hover:bg-gray-200"
           >
-            <div className="text-[32px] mb-3">{activity.icon}</div>
-            <div className="text-[16px] font-semibold text-[#222222] mb-1">{activity.name}</div>
+            <div className="text-3xl mb-3">{activity.icon}</div>
+            <div className="text-base font-semibold text-gray-900 mb-1">{activity.name}</div>
           </div>
         ))}
       </div>
       {hasMore && (
         <button
           onClick={() => setShowAll(!showAll)}
-          className="w-full py-3 px-4 mt-4 bg-white border border-[#222222] rounded-lg text-[15px] font-semibold hover:bg-[#F7F7F7] transition-colors"
+          className="w-full py-3 px-4 mt-4 bg-white border border-gray-900 rounded-lg text-base font-semibold hover:bg-gray-100 transition-colors"
         >
           {showAll ? 'Show less' : `Show all ${activities.length} activities`}
         </button>

@@ -114,7 +114,7 @@ export default function CampPage() {
       {/* Hero Section */}
       <div id="photos">
         {/* Mobile Hero Image */}
-        <div className="block lg:hidden relative w-full h-[380px] bg-gray-200">
+        <div className="block lg:hidden relative w-full h-96 bg-gray-200">
           <img
             src={primaryPhotoUrl || '/placeholder-camp.jpg'}
             alt={camp.name}
@@ -126,7 +126,7 @@ export default function CampPage() {
         </div>
 
         {/* Desktop Hero Grid */}
-        <div className="hidden lg:block max-w-[1760px] mx-auto px-20 xl:px-[120px] mt-6 mb-10">
+        <div className="hidden lg:block max-w-screen-2xl mx-auto px-20 xl:px-32 mt-6 mb-10">
           <div className="grid grid-cols-4 grid-rows-2 gap-2 h-[480px] rounded-xl overflow-hidden relative">
             <div className="col-span-2 row-span-2 bg-gray-200">
               <img
@@ -153,7 +153,7 @@ export default function CampPage() {
                   Image {(camp.photos?.length ?? 1) + i + 1}
                 </div>
               ))}
-            <button className="absolute bottom-5 right-5 bg-white text-[#222222] px-4 py-2.5 rounded-lg border border-[#222222] text-sm font-semibold flex items-center gap-2 hover:bg-[#F7F7F7] transition-colors">
+            <button className="absolute bottom-5 right-5 bg-white text-gray-900 px-4 py-2.5 rounded-lg border border-gray-900 text-sm font-semibold flex items-center gap-2 hover:bg-gray-100 transition-colors">
               <span>🖼️</span>
               <span>Show all photos</span>
             </button>
@@ -162,8 +162,8 @@ export default function CampPage() {
       </div>
 
       {/* Content Wrapper */}
-      <div className="max-w-[1760px] mx-auto px-5 md:px-20 lg:px-[120px] pb-20 lg:pb-20">
-        <div className="lg:grid lg:grid-cols-[1fr_420px] lg:gap-[100px]">
+      <div className="max-w-screen-2xl mx-auto px-5 md:px-20 lg:px-32 pb-20">
+        <div className="lg:grid lg:grid-cols-[1fr_420px] lg:gap-24">
           {/* Main Content */}
           <div className="min-w-0">
             <CampContent camp={camp} getAgeRangeText={getAgeRangeText} />
@@ -177,17 +177,17 @@ export default function CampPage() {
       </div>
 
       {/* Mobile Sticky Footer */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#DDDDDD] px-5 py-4 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] z-40">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-300 px-5 py-4 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] z-40">
         <div className="flex justify-between items-center">
           <div className="flex flex-col gap-0.5">
             <div className="flex items-baseline gap-1">
-              <span className="text-sm text-[#717171]">From</span>
-              <span className="text-[22px] font-bold text-[#222222]">€830</span>
-              <span className="text-sm text-[#717171]">/week</span>
+              <span className="text-sm text-gray-500">From</span>
+              <span className="text-2xl font-bold text-gray-900">€830</span>
+              <span className="text-sm text-gray-500">/week</span>
             </div>
-            <span className="text-[13px] text-[#717171]">Jun 15 - Aug 20</span>
+            <span className="text-xs text-gray-500">Jun 15 - Aug 20</span>
           </div>
-          <button className="px-8 py-3.5 bg-[#45F0B5] text-[#222222] rounded-[10px] text-base font-semibold hover:bg-[#3de0a5] transition-colors whitespace-nowrap">
+          <button className="px-8 py-3.5 bg-primary text-gray-900 rounded-lg text-base font-semibold hover:bg-primary-300 transition-colors whitespace-nowrap">
             Reserve
           </button>
         </div>
@@ -202,54 +202,54 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
     <>
       {/* Camp Header */}
       <div id="about" className="mb-8 pt-6">
-        <h1 className="text-[28px] md:text-[32px] font-bold text-[#222222] mb-3">{camp.name}</h1>
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">{camp.name}</h1>
 
-        <div className="flex flex-wrap items-center gap-3 text-[15px] text-[#717171] mb-4">
+        <div className="flex flex-wrap items-center gap-3 text-base text-gray-500 mb-4">
           <div className="flex items-center gap-1.5">
-            <span className="text-[16px]">⭐</span>
-            <span className="font-semibold text-[#222222]">4.9</span>
+            <span className="text-base">⭐</span>
+            <span className="font-semibold text-gray-900">4.9</span>
             <span>(127 reviews)</span>
           </div>
           <span>•</span>
           <span>{camp.locationName || 'Location TBD'}</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-[14px]">
-          <span className="px-3 py-1.5 bg-[#F7F7F7] rounded-full font-medium text-[#222222]">
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="px-3 py-1.5 bg-gray-100 rounded-full font-medium text-gray-900">
             {getAgeRangeText()}
           </span>
-          <span className="px-3 py-1.5 bg-[#F7F7F7] rounded-full font-medium text-[#222222]">
+          <span className="px-3 py-1.5 bg-gray-100 rounded-full font-medium text-gray-900">
             {camp.type === 'day' ? 'Day Camp' : 'Sleepaway Camp'}
           </span>
         </div>
       </div>
 
       {/* About This Camp */}
-      <div className="mb-12 pb-8 border-b border-[#DDDDDD]">
+      <div className="mb-12 pb-8 border-b border-gray-300">
         <SectionHeader title="About This Camp" className="mb-4" />
         {camp.description && <ExpandableText text={camp.description} maxLines={4} />}
       </div>
 
       {/* What's Included */}
       {camp.whatsIncluded && (
-        <div id="included" className="mb-12 pb-8 border-b border-[#DDDDDD]">
+        <div id="included" className="mb-12 pb-8 border-b border-gray-300">
           <SectionHeader title="What's Included" icon="✓" className="mb-6" />
           <IncludedGrid items={camp.whatsIncluded.items || []} />
         </div>
       )}
 
       {/* Activities Section */}
-      <div id="activities" className="mb-12 pb-8 border-b border-[#DDDDDD]">
+      <div id="activities" className="mb-12 pb-8 border-b border-gray-300">
         <SectionHeader title="Activities" className="mb-6" />
         <ActivitySections camp={camp} />
       </div>
 
       {/* Daily Schedule */}
       {camp.dailySchedule?.items && (
-        <div id="schedule" className="mb-12 pb-8 border-b border-[#DDDDDD]">
+        <div id="schedule" className="mb-12 pb-8 border-b border-gray-300">
           <SectionHeader title="Daily Schedule" icon="📅" className="mb-6" />
           {camp.dailySchedule.description && (
-            <p className="text-[15px] text-[#717171] mb-6">{camp.dailySchedule.description}</p>
+            <p className="text-base text-gray-500 mb-6">{camp.dailySchedule.description}</p>
           )}
           <DailySchedule schedule={camp.dailySchedule.items} />
         </div>
@@ -257,19 +257,19 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
 
       {/* Meals */}
       {camp.meals && (
-        <div id="meals" className="mb-12 pb-8 border-b border-[#DDDDDD]">
+        <div id="meals" className="mb-12 pb-8 border-b border-gray-300">
           <SectionHeader title="Meals" icon="🍽️" className="mb-6" />
           {camp.meals.description && (
-            <p className="text-[15px] text-[#717171] mb-6">{camp.meals.description}</p>
+            <p className="text-base text-gray-500 mb-6">{camp.meals.description}</p>
           )}
           {camp.meals.items && camp.meals.items.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {camp.meals.items.map((meal: any, index: number) => (
-                <div key={index} className="bg-[#F7F7F7] rounded-xl p-4">
-                  <div className="text-[24px] mb-2">{meal.icon}</div>
-                  <div className="text-[16px] font-semibold text-[#222222]">{meal.name}</div>
+                <div key={index} className="bg-gray-100 rounded-xl p-4">
+                  <div className="text-2xl mb-2">{meal.icon}</div>
+                  <div className="text-base font-semibold text-gray-900">{meal.name}</div>
                   {meal.description && (
-                    <div className="text-[14px] text-[#717171] mt-1">{meal.description}</div>
+                    <div className="text-sm text-gray-500 mt-1">{meal.description}</div>
                   )}
                 </div>
               ))}
@@ -280,20 +280,20 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
 
       {/* Screen Time Policy */}
       {camp.screenPolicy && (
-        <div id="screen-policy" className="mb-12 pb-8 border-b border-[#DDDDDD]">
+        <div id="screen-policy" className="mb-12 pb-8 border-b border-gray-300">
           <SectionHeader title="Screen Time Policy" icon="📱" className="mb-6" />
           {camp.screenPolicy.description && (
-            <p className="text-[15px] text-[#222222]">{camp.screenPolicy.description}</p>
+            <p className="text-base text-gray-900">{camp.screenPolicy.description}</p>
           )}
         </div>
       )}
 
       {/* Safety & Supervision */}
       {camp.safetySupervision && (
-        <div id="safety" className="mb-12 pb-8 border-b border-[#DDDDDD]">
+        <div id="safety" className="mb-12 pb-8 border-b border-gray-300">
           <SectionHeader title="Safety & Supervision" icon="🛡️" className="mb-6" />
           {camp.safetySupervision.description && (
-            <p className="text-[15px] text-[#717171] mb-6">{camp.safetySupervision.description}</p>
+            <p className="text-base text-gray-500 mb-6">{camp.safetySupervision.description}</p>
           )}
           <SafetyCard ratios={camp.safetySupervision.ratios} items={camp.safetySupervision.items} />
         </div>
@@ -301,13 +301,13 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
 
       {/* Location & Getting There */}
       {(camp.locationCampus || camp.gettingThere) && (
-        <div id="location" className="mb-12 pb-8 border-b border-[#DDDDDD]">
+        <div id="location" className="mb-12 pb-8 border-b border-gray-300">
           <SectionHeader title="Location & Getting There" icon="📍" className="mb-6" />
 
           {camp.locationCampus?.description && (
             <div className="mb-6">
               <SectionSubheader title="Campus" className="mb-3" />
-              <p className="text-[15px] text-[#717171]">{camp.locationCampus.description}</p>
+              <p className="text-base text-gray-500">{camp.locationCampus.description}</p>
             </div>
           )}
 
@@ -316,14 +316,14 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
               <SectionSubheader title="Getting There" className="mb-3" />
               <div className="space-y-3">
                 {camp.gettingThere.options.map((option: any, index: number) => (
-                  <div key={index} className="flex items-start gap-3 p-4 bg-[#F7F7F7] rounded-xl">
-                    <span className="text-[24px]">{option.icon}</span>
+                  <div key={index} className="flex items-start gap-3 p-4 bg-gray-100 rounded-xl">
+                    <span className="text-2xl">{option.icon}</span>
                     <div className="flex-1">
-                      <div className="text-[16px] font-semibold text-[#222222] mb-1">
+                      <div className="text-base font-semibold text-gray-900 mb-1">
                         {option.name}
                       </div>
                       {option.description && (
-                        <div className="text-[14px] text-[#717171]">{option.description}</div>
+                        <div className="text-sm text-gray-500">{option.description}</div>
                       )}
                     </div>
                   </div>
@@ -336,19 +336,17 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
 
       {/* Accommodation */}
       {camp.accommodation && camp.type === 'residential' && (
-        <div id="accommodation" className="mb-12 pb-8 border-b border-[#DDDDDD]">
+        <div id="accommodation" className="mb-12 pb-8 border-b border-gray-300">
           <SectionHeader title="Accommodation" icon="🏠" className="mb-6" />
           {camp.accommodation.description && (
-            <p className="text-[15px] text-[#717171] mb-6">{camp.accommodation.description}</p>
+            <p className="text-base text-gray-500 mb-6">{camp.accommodation.description}</p>
           )}
           {camp.accommodation.items && camp.accommodation.items.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {camp.accommodation.items.map((item: any, index: number) => (
                 <div key={index} className="flex items-start gap-3">
-                  <span className="text-[#45F0B5] text-[18px] font-bold flex-shrink-0 mt-0.5">
-                    ✓
-                  </span>
-                  <span className="text-[15px] text-[#222222]">{item}</span>
+                  <span className="text-primary text-lg font-bold shrink-0 mt-0.5">✓</span>
+                  <span className="text-base text-gray-900">{item}</span>
                 </div>
               ))}
             </div>
@@ -371,20 +369,20 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
 function BookingSidebar({ camp }: { camp: Camp }) {
   return (
     <div className="sticky top-24">
-      <div className="border border-[#DDDDDD] rounded-xl p-6 shadow-[0_6px_16px_rgba(0,0,0,0.12)]">
+      <div className="border border-gray-300 rounded-xl p-6 shadow-lg">
         <div className="mb-6">
           <div className="flex items-baseline gap-1 mb-1">
-            <span className="text-[24px] font-bold text-[#222222]">€830</span>
-            <span className="text-[16px] text-[#717171]">/week</span>
+            <span className="text-2xl font-bold text-gray-900">€830</span>
+            <span className="text-base text-gray-500">/week</span>
           </div>
-          <span className="text-[14px] text-[#717171]">Jun 15 - Aug 20</span>
+          <span className="text-sm text-gray-500">Jun 15 - Aug 20</span>
         </div>
 
-        <button className="w-full py-3.5 bg-[#45F0B5] text-[#222222] rounded-[10px] text-base font-semibold hover:bg-[#3de0a5] transition-colors mb-4">
+        <button className="w-full py-3.5 bg-primary text-gray-900 rounded-lg text-base font-semibold hover:bg-primary-300 transition-colors mb-4">
           Reserve
         </button>
 
-        <p className="text-center text-[13px] text-[#717171]">You won't be charged yet</p>
+        <p className="text-center text-xs text-gray-500">You won't be charged yet</p>
       </div>
     </div>
   )
@@ -414,10 +412,10 @@ function ActivitySections({ camp }: { camp: Camp }) {
         if (!activityData) return null
 
         return (
-          <div key={activityType} className="pb-6 border-b border-[#EEEEEE] last:border-0">
+          <div key={activityType} className="pb-6 border-b border-gray-200 last:border-0">
             <SectionSubheader title={config.title} className="flex items-center gap-2 mb-4" />
             {activityData.description && (
-              <p className="text-[15px] text-[#717171] mb-4">{activityData.description}</p>
+              <p className="text-base text-gray-500 mb-4">{activityData.description}</p>
             )}
             {activityData.items && activityData.items.length > 0 && (
               <ActivityGrid activities={activityData.items} mobileCount={4} desktopCount={6} />
@@ -426,7 +424,7 @@ function ActivitySections({ camp }: { camp: Camp }) {
         )
       })}
       {(!camp.activities || camp.activities.length === 0) && (
-        <p className="text-[15px] text-[#717171]">No activities listed yet.</p>
+        <p className="text-base text-gray-500">No activities listed yet.</p>
       )}
     </div>
   )

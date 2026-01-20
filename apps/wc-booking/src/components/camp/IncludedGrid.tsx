@@ -18,9 +18,9 @@ export function IncludedGrid({ items, className = '' }: IncludedGridProps) {
         const included = typeof item === 'string' ? true : item.included !== false
 
         return (
-          <div key={index} className="flex items-center gap-2 text-[14px] text-[#222222]">
+          <div key={index} className="flex items-center gap-2 text-sm text-gray-900">
             <span
-              className={`text-[16px] font-bold flex-shrink-0 ${included ? 'text-[#45F0B5]' : 'text-[#B0B0B0]'}`}
+              className={`text-base font-bold shrink-0 ${included ? 'text-primary' : 'text-gray-400'}`}
             >
               {included ? '✓' : '✗'}
             </span>

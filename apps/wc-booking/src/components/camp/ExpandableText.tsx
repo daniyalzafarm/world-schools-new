@@ -16,7 +16,7 @@ export function ExpandableText({ text, maxLines = 4, className = '' }: Expandabl
   return (
     <div className={className}>
       <div
-        className={`text-[15px] text-[#222222] leading-relaxed mb-4 ${
+        className={`text-base text-gray-900 leading-relaxed mb-4 ${
           !isExpanded ? `line-clamp-${maxLines}` : ''
         }`}
         style={
@@ -34,7 +34,7 @@ export function ExpandableText({ text, maxLines = 4, className = '' }: Expandabl
       </div>
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="text-[15px] font-semibold text-[#222222] underline pb-8 hover:opacity-70 transition-opacity"
+        className="text-base font-semibold text-gray-900 underline pb-8 hover:opacity-70 transition-opacity"
       >
         {isExpanded ? 'Read less' : 'Read more'}
       </button>
