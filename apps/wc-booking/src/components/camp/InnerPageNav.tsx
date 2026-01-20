@@ -48,7 +48,7 @@ export function InnerPageNav({ links }: InnerPageNavProps) {
   }
 
   return (
-    <div className="sticky top-0 bg-white border-b border-gray-300 z-50">
+    <div className="sticky top-0 bg-white border-b border-gray-200 z-50">
       <div className="max-w-screen-2xl mx-auto px-5 md:px-20 lg:px-32">
         <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide py-2.5">
           <div className="flex gap-1 overflow-x-auto scrollbar-hide flex-1">
@@ -66,9 +66,6 @@ export function InnerPageNav({ links }: InnerPageNavProps) {
                 {link.label}
               </a>
             ))}
-          </div>
-          <div className="flex gap-3 shrink-0">
-            <button className="text-xl text-gray-900 hover:opacity-70 transition-opacity">⋮</button>
           </div>
         </div>
       </div>
