@@ -34,7 +34,7 @@ export function ExpandableText({ text, maxLines = 4, className = '' }: Expandabl
       </div>
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="text-base font-semibold text-gray-900 underline pb-8 hover:opacity-70 transition-opacity"
+        className="cursor-pointer text-base font-semibold text-gray-900 underline pb-8 hover:opacity-70 transition-opacity"
       >
         {isExpanded ? 'Read less' : 'Read more'}
       </button>

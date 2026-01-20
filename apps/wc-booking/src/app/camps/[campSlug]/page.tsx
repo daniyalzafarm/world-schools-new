@@ -213,20 +213,39 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
           <span>•</span>
           <span>{camp.locationName || 'Location TBD'}</span>
         </div>
-
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <span className="px-3 py-1.5 bg-gray-100 rounded-full font-medium text-gray-900">
-            {getAgeRangeText()}
-          </span>
-          <span className="px-3 py-1.5 bg-gray-100 rounded-full font-medium text-gray-900">
-            {camp.type === 'day' ? 'Day Camp' : 'Sleepaway Camp'}
-          </span>
-        </div>
       </div>
 
       {/* About This Camp */}
       <div className="mb-12 pb-8 border-b border-gray-300">
         <SectionHeader title="About This Camp" className="mb-4" />
+
+        {/* Tags Row */}
+        <div className="flex flex-wrap items-center gap-3 text-sm mb-4">
+          {/* Gender Tag */}
+          <span className="px-3 py-1.5 bg-gray-100 rounded-full font-medium text-gray-900">
+            {camp.gender === 'coed' && '🧑‍🤝‍🧑 Co-Education'}
+            {camp.gender === 'boys' && '👦 Boys Only'}
+            {camp.gender === 'girls' && '👧 Girls Only'}
+          </span>
+
+          {/* Age Range Tag */}
+          <span className="px-3 py-1.5 bg-gray-100 rounded-full font-medium text-gray-900">
+            👶 {getAgeRangeText()}
+          </span>
+
+          {/* Camp Type Tag */}
+          <span className="px-3 py-1.5 bg-gray-100 rounded-full font-medium text-gray-900">
+            {camp.type === 'day' ? '☀️ Day Camp' : '⛺ Sleepaway Camp'}
+          </span>
+
+          {/* Camp Focus Tag - Only show if primaryFocus exists */}
+          {camp.campFocus?.primaryFocus && (
+            <span className="px-3 py-1.5 bg-gray-100 rounded-full font-medium text-gray-900">
+              {camp.campFocus.primaryFocus.icon} {camp.campFocus.primaryFocus.activityName} Focus
+            </span>
+          )}
+        </div>
+
         {camp.description && <ExpandableText text={camp.description} maxLines={4} />}
       </div>
 
