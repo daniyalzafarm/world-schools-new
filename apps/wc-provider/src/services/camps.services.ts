@@ -187,12 +187,10 @@ export const updateWhatsIncluded = async (campId: string, whatsIncluded: any): P
   return (response.data as any).camp
 }
 
-export const updateDailySchedule = async (campId: string, dailySchedule: any): Promise<Camp> => {
+export const updateDailySchedule = async (campId: string, data: any): Promise<Camp> => {
   const response = await apiClient.patch<{ camp: Camp }>(
     `/provider/camps/${campId}/daily-schedule`,
-    {
-      dailySchedule,
-    }
+    data
   )
   if (!response.success) throw new Error((response.data as any).message)
   return (response.data as any).camp

@@ -130,21 +130,20 @@ export default function DailyScheduleEditorPage() {
       if (!campId) return
 
       try {
+        // Always send all three fields to preserve data
+        // The backend will store all of them, and the scheduleType determines which one is active
         const payload: any = {
           scheduleType: scheduleType,
-          dailySchedule: scheduleType === 'daily' ? { timeSlots: dailyTimeSlots } : null,
-          weeklySchedule:
-            scheduleType === 'weekly'
-              ? {
-                  monday: { timeSlots: weeklyTimeSlots.monday },
-                  tuesday: { timeSlots: weeklyTimeSlots.tuesday },
-                  wednesday: { timeSlots: weeklyTimeSlots.wednesday },
-                  thursday: { timeSlots: weeklyTimeSlots.thursday },
-                  friday: { timeSlots: weeklyTimeSlots.friday },
-                  saturday: { timeSlots: weeklyTimeSlots.saturday },
-                  sunday: { timeSlots: weeklyTimeSlots.sunday },
-                }
-              : null,
+          dailySchedule: { timeSlots: dailyTimeSlots },
+          weeklySchedule: {
+            monday: { timeSlots: weeklyTimeSlots.monday },
+            tuesday: { timeSlots: weeklyTimeSlots.tuesday },
+            wednesday: { timeSlots: weeklyTimeSlots.wednesday },
+            thursday: { timeSlots: weeklyTimeSlots.thursday },
+            friday: { timeSlots: weeklyTimeSlots.friday },
+            saturday: { timeSlots: weeklyTimeSlots.saturday },
+            sunday: { timeSlots: weeklyTimeSlots.sunday },
+          },
         }
 
         await updateSection(campId, 'daily-schedule', payload)
