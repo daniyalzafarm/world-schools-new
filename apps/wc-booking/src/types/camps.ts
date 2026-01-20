@@ -41,4 +41,30 @@ export interface Camp {
   publishedAt?: string
   createdAt: string
   updatedAt: string
+
+  // Additional JSON fields from schema
+  whatsIncluded?: any
+  dailySchedule?: any
+  meals?: any
+  sports?: any
+  arts?: any
+  adventure?: any
+  water?: any
+  environmental?: any
+  academics?: any
+  religion?: any
+  excursions?: any
+  locationCampus?: any
+  accommodation?: any
+  gettingThere?: any
+  campFocus?: any
+  screenPolicy?: any
+  safetySupervision?: any
+
+  // Provider relation
+  provider?: {
+    id: string
+    name: string
+    logo?: string
+  }
 }
