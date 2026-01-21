@@ -1,9 +1,11 @@
 // Camp types for wc-booking app
+import type { FixedSession, FlexibleSession } from './sessions'
 
 export type CampType = 'day' | 'residential'
 export type LocationType = 'provider' | 'different'
 export type Gender = 'coed' | 'boys' | 'girls'
 export type CampStatus = 'draft' | 'published' | 'archived'
+export type SessionType = 'flexible' | 'fixed'
 
 export interface AgeGroup {
   min: number
@@ -171,11 +173,13 @@ export interface Camp {
   campFocus?: any
   screenPolicy?: any
   safetySupervision?: any
+  sessionType?: SessionType | null
 
-  // Provider relation
+  // Relations
   provider?: {
     id: string
     name: string
     logo?: string
   }
+  sessions?: (FlexibleSession | FixedSession)[]
 }

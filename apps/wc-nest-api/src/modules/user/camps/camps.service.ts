@@ -69,28 +69,55 @@ export class UserCampsService {
 
   /**
    * Get a published camp by slug
+   * Only returns camps with status 'published' and their active sessions
    */
   async getCampBySlug(slug: string) {
-    const camp = await this.prisma.camp.findUnique({
+    const camp = await this.prisma.camp.findFirst({
       where: {
         slug,
+        status: 'published', // Only fetch published camps at database level
+      },
+      include: {
+        sessions: {
+          where: {
+            isActive: true, // Only include active sessions for public viewing
+          },
+          orderBy: [
+            { type: 'asc' }, // flexible first, then fixed
+            { sortOrder: 'asc' }, // then by sort order
+            { sessionStartDate: 'asc' }, // then by start date for fixed sessions
+          ],
+        },
       },
     })
 
     if (!camp) {
-      throw new NotFoundException(`Camp with slug "${slug}" not found`)
-    }
-
-    if (camp.status !== 'published') {
-      throw new NotFoundException(`Camp with slug "${slug}" is not published`)
+      throw new NotFoundException(`The camp you are looking for does not exist.`)
     }
 
     // Generate SAS URLs for photos if they exist
+    let campWithPhotos = camp
     if (camp.photos && Array.isArray(camp.photos) && camp.photos.length > 0) {
       const photosWithUrls = await this.generatePhotoUrls(camp.photos as any[])
-      return { ...camp, photos: photosWithUrls }
+      campWithPhotos = { ...camp, photos: photosWithUrls }
     }
 
-    return camp
+    // Transform sessions to convert Decimal fields to numbers
+    const transformedSessions = camp.sessions.map(session => ({
+      ...session,
+      price:
+        session.price !== null && session.price !== undefined
+          ? Number(session.price)
+          : session.price,
+      basePricePerDay:
+        session.basePricePerDay !== null && session.basePricePerDay !== undefined
+          ? Number(session.basePricePerDay)
+          : session.basePricePerDay,
+    }))
+
+    return {
+      ...campWithPhotos,
+      sessions: transformedSessions,
+    }
   }
 }

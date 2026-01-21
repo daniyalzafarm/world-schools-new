@@ -21,6 +21,7 @@ import { SafetyCard } from '@/components/camp/SafetyCard'
 import { ActivitySection } from '@/components/camp/ActivitySection'
 import { ActivityGrid } from '@/components/camp/ActivityGrid'
 import { PhotoGalleryDrawer } from '@/components/camp/PhotoGalleryDrawer'
+import { SessionsSection } from '@/components/camp/SessionsSection'
 import { GoogleMapsLoader } from '@/components/map/GoogleMapsLoader'
 import { GoogleMapWithSearch } from '@/components/map/GoogleMapWithSearch'
 import {
@@ -88,12 +89,14 @@ export default function CampPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Camp Not Found</h1>
           <p className="text-gray-600">{error || 'The camp you are looking for does not exist.'}</p>
-          <button
-            onClick={() => router.push('/')}
-            className="mt-4 px-6 py-2 bg-[#45F0B5] text-[#222222] rounded-lg font-semibold hover:bg-[#3de0a5] transition-colors"
+          <Button
+            onPress={() => router.push('/')}
+            className="mt-4"
+            color="primary"
+            size='lg'
           >
             Go Home
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -133,6 +136,9 @@ export default function CampPage() {
       ? { href: '#schedule', label: 'Schedule' }
       : null,
     camp.meals ? { href: '#meals', label: 'Meals' } : null,
+    camp.sessions && camp.sessions.length > 0
+      ? { href: '#sessions', label: 'Dates & Pricing' }
+      : null,
     camp.campusFacilities ? { href: '#campus', label: 'Location' } : null,
     camp.safetySupervision ? { href: '#safety', label: 'Safety' } : null,
     camp.locationCampus || camp.gettingThere ? { href: '#location', label: 'Location' } : null,
@@ -403,6 +409,17 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Sessions - Dates & Pricing */}
+      {camp.sessions && camp.sessions.length > 0 && (
+        <div id="sessions" className="mb-12 pb-8 border-b border-gray-300">
+          <SessionsSection
+            sessions={camp.sessions}
+            sessionType={camp.sessionType}
+            campName={camp.name}
+          />
         </div>
       )}
 
