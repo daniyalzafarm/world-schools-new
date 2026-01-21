@@ -39,16 +39,15 @@ export function WeeklySchedule({ schedule, className = '' }: WeeklyScheduleProps
       <Tabs
         aria-label="Weekly Schedule"
         variant="solid"
-        color="default"
+        color="secondary"
         size="md"
         radius="lg"
         disabledKeys={disabledKeys}
         defaultSelectedKey={defaultSelectedKey}
         classNames={{
-          tabList: 'gap-2 w-full flex-wrap',
-          tab: 'px-4 py-2',
-          cursor: 'bg-gray-900',
-          tabContent: 'group-data-[selected=true]:text-white',
+          tabList: 'w-full',
+          cursor: 'w-full',
+          tab: 'max-w-fit',
         }}
       >
         {DAYS.map(day => {
