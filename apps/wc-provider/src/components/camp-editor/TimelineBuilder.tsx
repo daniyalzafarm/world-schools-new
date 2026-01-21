@@ -19,12 +19,18 @@ export interface Schedule {
   timeSlots: TimeSlot[]
 }
 
+export interface TimeSlotError {
+  time?: string
+  activity?: string
+}
+
 interface TimelineBuilderProps {
   timeSlots: TimeSlot[]
   onChange: (timeSlots: TimeSlot[]) => void
+  errors?: Record<string, TimeSlotError> // Map of slot ID to errors
 }
 
-export function TimelineBuilder({ timeSlots, onChange }: TimelineBuilderProps) {
+export function TimelineBuilder({ timeSlots, onChange, errors = {} }: TimelineBuilderProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
   const addTimeSlot = () => {
@@ -101,20 +107,26 @@ export function TimelineBuilder({ timeSlots, onChange }: TimelineBuilderProps) {
             {/* Content */}
             <div className="flex-1 space-y-2">
               <div className="flex gap-2">
-                <Input
-                  type="time"
-                  value={slot.time}
-                  onValueChange={value => updateTimeSlot(index, { time: value })}
-                  className="w-32"
-                  size="sm"
-                />
-                <Input
-                  value={slot.activity}
-                  onValueChange={value => updateTimeSlot(index, { activity: value })}
-                  placeholder="Activity name (e.g., Breakfast, Morning Activities)"
-                  className="flex-1"
-                  size="sm"
-                />
+                <div className="w-32">
+                  <Input
+                    type="time"
+                    value={slot.time}
+                    onValueChange={value => updateTimeSlot(index, { time: value })}
+                    size="sm"
+                    isInvalid={!!errors[slot.id]?.time}
+                    errorMessage={errors[slot.id]?.time}
+                  />
+                </div>
+                <div className="flex-1">
+                  <Input
+                    value={slot.activity}
+                    onValueChange={value => updateTimeSlot(index, { activity: value })}
+                    placeholder="Activity name (e.g., Breakfast, Morning Activities)"
+                    size="sm"
+                    isInvalid={!!errors[slot.id]?.activity}
+                    errorMessage={errors[slot.id]?.activity}
+                  />
+                </div>
               </div>
 
               <Textarea
