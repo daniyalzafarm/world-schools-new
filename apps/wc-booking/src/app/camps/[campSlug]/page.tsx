@@ -23,6 +23,7 @@ import { ActivitySection } from '@/components/camp/ActivitySection'
 import { ActivityGrid } from '@/components/camp/ActivityGrid'
 import { PhotoGalleryDrawer } from '@/components/camp/PhotoGalleryDrawer'
 import { SessionsSection } from '@/components/camp/SessionsSection'
+import { CancellationPolicySection } from '@/components/camp/CancellationPolicySection'
 import { ProviderSection } from '@/components/camp/ProviderSection'
 import { GoogleMapsLoader } from '@/components/map/GoogleMapsLoader'
 import { GoogleMapWithSearch } from '@/components/map/GoogleMapWithSearch'
@@ -416,6 +417,16 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
             sessions={camp.sessions}
             sessionType={camp.sessionType}
             campName={camp.name}
+          />
+        </div>
+      )}
+
+      {/* Cancellation Policy */}
+      {camp.provider?.settings?.cancellationPolicy && (
+        <div id="cancellation-policy">
+          <CancellationPolicySection
+            policy={camp.provider.settings.cancellationPolicy as any}
+            customPolicy={camp.provider.settings.cancellationPolicyCustom}
           />
         </div>
       )}

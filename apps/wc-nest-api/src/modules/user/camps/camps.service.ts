@@ -111,6 +111,12 @@ export class UserCampsService {
                 website: true,
               },
             },
+            settings: {
+              select: {
+                cancellationPolicy: true,
+                cancellationPolicyCustom: true,
+              },
+            },
           },
         },
       },

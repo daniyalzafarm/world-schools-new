@@ -197,6 +197,10 @@ export interface Camp {
       phone?: string
       website?: string
     }
+    settings?: {
+      cancellationPolicy: string
+      cancellationPolicyCustom?: any
+    }
   }
   sessions?: (FlexibleSession | FixedSession)[]
 }
