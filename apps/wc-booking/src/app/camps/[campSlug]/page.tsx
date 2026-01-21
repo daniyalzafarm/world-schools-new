@@ -10,6 +10,7 @@ import { SectionHeader, SectionSubheader } from '@/components/camp/SectionHeader
 import { ExpandableText } from '@/components/camp/ExpandableText'
 import { IncludedGrid } from '@/components/camp/IncludedGrid'
 import { DailySchedule } from '@/components/camp/DailySchedule'
+import { WeeklySchedule } from '@/components/camp/WeeklySchedule'
 import { SafetyCard } from '@/components/camp/SafetyCard'
 import { ActivitySection } from '@/components/camp/ActivitySection'
 import {
@@ -115,7 +116,9 @@ export default function CampPage() {
     camp.activities && camp.activities.length > 0
       ? { href: '#activities', label: 'Activities' }
       : null,
-    camp.dailySchedule ? { href: '#schedule', label: 'Schedule' } : null,
+    camp.scheduleType && (camp.dailySchedule || camp.weeklySchedule)
+      ? { href: '#schedule', label: 'Schedule' }
+      : null,
     camp.safetySupervision ? { href: '#safety', label: 'Safety' } : null,
     camp.locationCampus || camp.gettingThere ? { href: '#location', label: 'Location' } : null,
   ].filter(Boolean) as { href: string; label: string }[]
@@ -282,14 +285,27 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
         <ActivitySections camp={camp} />
       </div>
 
-      {/* Daily Schedule */}
-      {camp.dailySchedule?.items && (
+      {/* Schedule Section - Daily or Weekly */}
+      {camp.scheduleType && (camp.dailySchedule || camp.weeklySchedule) && (
         <div id="schedule" className="mb-12 pb-8 border-b border-gray-300">
-          <SectionHeader title="Daily Schedule" icon="📅" className="mb-6" />
-          {camp.dailySchedule.description && (
-            <p className="text-base text-gray-500 mb-6">{camp.dailySchedule.description}</p>
+          <SectionHeader
+            title={camp.scheduleType === 'daily' ? 'A Day at Camp' : 'Weekly Schedule'}
+            icon="📅"
+            className="mb-6"
+          />
+
+          {camp.scheduleType === 'daily' && camp.dailySchedule?.timeSlots && (
+            <DailySchedule schedule={camp.dailySchedule.timeSlots} />
           )}
-          <DailySchedule schedule={camp.dailySchedule.items} />
+
+          {camp.scheduleType === 'weekly' && camp.weeklySchedule && (
+            <WeeklySchedule schedule={camp.weeklySchedule} />
+          )}
+
+          {/* Empty state */}
+          {camp.scheduleType === 'daily' && !camp.dailySchedule?.timeSlots?.length && (
+            <p className="text-base text-gray-500">No daily schedule available yet.</p>
+          )}
         </div>
       )}
 

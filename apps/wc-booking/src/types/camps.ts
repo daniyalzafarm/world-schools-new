@@ -98,6 +98,27 @@ export interface ExcursionsTrips {
   items?: ActivityItem[]
 }
 
+export interface TimeSlot {
+  id: string
+  time: string
+  activity: string
+  description?: string
+}
+
+export interface DailyScheduleData {
+  timeSlots: TimeSlot[]
+}
+
+export interface WeeklyScheduleData {
+  monday: { timeSlots: TimeSlot[] }
+  tuesday: { timeSlots: TimeSlot[] }
+  wednesday: { timeSlots: TimeSlot[] }
+  thursday: { timeSlots: TimeSlot[] }
+  friday: { timeSlots: TimeSlot[] }
+  saturday: { timeSlots: TimeSlot[] }
+  sunday: { timeSlots: TimeSlot[] }
+}
+
 export interface Camp {
   id: string
   providerId: string
@@ -124,8 +145,8 @@ export interface Camp {
   // Additional JSON fields from schema
   whatsIncluded?: any
   scheduleType?: 'daily' | 'weekly' | null
-  dailySchedule?: any
-  weeklySchedule?: any
+  dailySchedule?: DailyScheduleData
+  weeklySchedule?: WeeklyScheduleData
   meals?: any
   sports?: SportsActivities
   languagePrograms?: LanguagePrograms
