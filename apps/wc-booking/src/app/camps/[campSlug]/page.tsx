@@ -10,6 +10,7 @@ import {
 } from '@world-schools/wc-frontend-utils'
 import { getCampBySlug } from '@/services/camps.services'
 import type { ActivityItem, Camp, MetaCard } from '@/types/camps'
+import type { FixedSession, FlexibleSession } from '@/types/sessions'
 import config from '@/config/config'
 import { InnerPageNav } from '@/components/camp/InnerPageNav'
 import { SectionHeader, SectionSubheader } from '@/components/camp/SectionHeader'
@@ -89,12 +90,7 @@ export default function CampPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Camp Not Found</h1>
           <p className="text-gray-600">{error || 'The camp you are looking for does not exist.'}</p>
-          <Button
-            onPress={() => router.push('/')}
-            className="mt-4"
-            color="primary"
-            size='lg'
-          >
+          <Button onPress={() => router.push('/')} className="mt-4" color="primary" size="lg">
             Go Home
           </Button>
         </div>
@@ -619,22 +615,330 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
 
 // Booking Sidebar Component
 function BookingSidebar({ camp }: { camp: Camp }) {
+  const [selectedSession, setSelectedSession] = useState<(FixedSession | FlexibleSession) | null>(
+    null
+  )
+
+  const sessions = camp.sessions ?? []
+  const activeSessions = sessions.filter(s => s.isActive)
+
+  // Calculate minimum price from sessions
+  const getMinPrice = () => {
+    if (activeSessions.length === 0) return null
+
+    const prices = activeSessions.map(session => {
+      if (session.type === 'fixed') {
+        return (session as FixedSession).price
+      } else {
+        return (session as FlexibleSession).basePricePerDay ?? 0
+      }
+    })
+
+    return Math.min(...prices)
+  }
+
+  const minPrice = getMinPrice()
+
+  // Get up to 3 sessions to display
+  const displayedSessions = activeSessions.slice(0, 3)
+
+  // Determine badge for each session
+  const getSessionBadge = (session: FixedSession | FlexibleSession, index: number) => {
+    const spotsLeft = session.capacity ?? null
+
+    // LAST SPOTS - if 5 or fewer spots left
+    if (spotsLeft !== null && spotsLeft <= 5) {
+      return { text: 'LAST SPOTS', icon: '🔥', color: 'border-red-500 text-red-700 bg-red-50' }
+    }
+
+    // NEXT AVAILABLE - first session
+    if (index === 0) {
+      return {
+        text: 'NEXT AVAILABLE',
+        icon: '🚀',
+        color: 'border-teal-500 text-teal-700 bg-teal-50',
+      }
+    }
+
+    // MOST POPULAR - second session
+    if (index === 1) {
+      return {
+        text: 'MOST POPULAR',
+        icon: '⭐',
+        color: 'border-yellow-500 text-yellow-700 bg-yellow-50',
+      }
+    }
+
+    return null
+  }
+
+  // Handle session selection
+  const handleSessionClick = (session: FixedSession | FlexibleSession) => {
+    if (selectedSession?.id === session.id) {
+      setSelectedSession(null) // Deselect if clicking the same session
+    } else {
+      setSelectedSession(session)
+    }
+  }
+
+  // Get selected session price
+  const getSelectedPrice = () => {
+    if (!selectedSession) return null
+    if (selectedSession.type === 'fixed') {
+      return (selectedSession as FixedSession).price
+    } else {
+      return (selectedSession as FlexibleSession).basePricePerDay ?? 0
+    }
+  }
+
+  // Get selected session date range
+  const getSelectedDateRange = () => {
+    if (!selectedSession) return null
+
+    const formatDate = (dateString: string) => {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    }
+
+    if (selectedSession.type === 'fixed') {
+      const fixedSession = selectedSession as FixedSession
+      const startDate = new Date(fixedSession.sessionStartDate)
+      const endDate = new Date(fixedSession.sessionEndDate)
+      const year = endDate.getFullYear()
+      return `${formatDate(fixedSession.sessionStartDate)} - ${formatDate(fixedSession.sessionEndDate)}, ${year}`
+    } else {
+      const flexSession = selectedSession as FlexibleSession
+      const startDate = new Date(flexSession.startDate)
+      const endDate = new Date(flexSession.endDate)
+      const year = endDate.getFullYear()
+      return `${formatDate(flexSession.startDate)} - ${formatDate(flexSession.endDate)}, ${year}`
+    }
+  }
+
+  const selectedPrice = getSelectedPrice()
+  const selectedDateRange = getSelectedDateRange()
+
   return (
     <div className="sticky top-24">
       <div className="border border-gray-300 rounded-xl p-6 shadow-lg">
-        <div className="mb-6">
-          <div className="flex items-baseline gap-1 mb-1">
-            <span className="text-2xl font-bold text-gray-900">€830</span>
-            <span className="text-base text-gray-500">/week</span>
+        {/* Price Header - Dynamic based on selection */}
+        {!selectedSession && minPrice !== null && (
+          <div className="mb-6 pb-6 border-b border-gray-200">
+            <div className="flex items-baseline gap-1">
+              <span className="text-sm text-gray-600">From</span>
+              <span className="text-3xl font-bold text-gray-900">€{minPrice.toLocaleString()}</span>
+              <span className="text-base text-gray-500">/week</span>
+            </div>
           </div>
-          <span className="text-sm text-gray-500">Jun 15 - Aug 20</span>
+        )}
+
+        {selectedSession && selectedPrice !== null && (
+          <div className="mb-6 pb-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold text-gray-900">
+                €{selectedPrice.toLocaleString()}
+              </span>
+              <span className="text-sm text-gray-600">{selectedDateRange}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Sessions List */}
+        {displayedSessions.length > 0 && (
+          <div className="space-y-4 mb-6">
+            {displayedSessions.map((session, index) => (
+              <SidebarSessionCard
+                key={session.id}
+                session={session}
+                badge={getSessionBadge(session, index)}
+                isSelected={selectedSession?.id === session.id}
+                onClick={() => handleSessionClick(session)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* View All Sessions Link */}
+        {activeSessions.length > 3 && (
+          <div className="mb-6 text-center">
+            <a
+              href="#sessions"
+              className="text-sm font-semibold text-gray-900 hover:underline inline-flex items-center gap-1"
+            >
+              View all {activeSessions.length} sessions →
+            </a>
+          </div>
+        )}
+
+        {/* Dynamic Button - Check Availability or Reserve Now */}
+        <Button
+          color="primary"
+          size="lg"
+          className="w-full font-semibold"
+          onPress={() => {
+            if (selectedSession) {
+              // TODO: Implement reserve functionality
+              console.log('Reserve session:', selectedSession)
+            } else {
+              // Scroll to sessions section
+              document.getElementById('sessions')?.scrollIntoView({ behavior: 'smooth' })
+            }
+          }}
+        >
+          {selectedSession ? 'Reserve' : 'Check availability'}
+        </Button>
+
+        {/* Questions Section */}
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <p className="text-center text-sm text-gray-600 mb-3">Questions?</p>
+          <Button
+            variant="bordered"
+            size="lg"
+            color="secondary"
+            className="w-full"
+            onPress={() => {
+              // TODO: Implement message organizer functionality
+              console.log('Message organizer clicked')
+            }}
+          >
+            Message organizer
+          </Button>
         </div>
+      </div>
+    </div>
+  )
+}
 
-        <button className="w-full py-3.5 bg-primary text-gray-900 rounded-lg text-base font-semibold hover:bg-primary-300 transition-colors mb-4">
-          Reserve
-        </button>
+// Sidebar Session Card Component
+interface SidebarSessionCardProps {
+  session: FixedSession | FlexibleSession
+  badge: { text: string; icon: string; color: string } | null
+  isSelected: boolean
+  onClick: () => void
+}
 
-        <p className="text-center text-xs text-gray-500">You won't be charged yet</p>
+function SidebarSessionCard({ session, badge, isSelected, onClick }: SidebarSessionCardProps) {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+
+  const formatDateRange = (start: string, end: string) => {
+    const startDate = new Date(start)
+    const endDate = new Date(end)
+    const year = endDate.getFullYear()
+
+    return `${formatDate(start)} - ${formatDate(end)}, ${year}`
+  }
+
+  const calculateDuration = (start: string, end: string) => {
+    const startDate = new Date(start)
+    const endDate = new Date(end)
+    const durationDays = Math.ceil(
+      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+    )
+    const weeks = Math.floor(durationDays / 7)
+    const days = durationDays % 7
+
+    if (weeks > 0 && days === 0) {
+      return `${weeks} week${weeks > 1 ? 's' : ''}`
+    } else if (weeks > 0) {
+      return `${weeks} week${weeks > 1 ? 's' : ''}`
+    } else {
+      return `${durationDays} day${durationDays > 1 ? 's' : ''}`
+    }
+  }
+
+  const getAgeRangeText = () => {
+    if (session.type === 'flexible') {
+      const flexSession = session as FlexibleSession
+      if (flexSession.ageRange) {
+        return `Ages ${flexSession.ageRange.min}-${flexSession.ageRange.max}`
+      }
+    }
+    // For fixed sessions, we'd need to get age range from camp data
+    // For now, return null
+    return null
+  }
+
+  const getSpotsLeftText = () => {
+    const capacity = session.capacity
+    if (capacity === null || capacity === undefined) return null
+
+    if (capacity <= 5) {
+      return `Only ${capacity} left`
+    } else {
+      return `${capacity} spots left`
+    }
+  }
+
+  const getPrice = () => {
+    if (session.type === 'fixed') {
+      return (session as FixedSession).price
+    } else {
+      return (session as FlexibleSession).basePricePerDay ?? 0
+    }
+  }
+
+  const getDateRange = () => {
+    if (session.type === 'fixed') {
+      const fixedSession = session as FixedSession
+      return formatDateRange(fixedSession.sessionStartDate, fixedSession.sessionEndDate)
+    } else {
+      const flexSession = session as FlexibleSession
+      return formatDateRange(flexSession.startDate, flexSession.endDate)
+    }
+  }
+
+  const getDuration = () => {
+    if (session.type === 'fixed') {
+      const fixedSession = session as FixedSession
+      return calculateDuration(fixedSession.sessionStartDate, fixedSession.sessionEndDate)
+    }
+    return null
+  }
+
+  const ageRangeText = getAgeRangeText()
+  const spotsLeftText = getSpotsLeftText()
+  const duration = getDuration()
+
+  return (
+    <div
+      className={`relative border-2 rounded-lg p-4 transition-all cursor-pointer ${
+        isSelected
+          ? 'border-primary bg-primary/5'
+          : 'border-gray-200 hover:border-gray-300 bg-white'
+      }`}
+      onClick={onClick}
+    >
+      {/* Badge - Positioned on the border */}
+      {badge && (
+        <div
+          className={`absolute -top-3 left-3 inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold border ${badge.color}`}
+        >
+          <span>{badge.icon}</span>
+          <span>{badge.text}</span>
+        </div>
+      )}
+
+      {/* Session Name and Price */}
+      <div className="flex items-start justify-between mb-2">
+        <h3 className="text-base font-semibold text-gray-900 flex-1">{session.name}</h3>
+        <div className="text-right ml-3">
+          <div className="text-lg font-bold text-gray-900">€{getPrice().toLocaleString()}</div>
+        </div>
+      </div>
+
+      {/* Date Range */}
+      <p className="text-sm text-gray-600 mb-1">{getDateRange()}</p>
+
+      {/* Duration, Age Range, Spots Left */}
+      <div className="text-sm text-gray-600">
+        {duration && <span>{duration}</span>}
+        {duration && ageRangeText && <span> • </span>}
+        {ageRangeText && <span>{ageRangeText}</span>}
+        {(duration || ageRangeText) && spotsLeftText && <span> • </span>}
+        {spotsLeftText && <span className="font-medium">{spotsLeftText}</span>}
       </div>
     </div>
   )
