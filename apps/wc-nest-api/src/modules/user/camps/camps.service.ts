@@ -88,6 +88,31 @@ export class UserCampsService {
             { sessionStartDate: 'asc' }, // then by start date for fixed sessions
           ],
         },
+        provider: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            city: true,
+            state: true,
+            postalCode: true,
+            country: true,
+            phone: true,
+            email: true,
+            website: true,
+            yearFounded: true,
+            googleBusinessProfile: {
+              select: {
+                businessName: true,
+                formattedAddress: true,
+                rating: true,
+                reviewsCount: true,
+                phone: true,
+                website: true,
+              },
+            },
+          },
+        },
       },
     })
 

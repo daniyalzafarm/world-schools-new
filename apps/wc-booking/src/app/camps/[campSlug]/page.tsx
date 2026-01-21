@@ -23,6 +23,7 @@ import { ActivitySection } from '@/components/camp/ActivitySection'
 import { ActivityGrid } from '@/components/camp/ActivityGrid'
 import { PhotoGalleryDrawer } from '@/components/camp/PhotoGalleryDrawer'
 import { SessionsSection } from '@/components/camp/SessionsSection'
+import { ProviderSection } from '@/components/camp/ProviderSection'
 import { GoogleMapsLoader } from '@/components/map/GoogleMapsLoader'
 import { GoogleMapWithSearch } from '@/components/map/GoogleMapWithSearch'
 import {
@@ -579,6 +580,13 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Provider/Organizer Information */}
+      {camp.provider && (
+        <div id="provider">
+          <ProviderSection provider={camp.provider} />
         </div>
       )}
 

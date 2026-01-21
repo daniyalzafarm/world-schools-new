@@ -180,6 +180,23 @@ export interface Camp {
     id: string
     name: string
     logo?: string
+    address?: string
+    city?: string
+    state?: string
+    postalCode?: string
+    country?: string
+    phone?: string
+    email?: string
+    website?: string
+    yearFounded?: number
+    googleBusinessProfile?: {
+      businessName: string
+      formattedAddress: string
+      rating?: number
+      reviewsCount?: number
+      phone?: string
+      website?: string
+    }
   }
   sessions?: (FlexibleSession | FixedSession)[]
 }
