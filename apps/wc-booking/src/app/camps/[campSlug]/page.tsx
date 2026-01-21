@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { PREDEFINED_DIETARY_OPTIONS } from '@world-schools/wc-frontend-utils'
 import { getCampBySlug } from '@/services/camps.services'
-import type { Camp, MetaCard } from '@/types/camps'
+import type { ActivityItem, Camp, MetaCard } from '@/types/camps'
 import config from '@/config/config'
 import { InnerPageNav } from '@/components/camp/InnerPageNav'
 import { SectionHeader, SectionSubheader } from '@/components/camp/SectionHeader'
@@ -13,6 +14,7 @@ import { DailySchedule } from '@/components/camp/DailySchedule'
 import { WeeklySchedule } from '@/components/camp/WeeklySchedule'
 import { SafetyCard } from '@/components/camp/SafetyCard'
 import { ActivitySection } from '@/components/camp/ActivitySection'
+import { ActivityGrid } from '@/components/camp/ActivityGrid'
 import {
   getCoachingTypeLabel,
   getSkillLevelLabel,
@@ -119,6 +121,7 @@ export default function CampPage() {
     camp.scheduleType && (camp.dailySchedule || camp.weeklySchedule)
       ? { href: '#schedule', label: 'Schedule' }
       : null,
+    camp.meals ? { href: '#meals', label: 'Meals' } : null,
     camp.safetySupervision ? { href: '#safety', label: 'Safety' } : null,
     camp.locationCampus || camp.gettingThere ? { href: '#location', label: 'Location' } : null,
   ].filter(Boolean) as { href: string; label: string }[]
@@ -313,9 +316,30 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
       {camp.meals && (
         <div id="meals" className="mb-12 pb-8 border-b border-gray-300">
           <SectionHeader title="Meals" icon="🍽️" className="mb-6" />
+
+          {/* Meals Description */}
           {camp.meals.description && (
             <p className="text-base text-gray-500 mb-6">{camp.meals.description}</p>
           )}
+
+          {/* Dietary Options */}
+          {camp.meals.dietaryOptions && camp.meals.dietaryOptions.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Dietary Options</h3>
+              <ActivityGrid
+                activities={camp.meals.dietaryOptions
+                  .map((optionId: string) => {
+                    const option = PREDEFINED_DIETARY_OPTIONS.find(opt => opt.id === optionId)
+                    return option ? { id: option.id, name: option.name, icon: option.icon } : null
+                  })
+                  .filter((item): item is ActivityItem => item !== null)}
+                mobileCount={4}
+                desktopCount={8}
+              />
+            </div>
+          )}
+
+          {/* Legacy meals items (if any) */}
           {camp.meals.items && camp.meals.items.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {camp.meals.items.map((meal: any, index: number) => (

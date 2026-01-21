@@ -24,3 +24,6 @@ export * from './lib/emoji'
 
 // String formatting utilities
 export * from './lib/string-format'
+
+// Meals and dietary options constants
+export * from './constants/meals-activities'
