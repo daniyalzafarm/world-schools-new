@@ -7,6 +7,9 @@ const config = {
   auth: {
     usingRequest: process.env.NEXT_PUBLIC_AUTH_USING_REQUEST === 'true',
   },
+  maps: {
+    googleApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
+  },
 }
 
 export default config

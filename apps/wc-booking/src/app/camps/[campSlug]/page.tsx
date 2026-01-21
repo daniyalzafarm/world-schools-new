@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { PREDEFINED_DIETARY_OPTIONS } from '@world-schools/wc-frontend-utils'
+import {
+  CAMPUS_SETTING,
+  CAMPUS_SIZE,
+  PREDEFINED_DIETARY_OPTIONS,
+  PREDEFINED_FACILITIES,
+} from '@world-schools/wc-frontend-utils'
 import { getCampBySlug } from '@/services/camps.services'
 import type { ActivityItem, Camp, MetaCard } from '@/types/camps'
 import config from '@/config/config'
@@ -15,6 +20,8 @@ import { WeeklySchedule } from '@/components/camp/WeeklySchedule'
 import { SafetyCard } from '@/components/camp/SafetyCard'
 import { ActivitySection } from '@/components/camp/ActivitySection'
 import { ActivityGrid } from '@/components/camp/ActivityGrid'
+import { GoogleMapsLoader } from '@/components/map/GoogleMapsLoader'
+import { GoogleMapWithSearch } from '@/components/map/GoogleMapWithSearch'
 import {
   getCoachingTypeLabel,
   getSkillLevelLabel,
@@ -122,6 +129,7 @@ export default function CampPage() {
       ? { href: '#schedule', label: 'Schedule' }
       : null,
     camp.meals ? { href: '#meals', label: 'Meals' } : null,
+    camp.campusFacilities ? { href: '#campus', label: 'Location' } : null,
     camp.safetySupervision ? { href: '#safety', label: 'Safety' } : null,
     camp.locationCampus || camp.gettingThere ? { href: '#location', label: 'Location' } : null,
   ].filter(Boolean) as { href: string; label: string }[]
@@ -374,6 +382,113 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
             <p className="text-base text-gray-500 mb-6">{camp.safetySupervision.description}</p>
           )}
           <SafetyCard ratios={camp.safetySupervision.ratios} items={camp.safetySupervision.items} />
+        </div>
+      )}
+
+      {/* Location & Campus */}
+      {camp.campusFacilities && (
+        <div id="campus" className="mb-12 pb-8 border-b border-gray-300">
+          <SectionHeader title="Location & Campus" icon="🏫" className="mb-6" />
+
+          {/* Google Map */}
+          {camp.locationLat && camp.locationLng && (
+            <div className="mb-6">
+              <GoogleMapsLoader apiKey={config.maps.googleApiKey}>
+                <div className="h-[400px] w-full rounded-xl overflow-hidden border border-gray-300">
+                  <GoogleMapWithSearch
+                    selectedPlace={{
+                      lat:
+                        typeof camp.locationLat === 'string'
+                          ? parseFloat(camp.locationLat)
+                          : camp.locationLat,
+                      lng:
+                        typeof camp.locationLng === 'string'
+                          ? parseFloat(camp.locationLng)
+                          : camp.locationLng,
+                      name: camp.locationName || camp.name,
+                    }}
+                  />
+                </div>
+              </GoogleMapsLoader>
+            </div>
+          )}
+
+          {/* Location Information */}
+          {(camp.locationName || camp.locationAddress) && (
+            <div className="mb-6 p-4 bg-gray-50 rounded-xl">
+              {camp.locationName && (
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{camp.locationName}</h3>
+              )}
+              {camp.locationAddress && (
+                <p className="text-base text-gray-500">{camp.locationAddress}</p>
+              )}
+            </div>
+          )}
+
+          {/* Campus Description */}
+          {camp.campusFacilities.description && (
+            <div className="mb-6">
+              <p className="text-base text-gray-500">{camp.campusFacilities.description}</p>
+            </div>
+          )}
+
+          {/* Campus Size and Setting */}
+          {(camp.campusFacilities.campusSize || camp.campusFacilities.campusSetting) && (
+            <div className="mb-6 flex flex-wrap gap-3">
+              {camp.campusFacilities.campusSize && (
+                <div className="px-4 py-2 bg-gray-100 rounded-lg">
+                  <span className="text-sm font-medium text-gray-900">
+                    {CAMPUS_SIZE.find(s => s.value === camp.campusFacilities?.campusSize)?.label ||
+                      camp.campusFacilities.campusSize}
+                  </span>
+                  <span className="text-sm text-gray-500 ml-2">
+                    (
+                    {
+                      CAMPUS_SIZE.find(s => s.value === camp.campusFacilities?.campusSize)
+                        ?.description
+                    }
+                    )
+                  </span>
+                </div>
+              )}
+              {camp.campusFacilities.campusSetting && (
+                <div className="px-4 py-2 bg-gray-100 rounded-lg">
+                  <span className="text-sm font-medium text-gray-900">
+                    {CAMPUS_SETTING.find(s => s.value === camp.campusFacilities?.campusSetting)
+                      ?.label || camp.campusFacilities.campusSetting}
+                  </span>
+                  <span className="text-sm text-gray-500 ml-2">
+                    (
+                    {
+                      CAMPUS_SETTING.find(s => s.value === camp.campusFacilities?.campusSetting)
+                        ?.description
+                    }
+                    )
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Campus Facilities */}
+          {camp.campusFacilities.selectedFacilities &&
+            camp.campusFacilities.selectedFacilities.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Campus Facilities</h3>
+                <ActivityGrid
+                  activities={camp.campusFacilities.selectedFacilities
+                    .map((facilityId: string) => {
+                      const facility = PREDEFINED_FACILITIES.find(f => f.id === facilityId)
+                      return facility
+                        ? { id: facility.id, name: facility.name, icon: facility.icon }
+                        : null
+                    })
+                    .filter((item): item is ActivityItem => item !== null)}
+                  mobileCount={4}
+                  desktopCount={8}
+                />
+              </div>
+            )}
         </div>
       )}
 

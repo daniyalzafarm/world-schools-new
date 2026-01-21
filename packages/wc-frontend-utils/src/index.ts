@@ -27,3 +27,6 @@ export * from './lib/string-format'
 
 // Meals and dietary options constants
 export * from './constants/meals-activities'
+
+// Location and campus facilities constants
+export * from './constants/location-campus-activities'

@@ -119,6 +119,13 @@ export interface WeeklyScheduleData {
   sunday: { timeSlots: TimeSlot[] }
 }
 
+export interface CampusFacilities {
+  description?: string
+  campusSize?: string
+  campusSetting?: string
+  selectedFacilities?: string[]
+}
+
 export interface Camp {
   id: string
   providerId: string
@@ -157,6 +164,7 @@ export interface Camp {
   academics?: Academics
   religion?: ReligionPrograms
   excursions?: ExcursionsTrips
+  campusFacilities?: CampusFacilities
   locationCampus?: any
   accommodation?: any
   gettingThere?: any
