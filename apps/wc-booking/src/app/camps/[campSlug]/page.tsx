@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import {
   CAMPUS_SETTING,
   CAMPUS_SIZE,
@@ -46,6 +46,7 @@ import { Button } from '@heroui/react'
 export default function CampPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const campSlug = params.campSlug as string
 
   const [camp, setCamp] = useState<Camp | null>(null)
@@ -58,7 +59,9 @@ export default function CampPage() {
     const fetchCamp = async () => {
       try {
         setIsLoading(true)
-        const campData = await getCampBySlug(campSlug)
+        // Extract preview token from URL if present
+        const previewToken = searchParams.get('preview') || undefined
+        const campData = await getCampBySlug(campSlug, previewToken)
         setCamp(campData)
       } catch (err: any) {
         console.error('Failed to fetch camp:', err)
@@ -73,7 +76,7 @@ export default function CampPage() {
         console.error('Failed to fetch camp:', error)
       })
     }
-  }, [campSlug])
+  }, [campSlug, searchParams])
 
   if (isLoading) {
     return (

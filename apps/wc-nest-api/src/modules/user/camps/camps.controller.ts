@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, HttpStatus, Param } from '@nestjs/common'
+import { Controller, Get, HttpCode, HttpStatus, Param, Query } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Public } from '../../core/auth/decorators/public.decorator'
 import { ResponseUtil } from '../../../common/utils/response.util'
@@ -26,16 +26,18 @@ export class UserCampsController {
 
   /**
    * Get camp by slug (public endpoint)
+   * Supports optional preview token for providers to view unpublished camps
    */
   @Public()
   @Get('slug/:slug')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get camp by slug',
-    description: 'Retrieve a published camp by its slug for public viewing',
+    description:
+      'Retrieve a published camp by its slug for public viewing. Supports preview mode with token.',
   })
-  async getCampBySlug(@Param('slug') slug: string) {
-    const camp = await this.campsService.getCampBySlug(slug)
+  async getCampBySlug(@Param('slug') slug: string, @Query('preview') previewToken?: string) {
+    const camp = await this.campsService.getCampBySlug(slug, previewToken)
     return ResponseUtil.success({ camp })
   }
 }

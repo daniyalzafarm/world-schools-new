@@ -85,6 +85,19 @@ export class CampsController {
   }
 
   /**
+   * Generate a preview token for a camp
+   * Allows providers to preview unpublished camps in the booking app
+   */
+  @Get(':campId/preview-token')
+  @Permissions('camps.read')
+  @HttpCode(HttpStatus.OK)
+  async generatePreviewToken(@Param('campId') campId: string, @CurrentUser() user: any) {
+    const providerId = await this.getProviderIdForUser(user)
+    const token = await this.campsService.generatePreviewToken(campId, providerId)
+    return ResponseUtil.success({ token })
+  }
+
+  /**
    * Create camp with basic info (Wizard Step 1)
    */
   @Post('create/basic-info')

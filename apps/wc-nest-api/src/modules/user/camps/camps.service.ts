@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common'
+import { JwtService } from '@nestjs/jwt'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { ConfigService } from '../../../config/config.service'
 import { AzureStorageService } from '@world-schools/wc-utils/backend'
@@ -9,7 +10,8 @@ export class UserCampsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly jwtService: JwtService
   ) {
     // Initialize Azure Storage Service
     this.azureStorage = new AzureStorageService(this.configService.azureStorageConfig)
@@ -70,13 +72,44 @@ export class UserCampsService {
   /**
    * Get a published camp by slug
    * Only returns camps with status 'published' and their active sessions
+   * Supports preview mode with JWT token for providers to view unpublished camps
    */
-  async getCampBySlug(slug: string) {
+  async getCampBySlug(slug: string, previewToken?: string) {
+    // Determine if we're in preview mode
+    let isPreviewMode = false
+    let previewProviderId: string | null = null
+
+    if (previewToken) {
+      try {
+        // Verify and decode the preview token
+        const payload = this.jwtService.verify(previewToken, {
+          secret: this.configService.jwtConfig.secret,
+        })
+
+        // Validate token type and extract provider ID
+        if (payload.type === 'preview' && payload.slug === slug) {
+          isPreviewMode = true
+          previewProviderId = payload.providerId
+        }
+      } catch (error) {
+        // Invalid or expired token - throw unauthorized error
+        throw new UnauthorizedException('Invalid or expired preview token')
+      }
+    }
+
+    // Build the where clause based on preview mode
+    const whereClause: any = { slug }
+
+    if (!isPreviewMode) {
+      // Public mode: only show published camps
+      whereClause.status = 'published'
+    } else if (previewProviderId) {
+      // Preview mode: show camp only if it belongs to the provider
+      whereClause.providerId = previewProviderId
+    }
+
     const camp = await this.prisma.camp.findFirst({
-      where: {
-        slug,
-        status: 'published', // Only fetch published camps at database level
-      },
+      where: whereClause,
       include: {
         sessions: {
           where: {

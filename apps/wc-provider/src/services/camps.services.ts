@@ -336,3 +336,13 @@ export const updateCampStatus = async (
   if (!response.success) throw new Error((response.data as any).message)
   return (response.data as any).camp
 }
+
+/**
+ * Generate a preview token for a camp
+ * Allows providers to preview unpublished camps in the booking app
+ */
+export const generatePreviewToken = async (campId: string): Promise<string> => {
+  const response = await apiClient.get<{ token: string }>(`/provider/camps/${campId}/preview-token`)
+  if (!response.success) throw new Error((response.data as any).message)
+  return (response.data as any).token
+}

@@ -4,7 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { JwtService } from '@nestjs/jwt'
 import { PrismaService } from '../../../prisma/prisma.service'
+import { ConfigService } from '../../../config/config.service'
 import { CreateCampDto, UpdateCampAudienceDto, UpdateCampProgramsDto } from './dto/create-camp.dto'
 import {
   UpdateAcademicsDto,
@@ -35,7 +37,9 @@ import { GetCampsFiltersDto } from './dto/get-camps-filters.dto'
 export class CampsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly photoUploadService: PhotoUploadService
+    private readonly photoUploadService: PhotoUploadService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService
   ) {}
 
   /**
@@ -978,5 +982,40 @@ export class CampsService {
     })
 
     return { message: 'Camp add-ons updated successfully' }
+  }
+
+  /**
+   * Generate a preview token for a camp
+   * Allows providers to preview unpublished camps in the booking app
+   */
+  async generatePreviewToken(campId: string, providerId: string): Promise<string> {
+    // Verify the camp exists and belongs to the provider
+    const camp = await this.prisma.camp.findUnique({
+      where: { id: campId },
+      select: { id: true, providerId: true, slug: true },
+    })
+
+    if (!camp) {
+      throw new NotFoundException('Camp not found')
+    }
+
+    if (camp.providerId !== providerId) {
+      throw new ForbiddenException('You do not have permission to preview this camp')
+    }
+
+    // Generate a short-lived JWT token (10 minutes)
+    const payload = {
+      campId: camp.id,
+      providerId: camp.providerId,
+      slug: camp.slug,
+      type: 'preview',
+    }
+
+    const token = this.jwtService.sign(payload, {
+      secret: this.configService.jwtConfig.secret,
+      expiresIn: '10m', // 10 minutes expiration
+    })
+
+    return token
   }
 }
