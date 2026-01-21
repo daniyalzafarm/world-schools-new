@@ -20,6 +20,7 @@ import { WeeklySchedule } from '@/components/camp/WeeklySchedule'
 import { SafetyCard } from '@/components/camp/SafetyCard'
 import { ActivitySection } from '@/components/camp/ActivitySection'
 import { ActivityGrid } from '@/components/camp/ActivityGrid'
+import { PhotoGalleryDrawer } from '@/components/camp/PhotoGalleryDrawer'
 import { GoogleMapsLoader } from '@/components/map/GoogleMapsLoader'
 import { GoogleMapWithSearch } from '@/components/map/GoogleMapWithSearch'
 import {
@@ -36,6 +37,7 @@ import {
   transformSportsActivities,
   transformWaterActivities,
 } from '@/utils/activity-transformers'
+import { Button } from '@heroui/react'
 
 export default function CampPage() {
   const params = useParams()
@@ -45,6 +47,8 @@ export default function CampPage() {
   const [camp, setCamp] = useState<Camp | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false)
+  const [galleryPhotoIndex, setGalleryPhotoIndex] = useState(-1)
 
   useEffect(() => {
     const fetchCamp = async () => {
@@ -156,20 +160,39 @@ export default function CampPage() {
         {/* Desktop Hero Grid */}
         <div className="hidden lg:block max-w-screen-2xl mx-auto px-20 xl:px-32 mt-6 mb-10">
           <div className="grid grid-cols-4 grid-rows-2 gap-2 h-[480px] rounded-xl overflow-hidden relative">
-            <div className="col-span-2 row-span-2 bg-gray-200">
+            {/* Primary Image - Index 0 */}
+            <div
+              className="col-span-2 row-span-2 bg-gray-200 cursor-pointer group relative overflow-hidden"
+              onClick={() => {
+                if (camp.photos && camp.photos.length > 0) {
+                  setGalleryPhotoIndex(0)
+                  setIsGalleryOpen(true)
+                }
+              }}
+            >
               <img
                 src={primaryPhotoUrl || '/placeholder-camp.jpg'}
                 alt={camp.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
             </div>
+            {/* Thumbnail Images - Indices 1-4 */}
             {camp.photos?.slice(1, 5).map((photo, index) => (
-              <div key={photo.id} className="bg-gray-200">
+              <div
+                key={photo.id}
+                className="bg-gray-200 cursor-pointer group relative overflow-hidden"
+                onClick={() => {
+                  setGalleryPhotoIndex(index + 1)
+                  setIsGalleryOpen(true)
+                }}
+              >
                 <img
                   src={getImageUrl(photo.url)}
                   alt={`${camp.name} ${index + 2}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
               </div>
             ))}
             {(!camp.photos || camp.photos.length < 5) &&
@@ -181,10 +204,29 @@ export default function CampPage() {
                   Image {(camp.photos?.length ?? 1) + i + 1}
                 </div>
               ))}
-            <button className="absolute bottom-5 right-5 bg-white text-gray-900 px-4 py-2.5 rounded-lg border border-gray-900 text-sm font-semibold flex items-center gap-2 hover:bg-gray-100 transition-colors">
-              <span>🖼️</span>
-              <span>Show all photos</span>
-            </button>
+            {camp.photos && camp.photos.length > 0 && (
+              <div className="absolute bottom-5 right-5 z-10">
+                <PhotoGalleryDrawer
+                  photos={camp.photos}
+                  campName={camp.name}
+                  isOpen={isGalleryOpen}
+                  onOpenChange={setIsGalleryOpen}
+                  initialLightboxIndex={galleryPhotoIndex}
+                  trigger={
+                    <Button
+                      className="bg-white text-gray-900"
+                      onPress={() => {
+                        setGalleryPhotoIndex(-1)
+                        setIsGalleryOpen(true)
+                      }}
+                      startContent={<span>🖼️</span>}
+                    >
+                      Show all photos
+                    </Button>
+                  }
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
