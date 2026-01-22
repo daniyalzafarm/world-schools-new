@@ -146,6 +146,7 @@ export class UserCampsService {
             },
             settings: {
               select: {
+                currency: true,
                 cancellationPolicy: true,
                 cancellationPolicyCustom: true,
               },

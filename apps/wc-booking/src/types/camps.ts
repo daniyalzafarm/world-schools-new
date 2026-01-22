@@ -198,6 +198,7 @@ export interface Camp {
       website?: string
     }
     settings?: {
+      currency: string
       cancellationPolicy: string
       cancellationPolicyCustom?: any
     }

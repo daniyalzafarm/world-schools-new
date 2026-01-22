@@ -42,6 +42,7 @@ import {
   transformWaterActivities,
 } from '@/utils/activity-transformers'
 import { Button } from '@heroui/react'
+import { formatCurrency } from '@/utils/currency'
 
 export default function CampPage() {
   const params = useParams()
@@ -420,6 +421,7 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
             sessions={camp.sessions}
             sessionType={camp.sessionType}
             campName={camp.name}
+            currency={camp.provider?.settings?.currency || 'USD'}
           />
         </div>
       )}
@@ -643,6 +645,7 @@ function BookingSidebar({ camp }: { camp: Camp }) {
 
   const sessions = camp.sessions ?? []
   const activeSessions = sessions.filter(s => s.isActive)
+  const currency = camp.provider?.settings?.currency || 'USD'
 
   // Calculate minimum price from sessions
   const getMinPrice = () => {
@@ -748,7 +751,9 @@ function BookingSidebar({ camp }: { camp: Camp }) {
           <div className="mb-6 pb-6 border-b border-gray-200">
             <div className="flex items-baseline gap-1">
               <span className="text-sm text-gray-600">From</span>
-              <span className="text-3xl font-bold text-gray-900">€{minPrice.toLocaleString()}</span>
+              <span className="text-3xl font-bold text-gray-900">
+                {formatCurrency(minPrice, currency)}
+              </span>
               <span className="text-base text-gray-500">/week</span>
             </div>
           </div>
@@ -758,7 +763,7 @@ function BookingSidebar({ camp }: { camp: Camp }) {
           <div className="mb-6 pb-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <span className="text-3xl font-bold text-gray-900">
-                €{selectedPrice.toLocaleString()}
+                {formatCurrency(selectedPrice, currency)}
               </span>
               <span className="text-sm text-gray-600">{selectedDateRange}</span>
             </div>
@@ -775,6 +780,7 @@ function BookingSidebar({ camp }: { camp: Camp }) {
                 badge={getSessionBadge(session, index)}
                 isSelected={selectedSession?.id === session.id}
                 onClick={() => handleSessionClick(session)}
+                currency={currency}
               />
             ))}
           </div>
@@ -837,9 +843,16 @@ interface SidebarSessionCardProps {
   badge: { text: string; icon: string; color: string } | null
   isSelected: boolean
   onClick: () => void
+  currency?: string
 }
 
-function SidebarSessionCard({ session, badge, isSelected, onClick }: SidebarSessionCardProps) {
+function SidebarSessionCard({
+  session,
+  badge,
+  isSelected,
+  onClick,
+  currency = 'USD',
+}: SidebarSessionCardProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -947,7 +960,9 @@ function SidebarSessionCard({ session, badge, isSelected, onClick }: SidebarSess
       <div className="flex items-start justify-between mb-2">
         <h3 className="text-base font-semibold text-gray-900 flex-1">{session.name}</h3>
         <div className="text-right ml-3">
-          <div className="text-lg font-bold text-gray-900">€{getPrice().toLocaleString()}</div>
+          <div className="text-lg font-bold text-gray-900">
+            {formatCurrency(getPrice(), currency)}
+          </div>
         </div>
       </div>
 

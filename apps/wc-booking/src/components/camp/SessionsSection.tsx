@@ -5,14 +5,21 @@ import { Button } from '@heroui/react'
 import { SectionHeader } from './SectionHeader'
 import type { FixedSession, FlexibleSession } from '@/types/sessions'
 import type { SessionType } from '@/types/camps'
+import { formatCurrency } from '@/utils/currency'
 
 interface SessionsSectionProps {
   sessions: (FlexibleSession | FixedSession)[]
   sessionType: SessionType | null | undefined
   campName: string
+  currency?: string
 }
 
-export function SessionsSection({ sessions, sessionType, campName }: SessionsSectionProps) {
+export function SessionsSection({
+  sessions,
+  sessionType,
+  campName,
+  currency = 'USD',
+}: SessionsSectionProps) {
   const [showAll, setShowAll] = useState(false)
 
   if (!sessions || sessions.length === 0) {
@@ -30,9 +37,21 @@ export function SessionsSection({ sessions, sessionType, campName }: SessionsSec
       <div className="space-y-4 mt-6">
         {displayedSessions.map(session => {
           if (session.type === 'fixed') {
-            return <FixedSessionCard key={session.id} session={session as FixedSession} />
+            return (
+              <FixedSessionCard
+                key={session.id}
+                session={session as FixedSession}
+                currency={currency}
+              />
+            )
           } else {
-            return <FlexibleSessionCard key={session.id} session={session as FlexibleSession} />
+            return (
+              <FlexibleSessionCard
+                key={session.id}
+                session={session as FlexibleSession}
+                currency={currency}
+              />
+            )
           }
         })}
       </div>
@@ -53,7 +72,13 @@ export function SessionsSection({ sessions, sessionType, campName }: SessionsSec
 }
 
 // Fixed Session Card Component
-function FixedSessionCard({ session }: { session: FixedSession }) {
+function FixedSessionCard({
+  session,
+  currency = 'USD',
+}: {
+  session: FixedSession
+  currency?: string
+}) {
   const startDate = new Date(session.sessionStartDate)
   const endDate = new Date(session.sessionEndDate)
 
@@ -116,7 +141,9 @@ function FixedSessionCard({ session }: { session: FixedSession }) {
         </div>
 
         <div className="text-right ml-6">
-          <div className="text-2xl font-bold text-gray-900">€{session.price.toLocaleString()}</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {formatCurrency(session.price, currency)}
+          </div>
           <div className="text-sm text-gray-500 mt-1">per child</div>
         </div>
       </div>
@@ -125,7 +152,13 @@ function FixedSessionCard({ session }: { session: FixedSession }) {
 }
 
 // Flexible Session Card Component
-function FlexibleSessionCard({ session }: { session: FlexibleSession }) {
+function FlexibleSessionCard({
+  session,
+  currency = 'USD',
+}: {
+  session: FlexibleSession
+  currency?: string
+}) {
   const startDate = new Date(session.startDate)
   const endDate = new Date(session.endDate)
 
@@ -165,7 +198,7 @@ function FlexibleSessionCard({ session }: { session: FlexibleSession }) {
           {session.basePricePerDay && (
             <>
               <div className="text-2xl font-bold text-gray-900">
-                €{session.basePricePerDay.toLocaleString()}
+                {formatCurrency(session.basePricePerDay, currency)}
               </div>
               <div className="text-sm text-gray-500 mt-1">per day</div>
             </>
