@@ -15,7 +15,7 @@ import { onboardingService } from '../../../services/onboarding.services'
 
 export default function OnboardingStep2Page() {
   const router = useRouter()
-  const { status, googleBusinessProfile, isLoading, saveContactInfo, fetchGoogleBusinessProfile } =
+  const { status, googleBusinessProfile, isLoading, error, saveContactInfo, fetchGoogleBusinessProfile } =
     useOnboardingStore()
   const {
     register,
@@ -115,7 +115,7 @@ export default function OnboardingStep2Page() {
             color="primary"
             size="lg"
             onPress={() =>
-              isReadOnly ? router.push('/onboarding/step-3') : handleSubmit(onSubmit)
+              isReadOnly ? router.push('/onboarding/step-3') : handleSubmit(onSubmit)()
             }
             isLoading={isLoading}
           >
@@ -135,6 +135,13 @@ export default function OnboardingStep2Page() {
             Provide your contact details and create your account
           </p>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 rounded-lg border border-danger-200 bg-danger-50 p-4">
+            <p className="text-sm text-danger">{error}</p>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
