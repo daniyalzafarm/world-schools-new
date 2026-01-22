@@ -230,7 +230,7 @@ export class ProviderAuthController {
     // Verify user has Provider Admin role or a provider-specific role
     const user = result.user
     const hasProviderRole = user.roles?.some(
-      (role: any) => role.name === 'Provider Admin' || role.provider_id !== null
+      (role: any) => role.name === 'Provider Admin' || role.providerId !== null
     )
 
     if (!hasProviderRole) {
@@ -313,7 +313,7 @@ export class ProviderAuthController {
     // Verify user still has Provider Admin role or provider-specific role
     const user = result.user
     const hasProviderRole = user.roles?.some(
-      (role: any) => role.name === 'Provider Admin' || role.provider_id !== null
+      (role: any) => role.name === 'Provider Admin' || role.providerId !== null
     )
 
     if (!hasProviderRole) {
@@ -357,7 +357,7 @@ export class ProviderAuthController {
   getProfile(@CurrentUser() user: any) {
     // Verify user has Provider Admin role or provider-specific role
     const hasProviderRole = user.roles?.some(
-      (role: any) => role.name === 'Provider Admin' || role.provider_id !== null
+      (role: any) => role.name === 'Provider Admin' || role.providerId !== null
     )
 
     if (!hasProviderRole) {
@@ -377,7 +377,7 @@ export class ProviderAuthController {
   async changePassword(@CurrentUser() user: any, @Body() changePasswordDto: ChangePasswordDto) {
     // Verify user has Provider Admin role or provider-specific role
     const hasProviderRole = user.roles?.some(
-      (role: any) => role.name === 'Provider Admin' || role.provider_id !== null
+      (role: any) => role.name === 'Provider Admin' || role.providerId !== null
     )
 
     if (!hasProviderRole) {
