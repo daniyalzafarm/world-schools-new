@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   displayName: 'schoolable-nest-api',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',

@@ -26,7 +26,6 @@
       "plugin": "@nx/vite/plugin",
       "options": {
         "buildTargetName": "build",
-        "testTargetName": "test",
         "serveTargetName": "serve",
         "devTargetName": "dev",
         "previewTargetName": "preview",
@@ -63,10 +62,13 @@
       "options": {
         "targetName": "test"
       },
-      "exclude": [
-        "apps/schoolable-nest-api-e2e/**/*",
-        "apps/wc-nest-api-e2e/**/*"
-      ]
+      "exclude": ["apps/schoolable-nest-api-e2e/**/*", "apps/wc-nest-api-e2e/**/*"]
+    },
+    {
+      "plugin": "@nx/vitest",
+      "options": {
+        "testTargetName": "test"
+      }
     }
   ],
   "generators": {
