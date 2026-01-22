@@ -9,8 +9,8 @@
   "private": true,
   "dependencies": {
     "@azure/storage-blob": "^12.29.1",
-    "@heroui/react": "^2.8.5",
-    "@heroui/theme": "^2.4.23",
+    "@heroui/react": "^2.8.7",
+    "@heroui/theme": "^2.4.25",
     "@internationalized/date": "^3.10.0",
     "@lexical/plain-text": "^0.39.0",
     "@lexical/react": "^0.39.0",
