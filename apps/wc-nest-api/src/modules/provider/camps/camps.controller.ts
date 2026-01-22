@@ -59,6 +59,45 @@ export class CampsController {
   // ============================================
 
   /**
+   * Check if a slug is available
+   */
+  @Get('check-slug/:slug')
+  @Permissions('camps.create', 'camps.update')
+  @HttpCode(HttpStatus.OK)
+  async checkSlugAvailability(@Param('slug') slug: string, @Query('campId') campId?: string) {
+    const existingCamp = await this.prisma.camp.findUnique({
+      where: { slug },
+      select: { id: true },
+    })
+
+    // If no camp found with this slug, it's available
+    if (!existingCamp) {
+      return ResponseUtil.success({ available: true })
+    }
+
+    // If a campId is provided and it matches the existing camp, it's available (same camp)
+    if (campId && existingCamp.id === campId) {
+      return ResponseUtil.success({ available: true })
+    }
+
+    // Slug is taken by another camp
+    return ResponseUtil.success({ available: false })
+  }
+
+  /**
+   * Generate a preview token for a camp
+   * Allows providers to preview unpublished camps in the booking app
+   */
+  @Get(':campId/preview-token')
+  @Permissions('camps.read')
+  @HttpCode(HttpStatus.OK)
+  async generatePreviewToken(@Param('campId') campId: string, @CurrentUser() user: any) {
+    const providerId = await this.getProviderIdForUser(user)
+    const token = await this.campsService.generatePreviewToken(campId, providerId)
+    return ResponseUtil.success({ token })
+  }
+
+  /**
    * Create camp with basic info (Wizard Step 1)
    */
   @Post('create/basic-info')

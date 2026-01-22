@@ -1,268 +1,390 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
-import { Button, Input, Select, SelectItem } from '@heroui/react'
+import { useParams, useRouter } from 'next/navigation'
+import { Radio, RadioGroup, Tab, Tabs } from '@heroui/react'
 import { useCampsStore } from '../../../../../stores/camps-store'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
-import { TimelineBuilder } from '../../../../../components/camp-editor/TimelineBuilder'
-import type { DailyScheduleData, Schedule } from '../../../../../types/daily-schedule'
+import {
+  TimelineBuilder,
+  type TimeSlotError,
+} from '../../../../../components/camp-editor/TimelineBuilder'
+import type { TimeSlot } from '../../../../../types/daily-schedule'
 
-const SCHEDULE_TYPES = [
-  { value: 'daily', label: 'Daily Schedule (same every day)' },
-  { value: 'weekly', label: 'Weekly Schedule (varies by day)' },
-]
-
-const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const DAYS_OF_WEEK = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+const DAY_LABELS: Record<string, string> = {
+  monday: 'Monday',
+  tuesday: 'Tuesday',
+  wednesday: 'Wednesday',
+  thursday: 'Thursday',
+  friday: 'Friday',
+  saturday: 'Saturday',
+  sunday: 'Sunday',
+}
 
 export default function DailyScheduleEditorPage() {
+  const router = useRouter()
   const params = useParams()
   const campId = params.campId as string
 
-  const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const {
+    currentCamp,
+    updateSection,
+    fetchCamp,
+    setHasUnsavedChanges,
+    setWizardFormValid,
+    setWizardFormSubmit,
+  } = useCampsStore()
 
-  const [data, setData] = useState<DailyScheduleData>({
-    schedules: [],
+  const [scheduleType, setScheduleType] = useState<'daily' | 'weekly'>('daily')
+  const [dailyTimeSlots, setDailyTimeSlots] = useState<TimeSlot[]>([])
+  const [weeklyTimeSlots, setWeeklyTimeSlots] = useState<Record<string, TimeSlot[]>>({
+    monday: [],
+    tuesday: [],
+    wednesday: [],
+    thursday: [],
+    friday: [],
+    saturday: [],
+    sunday: [],
   })
+  const [selectedDay, setSelectedDay] = useState<string>('monday')
 
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [originalData, setOriginalData] = useState<{
+    scheduleType: 'daily' | 'weekly'
+    dailyTimeSlots: TimeSlot[]
+    weeklyTimeSlots: Record<string, TimeSlot[]>
+  } | null>(null)
 
-  // Load existing data
-  useEffect(() => {
-    if (currentCamp?.dailySchedule) {
-      const existing = currentCamp.dailySchedule as any
-      if (existing.schedules) {
-        setData(existing)
-      } else {
-        // Initialize with a default daily schedule
-        setData({
-          schedules: [
-            {
-              id: `schedule-${Date.now()}`,
-              type: 'daily',
-              timeSlots: [],
-            },
-          ],
-        })
+  // Validation errors state
+  const [dailyErrors, setDailyErrors] = useState<Record<string, TimeSlotError>>({})
+  const [weeklyErrors, setWeeklyErrors] = useState<Record<string, Record<string, TimeSlotError>>>({
+    monday: {},
+    tuesday: {},
+    wednesday: {},
+    thursday: {},
+    friday: {},
+    saturday: {},
+    sunday: {},
+  })
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
+
+  // Validation function
+  const validateTimeSlots = (timeSlots: TimeSlot[]): Record<string, TimeSlotError> => {
+    const errors: Record<string, TimeSlotError> = {}
+
+    timeSlots.forEach(slot => {
+      const slotErrors: TimeSlotError = {}
+
+      // Validate time field
+      if (!slot.time || slot.time.trim() === '') {
+        slotErrors.time = 'Time is required'
       }
+
+      // Validate activity name field
+      if (!slot.activity || slot.activity.trim() === '') {
+        slotErrors.activity = 'Activity name is required'
+      }
+
+      // Only add to errors if there are any errors for this slot
+      if (Object.keys(slotErrors).length > 0) {
+        errors[slot.id] = slotErrors
+      }
+    })
+
+    return errors
+  }
+
+  // Validate all schedules and return true if valid
+  const validateAllSchedules = (): boolean => {
+    if (scheduleType === 'daily') {
+      const errors = validateTimeSlots(dailyTimeSlots)
+      setDailyErrors(errors)
+      return Object.keys(errors).length === 0
     } else {
-      // Initialize with a default daily schedule
-      setData({
-        schedules: [
-          {
-            id: `schedule-${Date.now()}`,
-            type: 'daily',
-            timeSlots: [],
-          },
-        ],
+      // Validate all days for weekly schedule
+      const allErrors: Record<string, Record<string, TimeSlotError>> = {}
+      let hasErrors = false
+
+      DAYS_OF_WEEK.forEach(day => {
+        const errors = validateTimeSlots(weeklyTimeSlots[day])
+        allErrors[day] = errors
+        if (Object.keys(errors).length > 0) {
+          hasErrors = true
+        }
+      })
+
+      setWeeklyErrors(allErrors)
+      return !hasErrors
+    }
+  }
+
+  // Clear errors when user makes changes (only if validation has been attempted)
+  const handleDailyTimeSlotsChange = (timeSlots: TimeSlot[]) => {
+    setDailyTimeSlots(timeSlots)
+    // Clear errors for modified slots only if user has attempted to submit
+    if (hasAttemptedSubmit && Object.keys(dailyErrors).length > 0) {
+      const errors = validateTimeSlots(timeSlots)
+      setDailyErrors(errors)
+    }
+  }
+
+  const handleWeeklyTimeSlotsChange = (day: string, timeSlots: TimeSlot[]) => {
+    setWeeklyTimeSlots({ ...weeklyTimeSlots, [day]: timeSlots })
+    // Clear errors for modified day only if user has attempted to submit
+    if (hasAttemptedSubmit && Object.keys(weeklyErrors[day]).length > 0) {
+      const errors = validateTimeSlots(timeSlots)
+      setWeeklyErrors({ ...weeklyErrors, [day]: errors })
+    }
+  }
+
+  // Fetch camp data on mount
+  useEffect(() => {
+    if (campId) {
+      fetchCamp(campId).catch(error => {
+        console.error('Failed to fetch camp:', error)
+        router.push('/camps')
+      })
+    }
+
+    // Cleanup on unmount
+    return () => {
+      setHasUnsavedChanges(false)
+      setWizardFormValid(false)
+      setWizardFormSubmit(null)
+    }
+  }, [campId, fetchCamp, router, setHasUnsavedChanges, setWizardFormValid, setWizardFormSubmit])
+
+  // Load existing data from currentCamp
+  useEffect(() => {
+    if (currentCamp) {
+      const type = (currentCamp.scheduleType as 'daily' | 'weekly') || 'daily'
+      const dailySlots =
+        currentCamp.dailySchedule && typeof currentCamp.dailySchedule === 'object'
+          ? (currentCamp.dailySchedule as any).timeSlots || []
+          : []
+      const weeklySlots = currentCamp.weeklySchedule
+        ? {
+            monday: (currentCamp.weeklySchedule as any).monday?.timeSlots || [],
+            tuesday: (currentCamp.weeklySchedule as any).tuesday?.timeSlots || [],
+            wednesday: (currentCamp.weeklySchedule as any).wednesday?.timeSlots || [],
+            thursday: (currentCamp.weeklySchedule as any).thursday?.timeSlots || [],
+            friday: (currentCamp.weeklySchedule as any).friday?.timeSlots || [],
+            saturday: (currentCamp.weeklySchedule as any).saturday?.timeSlots || [],
+            sunday: (currentCamp.weeklySchedule as any).sunday?.timeSlots || [],
+          }
+        : {
+            monday: [],
+            tuesday: [],
+            wednesday: [],
+            thursday: [],
+            friday: [],
+            saturday: [],
+            sunday: [],
+          }
+
+      setScheduleType(type)
+      setDailyTimeSlots(dailySlots)
+      setWeeklyTimeSlots(weeklySlots)
+      setOriginalData({
+        scheduleType: type,
+        dailyTimeSlots: dailySlots,
+        weeklyTimeSlots: weeklySlots,
       })
     }
   }, [currentCamp])
 
-  // Cleanup on unmount - clear pending auto-save state
+  // Detect form changes
   useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
+    if (!originalData) return
 
-  // Auto-save handler
-  const triggerAutoSave = (updatedData: DailyScheduleData) => {
-    setHasUnsavedChanges(true)
+    const hasChanges =
+      scheduleType !== originalData.scheduleType ||
+      JSON.stringify(dailyTimeSlots) !== JSON.stringify(originalData.dailyTimeSlots) ||
+      JSON.stringify(weeklyTimeSlots) !== JSON.stringify(originalData.weeklyTimeSlots)
 
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
+    setHasUnsavedChanges(hasChanges)
+  }, [scheduleType, dailyTimeSlots, weeklyTimeSlots, originalData, setHasUnsavedChanges])
 
-    setAutoSaveStatus('saving')
-    // Update store to indicate pending auto-save (debounce period)
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
+  // Update form validity - always valid until user attempts to submit
+  useEffect(() => {
+    // Form is always valid until user attempts to submit
+    // This prevents the "Save Changes" button from being disabled prematurely
+    setWizardFormValid(true)
+  }, [setWizardFormValid])
 
-    const timeout = setTimeout(async () => {
-      try {
-        await updateSection(campId, 'daily-schedule', { dailySchedule: updatedData })
-        setAutoSaveStatus('saved')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-        setHasUnsavedChanges(false)
-        setTimeout(() => {
-          setAutoSaveStatus('idle')
-          useCampsStore.setState({ autoSaveStatus: 'idle' })
-        }, 2000)
-      } catch (error) {
-        console.error('Failed to save daily schedule:', error)
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
+  // Register submit handler
+  useEffect(() => {
+    const handleFormSubmit = async () => {
+      if (!campId) return
+
+      // Mark that user has attempted to submit
+      setHasAttemptedSubmit(true)
+
+      // Validate before submitting
+      const isValid = validateAllSchedules()
+      if (!isValid) {
+        throw new Error('Please fix validation errors before saving')
       }
-    }, 1500)
 
-    setSaveTimeout(timeout)
-  }
+      try {
+        // Always send all three fields to preserve data
+        // The backend will store all of them, and the scheduleType determines which one is active
+        const payload: any = {
+          scheduleType: scheduleType,
+          dailySchedule: { timeSlots: dailyTimeSlots },
+          weeklySchedule: {
+            monday: { timeSlots: weeklyTimeSlots.monday },
+            tuesday: { timeSlots: weeklyTimeSlots.tuesday },
+            wednesday: { timeSlots: weeklyTimeSlots.wednesday },
+            thursday: { timeSlots: weeklyTimeSlots.thursday },
+            friday: { timeSlots: weeklyTimeSlots.friday },
+            saturday: { timeSlots: weeklyTimeSlots.saturday },
+            sunday: { timeSlots: weeklyTimeSlots.sunday },
+          },
+        }
 
-  const addSchedule = (type: 'daily' | 'weekly') => {
-    const newSchedule: Schedule = {
-      id: `schedule-${Date.now()}`,
-      type,
-      timeSlots: [],
+        await updateSection(campId, 'daily-schedule', payload)
+        await fetchCamp(campId)
+
+        // Reset validation state after successful save
+        setHasAttemptedSubmit(false)
+        setDailyErrors({})
+        setWeeklyErrors({
+          monday: {},
+          tuesday: {},
+          wednesday: {},
+          thursday: {},
+          friday: {},
+          saturday: {},
+          sunday: {},
+        })
+      } catch (error) {
+        console.error('Failed to save schedule:', error)
+        throw error
+      }
     }
 
-    const updated = {
-      schedules: [...data.schedules, newSchedule],
-    }
+    setWizardFormSubmit(handleFormSubmit)
 
-    setData(updated)
-    triggerAutoSave(updated)
-  }
-
-  const updateSchedule = (index: number, schedule: Schedule) => {
-    const updated = {
-      schedules: data.schedules.map((s, i) => (i === index ? schedule : s)),
+    return () => {
+      setWizardFormSubmit(null)
     }
-    setData(updated)
-    triggerAutoSave(updated)
-  }
+  }, [
+    campId,
+    scheduleType,
+    dailyTimeSlots,
+    weeklyTimeSlots,
+    updateSection,
+    fetchCamp,
+    setWizardFormSubmit,
+  ])
 
-  const deleteSchedule = (index: number) => {
-    const updated = {
-      schedules: data.schedules.filter((_, i) => i !== index),
-    }
-    setData(updated)
-    triggerAutoSave(updated)
-  }
-
-  const updateScheduleType = (index: number, type: 'daily' | 'weekly') => {
-    const schedule = data.schedules[index]
-    const updated = {
-      schedules: data.schedules.map((s, i) =>
-        i === index
-          ? {
-              ...s,
-              type,
-              day: type === 'weekly' ? 'Monday' : undefined,
-            }
-          : s
-      ),
-    }
-    setData(updated)
-    triggerAutoSave(updated)
-  }
-
-  const updateScheduleDay = (index: number, day: string) => {
-    const updated = {
-      schedules: data.schedules.map((s, i) => (i === index ? { ...s, day } : s)),
-    }
-    setData(updated)
-    triggerAutoSave(updated)
-  }
-
-  const updateScheduleAgeGroup = (index: number, ageGroup: string) => {
-    const updated = {
-      schedules: data.schedules.map((s, i) => (i === index ? { ...s, ageGroup } : s)),
-    }
-    setData(updated)
-    triggerAutoSave(updated)
+  const handleScheduleTypeChange = (type: 'daily' | 'weekly') => {
+    setScheduleType(type)
   }
 
   return (
     <div>
       {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Daily Schedule</h1>
-          <p className="text-base leading-normal text-default-500">
-            Create a detailed timeline of a typical day at your camp
-          </p>
-        </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Daily Schedule</h1>
+        <p className="text-base leading-normal text-default-500">
+          Create a detailed timeline for your camp
+        </p>
       </div>
 
       <div className="space-y-8">
-        {/* Schedules */}
-        {data.schedules.map((schedule, index) => (
-          <div key={schedule.id} className="form-group">
-            {/* Schedule Header */}
-            <div className="flex items-start justify-between">
-              <div className="flex-1 space-y-3">
-                <div className="flex gap-3">
-                  <Select
-                    label="Schedule Type"
-                    selectedKeys={[schedule.type]}
-                    onSelectionChange={keys => {
-                      const type = Array.from(keys)[0] as 'daily' | 'weekly'
-                      updateScheduleType(index, type)
-                    }}
-                    className="max-w-xs"
-                    size="sm"
-                  >
-                    {SCHEDULE_TYPES.map(type => (
-                      <SelectItem key={type.value}>{type.label}</SelectItem>
-                    ))}
-                  </Select>
-
-                  {schedule.type === 'weekly' && (
-                    <Select
-                      label="Day of Week"
-                      selectedKeys={schedule.day ? [schedule.day] : []}
-                      onSelectionChange={keys => {
-                        const day = Array.from(keys)[0] as string
-                        updateScheduleDay(index, day)
-                      }}
-                      className="max-w-xs"
-                      size="sm"
-                    >
-                      {DAYS_OF_WEEK.map(day => (
-                        <SelectItem key={day}>{day}</SelectItem>
-                      ))}
-                    </Select>
-                  )}
-                </div>
-
-                <Input
-                  label="Age Group (Optional)"
-                  placeholder="e.g., Ages 8-12, Juniors, Seniors"
-                  value={schedule.ageGroup || ''}
-                  onValueChange={value => updateScheduleAgeGroup(index, value)}
-                  className="max-w-xs"
-                  size="sm"
-                />
+        {/* Schedule Type Selector */}
+        <div className="form-group">
+          <div className="mb-2.5 flex items-center gap-2">
+            <label className="text-sm font-medium text-foreground">Schedule Type</label>
+          </div>
+          <p className="mb-2.5 text-sm leading-normal text-default-500">
+            Choose whether your camp follows the same schedule every day or varies by day of the
+            week
+          </p>
+          <RadioGroup
+            value={scheduleType}
+            onValueChange={value => handleScheduleTypeChange(value as 'daily' | 'weekly')}
+            classNames={{
+              wrapper: 'flex flex-row flex-wrap gap-3',
+            }}
+          >
+            <Radio
+              value="daily"
+              classNames={{
+                base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                wrapper: 'group-data-[selected=true]:border-primary',
+                labelWrapper: 'ml-2',
+                label: 'text-sm',
+              }}
+            >
+              <div className="flex flex-col gap-0.5">
+                <div className="text-sm font-medium text-foreground">Daily Schedule</div>
+                <div className="text-xs text-default-500">Same schedule every day</div>
               </div>
+            </Radio>
+            <Radio
+              value="weekly"
+              classNames={{
+                base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
+                wrapper: 'group-data-[selected=true]:border-primary',
+                labelWrapper: 'ml-2',
+                label: 'text-sm',
+              }}
+            >
+              <div className="flex flex-col gap-0.5">
+                <div className="text-sm font-medium text-foreground">Weekly Schedule</div>
+                <div className="text-xs text-default-500">Different schedule for each day</div>
+              </div>
+            </Radio>
+          </RadioGroup>
+        </div>
 
-              {data.schedules.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => deleteSchedule(index)}
-                  className="text-default-400 hover:text-danger"
-                  title="Delete schedule"
-                >
-                  🗑️
-                </button>
-              )}
+        {/* Daily Schedule */}
+        {scheduleType === 'daily' && (
+          <div className="form-group">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-foreground">Daily Timeline</h3>
+              <p className="text-sm text-default-500">
+                This schedule will apply to all days of the week
+              </p>
             </div>
-
-            {/* Timeline Builder */}
             <TimelineBuilder
-              schedule={schedule}
-              onChange={updated => updateSchedule(index, updated)}
+              timeSlots={dailyTimeSlots}
+              onChange={handleDailyTimeSlotsChange}
+              errors={hasAttemptedSubmit ? dailyErrors : {}}
             />
           </div>
-        ))}
+        )}
 
-        {/* Add Schedule Buttons */}
-        <div className="flex gap-3">
-          <Button
-            onPress={() => addSchedule('daily')}
-            variant="bordered"
-            className="flex-1"
-            isDisabled={data.schedules.some(s => s.type === 'daily')}
-          >
-            + Add Daily Schedule
-          </Button>
-          <Button onPress={() => addSchedule('weekly')} variant="bordered" className="flex-1">
-            + Add Weekly Schedule
-          </Button>
-        </div>
+        {/* Weekly Schedule */}
+        {scheduleType === 'weekly' && (
+          <div className="form-group">
+            <Tabs
+              selectedKey={selectedDay}
+              onSelectionChange={key => setSelectedDay(key as string)}
+              aria-label="Days of the week"
+              classNames={{
+                tabList: 'w-full',
+                cursor: 'w-full',
+                tab: 'max-w-fit',
+              }}
+              color="secondary"
+            >
+              {DAYS_OF_WEEK.map(day => (
+                <Tab key={day} title={DAY_LABELS[day]}>
+                  <div className="mt-6">
+                    <TimelineBuilder
+                      timeSlots={weeklyTimeSlots[day]}
+                      onChange={timeSlots => handleWeeklyTimeSlotsChange(day, timeSlots)}
+                      errors={hasAttemptedSubmit ? weeklyErrors[day] : {}}
+                    />
+                  </div>
+                </Tab>
+              ))}
+            </Tabs>
+          </div>
+        )}
 
         {/* Help Text */}
         <div className="rounded-lg bg-default-50 p-4">
@@ -272,8 +394,9 @@ export default function DailyScheduleEditorPage() {
               <li>Include all major activities and meal times</li>
               <li>Add descriptions to give parents more context</li>
               <li>Use drag handles (⋮⋮) to reorder time slots</li>
-              <li>Create separate schedules for different age groups if needed</li>
-              <li>For weekly schedules, create one for each day that differs</li>
+              {scheduleType === 'weekly' && (
+                <li>You can copy time slots from one day and paste them to another day</li>
+              )}
             </ul>
           </div>
         </div>

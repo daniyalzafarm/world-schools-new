@@ -20,8 +20,8 @@ interface ReligionData {
   description: string
   denomination: string
   observance: string
-  selectedActivities: string[]
-  customActivities: string[]
+  selectedPrograms: string[]
+  customPrograms: string[]
 }
 
 export default function ReligionEditorPage() {
@@ -34,8 +34,8 @@ export default function ReligionEditorPage() {
     description: '',
     denomination: 'secular',
     observance: 'optional',
-    selectedActivities: [],
-    customActivities: [],
+    selectedPrograms: [],
+    customPrograms: [],
   })
 
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
@@ -49,8 +49,8 @@ export default function ReligionEditorPage() {
         description: currentCamp.religionPrograms.description || '',
         denomination: (currentCamp.religionPrograms as any).denomination || 'secular',
         observance: (currentCamp.religionPrograms as any).observance || 'optional',
-        selectedActivities: (currentCamp.religionPrograms as any).selectedActivities || [],
-        customActivities: (currentCamp.religionPrograms as any).customActivities || [],
+        selectedPrograms: (currentCamp.religionPrograms as any).selectedPrograms || [],
+        customPrograms: (currentCamp.religionPrograms as any).customPrograms || [],
       })
     }
   }, [currentCamp])
@@ -114,9 +114,9 @@ export default function ReligionEditorPage() {
   const toggleActivity = (activityId: string) => {
     const updated = {
       ...religionData,
-      selectedActivities: religionData.selectedActivities.includes(activityId)
-        ? religionData.selectedActivities.filter(id => id !== activityId)
-        : [...religionData.selectedActivities, activityId],
+      selectedPrograms: religionData.selectedPrograms.includes(activityId)
+        ? religionData.selectedPrograms.filter(id => id !== activityId)
+        : [...religionData.selectedPrograms, activityId],
     }
     setReligionData(updated)
     triggerAutoSave(updated)
@@ -125,7 +125,7 @@ export default function ReligionEditorPage() {
   const addCustomActivity = (activityName: string) => {
     const updated = {
       ...religionData,
-      customActivities: [...religionData.customActivities, activityName],
+      customPrograms: [...religionData.customPrograms, activityName],
     }
     setReligionData(updated)
     triggerAutoSave(updated)
@@ -134,7 +134,7 @@ export default function ReligionEditorPage() {
   const removeCustomActivity = (index: number) => {
     const updated = {
       ...religionData,
-      customActivities: religionData.customActivities.filter((_, i) => i !== index),
+      customPrograms: religionData.customPrograms.filter((_, i) => i !== index),
     }
     setReligionData(updated)
     triggerAutoSave(updated)
@@ -258,19 +258,19 @@ export default function ReligionEditorPage() {
               </p>
             </div>
             <span className="rounded-full bg-default-100 px-3 py-1 text-xs font-medium text-default-700">
-              {religionData.selectedActivities.length} selected
+              {religionData.selectedPrograms.length} selected
             </span>
           </div>
 
           <ActivityGrid
             activities={PREDEFINED_RELIGION}
-            selectedActivities={religionData.selectedActivities}
+            selectedActivities={religionData.selectedPrograms}
             onToggle={toggleActivity}
           />
 
-          {religionData.customActivities.length > 0 && (
+          {religionData.customPrograms.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
-              {religionData.customActivities.map((activity, index) => (
+              {religionData.customPrograms.map((activity, index) => (
                 <div
                   key={index}
                   className="flex items-center gap-2 rounded-lg border-2 border-primary bg-primary/5 px-3 py-2"

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Checkbox, CheckboxGroup, Radio, RadioGroup, Textarea } from '@heroui/react'
+import { Radio, RadioGroup, Textarea } from '@heroui/react'
 import { useCampsStore } from '../../../../../stores/camps-store'
 import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
 import { CharacterCounter } from '../../../../../components/camp-editor/CharacterCounter'
@@ -23,7 +23,7 @@ interface WaterData {
   selectedActivities: string[]
   customActivities: string[]
   facilities: string[]
-  lifeguardCerts: string[]
+  lifeguardCertification: string
 }
 
 export default function WaterEditorPage() {
@@ -38,7 +38,7 @@ export default function WaterEditorPage() {
     selectedActivities: [],
     customActivities: [],
     facilities: [],
-    lifeguardCerts: [],
+    lifeguardCertification: 'certified',
   })
 
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
@@ -54,7 +54,8 @@ export default function WaterEditorPage() {
         selectedActivities: (currentCamp.waterActivities as any).selectedActivities || [],
         customActivities: (currentCamp.waterActivities as any).customActivities || [],
         facilities: (currentCamp.waterActivities as any).facilities || [],
-        lifeguardCerts: (currentCamp.waterActivities as any).lifeguardCerts || [],
+        lifeguardCertification:
+          (currentCamp.waterActivities as any).lifeguardCertification || 'certified',
       })
     }
   }, [currentCamp])
@@ -149,8 +150,8 @@ export default function WaterEditorPage() {
     triggerAutoSave(updated)
   }
 
-  const handleLifeguardCertsChange = (values: string[]) => {
-    const updated = { ...waterData, lifeguardCerts: values }
+  const handleLifeguardCertificationChange = (value: string) => {
+    const updated = { ...waterData, lifeguardCertification: value }
     setWaterData(updated)
     triggerAutoSave(updated)
   }
@@ -234,32 +235,33 @@ export default function WaterEditorPage() {
             </label>
           </div>
           <p className="mb-2.5 text-sm leading-normal text-default-500">
-            Select all that apply to your water safety program
+            What level of water safety supervision do you provide?
           </p>
-          <CheckboxGroup
-            value={waterData.lifeguardCerts}
-            onValueChange={handleLifeguardCertsChange}
+          <RadioGroup
+            value={waterData.lifeguardCertification}
+            onValueChange={handleLifeguardCertificationChange}
             classNames={{
               wrapper: 'flex flex-row flex-wrap gap-3',
             }}
           >
             {LIFEGUARD_CERTIFICATIONS.map(cert => (
-              <Checkbox
+              <Radio
                 key={cert.value}
                 value={cert.value}
                 classNames={{
                   base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
-                  wrapper: 'group-data-[selected=true]:border-primary after:bg-primary',
-                  label: 'ml-2 text-sm w-full',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
                   <div className="text-sm font-medium text-foreground">{cert.label}</div>
                   <div className="text-xs text-default-500">{cert.description}</div>
                 </div>
-              </Checkbox>
+              </Radio>
             ))}
-          </CheckboxGroup>
+          </RadioGroup>
         </div>
 
         {/* Water Activities */}

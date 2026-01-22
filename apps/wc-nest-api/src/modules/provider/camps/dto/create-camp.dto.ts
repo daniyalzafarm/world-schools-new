@@ -4,6 +4,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -15,6 +16,14 @@ export class CreateCampDto {
   @IsNotEmpty()
   @MaxLength(120)
   name: string
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(150)
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message: 'Slug must be lowercase, alphanumeric, and use hyphens to separate words',
+  })
+  slug: string
 
   @IsEnum(['day', 'residential'])
   type: 'day' | 'residential'

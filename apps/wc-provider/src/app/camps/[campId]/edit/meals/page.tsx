@@ -2,26 +2,24 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Checkbox, CheckboxGroup, Textarea } from '@heroui/react'
-import { useCampsStore } from '../../../../../stores/camps-store'
-import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { CharacterCounter } from '../../../../../components/camp-editor/CharacterCounter'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
-import { CustomActivityInput } from '../../../../../components/camp-editor/CustomActivityInput'
+import { Checkbox, CheckboxGroup, Radio, RadioGroup, Textarea } from '@heroui/react'
 import {
   MEAL_STYLE,
   MEAL_TYPES,
   PREDEFINED_DIETARY_OPTIONS,
-} from '../../../../../constants/meals-activities'
+} from '@world-schools/wc-frontend-utils'
+import { useCampsStore } from '../../../../../stores/camps-store'
+import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
+import { CharacterCounter } from '../../../../../components/camp-editor/CharacterCounter'
+import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 
 const MAX_DESCRIPTION_LENGTH = 1200
 
 interface MealsData {
   description: string
-  mealsIncluded: string[]
-  mealStyle: string[]
+  mealTypes: string[]
+  mealStyle: string
   dietaryOptions: string[]
-  customDietaryOptions: string[]
 }
 
 export default function MealsEditorPage() {
@@ -32,10 +30,9 @@ export default function MealsEditorPage() {
 
   const [mealsData, setMealsData] = useState<MealsData>({
     description: '',
-    mealsIncluded: [],
-    mealStyle: [],
+    mealTypes: [],
+    mealStyle: '',
     dietaryOptions: [],
-    customDietaryOptions: [],
   })
 
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
@@ -47,10 +44,9 @@ export default function MealsEditorPage() {
     if (currentCamp?.meals) {
       setMealsData({
         description: (currentCamp.meals as any).description || '',
-        mealsIncluded: (currentCamp.meals as any).mealsIncluded || [],
-        mealStyle: (currentCamp.meals as any).mealStyle || [],
+        mealTypes: (currentCamp.meals as any).mealTypes || [],
+        mealStyle: (currentCamp.meals as any).mealStyle || '',
         dietaryOptions: (currentCamp.meals as any).dietaryOptions || [],
-        customDietaryOptions: (currentCamp.meals as any).customDietaryOptions || [],
       })
     }
   }, [currentCamp])
@@ -99,14 +95,14 @@ export default function MealsEditorPage() {
     triggerAutoSave(updated)
   }
 
-  const handleMealsIncludedChange = (values: string[]) => {
-    const updated = { ...mealsData, mealsIncluded: values }
+  const handleMealTypesChange = (values: string[]) => {
+    const updated = { ...mealsData, mealTypes: values }
     setMealsData(updated)
     triggerAutoSave(updated)
   }
 
-  const handleMealStyleChange = (values: string[]) => {
-    const updated = { ...mealsData, mealStyle: values }
+  const handleMealStyleChange = (value: string) => {
+    const updated = { ...mealsData, mealStyle: value }
     setMealsData(updated)
     triggerAutoSave(updated)
   }
@@ -117,24 +113,6 @@ export default function MealsEditorPage() {
       dietaryOptions: mealsData.dietaryOptions.includes(optionId)
         ? mealsData.dietaryOptions.filter(id => id !== optionId)
         : [...mealsData.dietaryOptions, optionId],
-    }
-    setMealsData(updated)
-    triggerAutoSave(updated)
-  }
-
-  const addCustomDietaryOption = (optionName: string) => {
-    const updated = {
-      ...mealsData,
-      customDietaryOptions: [...mealsData.customDietaryOptions, optionName],
-    }
-    setMealsData(updated)
-    triggerAutoSave(updated)
-  }
-
-  const removeCustomDietaryOption = (index: number) => {
-    const updated = {
-      ...mealsData,
-      customDietaryOptions: mealsData.customDietaryOptions.filter((_, i) => i !== index),
     }
     setMealsData(updated)
     triggerAutoSave(updated)
@@ -181,8 +159,8 @@ export default function MealsEditorPage() {
             Select all meals that are included in the camp fee
           </p>
           <CheckboxGroup
-            value={mealsData.mealsIncluded}
-            onValueChange={handleMealsIncludedChange}
+            value={mealsData.mealTypes}
+            onValueChange={handleMealTypesChange}
             classNames={{
               wrapper: 'flex flex-row flex-wrap gap-3',
             }}
@@ -213,7 +191,7 @@ export default function MealsEditorPage() {
           <p className="mb-2.5 text-sm leading-normal text-default-500">
             How are meals served at your camp?
           </p>
-          <CheckboxGroup
+          <RadioGroup
             value={mealsData.mealStyle}
             onValueChange={handleMealStyleChange}
             classNames={{
@@ -221,22 +199,23 @@ export default function MealsEditorPage() {
             }}
           >
             {MEAL_STYLE.map(style => (
-              <Checkbox
+              <Radio
                 key={style.value}
                 value={style.value}
                 classNames={{
                   base: 'flex-1 min-w-[calc(50%-6px)] m-0 bg-transparent hover:bg-transparent items-start',
-                  wrapper: 'group-data-[selected=true]:border-primary after:bg-primary',
-                  label: 'ml-2 text-sm w-full',
+                  wrapper: 'group-data-[selected=true]:border-primary',
+                  labelWrapper: 'ml-2',
+                  label: 'text-sm',
                 }}
               >
                 <div className="flex flex-col gap-0.5">
                   <div className="text-sm font-medium text-foreground">{style.label}</div>
                   <div className="text-xs text-default-500">{style.description}</div>
                 </div>
-              </Checkbox>
+              </Radio>
             ))}
-          </CheckboxGroup>
+          </RadioGroup>
         </div>
 
         <div className="form-group">
@@ -257,34 +236,6 @@ export default function MealsEditorPage() {
             selectedActivities={mealsData.dietaryOptions}
             onToggle={toggleDietaryOption}
           />
-
-          {mealsData.customDietaryOptions.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {mealsData.customDietaryOptions.map((option, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 rounded-lg border-2 border-primary bg-primary/5 px-3 py-2"
-                >
-                  <span className="text-sm font-medium">{option}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeCustomDietaryOption(index)}
-                    className="text-default-500 hover:text-danger"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-3">
-            <CustomActivityInput
-              placeholder="e.g., Keto, Paleo..."
-              onAdd={addCustomDietaryOption}
-              buttonText="Add Dietary Option"
-            />
-          </div>
         </div>
       </div>
     </div>

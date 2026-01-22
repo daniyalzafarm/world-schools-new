@@ -31,6 +31,8 @@ import {
 import { PageSlot } from '@/components/layout/page-slot'
 import type { Camp, CampStatus, CampType } from '../../../types/camps'
 import { useConfirmDialog, useDebounce } from '@world-schools/ui-web'
+import config from '@/config/config'
+import * as campsService from '@/services/camps.services'
 
 type TabFilter = 'all' | 'published' | 'draft' | 'archived'
 
@@ -143,9 +145,23 @@ export default function CampsPage() {
     router.push(`/camps/${campId}/edit/basic-info`)
   }
 
-  const handleViewCamp = (campId: string) => {
-    // TODO: Implement view camp functionality
-    console.log('View camp:', campId)
+  const handleViewCamp = async (camp: Camp) => {
+    try {
+      // Generate a preview token for the camp
+      const token = await campsService.generatePreviewToken(camp.id)
+
+      // Redirect to the booking app's camp page with preview token
+      const bookingAppUrl = config.app.bookingAppUrl
+      const campUrl = `${bookingAppUrl}/camps/${camp.slug}?preview=${token}`
+      window.open(campUrl, '_blank')
+    } catch (error) {
+      console.error('Failed to generate preview token:', error)
+      addToast({
+        title: 'Error',
+        description: 'Failed to open camp preview. Please try again.',
+        color: 'danger',
+      })
+    }
   }
 
   const handleDeleteCamp = async (campId: string, campName: string) => {
@@ -559,34 +575,39 @@ export default function CampsPage() {
                     {/* Action Buttons */}
                     <div className="mt-4 flex gap-2">
                       <Button
+                        isIconOnly
                         color="primary"
                         className="flex-1"
                         size="sm"
                         onPress={() => handleEditCamp(camp.id)}
-                        startContent={<Edit className="h-4 w-4" />}
+                        aria-label={isIncomplete(camp) ? 'Complete camp setup' : 'Edit camp'}
+                        title={isIncomplete(camp) ? 'Complete camp setup' : 'Edit camp'}
                       >
-                        {isIncomplete(camp) ? 'Complete Setup' : 'Edit Camp'}
+                        <Edit className="h-4 w-4" />
                       </Button>
-                      {camp.status === 'published' ? (
+                      <Button
+                        isIconOnly
+                        variant="bordered"
+                        className="flex-1"
+                        size="sm"
+                        onPress={() => handleViewCamp(camp)}
+                        aria-label="View camp preview"
+                        title="View camp preview"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {camp.status !== 'published' && (
                         <Button
-                          variant="bordered"
-                          className="flex-1"
-                          size="sm"
-                          onPress={() => handleViewCamp(camp.id)}
-                          startContent={<Eye className="h-4 w-4" />}
-                        >
-                          View
-                        </Button>
-                      ) : (
-                        <Button
+                          isIconOnly
                           variant="bordered"
                           color="danger"
                           className="flex-1"
                           size="sm"
                           onPress={() => handleDeleteCamp(camp.id, camp.name)}
-                          startContent={<Trash2 className="h-4 w-4" />}
+                          aria-label="Delete camp"
+                          title="Delete camp"
                         >
-                          Delete
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       )}
                     </div>

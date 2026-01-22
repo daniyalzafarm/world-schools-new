@@ -406,6 +406,7 @@ model Camp {
 
   // Basic Info (Step 1 - Wizard & Editor)
   name        String   @db.VarChar(120)
+  slug        String   @unique @db.VarChar(150)
   type        CampType
   description String   @db.Text
 
@@ -432,9 +433,11 @@ model Camp {
   sessionType SessionType? @map("session_type") // 'flexible' | 'fixed' - set once, cannot change after first session
 
   // Editor-only fields
-  whatsIncluded           Json? // {items: string[], customItems: string[]}
-  dailySchedule           Json? // [{time, activity, description}, ...]
-  meals                   Json? // {breakfast, lunch, dinner, snacks, dietary}
+  whatsIncluded           Json?   // {items: string[], customItems: string[]}
+  scheduleType            String? // 'daily' | 'weekly' | null
+  dailySchedule           Json?   // For daily schedule data
+  weeklySchedule          Json?   // For weekly schedule data
+  meals                   Json?   // {breakfast, lunch, dinner, snacks, dietary}
   sportsActivities        Json? // {selected: string[], details: {...}}
   languagePrograms        Json? // {selected: string[], details: {...}}
   artsAndCrafts           Json? // {selected: string[], details: {...}}
@@ -465,6 +468,7 @@ model Camp {
   @@index([providerId])
   @@index([status])
   @@index([sessionType])
+  @@index([slug])
   @@map("camps")
 }
 

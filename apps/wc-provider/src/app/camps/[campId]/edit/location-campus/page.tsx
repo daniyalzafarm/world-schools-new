@@ -3,15 +3,15 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Radio, RadioGroup, Textarea } from '@heroui/react'
-import { useCampsStore } from '../../../../../stores/camps-store'
-import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { CharacterCounter } from '../../../../../components/camp-editor/CharacterCounter'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import {
   CAMPUS_SETTING,
   CAMPUS_SIZE,
   PREDEFINED_FACILITIES,
-} from '../../../../../constants/location-campus-activities'
+} from '@world-schools/wc-frontend-utils'
+import { useCampsStore } from '../../../../../stores/camps-store'
+import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
+import { CharacterCounter } from '../../../../../components/camp-editor/CharacterCounter'
+import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 
 const MAX_DESCRIPTION_LENGTH = 1200
 
