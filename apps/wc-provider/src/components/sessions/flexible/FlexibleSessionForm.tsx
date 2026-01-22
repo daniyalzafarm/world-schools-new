@@ -355,13 +355,13 @@ export function FlexibleSessionForm({
             errorMessage={errors.name}
           />
 
-          <RichTextEditor
+          {/* <RichTextEditor
             label="Description"
             placeholder="Describe your session..."
             value={formData.description}
             onChange={value => setFormData(prev => ({ ...prev, description: value }))}
             minHeight="150px"
-          />
+          /> */}
         </div>
       </CollapsibleSection>
 
