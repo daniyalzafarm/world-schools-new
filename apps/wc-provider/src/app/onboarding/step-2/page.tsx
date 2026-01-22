@@ -15,8 +15,14 @@ import { onboardingService } from '../../../services/onboarding.services'
 
 export default function OnboardingStep2Page() {
   const router = useRouter()
-  const { status, googleBusinessProfile, isLoading, error, saveContactInfo, fetchGoogleBusinessProfile } =
-    useOnboardingStore()
+  const {
+    status,
+    googleBusinessProfile,
+    isLoading,
+    error,
+    saveContactInfo,
+    fetchGoogleBusinessProfile,
+  } = useOnboardingStore()
   const {
     register,
     handleSubmit,
