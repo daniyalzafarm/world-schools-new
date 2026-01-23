@@ -1,53 +1,46 @@
-import apiClient from '@/utils/api-client'
+import apiClient, { type ApiResult } from '@/utils/api-client'
+import type { Child } from '@/types/child'
 
-export interface Child {
-  id: string
-  firstName: string
-  lastName: string
-  dateOfBirth?: string | null
-  grade?: string | null
-  parentId: string
-  createdAt: string
-  updatedAt: string
-}
-
-export interface CreateChildDto {
-  firstName: string
-  lastName: string
-  dateOfBirth?: string
-  grade?: string
-}
-
-export interface UpdateChildDto {
-  firstName?: string
-  lastName?: string
-  dateOfBirth?: string
-  grade?: string
-}
-
+/**
+ * Children API Service
+ * Handles all API calls related to children management
+ */
 export const childrenService = {
-  async getAll(): Promise<Child[]> {
-    const response = await apiClient.get('/user/children')
-    return response.data as any
+  /**
+   * Get all children for the authenticated user
+   */
+  async getAll(): Promise<ApiResult<Child[]>> {
+    return apiClient.get<Child[]>('/user/children')
   },
 
-  async getOne(id: string): Promise<Child> {
-    const response = await apiClient.get(`/user/children/${id}`)
-    return response.data as any
+  /**
+   * Get a specific child by ID
+   */
+  async getById(id: string): Promise<ApiResult<Child>> {
+    return apiClient.get<Child>(`/user/children/${id}`)
   },
 
-  async create(data: CreateChildDto): Promise<Child> {
-    const response = await apiClient.post('/user/children', data)
-    return response.data as any
+  /**
+   * Create a new child
+   */
+  async create(child: Omit<Child, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResult<Child>> {
+    return apiClient.post<Child>('/user/children', child)
   },
 
-  async update(id: string, data: UpdateChildDto): Promise<Child> {
-    const response = await apiClient.patch(`/user/children/${id}`, data)
-    return response.data as any
+  /**
+   * Update an existing child
+   */
+  async update(
+    id: string,
+    updates: Partial<Omit<Child, 'id' | 'createdAt' | 'updatedAt'>>
+  ): Promise<ApiResult<Child>> {
+    return apiClient.patch<Child>(`/user/children/${id}`, updates)
   },
 
-  async delete(id: string): Promise<void> {
-    console.log('Deleting child:', id)
-    // await apiClient.delete(`/user/children/${id}`)
+  /**
+   * Delete a child
+   */
+  async delete(id: string): Promise<ApiResult<{ message: string }>> {
+    return apiClient.del<{ message: string }>(`/user/children/${id}`)
   },
 }

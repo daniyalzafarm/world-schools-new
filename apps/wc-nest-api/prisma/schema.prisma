@@ -237,10 +237,31 @@ model Parent {
 
 model Children {
   id          String    @id @default(uuid())
+
+  // Personal Information
   firstName   String    @map("first_name")
   lastName    String    @map("last_name")
   dateOfBirth DateTime? @map("date_of_birth")
-  grade       String?
+  gender      String?
+  nationality String?
+  languages   String[]  @default([])
+
+  // Academic Preferences
+  currentGrade              String?   @map("current_grade")
+  favoriteSubjects          String[]  @default([]) @map("favorite_subjects")
+  learningStyle             String?   @map("learning_style")
+  languagesOfInstruction    String[]  @default([]) @map("languages_of_instruction")
+  interestedInBoarding      String?   @map("interested_in_boarding")
+
+  // Extra-Curricular
+  interests         String[]  @default([])
+  preferredSchedule String?   @map("preferred_schedule")
+
+  // Special Needs
+  specialNeedsAreas        String[]  @default([]) @map("special_needs_areas")
+  specialNeedsSupportNeeds String[]  @default([]) @map("special_needs_support_needs")
+  specialNeedsNotes        String?   @map("special_needs_notes")
+
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 

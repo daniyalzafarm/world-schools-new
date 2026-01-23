@@ -20,13 +20,13 @@ export const DatePicker: React.FC<CustomDatePickerProps> = ({
         'rounded-lg bg-white',
         'border border-gray-200',
         'hover:border-gray-300',
-        'focus-within:border-primary',
-        'focus-within:!bg-white',
+        'focus-within:border-primary!',
+        'focus-within:bg-white!',
         'dark:border-gray-600',
         customClassNames?.inputWrapper,
         props.isInvalid && 'border-red-500'
       ),
-      input: cn('text-md', customClassNames?.input),
+      input: cn(customClassNames?.input),
     },
   }
 

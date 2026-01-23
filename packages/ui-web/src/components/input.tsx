@@ -16,8 +16,8 @@ export const Input: React.FC<CustomInputProps> = ({ classNames: customClassNames
         'rounded-lg bg-white',
         'border border-gray-200',
         'hover:border-gray-300',
-        'focus-within:border-primary',
-        'focus-within:!bg-white',
+        'focus-within:border-primary!',
+        'focus-within:bg-white!',
         'dark:border-gray-600',
         customClassNames?.inputWrapper
       ),

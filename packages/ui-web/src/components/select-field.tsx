@@ -34,11 +34,12 @@ export function SelectField({
           'rounded-lg bg-white',
           'border border-gray-200',
           'hover:border-gray-300',
-          'focus-within:border-primary',
-          'focus-within:!bg-white',
+          'focus-within:border-primary!',
+          'focus-within:bg-white!',
+          'focus-within:outline-none',
           'dark:border-gray-600'
         ),
-        value: 'text-md text-gray-900 dark:text-gray-100',
+        value: 'text-gray-900 dark:text-gray-100',
         popoverContent: 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700',
       }}
       aria-label={label}

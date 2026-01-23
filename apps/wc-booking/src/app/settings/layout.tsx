@@ -13,9 +13,9 @@ const SettingsLayout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <ProtectedRoute requireAuth={true}>
-      <div className="min-h-screen bg-gray-50">
+      <div className="flex flex-col h-screen bg-white dark:bg-gray-900 overflow-hidden">
         <TopNav />
-        <div className="flex h-[calc(100vh-64px)] bg-white dark:bg-gray-900">
+        <div className="flex flex-1 overflow-hidden bg-white dark:bg-gray-900">
           {/* Settings Sidebar */}
           <SettingsSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
@@ -54,10 +54,8 @@ const SettingsLayout = ({ children }: { children: React.ReactNode }) => {
           </div>
 
           {/* Main Content */}
-          <main className="flex-1 min-w-0 lg:ml-0">
-            <div className="h-full overflow-auto">
-              <div className="w-full">{children}</div>
-            </div>
+          <main className="flex-1 min-w-0 lg:ml-0 overflow-auto">
+            {children}
           </main>
         </div>
       </div>

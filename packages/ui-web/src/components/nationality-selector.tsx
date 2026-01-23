@@ -72,11 +72,14 @@ export function NationalitySelector({
         variant="bordered"
         onPress={() => setIsOpen(true)}
         className={cn(
-          'rounded-md bg-white p-4 py-5.5',
-          'border border-gray-300 dark:border-gray-600',
-          'focus-within:border-gray-400',
-          'focus-within:bg-gray-50',
-          'w-full justify-start h-10 px-3 text-md',
+          'rounded-lg bg-white',
+          'border border-gray-200',
+          'hover:border-gray-300',
+          'focus-within:border-primary!',
+          'focus-within:bg-white!',
+          'focus-within:outline-none',
+          'dark:border-gray-600',
+          'w-full',
           className
         )}
         aria-label={label}
