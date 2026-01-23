@@ -108,9 +108,9 @@ export const ChildForm: React.FC<ChildFormProps> = ({ childId }) => {
   const specialNeedsProgress = getSpecialNeedsProgress(currentChild)
   const overallProgress = getOverallProgress(currentChild)
 
-  // Update form data when existing child changes
+  // Update form data when existing child changes (only when editing an existing child)
   useEffect(() => {
-    if (existingChild) {
+    if (!isNewChild && existingChild) {
       const nextData = {
         personalInfo: existingChild.personalInfo,
         academicPreferences: existingChild.academicPreferences,
@@ -119,12 +119,11 @@ export const ChildForm: React.FC<ChildFormProps> = ({ childId }) => {
       }
       setFormData(nextData)
       setInitialFormData(nextData)
-    } else {
-      const empty = createEmptyChild()
-      setFormData(empty)
-      setInitialFormData(empty)
     }
-  }, [existingChild])
+    // Note: We don't reset to empty when existingChild is null/undefined
+    // because that happens during loading. Only initialize empty for new children
+    // via the useState initializer above.
+  }, [existingChild, isNewChild])
 
   // Modified state
   const isModified = useMemo(() => {
