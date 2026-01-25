@@ -20,35 +20,35 @@ export function RejectedContent({ status }: RejectedContentProps) {
         <h1 className="mb-4 text-3xl font-bold leading-tight text-foreground">
           Application Not Approved
         </h1>
-        <p className="mb-8 text-lg text-default-600">
+        <p className="mb-8 text-lg text-default-500">
           Unfortunately, we're unable to approve your application at this time.
         </p>
       </div>
 
       {/* Rejection Reason */}
       {status.rejectionReason && (
-        <div className="mb-8 rounded-xl border-2 border-danger bg-danger-50 p-8">
-          <h2 className="mb-4 flex items-center gap-2 text-[24px] font-semibold text-danger">
+        <div className="mb-8 rounded-xl border border-danger-200 bg-danger-50 p-8">
+          <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-danger-600">
             ⚠️ Reason for Rejection
           </h2>
           {formattedCategory && (
-            <div className="mb-2 text-sm font-semibold text-danger">{formattedCategory}</div>
+            <div className="mb-2 text-sm font-semibold text-danger-600">{formattedCategory}</div>
           )}
-          <p className="text-default-600">{status.rejectionReason}</p>
+          <p className="text-default-500">{status.rejectionReason}</p>
         </div>
       )}
 
       {/* What Can You Do */}
       <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
-        <h2 className="mb-6 text-[24px] font-semibold text-foreground">What can you do?</h2>
-        <div className="space-y-6">
+        <h2 className="mb-6 text-2xl font-semibold text-foreground">What can you do?</h2>
+        <div className="flex flex-col gap-6">
           <div className="flex items-start gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success-50 text-2xl">
               📧
             </div>
             <div className="flex-1">
               <div className="mb-1 font-semibold text-foreground">Contact Support</div>
-              <div className="text-sm text-default-600">
+              <div className="text-sm text-default-500">
                 Reach out to our support team for more details about the rejection and how to
                 address the issues.
               </div>
@@ -61,7 +61,7 @@ export function RejectedContent({ status }: RejectedContentProps) {
             </div>
             <div className="flex-1">
               <div className="mb-1 font-semibold text-foreground">Review Requirements</div>
-              <div className="text-sm text-default-600">
+              <div className="text-sm text-default-500">
                 Make sure you meet all the requirements for becoming a World Camps provider.
               </div>
             </div>
@@ -73,7 +73,7 @@ export function RejectedContent({ status }: RejectedContentProps) {
             </div>
             <div className="flex-1">
               <div className="mb-1 font-semibold text-foreground">Reapply</div>
-              <div className="text-sm text-default-600">
+              <div className="text-sm text-default-500">
                 Once you've addressed the issues, you can submit a new application.
               </div>
             </div>
@@ -83,8 +83,8 @@ export function RejectedContent({ status }: RejectedContentProps) {
 
       {/* Need Help */}
       <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
-        <h2 className="mb-4 text-[24px] font-semibold text-foreground">Need Help?</h2>
-        <p className="mb-6 text-default-600">
+        <h2 className="mb-4 text-2xl font-semibold text-foreground">Need Help?</h2>
+        <p className="mb-6 text-default-500">
           Our support team is here to help you understand the rejection and guide you through the
           process of reapplying.
         </p>

@@ -23,8 +23,15 @@ const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'
 
 export default function OnboardingStep4Page() {
   const router = useRouter()
-  const { status, documents, fetchDocuments, deleteDocument, completeStep4, isLoading } =
-    useOnboardingStore()
+  const {
+    status,
+    documents,
+    fetchDocuments,
+    deleteDocument,
+    completeStep4,
+    uploadDocument,
+    isLoading,
+  } = useOnboardingStore()
   const [uploadingType, setUploadingType] = useState<DocumentType | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const { confirm } = useConfirmDialog()
@@ -83,33 +90,31 @@ export default function OnboardingStep4Page() {
       return
     }
 
-    try {
-      // Import the service directly to avoid store loading state
-      const { onboardingService } = await import('../../../services/onboarding.services')
-      await onboardingService.uploadDocument({ file, documentType: docType })
+    // Use the store method which handles errors internally
+    await uploadDocument(file, docType)
 
-      // Refresh documents list
-      await fetchDocuments()
-
+    // Check if upload was successful (store will have set error if it failed)
+    const currentStore = useOnboardingStore.getState()
+    if (currentStore.error) {
+      addToast({
+        title: 'Upload Failed',
+        description: currentStore.error,
+        color: 'danger',
+      })
+    } else {
       addToast({
         title: 'Success',
         description: 'Document uploaded successfully',
         color: 'success',
       })
-    } catch (error: any) {
-      addToast({
-        title: 'Upload Failed',
-        description: error.message || 'Failed to upload document. Please try again.',
-        color: 'danger',
-      })
-    } finally {
-      setUploadingType(null)
+    }
 
-      // Reset file input
-      const inputRef = fileInputRefs.current[docType]
-      if (inputRef) {
-        inputRef.value = ''
-      }
+    setUploadingType(null)
+
+    // Reset file input
+    const inputRef = fileInputRefs.current[docType]
+    if (inputRef) {
+      inputRef.value = ''
     }
   }
 
@@ -200,19 +205,19 @@ export default function OnboardingStep4Page() {
         {/* Header */}
         <div className="mb-8">
           <div className="mb-2 flex items-center gap-3">
-            <h1 className="text-[32px] font-bold leading-tight text-foreground">
+            <h1 className="text-3xl font-bold leading-tight text-foreground">
               Verification Documents
             </h1>
             <TrustScoreBadge section="step4" maxPoints={20} />
           </div>
-          <p className="text-[16px] text-default-500">
+          <p className="text-base text-default-500">
             Upload documents to verify your camp and build trust with families
           </p>
         </div>
 
         {/* Required Documents */}
         <div className="mb-8">
-          <h2 className="mb-4 text-[18px] font-semibold text-foreground">Required Documents</h2>
+          <h2 className="mb-4 text-lg font-semibold text-foreground">Required Documents</h2>
           <div className="space-y-4">
             {DOCUMENT_TYPES.filter(dt => dt.required).map(docType => {
               const doc = getDocumentForType(docType.value)
@@ -226,9 +231,7 @@ export default function OnboardingStep4Page() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="mb-2 flex items-center gap-2">
-                        <h3 className="text-[16px] font-semibold text-foreground">
-                          {docType.label}
-                        </h3>
+                        <h3 className="text-base font-semibold text-foreground">{docType.label}</h3>
                         <span className="text-danger">*</span>
                       </div>
                       {doc ? (
@@ -285,7 +288,7 @@ export default function OnboardingStep4Page() {
 
         {/* Optional Documents */}
         <div className="mb-8">
-          <h2 className="mb-4 text-[18px] font-semibold text-foreground">
+          <h2 className="mb-4 text-lg font-semibold text-foreground">
             Additional Documents (Optional)
           </h2>
           <div className="space-y-4">
@@ -300,7 +303,7 @@ export default function OnboardingStep4Page() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="mb-2 text-[16px] font-semibold text-foreground">
+                      <h3 className="mb-2 text-base font-semibold text-foreground">
                         {docType.label}
                       </h3>
                       {doc ? (

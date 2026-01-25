@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, Spinner } from '@heroui/react'
+import { Autocomplete, AutocompleteItem, Button, Spinner } from '@heroui/react'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
 import { TrustScoreBadge } from '../../../components/onboarding/TrustScoreBadge'
@@ -47,6 +47,42 @@ const POLICY_TEMPLATES = [
   },
 ]
 
+const CURRENCIES = [
+  { value: 'USD', label: 'USD - US Dollar' },
+  { value: 'EUR', label: 'EUR - Euro' },
+  { value: 'GBP', label: 'GBP - British Pound' },
+  { value: 'CAD', label: 'CAD - Canadian Dollar' },
+  { value: 'AUD', label: 'AUD - Australian Dollar' },
+  { value: 'NZD', label: 'NZD - New Zealand Dollar' },
+  { value: 'CHF', label: 'CHF - Swiss Franc' },
+  { value: 'JPY', label: 'JPY - Japanese Yen' },
+  { value: 'CNY', label: 'CNY - Chinese Yuan' },
+  { value: 'INR', label: 'INR - Indian Rupee' },
+]
+
+const TIMEZONES = [
+  { value: 'America/New_York', label: 'Eastern Time (ET)' },
+  { value: 'America/Chicago', label: 'Central Time (CT)' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+  { value: 'America/Anchorage', label: 'Alaska Time (AKT)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii Time (HT)' },
+  { value: 'Europe/London', label: 'London (GMT/BST)' },
+  { value: 'Europe/Paris', label: 'Paris (CET/CEST)' },
+  { value: 'Europe/Berlin', label: 'Berlin (CET/CEST)' },
+  { value: 'Europe/Rome', label: 'Rome (CET/CEST)' },
+  { value: 'Europe/Madrid', label: 'Madrid (CET/CEST)' },
+  { value: 'Europe/Zurich', label: 'Zurich (CET/CEST)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
+  { value: 'Asia/Hong_Kong', label: 'Hong Kong (HKT)' },
+  { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
+  { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AEDT/AEST)' },
+  { value: 'Australia/Melbourne', label: 'Melbourne (AEDT/AEST)' },
+  { value: 'Pacific/Auckland', label: 'Auckland (NZDT/NZST)' },
+]
+
 export default function OnboardingStep5Page() {
   const router = useRouter()
   const { status, isLoading, saveProviderSettings } = useOnboardingStore()
@@ -77,8 +113,12 @@ export default function OnboardingStep5Page() {
   // Load saved provider settings
   useEffect(() => {
     const loadSettings = async () => {
-      const savedSettings = await onboardingService.getProviderSettings()
-      if (savedSettings) {
+      const response = await onboardingService.getProviderSettings()
+
+      // Check if response is successful and has data
+      if (response.success && response.data) {
+        const savedSettings = response.data
+
         // Load currency and timezone
         setCurrency(savedSettings.currency || 'USD')
         setTimezone(savedSettings.timezone || 'America/New_York')
@@ -226,80 +266,70 @@ export default function OnboardingStep5Page() {
       <div>
         <div className="mb-8">
           <div className="mb-2 flex items-center gap-3">
-            <h1 className="text-[32px] font-bold leading-tight text-foreground">
+            <h1 className="text-3xl font-bold leading-tight text-foreground">
               Payment & Cancellation Settings
             </h1>
             <TrustScoreBadge section="step5" maxPoints={10} />
           </div>
-          <p className="text-[16px] text-default-500">
+          <p className="text-base text-default-500">
             Configure deposit requirements and cancellation policy for your camp programs
           </p>
         </div>
 
         {/* Currency and Timezone Section */}
         <div className="mb-8 space-y-6">
-          <h2 className="text-[20px] font-semibold text-foreground">Regional Settings</h2>
+          <h2 className="text-xl font-semibold text-foreground">Regional Settings</h2>
 
           <div className="grid gap-6 md:grid-cols-2">
             {/* Currency */}
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-foreground">
-                Currency
-                <span className="ml-1 text-danger">*</span>
-              </label>
-              <select
-                value={currency}
-                onChange={e => setCurrency(e.target.value)}
-                disabled={isReadOnly}
-                className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-              >
-                <option value="USD">USD - US Dollar</option>
-                <option value="EUR">EUR - Euro</option>
-                <option value="GBP">GBP - British Pound</option>
-                <option value="CAD">CAD - Canadian Dollar</option>
-                <option value="AUD">AUD - Australian Dollar</option>
-                <option value="NZD">NZD - New Zealand Dollar</option>
-                <option value="CHF">CHF - Swiss Franc</option>
-                <option value="JPY">JPY - Japanese Yen</option>
-                <option value="CNY">CNY - Chinese Yuan</option>
-                <option value="INR">INR - Indian Rupee</option>
-              </select>
-            </div>
+            <Autocomplete
+              label="Currency"
+              labelPlacement="outside"
+              placeholder="Select currency"
+              selectedKey={currency}
+              onSelectionChange={key => setCurrency(key as string)}
+              isDisabled={isReadOnly}
+              isRequired
+              classNames={{
+                base: 'w-full',
+                listboxWrapper: 'max-h-[320px]',
+              }}
+              inputProps={{
+                classNames: {
+                  inputWrapper:
+                    'rounded-lg bg-white border border-gray-200 hover:border-gray-300 focus-within:border-primary! focus-within:bg-white! dark:border-gray-600',
+                },
+              }}
+            >
+              {CURRENCIES.map(curr => (
+                <AutocompleteItem key={curr.value}>{curr.label}</AutocompleteItem>
+              ))}
+            </Autocomplete>
 
             {/* Timezone */}
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-foreground">
-                Timezone
-                <span className="ml-1 text-danger">*</span>
-              </label>
-              <select
-                value={timezone}
-                onChange={e => setTimezone(e.target.value)}
-                disabled={isReadOnly}
-                className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-              >
-                <option value="America/New_York">Eastern Time (ET)</option>
-                <option value="America/Chicago">Central Time (CT)</option>
-                <option value="America/Denver">Mountain Time (MT)</option>
-                <option value="America/Los_Angeles">Pacific Time (PT)</option>
-                <option value="America/Anchorage">Alaska Time (AKT)</option>
-                <option value="Pacific/Honolulu">Hawaii Time (HT)</option>
-                <option value="Europe/London">London (GMT/BST)</option>
-                <option value="Europe/Paris">Paris (CET/CEST)</option>
-                <option value="Europe/Berlin">Berlin (CET/CEST)</option>
-                <option value="Europe/Rome">Rome (CET/CEST)</option>
-                <option value="Europe/Madrid">Madrid (CET/CEST)</option>
-                <option value="Europe/Zurich">Zurich (CET/CEST)</option>
-                <option value="Asia/Tokyo">Tokyo (JST)</option>
-                <option value="Asia/Shanghai">Shanghai (CST)</option>
-                <option value="Asia/Hong_Kong">Hong Kong (HKT)</option>
-                <option value="Asia/Singapore">Singapore (SGT)</option>
-                <option value="Asia/Dubai">Dubai (GST)</option>
-                <option value="Australia/Sydney">Sydney (AEDT/AEST)</option>
-                <option value="Australia/Melbourne">Melbourne (AEDT/AEST)</option>
-                <option value="Pacific/Auckland">Auckland (NZDT/NZST)</option>
-              </select>
-            </div>
+            <Autocomplete
+              label="Timezone"
+              labelPlacement="outside"
+              placeholder="Select timezone"
+              selectedKey={timezone}
+              onSelectionChange={key => setTimezone(key as string)}
+              isDisabled={isReadOnly}
+              isRequired
+              classNames={{
+                base: 'w-full',
+                listboxWrapper: 'max-h-[320px]',
+              }}
+              inputProps={{
+                classNames: {
+                  inputWrapper:
+                    'rounded-lg bg-white border border-gray-200 hover:border-gray-300 focus-within:border-primary! focus-within:bg-white! dark:border-gray-600',
+                },
+              }}
+            >
+              {TIMEZONES.map(tz => (
+                <AutocompleteItem key={tz.value}>{tz.label}</AutocompleteItem>
+              ))}
+            </Autocomplete>
           </div>
         </div>
 
@@ -308,7 +338,7 @@ export default function OnboardingStep5Page() {
 
         {/* Deposit Type Selection */}
         <div className="mb-8">
-          <label className="mb-4 block text-[15px] font-semibold text-foreground">
+          <label className="mb-4 block text-base font-semibold text-foreground">
             Deposit Requirement
             <span className="ml-1 text-danger">*</span>
           </label>
@@ -321,15 +351,13 @@ export default function OnboardingStep5Page() {
                 setDepositFixedAmountError('')
               }}
               disabled={isReadOnly}
-              className={`rounded-xl border-2 p-6 text-left transition-all ${
+              className={`cursor-pointer rounded-xl border p-6 text-left transition-all ${
                 depositType === 'percentage'
                   ? 'border-primary bg-primary-50'
                   : 'border-default-200 hover:border-default-500'
               } ${isReadOnly ? 'cursor-not-allowed opacity-60' : ''}`}
             >
-              <div className="mb-2 text-[18px] font-semibold text-foreground">
-                Percentage of Total
-              </div>
+              <div className="mb-2 text-lg font-semibold text-foreground">Percentage of Total</div>
               <div className="text-sm text-default-500">
                 Charge a percentage of the total camp price
               </div>
@@ -343,13 +371,13 @@ export default function OnboardingStep5Page() {
                 setDepositPercentageError('')
               }}
               disabled={isReadOnly}
-              className={`rounded-xl border-2 p-6 text-left transition-all ${
+              className={`cursor-pointer rounded-xl border p-6 text-left transition-all ${
                 depositType === 'fixed_amount'
                   ? 'border-primary bg-primary-50'
                   : 'border-default-200 hover:border-default-500'
               } ${isReadOnly ? 'cursor-not-allowed opacity-60' : ''}`}
             >
-              <div className="mb-2 text-[18px] font-semibold text-foreground">Fixed Amount</div>
+              <div className="mb-2 text-lg font-semibold text-foreground">Fixed Amount</div>
               <div className="text-sm text-default-500">
                 Charge a fixed dollar amount regardless of price
               </div>
@@ -415,9 +443,7 @@ export default function OnboardingStep5Page() {
 
         {/* Payment Schedule Calculator */}
         <div className="mb-8 rounded-xl border border-default-200 bg-default-50 p-6">
-          <h3 className="mb-4 text-[18px] font-semibold text-foreground">
-            Payment Schedule Preview
-          </h3>
+          <h3 className="mb-4 text-lg font-semibold text-foreground">Payment Schedule Preview</h3>
           <p className="mb-4 text-sm text-default-500">Example for a ${samplePrice} camp program</p>
 
           <div className="space-y-4">
@@ -425,7 +451,7 @@ export default function OnboardingStep5Page() {
             <div className="rounded-lg bg-white p-4">
               <div className="mb-2 flex items-center justify-between">
                 <span className="font-semibold text-foreground">Payment 1: At Booking</span>
-                <span className="text-[18px] font-bold text-primary">
+                <span className="text-lg font-bold text-primary">
                   ${calculateDeposit().toFixed(2)}
                 </span>
               </div>
@@ -438,7 +464,7 @@ export default function OnboardingStep5Page() {
             <div className="rounded-lg bg-white p-4">
               <div className="mb-2 flex items-center justify-between">
                 <span className="font-semibold text-foreground">Payment 2: Before Camp</span>
-                <span className="text-[18px] font-bold text-foreground">
+                <span className="text-lg font-bold text-foreground">
                   ${calculateBalance().toFixed(2)}
                 </span>
               </div>
@@ -451,9 +477,7 @@ export default function OnboardingStep5Page() {
           <div className="mt-4 rounded-lg bg-primary-50 p-4">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-foreground">Total You Receive</span>
-              <span className="text-[20px] font-bold text-foreground">
-                ${samplePrice.toFixed(2)}
-              </span>
+              <span className="text-xl font-bold text-foreground">${samplePrice.toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -463,17 +487,17 @@ export default function OnboardingStep5Page() {
 
         {/* Cancellation Policy Section */}
         <div className="mb-8">
-          <h2 className="mb-2 text-[24px] font-bold leading-tight text-foreground">
+          <h2 className="mb-2 text-2xl font-bold leading-tight text-foreground">
             Cancellation Policy
           </h2>
-          <p className="text-[16px] text-default-500">
+          <p className="text-base text-default-500">
             Define your refund policy for the balance amount (excluding deposit)
           </p>
         </div>
 
         {/* Policy Templates */}
         <div className="mb-8">
-          <label className="mb-4 block text-[15px] font-semibold text-foreground">
+          <label className="mb-4 block text-base font-semibold text-foreground">
             Choose a Policy Template
             <span className="ml-1 text-danger">*</span>
           </label>
@@ -487,13 +511,13 @@ export default function OnboardingStep5Page() {
                   setSelectedPolicy(policy.value)
                 }}
                 disabled={isReadOnly}
-                className={`rounded-xl border-2 p-6 text-left transition-all ${
+                className={`cursor-pointer rounded-xl border p-6 text-left transition-all ${
                   selectedPolicy === policy.value
                     ? 'border-primary bg-primary-50'
                     : 'border-default-200 hover:border-default-500'
                 } ${isReadOnly ? 'cursor-not-allowed opacity-60' : ''}`}
               >
-                <div className="mb-2 text-[18px] font-semibold text-foreground">{policy.title}</div>
+                <div className="mb-2 text-lg font-semibold text-foreground">{policy.title}</div>
                 <div className="mb-3 text-sm text-default-500">{policy.description}</div>
                 <div className="space-y-1">
                   {policy.details.map((detail, idx) => (
@@ -509,7 +533,7 @@ export default function OnboardingStep5Page() {
 
         {/* Policy Preview */}
         <div className="mb-8 rounded-xl border border-default-200 bg-default-50 p-6">
-          <h3 className="mb-4 text-[18px] font-semibold text-foreground">Policy Preview</h3>
+          <h3 className="mb-4 text-lg font-semibold text-foreground">Policy Preview</h3>
           <div className="space-y-2">
             {POLICY_TEMPLATES.find(p => p.value === selectedPolicy)?.details.map((detail, idx) => (
               <div key={idx} className="flex items-start gap-2">

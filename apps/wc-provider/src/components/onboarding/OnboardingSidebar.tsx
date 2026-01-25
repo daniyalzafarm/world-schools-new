@@ -207,7 +207,7 @@ export function OnboardingSidebar({
       </nav>
 
       {/* User Profile Section */}
-      <div className="border-t border-default-300 bg-default-50 px-4 py-3.5">
+      <div className="border-t border-default-300 bg-default-50 px-4 py-3.5 h-20">
         <Dropdown placement="top-end">
           <DropdownTrigger>
             <div className="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-white/60">

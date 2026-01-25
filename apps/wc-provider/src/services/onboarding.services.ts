@@ -1,4 +1,4 @@
-import apiClient from '../utils/api-client'
+import apiClient, { type ApiResult } from '../utils/api-client'
 import type {
   ContactInfo,
   GoogleBusinessProfile,
@@ -17,9 +17,8 @@ export const onboardingService = {
   /**
    * Get onboarding status
    */
-  async getStatus(): Promise<OnboardingStatus> {
-    const response = await apiClient.get<OnboardingStatus>('/provider/onboarding/status')
-    return response.data as OnboardingStatus
+  async getStatus(): Promise<ApiResult<OnboardingStatus>> {
+    return await apiClient.get<OnboardingStatus>('/provider/onboarding/status')
   },
 
   /**
@@ -27,26 +26,18 @@ export const onboardingService = {
    */
   async searchGoogleBusiness(
     request: SearchGoogleBusinessRequest
-  ): Promise<GoogleBusinessSearchResult[]> {
-    const response = await apiClient.post<GoogleBusinessSearchResult[]>(
+  ): Promise<ApiResult<GoogleBusinessSearchResult[]>> {
+    return await apiClient.post<GoogleBusinessSearchResult[]>(
       '/provider/onboarding/step-1/search',
       request
     )
-    return response.data as GoogleBusinessSearchResult[]
   },
 
   /**
    * Get Google Business Profile (Step 1)
    */
-  async getGoogleBusinessProfile(): Promise<GoogleBusinessProfile | null> {
-    try {
-      const response = await apiClient.get<GoogleBusinessProfile | null>(
-        '/provider/onboarding/step-1/profile'
-      )
-      return response.data as GoogleBusinessProfile | null
-    } catch {
-      return null
-    }
+  async getGoogleBusinessProfile(): Promise<ApiResult<GoogleBusinessProfile | null>> {
+    return await apiClient.get<GoogleBusinessProfile | null>('/provider/onboarding/step-1/profile')
   },
 
   /**
@@ -54,53 +45,41 @@ export const onboardingService = {
    */
   async saveGoogleBusinessProfile(
     request: SaveGoogleBusinessProfileRequest
-  ): Promise<GoogleBusinessProfile> {
-    const response = await apiClient.post<GoogleBusinessProfile>(
-      '/provider/onboarding/step-1/save',
-      request
-    )
-    return response.data as GoogleBusinessProfile
+  ): Promise<ApiResult<GoogleBusinessProfile>> {
+    return await apiClient.post<GoogleBusinessProfile>('/provider/onboarding/step-1/save', request)
   },
 
   /**
    * Get contact and legal info (Step 2)
    */
-  async getContactInfo(): Promise<ContactInfo | null> {
-    try {
-      const response = await apiClient.get<ContactInfo | null>('/provider/onboarding/step-2/info')
-      return (response.data as any)?.data || response.data
-    } catch {
-      return null
-    }
+  async getContactInfo(): Promise<ApiResult<ContactInfo | null>> {
+    return await apiClient.get<ContactInfo | null>('/provider/onboarding/step-2/info')
   },
 
   /**
    * Save contact and legal info (Step 2)
    */
-  async saveContactInfo(data: ContactInfo): Promise<void> {
-    await apiClient.post('/provider/onboarding/step-2/save', data)
+  async saveContactInfo(data: ContactInfo): Promise<ApiResult<void>> {
+    return await apiClient.post('/provider/onboarding/step-2/save', data)
   },
 
   /**
    * Get camp info (Step 3)
    */
-  async getCampInfo(): Promise<{
-    description: string
-    campTypes: string[]
-    minAge: number
-    maxAge: number
-  } | null> {
-    try {
-      const response = await apiClient.get<{
-        description: string
-        campTypes: string[]
-        minAge: number
-        maxAge: number
-      } | null>('/provider/onboarding/step-3/info')
-      return (response.data as any)?.data || response.data
-    } catch {
-      return null
-    }
+  async getCampInfo(): Promise<
+    ApiResult<{
+      description: string
+      campTypes: string[]
+      minAge: number
+      maxAge: number
+    } | null>
+  > {
+    return await apiClient.get<{
+      description: string
+      campTypes: string[]
+      minAge: number
+      maxAge: number
+    } | null>('/provider/onboarding/step-3/info')
   },
 
   /**
@@ -111,19 +90,19 @@ export const onboardingService = {
     campTypes: string[]
     minAge: number
     maxAge: number
-  }): Promise<void> {
-    await apiClient.post('/provider/onboarding/step-3/save', data)
+  }): Promise<ApiResult<void>> {
+    return await apiClient.post('/provider/onboarding/step-3/save', data)
   },
 
   /**
    * Upload document (Step 4)
    */
-  async uploadDocument(request: UploadDocumentRequest): Promise<VerificationDocument> {
+  async uploadDocument(request: UploadDocumentRequest): Promise<ApiResult<VerificationDocument>> {
     const formData = new FormData()
     formData.append('file', request.file)
     formData.append('documentType', request.documentType)
 
-    const response = await apiClient.post<VerificationDocument>(
+    return await apiClient.post<VerificationDocument>(
       '/provider/onboarding/step-4/upload',
       formData,
       {
@@ -132,93 +111,65 @@ export const onboardingService = {
         },
       }
     )
-
-    // Check if the upload was successful
-    if (!response.success) {
-      const errorMessage = (response.data as any)?.message || 'Failed to upload document'
-      throw new Error(errorMessage)
-    }
-
-    return response.data as VerificationDocument
   },
 
   /**
    * Get uploaded documents (Step 4)
    */
-  async getDocuments(): Promise<VerificationDocument[]> {
-    const response = await apiClient.get<VerificationDocument[]>(
-      '/provider/onboarding/step-4/documents'
-    )
-    return response.data as VerificationDocument[]
+  async getDocuments(): Promise<ApiResult<VerificationDocument[]>> {
+    return await apiClient.get<VerificationDocument[]>('/provider/onboarding/step-4/documents')
   },
 
   /**
    * Delete document (Step 4)
    */
-  async deleteDocument(documentId: string): Promise<void> {
-    const response = await apiClient.del(`/provider/onboarding/step-4/documents/${documentId}`)
-
-    // Check if the deletion was successful
-    if (!response.success) {
-      const errorMessage = (response.data as any)?.message || 'Failed to delete document'
-      throw new Error(errorMessage)
-    }
+  async deleteDocument(documentId: string): Promise<ApiResult<void>> {
+    return await apiClient.del(`/provider/onboarding/step-4/documents/${documentId}`)
   },
 
   /**
    * Complete Step 4 (advance to Step 5)
    */
-  async completeStep4(): Promise<void> {
-    await apiClient.post('/provider/onboarding/step-4/complete', {})
+  async completeStep4(): Promise<ApiResult<void>> {
+    return await apiClient.post('/provider/onboarding/step-4/complete', {})
   },
 
   /**
    * Get provider settings (Step 5)
    */
-  async getProviderSettings(): Promise<ProviderSettings | null> {
-    try {
-      const response = await apiClient.get<ProviderSettings | null>(
-        '/provider/onboarding/step-5/settings'
-      )
-      return (response.data as any)?.data || response.data
-    } catch {
-      return null
-    }
+  async getProviderSettings(): Promise<ApiResult<ProviderSettings | null>> {
+    return await apiClient.get<ProviderSettings | null>('/provider/onboarding/step-5/settings')
   },
 
   /**
    * Save provider settings (Step 5)
    */
-  async saveProviderSettings(data: SaveProviderSettingsRequest): Promise<ProviderSettings> {
-    const response = await apiClient.post<ProviderSettings>(
-      '/provider/onboarding/step-5/save',
-      data
-    )
-    return response.data as ProviderSettings
+  async saveProviderSettings(
+    data: SaveProviderSettingsRequest
+  ): Promise<ApiResult<ProviderSettings>> {
+    return await apiClient.post<ProviderSettings>('/provider/onboarding/step-5/save', data)
   },
 
   /**
    * Validate onboarding completion
    */
-  async validateOnboarding(): Promise<ValidationResult> {
-    const response = await apiClient.get<ValidationResult>('/provider/onboarding/validate')
-    return response.data as ValidationResult
+  async validateOnboarding(): Promise<ApiResult<ValidationResult>> {
+    return await apiClient.get<ValidationResult>('/provider/onboarding/validate')
   },
 
   /**
    * Complete onboarding
    */
-  async completeOnboarding(): Promise<void> {
-    await apiClient.post('/provider/onboarding/complete', {})
+  async completeOnboarding(): Promise<ApiResult<void>> {
+    return await apiClient.post('/provider/onboarding/complete', {})
   },
 
   /**
    * Get trust score breakdown (debug)
    */
-  async getTrustScoreBreakdown(): Promise<{ score: number; breakdown: any }> {
-    const response = await apiClient.get<{ score: number; breakdown: any }>(
+  async getTrustScoreBreakdown(): Promise<ApiResult<{ score: number; breakdown: any }>> {
+    return await apiClient.get<{ score: number; breakdown: any }>(
       '/provider/onboarding/trust-score/breakdown'
     )
-    return response.data as { score: number; breakdown: any }
   },
 }

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, Spinner, Textarea } from '@heroui/react'
+import { Button, Spinner } from '@heroui/react'
+import { Input, Textarea } from '@world-schools/ui-web'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
 import { TrustScoreBadge } from '../../../components/onboarding/TrustScoreBadge'
@@ -26,12 +27,12 @@ export default function OnboardingStep3Page() {
   // Load saved camp info
   useEffect(() => {
     const loadCampInfo = async () => {
-      const savedInfo = await onboardingService.getCampInfo()
-      if (savedInfo) {
-        setDescription(savedInfo.description)
-        setCampTypes(savedInfo.campTypes)
-        setMinAge(savedInfo.minAge.toString())
-        setMaxAge(savedInfo.maxAge.toString())
+      const response = await onboardingService.getCampInfo()
+      if (response.success && response.data) {
+        setDescription(response.data.description)
+        setCampTypes(response.data.campTypes)
+        setMinAge(response.data.minAge.toString())
+        setMaxAge(response.data.maxAge.toString())
       }
     }
     void loadCampInfo()
@@ -51,17 +52,15 @@ export default function OnboardingStep3Page() {
   }
 
   const handleContinue = async () => {
-    try {
-      await saveCampInfo({
-        description,
-        campTypes,
-        minAge: parseInt(minAge),
-        maxAge: parseInt(maxAge),
-      })
-      router.push('/onboarding/step-4')
-    } catch (error) {
-      console.error('Failed to save camp info:', error)
-    }
+    await saveCampInfo({
+      description,
+      campTypes,
+      minAge: parseInt(minAge),
+      maxAge: parseInt(maxAge),
+    })
+    // Store will handle errors and set them in error state
+    // Only navigate if no error occurred
+    router.push('/onboarding/step-4')
   }
 
   if (!status) {
@@ -99,73 +98,46 @@ export default function OnboardingStep3Page() {
         {/* Header */}
         <div className="mb-8">
           <div className="mb-2 flex items-center gap-3">
-            <h1 className="text-[32px] font-bold leading-tight text-foreground">About your camp</h1>
+            <h1 className="text-3xl font-bold leading-tight text-foreground">About your camp</h1>
             <TrustScoreBadge section="step3" maxPoints={10} />
           </div>
-          <p className="text-[16px] text-default-500">
+          <p className="text-base text-default-500">
             Help us understand your programs so we can review your application
           </p>
         </div>
 
         {/* Form */}
-        <div className="space-y-8">
+        <div className="flex flex-col gap-8">
           {/* Brief Description */}
-          <div>
-            <div className="mb-3 flex items-center gap-2">
-              <label className="text-[15px] font-semibold text-foreground">
-                Brief Description
-                <span className="ml-1 text-danger">*</span>
-              </label>
-              <div className="group relative">
-                <span className="cursor-help text-default-500">ⓘ</span>
-                <div className="invisible absolute left-0 top-full z-10 mt-1 w-64 rounded-lg bg-foreground p-3 text-xs text-white opacity-0 shadow-lg transition-all group-hover:visible group-hover:opacity-100">
-                  Helps our team understand your camp during review
-                </div>
-              </div>
-            </div>
+          <div className="flex flex-col gap-4">
+            <h2 className="text-xl font-semibold text-foreground">Brief Description</h2>
+
             <Textarea
+              aria-label="Brief Description"
+              isRequired
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="Tell us about your camp programs, specialty, and what makes you unique..."
               maxLength={300}
               minLength={100}
               isDisabled={isReadOnly}
-              classNames={{
-                input: 'text-base',
-                inputWrapper:
-                  'border border-default-200 rounded-lg hover:border-default-500 data-[focus=true]:border-foreground data-[disabled=true]:bg-default-100 data-[disabled=true]:cursor-not-allowed',
-              }}
+              description="Helps our team understand your camp during review"
               minRows={4}
+              showCharacterCount
             />
-            <div className="mt-2 text-right text-sm">
-              <span className={charCount < 100 ? 'text-danger' : 'text-default-500'}>
-                {charCount}
-              </span>{' '}
-              <span className="text-default-500">/ 300 characters (minimum 100)</span>
-            </div>
           </div>
 
           {/* Camp Type */}
-          <div>
-            <div className="mb-3 flex items-center gap-2">
-              <label className="text-[15px] font-semibold text-foreground">
-                Camp Type
-                <span className="ml-1 text-danger">*</span>
-              </label>
-              <div className="group relative">
-                <span className="cursor-help text-default-500">ⓘ</span>
-                <div className="invisible absolute left-0 top-full z-10 mt-1 w-64 rounded-lg bg-foreground p-3 text-xs text-white opacity-0 shadow-lg transition-all group-hover:visible group-hover:opacity-100">
-                  Choose the type of camp you operate
-                </div>
-              </div>
-            </div>
+          <div className="flex flex-col gap-4">
+            <h2 className="text-xl font-semibold text-foreground">Camp Type</h2>
+
             <div className="grid gap-4 md:grid-cols-2">
               {/* Day Camp */}
               <button
                 type="button"
                 onClick={() => toggleCampType('day')}
                 disabled={isReadOnly}
-                className={`cursor-pointer flex items-center gap-4 rounded-xl border-2 p-5 text-left transition-all ${
+                className={`cursor-pointer flex items-center gap-4 rounded-xl border p-5 text-left transition-all ${
                   campTypes.includes('day')
                     ? 'border-primary bg-primary-50'
                     : 'border-default-200 hover:border-default-500'
@@ -183,7 +155,7 @@ export default function OnboardingStep3Page() {
                 type="button"
                 onClick={() => toggleCampType('overnight')}
                 disabled={isReadOnly}
-                className={`cursor-pointer flex items-center gap-4 rounded-xl border-2 p-5 text-left transition-all ${
+                className={`cursor-pointer flex items-center gap-4 rounded-xl border p-5 text-left transition-all ${
                   campTypes.includes('overnight')
                     ? 'border-primary bg-primary-50'
                     : 'border-default-200 hover:border-default-500'
@@ -199,40 +171,33 @@ export default function OnboardingStep3Page() {
           </div>
 
           {/* Age Range */}
-          <div>
-            <div className="mb-3 flex items-center gap-2">
-              <label className="text-[15px] font-semibold text-foreground">
-                Age Range Served
-                <span className="ml-1 text-danger">*</span>
-              </label>
-              <div className="group relative">
-                <span className="cursor-help text-default-500">ⓘ</span>
-                <div className="invisible absolute left-0 top-full z-10 mt-1 w-64 rounded-lg bg-foreground p-3 text-xs text-white opacity-0 shadow-lg transition-all group-hover:visible group-hover:opacity-100">
-                  Specify the age range of campers you serve
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <input
+          <div className="flex flex-col gap-4">
+            <h2 className="text-xl font-semibold text-foreground">Age Range Served</h2>
+
+            <div className="flex items-start gap-4">
+              <Input
                 type="number"
+                label="Minimum Age"
+                isRequired
                 value={minAge}
                 onChange={e => setMinAge(e.target.value)}
                 placeholder="Min age"
                 min="0"
                 max="99"
-                disabled={isReadOnly}
-                className="flex-1 rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
+                isDisabled={isReadOnly}
+                description="Specify the age range of campers you serve"
               />
-              <span className="text-default-500">to</span>
-              <input
+              <span className="mt-8 text-default-500">to</span>
+              <Input
                 type="number"
+                label="Maximum Age"
+                isRequired
                 value={maxAge}
                 onChange={e => setMaxAge(e.target.value)}
                 placeholder="Max age"
                 min="0"
                 max="99"
-                disabled={isReadOnly}
-                className="flex-1 rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
+                isDisabled={isReadOnly}
               />
             </div>
           </div>

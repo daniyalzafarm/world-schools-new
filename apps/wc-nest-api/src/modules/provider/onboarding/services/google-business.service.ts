@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common'
 import { ConfigService } from '../../../../config/config.service'
 import { PrismaService } from '../../../../prisma/prisma.service'
 import { GoogleBusinessSearchResultDto } from '../dto/google-business.dto'
@@ -130,6 +136,26 @@ export class GoogleBusinessService {
    * Save Google Business Profile to database
    */
   async saveBusinessProfile(providerId: string, placeId: string): Promise<any> {
+    // Check if this placeId is already linked to a different provider
+    const existingProfile = await this.prisma.googleBusinessProfile.findUnique({
+      where: { placeId },
+      include: {
+        provider: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    })
+
+    // If the business is already linked to a different provider, throw an error
+    if (existingProfile && existingProfile.providerId !== providerId) {
+      throw new ConflictException(
+        'This business is already registered with another provider. Please select a different business or contact support if you believe this is an error.'
+      )
+    }
+
     // Fetch business details from Google Places API
     const businessData = await this.fetchBusinessDetails(placeId)
 

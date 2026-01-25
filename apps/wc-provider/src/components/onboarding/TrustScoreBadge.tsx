@@ -47,8 +47,13 @@ export function TrustScoreBadge({ section, maxPoints, className = '' }: TrustSco
   useEffect(() => {
     const fetchBreakdown = async () => {
       try {
-        const data = await onboardingService.getTrustScoreBreakdown()
-        setBreakdown(data)
+        const response = await onboardingService.getTrustScoreBreakdown()
+        // Handle ApiResult wrapper - check success flag and extract data
+        if (response.success && response.data) {
+          setBreakdown(response.data)
+        } else {
+          console.error('Failed to fetch trust score breakdown:', response)
+        }
       } catch (error) {
         console.error('Error fetching trust score breakdown:', error)
       } finally {

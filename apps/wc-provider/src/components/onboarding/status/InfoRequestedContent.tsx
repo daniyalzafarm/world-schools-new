@@ -20,8 +20,8 @@ export function InfoRequestedContent({ status: _status }: InfoRequestedContentPr
       </div>
 
       {/* Information Request */}
-      <div className="mb-8 rounded-xl border-2 border-warning bg-warning-50 p-8">
-        <h2 className="mb-4 flex items-center gap-2 text-[24px] font-semibold text-warning">
+      <div className="mb-8 rounded-xl border border-warning-200 bg-warning-50 p-8">
+        <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-warning-600">
           ℹ️ Information Request
         </h2>
         <p className="text-default-500">
@@ -31,9 +31,9 @@ export function InfoRequestedContent({ status: _status }: InfoRequestedContentPr
       </div>
 
       {/* What to Do Next */}
-      <div className="mb-8 rounded-xl border border-default-300 bg-white p-8">
-        <h2 className="mb-6 text-[24px] font-semibold text-foreground">What to do next?</h2>
-        <div className="space-y-6">
+      <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
+        <h2 className="mb-6 text-2xl font-semibold text-foreground">What to do next?</h2>
+        <div className="flex flex-col gap-6">
           <div className="flex items-start gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 text-2xl">
               📧
@@ -85,8 +85,8 @@ export function InfoRequestedContent({ status: _status }: InfoRequestedContentPr
       </div>
 
       {/* Response Time */}
-      <div className="mb-8 rounded-xl border border-default-300 bg-white p-8">
-        <h2 className="mb-4 text-[24px] font-semibold text-foreground">⏰ Response Time</h2>
+      <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
+        <h2 className="mb-4 text-2xl font-semibold text-foreground">⏰ Response Time</h2>
         <p className="text-default-500">
           Please provide the requested information within <strong>7 days</strong> to avoid delays in
           processing your application. If you need more time, please contact our support team.

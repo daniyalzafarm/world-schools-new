@@ -4,10 +4,10 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../../stores/auth-store'
 import { useCampsStore } from '../../../stores/camps-store'
-import Image from 'next/image'
 import { CampWizardSidebar } from '../../../components/camps/CampWizardSidebar'
 import { CampWizardTopBar } from '../../../components/camps/CampWizardTopBar'
 import { CampWizardFooter } from '../../../components/camps/CampWizardFooter'
+import { Logo } from '@/components/layout/logo'
 
 export default function CampCreateLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -25,13 +25,7 @@ export default function CampCreateLayout({ children }: { children: React.ReactNo
     <div className="flex h-screen overflow-hidden bg-white">
       {/* Mobile Header */}
       <div className="fixed left-0 right-0 top-0 z-50 flex h-[60px] items-center bg-white px-6 md:hidden">
-        <Image
-          src="/images/logo-mobile.svg"
-          alt="World-Camps"
-          width={36}
-          height={36}
-          className="h-9 w-auto"
-        />
+        <Logo size="md" />
       </div>
 
       {/* Sidebar - Hidden on mobile */}

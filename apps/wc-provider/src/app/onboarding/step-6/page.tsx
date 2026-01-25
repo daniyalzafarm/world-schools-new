@@ -183,17 +183,17 @@ export default function OnboardingStep6Page() {
     >
       <div>
         <div className="mb-8">
-          <h1 className="mb-2 text-[32px] font-bold leading-tight text-foreground">
+          <h1 className="mb-2 text-3xl font-bold leading-tight text-foreground">
             Review & Submit Application
           </h1>
-          <p className="text-[16px] text-default-500">
+          <p className="text-base text-default-500">
             Please review your application details before final submission
           </p>
         </div>
 
         {/* Trust Score Section */}
         {status?.trustScore !== undefined && status?.trustScore !== null && (
-          <div className="mb-8 rounded-xl border-2 border-primary-200 bg-primary-50 p-6">
+          <div className="mb-8 rounded-xl border border-primary-200 bg-primary-50 p-6">
             <h2 className="mb-4 text-lg font-semibold text-foreground">Your Trust Score</h2>
             <TrustScoreDisplay
               score={status.trustScore}
@@ -220,7 +220,7 @@ export default function OnboardingStep6Page() {
                 <h3 className="mb-3 text-sm font-semibold text-foreground">
                   All Requirements Complete
                 </h3>
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   {COMPLETION_ITEMS.map(item => {
                     const stepKey = `step${item.step}` as keyof typeof status.stepCompletion
                     const isCompleted = status.stepCompletion[stepKey]
@@ -243,12 +243,10 @@ export default function OnboardingStep6Page() {
                 </div>
               </div>
             ) : (
-              <div className="mb-8 rounded-xl border-2 border-danger-200 bg-danger-50 p-6">
+              <div className="mb-8 rounded-xl border border-danger-200 bg-danger-50 p-6">
                 <div className="mb-4 flex items-center gap-3">
                   <XCircle className="h-6 w-6 text-danger-600" />
-                  <h3 className="text-[20px] font-semibold text-foreground">
-                    Validation Issues Found
-                  </h3>
+                  <h3 className="text-xl font-semibold text-foreground">Validation Issues Found</h3>
                 </div>
                 <p className="mb-4 text-sm text-default-500">
                   Please complete the following requirements before submitting your application:
@@ -259,8 +257,8 @@ export default function OnboardingStep6Page() {
 
             {/* What Happens Next */}
             <div className="mb-8 rounded-xl border border-default-200 bg-default-50 p-6">
-              <h3 className="mb-4 text-[18px] font-semibold text-foreground">What happens next?</h3>
-              <ul className="space-y-3 text-sm text-default-500">
+              <h3 className="mb-4 text-lg font-semibold text-foreground">What happens next?</h3>
+              <ul className="flex flex-col gap-3 text-sm text-default-500">
                 <li className="flex items-start gap-3">
                   <span className="text-secondary">1.</span>
                   <span>Your application will be submitted for review</span>
@@ -281,7 +279,7 @@ export default function OnboardingStep6Page() {
             </div>
 
             {/* Important Notice */}
-            <div className="mb-8 rounded-xl border-2 border-warning-200 bg-warning-50 p-6">
+            <div className="mb-8 rounded-xl border border-warning-200 bg-warning-50 p-6">
               <p className="text-sm text-default-500">
                 <strong className="text-foreground">Important:</strong> After submission, you won't
                 be able to edit your application until the review is complete. Make sure all
@@ -298,7 +296,7 @@ export default function OnboardingStep6Page() {
               />
               <div className="flex-1">
                 <label
-                  className={`text-sm text-foreground select-none ${!isReadOnly ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
+                  className={`select-none text-sm text-foreground ${!isReadOnly ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
                   onClick={() => !isReadOnly && setAgreedToTerms(!agreedToTerms)}
                 >
                   I agree to the{' '}

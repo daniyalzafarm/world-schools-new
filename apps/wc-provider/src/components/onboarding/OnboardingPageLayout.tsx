@@ -56,7 +56,7 @@ export function OnboardingPageLayout({
 
       {/* Footer - Sticky with reserved space */}
       {footer && (
-        <div className="sticky bottom-0 z-40 shrink-0 border-t border-default-100 bg-white px-12 py-4">
+        <div className="sticky h-20 py-4 bg-white px-12 bottom-0 z-40 shrink-0 border-t-2 border-default-100">
           {footer}
         </div>
       )}

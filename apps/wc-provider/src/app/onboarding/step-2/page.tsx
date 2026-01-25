@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Controller, useForm } from 'react-hook-form'
 import { Button, Spinner } from '@heroui/react'
-import { PhoneInput } from '@world-schools/ui-web'
+import { Input, PhoneInput } from '@world-schools/ui-web'
 import { isValidPhoneNumber } from 'react-phone-number-input'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
@@ -22,6 +22,7 @@ export default function OnboardingStep2Page() {
     error,
     saveContactInfo,
     fetchGoogleBusinessProfile,
+    clearError,
   } = useOnboardingStore()
   const {
     register,
@@ -48,9 +49,9 @@ export default function OnboardingStep2Page() {
     const loadData = async () => {
       await fetchGoogleBusinessProfile()
       // Load saved contact info
-      const savedInfo = await onboardingService.getContactInfo()
-      if (savedInfo) {
-        reset(savedInfo)
+      const response = await onboardingService.getContactInfo()
+      if (response.success && response.data) {
+        reset(response.data)
       }
     }
     void loadData()
@@ -97,8 +98,20 @@ export default function OnboardingStep2Page() {
   }, [googleBusinessProfile, setValue])
 
   const onSubmit = async (data: ContactInfo) => {
+    // Clear any previous errors
+    clearError()
+
+    // Call the store method - it will handle errors and set them in the store's error state
     await saveContactInfo(data)
-    router.push('/onboarding/step-3')
+
+    // Get the latest error state from the store after the async operation completes
+    const currentError = useOnboardingStore.getState().error
+
+    // Only navigate if there was no error
+    if (!currentError) {
+      router.push('/onboarding/step-3')
+    }
+    // Error will be displayed by the error banner in the component
   }
 
   if (!status) {
@@ -134,382 +147,266 @@ export default function OnboardingStep2Page() {
       <div>
         {/* Header */}
         <div className="mb-8">
-          <h1 className="mb-2 text-[32px] font-bold leading-tight text-foreground">
+          <h1 className="mb-2 text-3xl font-bold leading-tight text-foreground">
             Contact & Account
           </h1>
-          <p className="text-[16px] text-default-500">
+          <p className="text-base text-default-500">
             Provide your contact details and create your account
           </p>
         </div>
 
-        {/* Error Message */}
+        {/* Error Message - Display prominently in body */}
         {error && (
-          <div className="mb-6 rounded-lg border border-danger-200 bg-danger-50 p-4">
+          <div className="mb-6 rounded-lg border border-danger bg-danger-50 px-4 py-3">
             <p className="text-sm text-danger">{error}</p>
           </div>
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8">
           {/* Contact Information Section */}
-          <div className="space-y-6">
+          <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
-              <h2 className="text-[20px] font-semibold text-foreground">Contact Information</h2>
+              <h2 className="text-xl font-semibold text-foreground">Contact Information</h2>
               <TrustScoreBadge section="step2" maxPoints={30} />
             </div>
 
             {/* First Name & Last Name */}
-            <div className="grid gap-6 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  First Name
-                  <span className="ml-1 text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="John"
-                  {...register('contactFirstName', { required: 'First name is required' })}
-                  disabled={isReadOnly}
-                  className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-                />
-                {errors.contactFirstName && (
-                  <p className="mt-1 text-sm text-danger">{errors.contactFirstName.message}</p>
-                )}
-              </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Input
+                label="First Name"
+                placeholder="John"
+                {...register('contactFirstName', { required: 'First name is required' })}
+                isDisabled={isReadOnly}
+                isRequired
+                isInvalid={!!errors.contactFirstName}
+                errorMessage={errors.contactFirstName?.message}
+              />
 
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  Last Name
-                  <span className="ml-1 text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Doe"
-                  {...register('contactLastName', { required: 'Last name is required' })}
-                  disabled={isReadOnly}
-                  className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-                />
-                {errors.contactLastName && (
-                  <p className="mt-1 text-sm text-danger">{errors.contactLastName.message}</p>
-                )}
-              </div>
+              <Input
+                label="Last Name"
+                placeholder="Doe"
+                {...register('contactLastName', { required: 'Last name is required' })}
+                isDisabled={isReadOnly}
+                isRequired
+                isInvalid={!!errors.contactLastName}
+                errorMessage={errors.contactLastName?.message}
+              />
             </div>
 
             {/* Your Role */}
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-foreground">
-                Job Title
-                <span className="ml-1 text-danger">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Camp Director"
-                {...register('contactRole', { required: 'Job title is required' })}
-                disabled={isReadOnly}
-                className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-              />
-              {errors.contactRole && (
-                <p className="mt-1 text-sm text-danger">{errors.contactRole.message}</p>
-              )}
-            </div>
+            <Input
+              label="Job Title"
+              placeholder="Camp Director"
+              {...register('contactRole', { required: 'Job title is required' })}
+              isDisabled={isReadOnly}
+              isRequired
+              isInvalid={!!errors.contactRole}
+              errorMessage={errors.contactRole?.message}
+            />
 
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2">
               {/* Contact Email */}
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  Email
-                  <span className="ml-1 text-danger">*</span>
-                </label>
-                <input
-                  type="email"
-                  placeholder="john.doe@example.com"
-                  {...register('contactEmail', {
-                    required: 'Contact email is required',
-                    pattern: {
-                      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                      message: 'Please enter a valid email address',
-                    },
-                  })}
-                  disabled={isReadOnly}
-                  className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-                />
-                {errors.contactEmail && (
-                  <p className="mt-1 text-sm text-danger">{errors.contactEmail.message}</p>
-                )}
-              </div>
+              <Input
+                type="email"
+                label="Email"
+                placeholder="john.doe@example.com"
+                {...register('contactEmail', {
+                  required: 'Contact email is required',
+                  pattern: {
+                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                    message: 'Please enter a valid email address',
+                  },
+                })}
+                isDisabled={isReadOnly}
+                isRequired
+                isInvalid={!!errors.contactEmail}
+                errorMessage={errors.contactEmail?.message}
+              />
 
               {/* Phone Number */}
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  Phone Number
-                  <span className="ml-1 text-danger">*</span>
-                </label>
-                <Controller
-                  name="contactPhone"
-                  control={control}
-                  rules={{
-                    required: 'Phone number is required',
-                    validate: value =>
-                      !value || isValidPhoneNumber(value) || 'Please enter a valid phone number',
-                  }}
-                  render={({ field }) => (
-                    <PhoneInput
-                      value={field.value}
-                      onChange={field.onChange}
-                      disabled={isReadOnly}
-                      error={errors.contactPhone?.message}
-                      placeholder="(555) 123-4567"
-                    />
-                  )}
-                />
-              </div>
+              <Controller
+                name="contactPhone"
+                control={control}
+                rules={{
+                  required: 'Phone number is required',
+                  validate: value =>
+                    !value || isValidPhoneNumber(value) || 'Please enter a valid phone number',
+                }}
+                render={({ field }) => (
+                  <PhoneInput
+                    label="Phone Number"
+                    isRequired
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isReadOnly}
+                    error={errors.contactPhone?.message}
+                    placeholder="(555) 123-4567"
+                  />
+                )}
+              />
             </div>
           </div>
 
           {/* Provider Details Section */}
-          <div className="space-y-6">
-            <h2 className="text-[20px] font-semibold text-foreground">Provider Details</h2>
+          <div className="flex flex-col gap-4">
+            <h2 className="text-xl font-semibold text-foreground">Provider Details</h2>
 
             {/* Provider Name */}
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-foreground">
-                Provider Name
-                <span className="ml-1 text-danger">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Summer Adventures"
-                {...register('providerName', { required: 'Provider name is required' })}
-                disabled={isReadOnly}
-                className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-              />
-              {errors.providerName && (
-                <p className="mt-1 text-sm text-danger">{errors.providerName.message}</p>
-              )}
-            </div>
+            <Input
+              label="Provider Name"
+              placeholder="Summer Adventures"
+              {...register('providerName', { required: 'Provider name is required' })}
+              isDisabled={isReadOnly}
+              isRequired
+              isInvalid={!!errors.providerName}
+              errorMessage={errors.providerName?.message}
+            />
 
             {/* Provider Phone & Email */}
-            <div className="grid gap-6 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  Provider Phone (Optional)
-                </label>
-                <Controller
-                  name="providerPhone"
-                  control={control}
-                  rules={{
-                    validate: value =>
-                      !value || isValidPhoneNumber(value) || 'Please enter a valid phone number',
-                  }}
-                  render={({ field }) => (
-                    <PhoneInput
-                      value={field.value}
-                      onChange={field.onChange}
-                      disabled={isReadOnly}
-                      error={errors.providerPhone?.message}
-                      placeholder="+1 (555) 123-4567"
-                    />
-                  )}
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  Provider Email (Optional)
-                </label>
-                <input
-                  type="email"
-                  placeholder="info@example.com"
-                  {...register('providerEmail', {
-                    pattern: {
-                      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                      message: 'Please enter a valid email address',
-                    },
-                  })}
-                  disabled={isReadOnly}
-                  className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-                />
-                {errors.providerEmail && (
-                  <p className="mt-1 text-sm text-danger">{errors.providerEmail.message}</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Controller
+                name="providerPhone"
+                control={control}
+                rules={{
+                  validate: value =>
+                    !value || isValidPhoneNumber(value) || 'Please enter a valid phone number',
+                }}
+                render={({ field }) => (
+                  <PhoneInput
+                    label="Provider Phone (Optional)"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isReadOnly}
+                    error={errors.providerPhone?.message}
+                    placeholder="+1 (555) 123-4567"
+                  />
                 )}
-              </div>
+              />
+
+              <Input
+                type="email"
+                label="Provider Email (Optional)"
+                placeholder="info@example.com"
+                {...register('providerEmail', {
+                  pattern: {
+                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                    message: 'Please enter a valid email address',
+                  },
+                })}
+                isDisabled={isReadOnly}
+                isInvalid={!!errors.providerEmail}
+                errorMessage={errors.providerEmail?.message}
+              />
             </div>
 
             {/* Website */}
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-foreground">
-                Website (Optional)
-              </label>
-              <input
-                type="url"
-                placeholder="https://example.com"
-                {...register('website', {
-                  pattern: {
-                    value: /^https?:\/\/.+/,
-                    message: 'Please enter a valid URL starting with http:// or https://',
-                  },
-                })}
-                disabled={isReadOnly}
-                className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-              />
-              {errors.website && (
-                <p className="mt-1 text-sm text-danger">{errors.website.message}</p>
-              )}
-            </div>
+            <Input
+              type="url"
+              label="Website (Optional)"
+              placeholder="https://example.com"
+              {...register('website', {
+                pattern: {
+                  value: /^https?:\/\/.+/,
+                  message: 'Please enter a valid URL starting with http:// or https://',
+                },
+              })}
+              isDisabled={isReadOnly}
+              isInvalid={!!errors.website}
+              errorMessage={errors.website?.message}
+            />
           </div>
 
           {/* Legal Business Information Section */}
-          <div className="space-y-6">
-            <h2 className="text-[20px] font-semibold text-foreground">
-              Legal Business Information
-            </h2>
+          <div className="flex flex-col gap-4">
+            <h2 className="text-xl font-semibold text-foreground">Legal Business Information</h2>
 
             {/* Legal Company Name */}
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-foreground">
-                Legal Company Name
-                <span className="ml-1 text-danger">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Adventure Camps LLC"
-                {...register('legalCompanyName', { required: 'Legal company name is required' })}
-                disabled={isReadOnly}
-                className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
+            <Input
+              label="Legal Company Name"
+              placeholder="Adventure Camps LLC"
+              {...register('legalCompanyName', { required: 'Legal company name is required' })}
+              isDisabled={isReadOnly}
+              isRequired
+              isInvalid={!!errors.legalCompanyName}
+              errorMessage={errors.legalCompanyName?.message}
+            />
+
+            <Input
+              className="md:col-span-2"
+              label="Street Address"
+              placeholder="123 Main Street"
+              {...register('legalStreetAddress', {
+                required: 'Street address is required',
+              })}
+              isDisabled={isReadOnly}
+              isRequired
+              isInvalid={!!errors.legalStreetAddress}
+              errorMessage={errors.legalStreetAddress?.message}
+            />
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Input
+                label="Apt/Suite (Optional)"
+                placeholder="Suite 100"
+                {...register('legalAptSuite')}
+                isDisabled={isReadOnly}
               />
-              {errors.legalCompanyName && (
-                <p className="mt-1 text-sm text-danger">{errors.legalCompanyName.message}</p>
-              )}
+              <Input
+                label="City"
+                placeholder="Los Angeles"
+                {...register('legalCity', { required: 'City is required' })}
+                isDisabled={isReadOnly}
+                isRequired
+                isInvalid={!!errors.legalCity}
+                errorMessage={errors.legalCity?.message}
+              />
             </div>
 
-            {/* Street Address & Apt/Suite */}
-            <div className="grid gap-6 md:grid-cols-3">
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  Street Address
-                  <span className="ml-1 text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="123 Main Street"
-                  {...register('legalStreetAddress', {
-                    required: 'Street address is required',
-                  })}
-                  disabled={isReadOnly}
-                  className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-                />
-                {errors.legalStreetAddress && (
-                  <p className="mt-1 text-sm text-danger">{errors.legalStreetAddress.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  Apt/Suite (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Suite 100"
-                  {...register('legalAptSuite')}
-                  disabled={isReadOnly}
-                  className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-                />
-              </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Input
+                label="State/Province"
+                placeholder="California"
+                {...register('legalStateProvince', { required: 'State/Province is required' })}
+                isDisabled={isReadOnly}
+                isRequired
+                isInvalid={!!errors.legalStateProvince}
+                errorMessage={errors.legalStateProvince?.message}
+              />
+              <Input
+                label="Postal Code"
+                placeholder="90001"
+                {...register('legalPostalCode', { required: 'Postal code is required' })}
+                isDisabled={isReadOnly}
+                isRequired
+                isInvalid={!!errors.legalPostalCode}
+                errorMessage={errors.legalPostalCode?.message}
+              />
             </div>
 
-            {/* City & State */}
-            <div className="grid gap-6 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  City
-                  <span className="ml-1 text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Los Angeles"
-                  {...register('legalCity', { required: 'City is required' })}
-                  disabled={isReadOnly}
-                  className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-                />
-                {errors.legalCity && (
-                  <p className="mt-1 text-sm text-danger">{errors.legalCity.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  State/Province
-                  <span className="ml-1 text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="California"
-                  {...register('legalStateProvince', { required: 'State/Province is required' })}
-                  disabled={isReadOnly}
-                  className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-                />
-                {errors.legalStateProvince && (
-                  <p className="mt-1 text-sm text-danger">{errors.legalStateProvince.message}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Postal Code & Country */}
-            <div className="grid gap-6 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  Postal Code
-                  <span className="ml-1 text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="90001"
-                  {...register('legalPostalCode', { required: 'Postal code is required' })}
-                  disabled={isReadOnly}
-                  className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-                />
-                {errors.legalPostalCode && (
-                  <p className="mt-1 text-sm text-danger">{errors.legalPostalCode.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  Country
-                  <span className="ml-1 text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="United States"
-                  {...register('legalCountry', { required: 'Country is required' })}
-                  disabled={isReadOnly}
-                  className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
-                />
-                {errors.legalCountry && (
-                  <p className="mt-1 text-sm text-danger">{errors.legalCountry.message}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Year Founded */}
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-foreground">
-                Year Founded
-                <span className="ml-1 text-danger">*</span>
-              </label>
-              <input
+            <div className="grid gap-4 md:grid-cols-2">
+              <Input
+                label="Country"
+                placeholder="United States"
+                {...register('legalCountry', { required: 'Country is required' })}
+                isDisabled={isReadOnly}
+                isRequired
+                isInvalid={!!errors.legalCountry}
+                errorMessage={errors.legalCountry?.message}
+              />
+              <Input
                 type="number"
+                label="Year Founded"
                 placeholder="2010"
                 {...register('yearFounded', {
                   required: 'Year founded is required',
                   valueAsNumber: true,
                 })}
-                disabled={isReadOnly}
-                className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors hover:border-default-500 focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-default-100 disabled:text-default-500"
+                isDisabled={isReadOnly}
+                isRequired
+                isInvalid={!!errors.yearFounded}
+                errorMessage={errors.yearFounded?.message}
               />
-              {errors.yearFounded && (
-                <p className="mt-1 text-sm text-danger">{errors.yearFounded.message}</p>
-              )}
             </div>
           </div>
         </form>

@@ -21,9 +21,9 @@ export function UnderReviewContent({ status }: UnderReviewContentProps) {
       </div>
 
       {/* What's Being Reviewed */}
-      <div className="mb-8 rounded-xl border border-default-300 bg-white p-8">
-        <h2 className="mb-6 text-[24px] font-semibold text-foreground">What's being reviewed?</h2>
-        <div className="space-y-6">
+      <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
+        <h2 className="mb-6 text-2xl font-semibold text-foreground">What's being reviewed?</h2>
+        <div className="flex flex-col gap-6">
           <div className="flex items-start gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 text-2xl">
               📄
@@ -64,8 +64,8 @@ export function UnderReviewContent({ status }: UnderReviewContentProps) {
 
       {/* Trust Score */}
       {status.trustScore !== null && status.trustScore !== undefined && (
-        <div className="mb-8 rounded-xl border border-default-300 bg-white p-8">
-          <h2 className="mb-4 text-[24px] font-semibold text-foreground">Your Trust Score</h2>
+        <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
+          <h2 className="mb-4 text-2xl font-semibold text-foreground">Your Trust Score</h2>
           <div className="mb-4 flex items-center gap-4">
             <div className="text-5xl font-bold text-primary">{status.trustScore}</div>
             <div className="text-default-500">out of 100</div>
@@ -87,8 +87,8 @@ export function UnderReviewContent({ status }: UnderReviewContentProps) {
       )}
 
       {/* Estimated Review Time */}
-      <div className="mb-8 rounded-xl border border-default-300 bg-white p-8">
-        <h2 className="mb-4 text-[24px] font-semibold text-foreground">⏰ Estimated Review Time</h2>
+      <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
+        <h2 className="mb-4 text-2xl font-semibold text-foreground">⏰ Estimated Review Time</h2>
         <p className="text-default-500">
           Most applications are reviewed within <strong>2-3 business days</strong>. You'll receive
           an email notification once your application has been reviewed.

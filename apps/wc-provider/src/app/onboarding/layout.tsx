@@ -4,8 +4,8 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../stores/auth-store'
 import { useOnboardingStore } from '../../stores/onboarding-store'
-import Image from 'next/image'
 import { OnboardingSidebar } from '../../components/onboarding/OnboardingSidebar'
+import { Logo } from '@/components/layout/logo'
 
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -39,13 +39,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
     <div className="flex h-screen overflow-hidden bg-white">
       {/* Mobile Header */}
       <div className="fixed left-0 right-0 top-0 z-50 flex h-[60px] items-center bg-white px-6 md:hidden">
-        <Image
-          src="/images/logo-mobile.svg"
-          alt="World-Camps"
-          width={36}
-          height={36}
-          className="h-9 w-auto"
-        />
+        <Logo size="md" />
       </div>
 
       {/* Sidebar - Hidden on mobile */}

@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, Spinner } from '@heroui/react'
+import { Button, Card, CardBody, CardHeader, Chip, Spinner } from '@heroui/react'
+import { Input } from '@world-schools/ui-web'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
 import { GoogleMapsLoader } from '../../../components/onboarding/GoogleMapsLoader'
 import { GoogleMapWithSearch } from '../../../components/onboarding/GoogleMapWithSearch'
 import { TrustScoreBadge } from '../../../components/onboarding/TrustScoreBadge'
 import type { GoogleBusinessSearchResult } from '../../../types/onboarding'
+import { Search } from 'lucide-react'
 
 /* eslint-disable no-undef */
 // Google Maps API types are loaded via script tag
@@ -207,25 +209,30 @@ export default function OnboardingStep1Page() {
     clearError()
     setIsConfirming(true)
 
-    try {
-      await saveGoogleBusinessProfile(selectedBusiness.placeId)
-      // Only navigate if successful (no error in store)
-      router.push('/onboarding/step-2')
-    } catch (err: any) {
-      console.error('Error saving business profile:', err)
-      // Set local error state for display
-      const errorMessage =
-        err?.response?.data?.data?.message ||
-        err?.message ||
-        'Failed to save business profile. Please try again.'
-      setSaveError(errorMessage)
+    // Call the store method - it will handle errors and set them in the store's error state
+    await saveGoogleBusinessProfile(selectedBusiness.placeId)
+
+    // Get the latest error state from the store after the async operation completes
+    const currentError = useOnboardingStore.getState().error
+
+    // Check if there was an error (store will have set it)
+    if (currentError) {
+      // Error is already set in the store, just display it locally as well
+      setSaveError(currentError)
       setIsConfirming(false)
+    } else {
+      // Success - navigate to next step
+      setIsConfirming(false)
+      router.push('/onboarding/step-2')
     }
   }
 
   const handleReset = () => {
     setSelectedBusiness(null)
     setSearchQuery('')
+    // Clear any error messages when user attempts to select a different business
+    setSaveError(null)
+    clearError()
   }
 
   if (!status) {
@@ -242,13 +249,6 @@ export default function OnboardingStep1Page() {
         breadcrumb="Provider Onboarding / Find Your Camp"
         footer={
           <>
-            {/* Error Message */}
-            {(saveError || error) && (
-              <div className="mb-4 rounded-lg border border-danger bg-danger-50 px-4 py-3">
-                <p className="text-sm text-danger">{saveError || error}</p>
-              </div>
-            )}
-
             <div className="flex items-center justify-between">
               {/* Show back button only when editing or when a business is selected for confirmation */}
               {(isEditing || selectedBusiness) && !isReadOnly && (
@@ -289,35 +289,39 @@ export default function OnboardingStep1Page() {
           {/* Header */}
           <div className="mb-8">
             <div className="mb-2 flex items-center gap-3">
-              <h1 className="text-[32px] font-bold leading-tight text-foreground">
+              <h1 className="text-3xl font-bold leading-tight text-foreground">
                 Find your camp on Google
               </h1>
               <TrustScoreBadge section="step1" maxPoints={30} />
             </div>
-            <p className="text-[16px] text-default-500">
+            <p className="text-base text-default-500">
               Help us understand your programs so we can review your application
             </p>
           </div>
 
           {/* Show saved business profile if exists and not editing */}
           {googleBusinessProfile && !isEditing && !selectedBusiness ? (
-            <div className="mb-8">
-              <div className="mb-6 rounded-xl border-2 border-primary bg-primary-50 p-6">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-foreground">Selected Business</h3>
-                  {!isReadOnly && (
-                    <Button
-                      variant="bordered"
-                      size="sm"
-                      onPress={() => setIsEditing(true)}
-                      className="border-foreground text-foreground"
-                    >
-                      Update Business
-                    </Button>
-                  )}
-                </div>
+            <Card className="mb-6 border-2 border-primary bg-primary-50" shadow="none" radius="lg">
+              <CardHeader className="flex items-center justify-between pb-2">
+                <h3 className="text-lg">Selected Business</h3>
+                {!isReadOnly && (
+                  <Button
+                    variant="bordered"
+                    color="secondary"
+                    onPress={() => {
+                      setIsEditing(true)
+                      // Clear any error messages when entering edit mode
+                      setSaveError(null)
+                      clearError()
+                    }}
+                  >
+                    Update Business
+                  </Button>
+                )}
+              </CardHeader>
+              <CardBody className="pt-2">
                 <div className="flex items-start gap-4">
-                  <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-default-100">
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-default-100">
                     {googleBusinessProfile.photos?.[0] && (
                       <img
                         src={googleBusinessProfile.photos[0]}
@@ -345,41 +349,47 @@ export default function OnboardingStep1Page() {
                     )}
                   </div>
                 </div>
-              </div>
-            </div>
+              </CardBody>
+            </Card>
           ) : !selectedBusiness ? (
             <>
               {/* Show current business details when in edit mode */}
               {isEditing && googleBusinessProfile && (
-                <div className="mb-6 rounded-xl border border-default-200 bg-default-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-default-100">
-                      {googleBusinessProfile.photos?.[0] && (
-                        <img
-                          src={googleBusinessProfile.photos[0]}
-                          alt={googleBusinessProfile.businessName}
-                          className="h-full w-full object-cover"
-                        />
-                      )}
+                <Card
+                  className="mb-6 border border-default-200 bg-default-50"
+                  shadow="none"
+                  radius="lg"
+                >
+                  <CardBody>
+                    <div className="flex items-start gap-3">
+                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-default-100">
+                        {googleBusinessProfile.photos?.[0] && (
+                          <img
+                            src={googleBusinessProfile.photos[0]}
+                            alt={googleBusinessProfile.businessName}
+                            className="h-full w-full object-cover"
+                          />
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <div className="font-semibold text-foreground">
+                          {googleBusinessProfile.businessName}
+                        </div>
+                        <div className="text-xs text-default-500">
+                          {googleBusinessProfile.formattedAddress}
+                        </div>
+                      </div>
+                      <Chip className="ml-auto" size="sm" color="primary" variant="flat">
+                        Currently Selected
+                      </Chip>
                     </div>
-                    <div className="flex-1">
-                      <div className="mb-1 text-sm font-semibold text-foreground">
-                        Currently Selected:
-                      </div>
-                      <div className="mb-1 font-semibold text-foreground">
-                        {googleBusinessProfile.businessName}
-                      </div>
-                      <div className="text-xs text-default-500">
-                        {googleBusinessProfile.formattedAddress}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  </CardBody>
+                </Card>
               )}
 
               {/* Map Container with Search - Desktop */}
               {!isReadOnly && (
-                <div className="mb-8 hidden h-[320px] overflow-hidden rounded-2xl md:block">
+                <div className="mb-8 hidden h-80 overflow-hidden rounded-2xl md:block">
                   {/* Map Background */}
                   <div className="relative h-full w-full">
                     {/* Google Maps */}
@@ -387,35 +397,20 @@ export default function OnboardingStep1Page() {
 
                     {/* Search Overlay */}
                     <div className="absolute left-1/2 top-8 w-[90%] max-w-[500px] -translate-x-1/2">
-                      <div className="relative">
-                        {/* Search Icon */}
-                        <svg
-                          className="absolute left-5 top-1/2 -translate-y-1/2 text-foreground pointer-events-none"
-                          width="20"
-                          height="20"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                          />
-                        </svg>
-
-                        {/* Search Input with Google Places Autocomplete */}
-                        <input
-                          ref={searchInputRef}
-                          type="text"
-                          value={searchQuery}
-                          onChange={e => handleSearch(e.target.value)}
-                          placeholder="Business name"
-                          className="w-full rounded-full border-2 border-primary bg-white px-6 py-4 pl-[52px] text-base shadow-[0_4px_16px_rgba(0,0,0,0.15)] focus:border-primary focus:outline-none"
-                        />
-                        {/* Google Places Autocomplete provides its own dropdown */}
-                      </div>
+                      <Input
+                        ref={searchInputRef}
+                        value={searchQuery}
+                        onChange={e => handleSearch(e.target.value)}
+                        placeholder="Business name"
+                        startContent={<Search size={18} className="text-gray-500" />}
+                        classNames={{
+                          base: 'w-full',
+                          inputWrapper:
+                            'rounded-full h-12 border-2 border-primary bg-white shadow-[0_4px_16px_rgba(0,0,0,0.15)] hover:border-primary focus-within:border-primary',
+                          input: 'text-base',
+                        }}
+                      />
+                      {/* Google Places Autocomplete provides its own dropdown */}
                     </div>
                   </div>
                 </div>
@@ -424,108 +419,101 @@ export default function OnboardingStep1Page() {
               {/* Mobile Search - Clean, no map */}
               {!isReadOnly && (
                 <div className="mb-8 md:hidden">
-                  <div className="relative">
-                    {/* Search Icon */}
-                    <svg
-                      className="absolute left-5 top-1/2 -translate-y-1/2 text-foreground"
-                      width="20"
-                      height="20"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
-
-                    {/* Search Input with Google Places Autocomplete */}
-                    <input
-                      ref={mobileSearchInputRef}
-                      type="text"
-                      value={searchQuery}
-                      onChange={e => handleSearch(e.target.value)}
-                      placeholder="Business name"
-                      className="w-full rounded-full border border-default-200 bg-white px-6 py-4 pl-[52px] text-base shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all focus:border-default-500 focus:shadow-[0_4px_12px_rgba(0,0,0,0.12)] focus:outline-none"
-                    />
-                    {/* Google Places Autocomplete provides its own dropdown */}
-                  </div>
+                  <Input
+                    ref={mobileSearchInputRef}
+                    value={searchQuery}
+                    onChange={e => handleSearch(e.target.value)}
+                    placeholder="Business name"
+                    startContent={
+                      <svg
+                        className="text-foreground"
+                        width="20"
+                        height="20"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                      </svg>
+                    }
+                    classNames={{
+                      base: 'w-full',
+                      inputWrapper:
+                        'rounded-full h-12 border-2 border-primary bg-white shadow-[0_4px_16px_rgba(0,0,0,0.15)] hover:border-primary focus-within:border-primary',
+                      input: 'text-base',
+                    }}
+                  />
+                  {/* Google Places Autocomplete provides its own dropdown */}
                 </div>
               )}
             </>
           ) : (
             <>
               {/* Confirmation Card */}
-              <div className="mb-8">
-                {/* Business Preview */}
-                <div className="mb-8 flex items-center gap-4 rounded-xl bg-default-100 p-5">
-                  <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-default-100">
-                    {selectedBusiness.photos?.[0] && (
-                      <img
-                        src={selectedBusiness.photos[0]}
-                        alt={selectedBusiness.businessName}
-                        className="h-full w-full object-cover"
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="mb-1 text-base font-semibold text-foreground">
-                      {selectedBusiness.businessName}
+              {/* Business Preview */}
+              <Card className="mb-8 bg-default-100" shadow="none" radius="lg">
+                <CardBody>
+                  <div className="flex items-center gap-4">
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-default-100">
+                      {selectedBusiness.photos?.[0] && (
+                        <img
+                          src={selectedBusiness.photos[0]}
+                          alt={selectedBusiness.businessName}
+                          className="h-full w-full object-cover"
+                        />
+                      )}
                     </div>
-                    <div className="mb-1 text-sm text-default-500">
-                      {selectedBusiness.formattedAddress}
-                    </div>
-                    {selectedBusiness.rating && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-foreground">⭐ {selectedBusiness.rating}</span>
-                        {selectedBusiness.reviewsCount && (
-                          <span className="text-default-500">
-                            ({selectedBusiness.reviewsCount} reviews)
-                          </span>
-                        )}
+                    <div className="flex-1">
+                      <div className="mb-1 text-base font-semibold text-foreground">
+                        {selectedBusiness.businessName}
                       </div>
-                    )}
+                      <div className="mb-1 text-sm text-default-500">
+                        {selectedBusiness.formattedAddress}
+                      </div>
+                      {selectedBusiness.rating && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-foreground">⭐ {selectedBusiness.rating}</span>
+                          {selectedBusiness.reviewsCount && (
+                            <span className="text-default-500">
+                              ({selectedBusiness.reviewsCount} reviews)
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <Button variant="bordered" size="sm" onPress={handleReset} className="shrink-0">
+                      Change
+                    </Button>
                   </div>
-                  <Button
-                    variant="bordered"
-                    size="sm"
-                    onPress={handleReset}
-                    className="flex-shrink-0"
-                  >
-                    Change
-                  </Button>
-                </div>
+                </CardBody>
+              </Card>
 
-                {/* Form Fields */}
-                <div className="space-y-6">
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-foreground">
-                      Legal Company Name
-                      <span className="ml-1 text-danger">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      defaultValue={selectedBusiness.businessName}
-                      className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors focus:border-default-500 focus:outline-none"
-                    />
-                  </div>
+              {/* Form Fields */}
+              <div className="flex flex-col gap-4">
+                <Input
+                  label="Legal Company Name"
+                  defaultValue={selectedBusiness.businessName}
+                  isRequired
+                />
 
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-foreground">
-                      Business Address
-                      <span className="ml-1 text-danger">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      defaultValue={selectedBusiness.formattedAddress}
-                      className="w-full rounded-lg border border-default-200 bg-white px-4 py-3 text-base transition-colors focus:border-default-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
+                <Input
+                  label="Business Address"
+                  defaultValue={selectedBusiness.formattedAddress}
+                  isRequired
+                />
               </div>
+
+              {/* Error Message - Display prominently in body */}
+              {(saveError || error) && (
+                <div className="mt-4 rounded-lg border border-danger bg-danger-50 px-4 py-3">
+                  <p className="text-sm text-danger">{saveError || error}</p>
+                </div>
+              )}
             </>
           )}
         </div>

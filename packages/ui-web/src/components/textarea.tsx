@@ -6,10 +6,16 @@ import { cn } from '../utils/cn'
 
 export interface CustomTextareaProps extends Omit<TextAreaProps, 'classNames'> {
   classNames?: TextAreaProps['classNames']
+  showCharacterCount?: boolean
+  minLength?: number
 }
 
 export const Textarea: React.FC<CustomTextareaProps> = ({
   classNames: customClassNames,
+  showCharacterCount = false,
+  minLength,
+  value,
+  maxLength,
   ...props
 }) => {
   const mergedClassNames = {
@@ -29,5 +35,34 @@ export const Textarea: React.FC<CustomTextareaProps> = ({
     },
   }
 
-  return <HeroTextarea {...props} classNames={mergedClassNames} />
+  // Calculate character count
+  const currentLength = typeof value === 'string' ? value.length : 0
+  const percentage = maxLength ? (currentLength / maxLength) * 100 : 0
+  const isNearLimit = percentage >= 90
+  const isOverLimit = maxLength ? currentLength > maxLength : false
+  const isBelowMinimum = minLength ? currentLength < minLength : false
+
+  // Determine color based on state
+  const getCountColor = () => {
+    if (isOverLimit) return 'text-danger'
+    if (isNearLimit) return 'text-warning-600'
+    if (isBelowMinimum) return 'text-danger'
+    return 'text-default-500'
+  }
+
+  return (
+    <div>
+      <HeroTextarea {...props} value={value} maxLength={maxLength} classNames={mergedClassNames} />
+
+      {showCharacterCount && maxLength && (
+        <div className="-mt-5 text-right text-sm">
+          <span className={getCountColor()}>{currentLength}</span>
+          <span className="text-default-500"> / {maxLength} characters</span>
+          {minLength && (
+            <span className="text-default-500"> (minimum {minLength})</span>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
