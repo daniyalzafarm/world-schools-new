@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCampsStore } from '../../../../stores/camps-store'
 import type { AgeGroup, Gender, UpdateCampAudienceDto } from '../../../../types/camps'
-import { LanguageChip, RadioButton } from '@world-schools/ui-web'
+import { Input, LanguageChip, RadioButton } from '@world-schools/ui-web'
+import { Button } from '@heroui/react'
+import { Trash2 } from 'lucide-react'
 
 const LANGUAGE_OPTIONS = [
   { value: 'english', label: 'English' },
@@ -30,6 +32,7 @@ export default function AudiencePage() {
     languages: ['english'],
     gender: 'coed',
   })
+  const [localHasUnsavedChanges, setLocalHasUnsavedChanges] = useState(false)
 
   useEffect(() => {
     setWizardStep(2)
@@ -97,11 +100,25 @@ export default function AudiencePage() {
 
     try {
       await updateCampAudience(campId, formData)
+      setLocalHasUnsavedChanges(false)
       router.push(`/camps/create/programs?id=${campId}`)
     } catch (error) {
       console.error('Failed to save audience:', error)
     }
   }
+
+  // Track when form data changes (to enable "Save & Continue" button)
+  useEffect(() => {
+    if (wizardCamp) {
+      // Check if any field has changed from the original wizardCamp data
+      const hasChanges =
+        JSON.stringify(formData.ageGroups) !== JSON.stringify(wizardCamp.ageGroups) ||
+        JSON.stringify(formData.languages) !== JSON.stringify(wizardCamp.languages) ||
+        formData.gender !== wizardCamp.gender
+
+      setLocalHasUnsavedChanges(hasChanges)
+    }
+  }, [formData, wizardCamp])
 
   // Expose form validation and submit handler to parent layout
   useEffect(() => {
@@ -114,8 +131,9 @@ export default function AudiencePage() {
     useCampsStore.setState({
       wizardFormValid: isFormValid,
       wizardFormSubmit: handleSubmit,
+      hasUnsavedChanges: localHasUnsavedChanges,
     })
-  }, [formData, campId])
+  }, [formData, campId, localHasUnsavedChanges])
 
   const toggleLanguage = (value: string) => {
     const newLanguages = formData.languages.includes(value)
@@ -134,80 +152,63 @@ export default function AudiencePage() {
         </p>
       </div>
 
-      <form className="space-y-8">
+      <form className="flex flex-col gap-4">
         {/* Age Groups */}
         <div className="form-group">
-          <div className="mb-2.5 flex items-center gap-2">
-            <label className="text-sm font-medium text-foreground">
-              Age Groups <span className="text-danger">*</span>
-            </label>
-            <span className="group relative inline-flex cursor-help items-center">
-              <span className="text-sm text-default-400">ⓘ</span>
-              <span className="pointer-events-none absolute bottom-full left-1/2 mb-2 hidden w-48 -translate-x-1/2 rounded-lg bg-foreground px-3 py-2 text-xs text-background shadow-lg group-hover:block">
-                Define age ranges for your camp programs, rooms, or pricing
-              </span>
-            </span>
-          </div>
-          <div className="mb-2.5 text-sm leading-normal text-default-500">
+          <label className="text-base font-medium text-foreground">
+            Age Groups <span className="text-danger">*</span>
+          </label>
+          <div className="mb-2 text-sm leading-normal text-default-500">
             Add one group if all ages are together, or multiple groups if you separate by age
           </div>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {formData.ageGroups.map((ageGroup, index) => (
-              <div key={index} className="grid grid-cols-[1fr_1fr_auto] items-center gap-3">
-                <input
+              <div key={index} className="flex items-center gap-3">
+                <Input
                   type="number"
                   placeholder="Min age"
                   min={4}
                   max={18}
-                  value={ageGroup.min}
+                  value={ageGroup.min.toString()}
                   onChange={e => handleAgeGroupChange(index, 'min', e.target.value)}
-                  className="h-10 rounded-lg border-2 border-default-200 bg-background px-3 text-sm text-foreground transition-colors focus:border-primary focus:outline-none"
                 />
-                <input
+                <Input
                   type="number"
                   placeholder="Max age"
                   min={4}
                   max={18}
-                  value={ageGroup.max}
+                  value={ageGroup.max.toString()}
                   onChange={e => handleAgeGroupChange(index, 'max', e.target.value)}
-                  className="h-10 rounded-lg border-2 border-default-200 bg-background px-3 text-sm text-foreground transition-colors focus:border-primary focus:outline-none"
                 />
-                <button
-                  type="button"
-                  onClick={() => handleRemoveAgeGroup(index)}
-                  className="flex h-9 w-9 items-center justify-center rounded-md border border-default-200 bg-background text-xl font-semibold text-default-500 transition-all hover:border-danger hover:bg-danger-50 hover:text-danger"
-                  style={{
-                    visibility: formData.ageGroups.length === 1 ? 'hidden' : 'visible',
-                  }}
-                >
-                  ×
-                </button>
+                {formData.ageGroups.length != 1 && (
+                  <Button
+                    onPress={() => handleRemoveAgeGroup(index)}
+                    isIconOnly
+                    variant="light"
+                    color="danger"
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                )}
               </div>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={handleAddAgeGroup}
-            className="mt-3 w-full rounded-lg border-[1.5px] border-dashed border-default-200 bg-background px-4 py-2.5 text-sm font-semibold text-default-500 transition-all hover:border-foreground hover:bg-default-50 hover:text-foreground"
+          <Button
+            onPress={handleAddAgeGroup}
+            size="md"
+            variant="bordered"
+            className="mt-3 w-full border-dashed"
           >
             + Add age group
-          </button>
+          </Button>
         </div>
 
         {/* Languages */}
         <div className="form-group">
-          <div className="mb-2.5 flex items-center gap-2">
-            <label className="text-sm font-medium text-foreground">
-              Main Languages <span className="text-danger">*</span>
-            </label>
-            <span className="group relative inline-flex cursor-help items-center">
-              <span className="text-sm text-default-400">ⓘ</span>
-              <span className="pointer-events-none absolute bottom-full left-1/2 mb-2 hidden w-48 -translate-x-1/2 rounded-lg bg-foreground px-3 py-2 text-xs text-background shadow-lg group-hover:block">
-                Select all languages used for activities and communication
-              </span>
-            </span>
-          </div>
-          <div className="mb-2.5 text-sm leading-normal text-default-500">
+          <label className="text-base font-medium text-foreground">
+            Main Languages <span className="text-danger">*</span>
+          </label>
+          <div className="mb-2 text-sm leading-normal text-default-500">
             Select all languages used for activities and communication
           </div>
           <div className="flex flex-wrap gap-2">
@@ -225,18 +226,10 @@ export default function AudiencePage() {
 
         {/* Gender */}
         <div className="form-group">
-          <div className="mb-2.5 flex items-center gap-2">
-            <label className="text-sm font-medium text-foreground">
-              Gender <span className="text-danger">*</span>
-            </label>
-            <span className="group relative inline-flex cursor-help items-center">
-              <span className="text-sm text-default-400">ⓘ</span>
-              <span className="pointer-events-none absolute bottom-full left-1/2 mb-2 hidden w-48 -translate-x-1/2 rounded-lg bg-foreground px-3 py-2 text-xs text-background shadow-lg group-hover:block">
-                Who can attend your camp
-              </span>
-            </span>
-          </div>
-          <div className="mt-2.5 flex gap-3">
+          <label className="text-base font-medium text-foreground">
+            Gender <span className="text-danger">*</span>
+          </label>
+          <div className="mt-2 flex gap-3">
             <RadioButton
               id="genderCoed"
               name="gender"

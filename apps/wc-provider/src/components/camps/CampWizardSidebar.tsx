@@ -70,7 +70,7 @@ export function CampWizardSidebar({ currentStep, campId }: CampWizardSidebarProp
 
       {/* Navigation */}
       <nav className="flex-1 py-6">
-        <div className="mb-3 px-5 text-[11px] font-bold uppercase tracking-[0.5px] text-default-500">
+        <div className="mb-3 px-5 text-xs font-bold uppercase tracking-[0.5px] text-default-500">
           CREATE NEW CAMP
         </div>
 

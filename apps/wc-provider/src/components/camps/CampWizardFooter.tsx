@@ -31,15 +31,27 @@ export function CampWizardFooter({ currentStep, campId }: CampWizardFooterProps)
   }
 
   const handleNext = async () => {
-    // If there's a form submit handler from the page, use it
-    if (wizardFormSubmit) {
-      await wizardFormSubmit()
-    } else if (currentStep < 5 && campId) {
-      // Default navigation for steps without custom handlers
+    // Navigate to next step WITHOUT saving
+    if (currentStep < 5 && campId) {
       const nextStep = currentStep + 1
       router.push(`/camps/create/${STEP_PATHS[nextStep]}?id=${campId}`)
     } else if (currentStep === 5 && campId) {
       // After sessions step, redirect to camps list or publish
+      router.push('/camps')
+    }
+  }
+
+  const handleSaveAndNext = async () => {
+    // Save current step data, then navigate to next step
+    if (wizardFormSubmit) {
+      await wizardFormSubmit()
+    }
+
+    // Navigate to next step after successful save
+    if (currentStep < 5 && campId) {
+      const nextStep = currentStep + 1
+      router.push(`/camps/create/${STEP_PATHS[nextStep]}?id=${campId}`)
+    } else if (currentStep === 5 && campId) {
       router.push('/camps')
     }
   }
@@ -51,41 +63,63 @@ export function CampWizardFooter({ currentStep, campId }: CampWizardFooterProps)
     }
   }
 
-  // Determine if next button should be disabled
+  // Determine navigation availability
+  const hasNext = currentStep < 5
+
+  // Next button: enabled when form is valid (doesn't require unsaved changes)
   // For step 1, we need wizardFormValid. For other steps, we need both campId and wizardFormValid
   const isNextDisabled =
     currentStep === 1 ? !wizardFormValid || isLoading : !campId || !wizardFormValid || isLoading
 
-  // For step 4, determine if save button should be disabled
+  // Save & Continue button: only enabled when there are unsaved changes
+  const isSaveAndContinueDisabled = !hasUnsavedChanges || !wizardFormValid || isLoading
+
+  // Save button (step 4): only enabled when there are unsaved changes
   const isSaveDisabled = !hasUnsavedChanges || !wizardFormValid || isLoading
 
   return (
-    <div className="border-t border-default-100 bg-white px-12 py-4">
+    <div className="h-20 bg-white px-12 py-4 border-t-2 border-default-100">
       <div className="flex items-center justify-between">
-        {/* Back Button */}
-        <Button variant="light" onPress={handleBack}>
-          ← {currentStep === 1 ? 'Cancel' : 'Back'}
-        </Button>
-
-        {/* Next/Continue Button for steps 1-3 */}
-        {currentStep < 4 && (
-          <Button color="primary" size="lg" onPress={handleNext} isDisabled={isNextDisabled}>
-            Save & Continue →
+        {/* Left side: Navigation buttons (Back and Next) */}
+        <div className="flex items-center gap-3">
+          <Button variant="bordered" onPress={handleBack} isDisabled={currentStep === 1}>
+            Back
           </Button>
-        )}
+          {hasNext && (
+            <Button color="secondary" onPress={handleNext} isDisabled={isNextDisabled}>
+              Next
+            </Button>
+          )}
+        </div>
 
-        {/* Save Button for step 4 (photos) */}
-        {currentStep === 4 && (
-          <Button
-            color="primary"
-            size="lg"
-            onPress={handleSave}
-            isDisabled={isSaveDisabled}
-            isLoading={isLoading}
-          >
-            {isLoading ? 'Saving...' : 'Save Photos'}
-          </Button>
-        )}
+        {/* Right side: Save action buttons */}
+        <div className="flex items-center gap-3">
+          {/* Save & Continue Button for steps 1-3 */}
+          {currentStep < 4 && (
+            <Button
+              color="primary"
+              size="lg"
+              onPress={handleSaveAndNext}
+              isDisabled={isSaveAndContinueDisabled}
+              isLoading={isLoading}
+            >
+              Save & Continue →
+            </Button>
+          )}
+
+          {/* Save Photos Button for step 4 */}
+          {currentStep === 4 && (
+            <Button
+              color="primary"
+              size="lg"
+              onPress={handleSave}
+              isDisabled={isSaveDisabled}
+              isLoading={isLoading}
+            >
+              {isLoading ? 'Saving...' : 'Save Photos'}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )

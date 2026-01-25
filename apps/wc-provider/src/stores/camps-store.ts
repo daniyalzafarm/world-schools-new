@@ -254,7 +254,7 @@ export const useCampsStore = create<CampsState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const camp = await campsService.updateBasicInfo(campId, data)
-      set({ currentCamp: camp, isLoading: false, hasUnsavedChanges: false })
+      set({ wizardCamp: camp, currentCamp: camp, isLoading: false, hasUnsavedChanges: false })
       return camp
     } catch (error: any) {
       set({ error: error.message, isLoading: false })

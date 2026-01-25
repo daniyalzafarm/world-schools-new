@@ -79,9 +79,9 @@ export function CampWizardTopBar({ currentStep, campId }: CampWizardTopBarProps)
   }
 
   return (
-    <div className="flex min-h-[61px] items-center justify-between border-b border-default-200 bg-white px-12 py-5">
+    <div className="flex h-18 items-center justify-between border-b border-default-200 bg-white px-12 py-5">
       {/* Breadcrumb */}
-      <div className="text-[13px] text-default-500">
+      <div className="text-sm text-default-500">
         Create Camp / {STEP_TITLES[currentStep] || 'Unknown Step'}
       </div>
 

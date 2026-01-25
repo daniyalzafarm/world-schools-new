@@ -52,15 +52,18 @@ export const Textarea: React.FC<CustomTextareaProps> = ({
 
   return (
     <div>
-      <HeroTextarea {...props} value={value} maxLength={maxLength} classNames={mergedClassNames} />
+      <HeroTextarea
+        {...{ labelPlacement: 'outside', ...props }}
+        value={value}
+        maxLength={maxLength}
+        classNames={mergedClassNames}
+      />
 
       {showCharacterCount && maxLength && (
-        <div className="-mt-5 text-right text-sm">
+        <div className={cn('text-right text-sm', props.description ? '-mt-5' : 'mt-2')}>
           <span className={getCountColor()}>{currentLength}</span>
           <span className="text-default-500"> / {maxLength} characters</span>
-          {minLength && (
-            <span className="text-default-500"> (minimum {minLength})</span>
-          )}
+          {minLength && <span className="text-default-500"> (minimum {minLength})</span>}
         </div>
       )}
     </div>

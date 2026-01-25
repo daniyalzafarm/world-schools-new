@@ -23,7 +23,7 @@ export function OnboardingTopBar({ breadcrumb, showTrustScore = true }: Onboardi
   const color = getScoreColor(trustScore)
 
   return (
-    <div className="flex h-18 items-center justify-between border-b border-default-200 bg-white px-12 py-5">
+    <div className="flex h-18 bg-white px-12 items-center justify-between border-b border-default-200">
       {/* Breadcrumb */}
       <div className="text-[13px] text-default-500">{breadcrumb}</div>
 

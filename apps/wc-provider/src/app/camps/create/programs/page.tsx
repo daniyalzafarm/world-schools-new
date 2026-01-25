@@ -29,6 +29,7 @@ export default function ProgramsPage() {
   const [formData, setFormData] = useState<UpdateCampProgramsDto>({
     activities: [],
   })
+  const [localHasUnsavedChanges, setLocalHasUnsavedChanges] = useState(false)
 
   useEffect(() => {
     setWizardStep(3)
@@ -66,11 +67,24 @@ export default function ProgramsPage() {
 
     try {
       await updateCampPrograms(campId, formData)
+      setLocalHasUnsavedChanges(false)
       router.push(`/camps/create/photos?id=${campId}`)
     } catch (error) {
       console.error('Failed to save programs:', error)
     }
   }
+
+  // Track when form data changes (to enable "Save & Continue" button)
+  useEffect(() => {
+    if (wizardCamp) {
+      // Check if activities have changed from the original wizardCamp data
+      const hasChanges =
+        JSON.stringify(formData.activities.sort()) !==
+        JSON.stringify((wizardCamp.activities || []).sort())
+
+      setLocalHasUnsavedChanges(hasChanges)
+    }
+  }, [formData, wizardCamp])
 
   // Expose form validation and submit handler to parent layout
   useEffect(() => {
@@ -79,8 +93,9 @@ export default function ProgramsPage() {
     useCampsStore.setState({
       wizardFormValid: isFormValid,
       wizardFormSubmit: handleSubmit,
+      hasUnsavedChanges: localHasUnsavedChanges,
     })
-  }, [formData, campId])
+  }, [formData, campId, localHasUnsavedChanges])
 
   const toggleActivity = (value: string) => {
     const newActivities = formData.activities.includes(value)
@@ -101,23 +116,15 @@ export default function ProgramsPage() {
         </p>
       </div>
 
-      <form className="space-y-8">
+      <form className="flex flex-col gap-8">
         <div className="form-group">
-          <div className="mb-2.5 flex items-center gap-2">
-            <label className="text-sm font-medium text-foreground">
-              Activity Categories <span className="text-danger">*</span>
-            </label>
-            <span className="group relative inline-flex cursor-help items-center">
-              <span className="text-sm text-default-400">ⓘ</span>
-              <span className="pointer-events-none absolute bottom-full left-1/2 mb-2 hidden w-48 -translate-x-1/2 rounded-lg bg-foreground px-3 py-2 text-xs text-background shadow-lg group-hover:block">
-                Select categories you offer - only these editors will appear in your dashboard
-              </span>
-            </span>
-          </div>
-          <div className="mb-2.5 text-sm leading-normal text-default-500">
+          <label className="text-base font-medium text-foreground">
+            Activity Categories <span className="text-danger">*</span>
+          </label>
+          <div className="mb-2 text-sm leading-normal text-default-500">
             Only editors for selected activities will appear in your dashboard
           </div>
-          <div className="mt-2.5 grid grid-cols-2 gap-3">
+          <div className="mt-2 grid grid-cols-2 gap-3">
             {ACTIVITY_OPTIONS.map(activity => (
               <CheckboxButton
                 key={activity.value}

@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@heroui/react'
+import { Input, Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../stores/camps-store'
 import { useOnboardingStore } from '../../../../stores/onboarding-store'
 import type { CampType, CreateCampDto, LocationType } from '../../../../types/camps'
 import { GoogleMapsLoader } from '../../../../components/onboarding/GoogleMapsLoader'
 import { GoogleMapWithSearch } from '../../../../components/onboarding/GoogleMapWithSearch'
 import { checkSlugAvailability } from '../../../../services/camps.services'
+import { Search } from 'lucide-react'
 
 /* eslint-disable no-undef */
 // Google Maps API types are loaded via script tag
@@ -31,12 +33,12 @@ export default function BasicInfoPage() {
 
   const {
     createCamp,
+    updateBasicInfo,
     fetchCamp,
     wizardCamp,
     setWizardCamp,
     setWizardStep,
     resetWizard,
-    isLoading,
   } = useCampsStore()
 
   const { googleBusinessProfile, fetchGoogleBusinessProfile } = useOnboardingStore()
@@ -53,6 +55,7 @@ export default function BasicInfoPage() {
     locationLat: undefined,
     locationLng: undefined,
   })
+  const [localHasUnsavedChanges, setLocalHasUnsavedChanges] = useState(false)
 
   const [slugError, setSlugError] = useState<string>('')
   const [isCheckingSlug, setIsCheckingSlug] = useState(false)
@@ -83,7 +86,9 @@ export default function BasicInfoPage() {
   } | null>(null)
 
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null)
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
+  const mobileAutocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
 
   useEffect(() => {
@@ -179,68 +184,88 @@ export default function BasicInfoPage() {
         return
       }
 
-      if (!searchInputRef.current) {
-        retryTimeout = setTimeout(initAutocomplete, 100)
-        return
-      }
+      // Helper function to create autocomplete for a given input
+      const createAutocomplete = (
+        inputRef: React.RefObject<HTMLInputElement | null>,
+        autocompleteRefObj: { current: google.maps.places.Autocomplete | null },
+        label: string
+      ): boolean => {
+        if (!inputRef.current) {
+          return false
+        }
 
-      // Clean up existing instance if any
-      if (autocompleteRef.current) {
-        google.maps.event.clearInstanceListeners(autocompleteRef.current)
-        autocompleteRef.current = null
-      }
+        // Clean up existing instance if any
+        if (autocompleteRefObj.current) {
+          google.maps.event.clearInstanceListeners(autocompleteRefObj.current)
+          autocompleteRefObj.current = null
+        }
 
-      try {
-        const autocomplete = new google.maps.places.Autocomplete(searchInputRef.current, {
-          types: ['establishment'],
-          fields: ['place_id', 'name', 'formatted_address', 'geometry'],
-        })
-
-        // Handle place selection
-        autocomplete.addListener('place_changed', () => {
-          const place = autocomplete.getPlace()
-
-          if (!place.place_id || !place.geometry?.location) {
-            console.warn('No place details available')
-            return
-          }
-
-          const lat = place.geometry.location.lat()
-          const lng = place.geometry.location.lng()
-
-          const locationData = {
-            locationPlaceId: place.place_id || '',
-            locationName: place.name || '',
-            locationAddress: place.formatted_address || '',
-            locationLat: lat,
-            locationLng: lng,
-          }
-
-          // Update form data with selected location
-          setFormData(prev => ({
-            ...prev,
-            ...locationData,
-          }))
-
-          // Cache the location for persistence when toggling location types
-          setCachedLocation(locationData)
-
-          // Update map location
-          setMapLocation({
-            lat,
-            lng,
-            name: place.name || '',
+        try {
+          const autocomplete = new google.maps.places.Autocomplete(inputRef.current, {
+            types: ['establishment'],
+            fields: ['place_id', 'name', 'formatted_address', 'geometry'],
           })
 
-          // Clear search query and exit edit mode
-          setSearchQuery('')
-          setIsEditingLocation(false)
-          setPreviousLocation(null)
-        })
+          // Handle place selection
+          autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace()
 
-        autocompleteRef.current = autocomplete
-      } catch (error) {
-        console.error('Error initializing autocomplete:', error)
+            if (!place.place_id || !place.geometry?.location) {
+              console.warn('No place details available')
+              return
+            }
+
+            const lat = place.geometry.location.lat()
+            const lng = place.geometry.location.lng()
+
+            const locationData = {
+              locationPlaceId: place.place_id || '',
+              locationName: place.name || '',
+              locationAddress: place.formatted_address || '',
+              locationLat: lat,
+              locationLng: lng,
+            }
+
+            // Update form data with selected location
+            setFormData(prev => ({
+              ...prev,
+              ...locationData,
+            }))
+
+            // Cache the location for persistence when toggling location types
+            setCachedLocation(locationData)
+
+            // Update map location
+            setMapLocation({
+              lat,
+              lng,
+              name: place.name || '',
+            })
+
+            // Clear search query and exit edit mode
+            setSearchQuery('')
+            setIsEditingLocation(false)
+            setPreviousLocation(null)
+          })
+
+          autocompleteRefObj.current = autocomplete
+          return true
+        } catch (error) {
+          console.error(`Error initializing autocomplete (${label}):`, error)
+          return false
+        }
+      }
+
+      // Initialize desktop autocomplete (always present)
+      const desktopInitialized = createAutocomplete(searchInputRef, autocompleteRef, 'desktop')
+
+      // Initialize mobile autocomplete (only if element exists in DOM)
+      // Mobile input is conditionally rendered with md:hidden, so it won't exist on desktop
+      createAutocomplete(mobileSearchInputRef, mobileAutocompleteRef, 'mobile')
+
+      // Only retry if desktop autocomplete failed (which means inputs aren't ready yet)
+      if (!desktopInitialized && !isCleanedUp) {
+        retryTimeout = setTimeout(initAutocomplete, 100)
       }
     }
 
@@ -255,6 +280,10 @@ export default function BasicInfoPage() {
       if (autocompleteRef.current) {
         google.maps.event.clearInstanceListeners(autocompleteRef.current)
         autocompleteRef.current = null
+      }
+      if (mobileAutocompleteRef.current) {
+        google.maps.event.clearInstanceListeners(mobileAutocompleteRef.current)
+        mobileAutocompleteRef.current = null
       }
     }
   }, [formData.locationType, formData.locationPlaceId, isEditingLocation])
@@ -310,18 +339,44 @@ export default function BasicInfoPage() {
 
     try {
       if (campId) {
-        // Update existing camp (if needed)
+        // Update existing camp with new data
+        const camp = await updateBasicInfo(campId, formData)
+        setWizardCamp(camp)
+        setLocalHasUnsavedChanges(false)
         router.push(`/camps/create/audience?id=${campId}`)
       } else {
         // Create new camp
         const camp = await createCamp(formData)
         setWizardCamp(camp)
+        setLocalHasUnsavedChanges(false)
         router.push(`/camps/create/audience?id=${camp.id}`)
       }
     } catch (error) {
       console.error('Failed to save basic info:', error)
     }
   }
+
+  // Track when form data changes (to enable "Save & Continue" button)
+  useEffect(() => {
+    // Only mark as having unsaved changes if we have a campId (editing existing camp)
+    // For new camps, we always need to save to create the camp
+    if (campId && wizardCamp) {
+      // Check if any field has changed from the original wizardCamp data
+      const hasChanges =
+        formData.name !== wizardCamp.name ||
+        formData.slug !== wizardCamp.slug ||
+        formData.type !== wizardCamp.type ||
+        formData.description !== wizardCamp.description ||
+        formData.locationType !== wizardCamp.locationType ||
+        formData.locationPlaceId !== wizardCamp.locationPlaceId
+
+      setLocalHasUnsavedChanges(hasChanges)
+    } else if (!campId) {
+      // For new camps, always mark as having unsaved changes if form has data
+      const hasData = formData.name.trim() !== '' || formData.description.trim() !== ''
+      setLocalHasUnsavedChanges(hasData)
+    }
+  }, [formData, wizardCamp, campId])
 
   // Expose form validation and submit handler to parent layout
   useEffect(() => {
@@ -336,8 +391,9 @@ export default function BasicInfoPage() {
     useCampsStore.setState({
       wizardFormValid: isFormValid,
       wizardFormSubmit: handleSubmit,
+      hasUnsavedChanges: localHasUnsavedChanges,
     })
-  }, [formData, slugError])
+  }, [formData, slugError, localHasUnsavedChanges])
 
   return (
     <GoogleMapsLoader apiKey={googleMapsApiKey}>
@@ -353,69 +409,43 @@ export default function BasicInfoPage() {
         </div>
 
         {/* Form */}
-        <div className="space-y-8">
-          <div className="flex gap-4">
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-4 md:grid-cols-2">
             {/* Camp Name */}
-            <div className="w-full">
-              <div className="mb-2 flex items-center gap-2">
-                <label className="text-base font-semibold text-foreground">
-                  Camp Name
-                  <span className="ml-1 text-danger">*</span>
-                </label>
-                <span className="relative inline-flex cursor-help items-center justify-center text-xs text-default-400">
-                  ⓘ
-                </span>
-              </div>
-              <input
-                type="text"
-                className="w-full rounded-lg border border-default-300 bg-background px-4 py-3 text-base text-foreground transition-all placeholder:text-default-400 hover:border-default-400 focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/20"
-                placeholder="e.g., American International Summer Camp – Salzburg"
-                value={formData.name}
-                onChange={e => handleNameChange(e.target.value)}
-                maxLength={120}
-              />
-              <div className="mt-1.5 text-right text-xs text-default-400">
-                {formData.name.length} / 120 characters
-              </div>
-            </div>
+            <Input
+              label="Camp Name"
+              placeholder="e.g., American International Summer Camp – Salzburg"
+              value={formData.name}
+              onChange={e => handleNameChange(e.target.value)}
+              maxLength={120}
+              isRequired
+              description={`${formData.name.length} / 120 characters`}
+            />
 
             {/* Camp Slug */}
-            <div className="w-full">
-              <div className="mb-2 flex items-center gap-2">
-                <label className="text-base font-semibold text-foreground">
-                  Camp URL Slug
-                  <span className="ml-1 text-danger">*</span>
-                </label>
-                <span className="relative inline-flex cursor-help items-center justify-center text-xs text-default-400">
-                  ⓘ
-                </span>
-              </div>
-              <div className="relative">
-                <input
-                  type="text"
-                  className={`w-full rounded-lg border bg-background px-4 py-3 text-base text-foreground transition-all placeholder:text-default-400 hover:border-default-400 focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/20 ${
-                    slugError ? 'border-danger' : 'border-default-300'
-                  }`}
-                  placeholder="e.g., american-international-summer-camp-salzburg"
-                  value={formData.slug}
-                  onChange={e => {
-                    setFormData({ ...formData, slug: e.target.value })
-                    setSlugError('')
-                  }}
-                  onBlur={() => validateSlug(formData.slug)}
-                  maxLength={150}
-                />
-                {isCheckingSlug && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                  </div>
-                )}
-              </div>
-              {slugError ? (
-                <div className="mt-1.5 text-sm text-danger">{slugError}</div>
-              ) : (
-                <div className="mt-1.5 text-sm text-default-500">
-                  For the camp's public URL. Auto-generated from camp name.
+            <div className="relative">
+              <Input
+                label="Camp URL Slug"
+                placeholder="e.g., american-international-summer-camp-salzburg"
+                value={formData.slug}
+                onChange={e => {
+                  setFormData({ ...formData, slug: e.target.value })
+                  setSlugError('')
+                }}
+                onBlur={() => validateSlug(formData.slug)}
+                maxLength={150}
+                isRequired
+                isInvalid={!!slugError}
+                errorMessage={slugError}
+                description={
+                  !slugError
+                    ? "For the camp's public URL. Auto-generated from camp name."
+                    : undefined
+                }
+              />
+              {isCheckingSlug && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="h-5 w-5 animate-spin rounded-full border border-primary border-t-transparent"></div>
                 </div>
               )}
             </div>
@@ -424,17 +454,14 @@ export default function BasicInfoPage() {
           {/* Camp Type */}
           <div className="form-group">
             <div className="mb-2 flex items-center gap-2">
-              <label className="text-base font-semibold text-foreground">
+              <label className="text-sm font-medium text-foreground">
                 Camp Type
                 <span className="ml-1 text-danger">*</span>
               </label>
-              <span className="relative inline-flex cursor-help items-center justify-center text-xs text-default-400">
-                ⓘ
-              </span>
             </div>
             <div className="flex gap-4">
               <label
-                className={`flex flex-1 cursor-pointer items-center gap-2.5 rounded-lg border-2 bg-background px-4 py-3 transition-all ${
+                className={`flex flex-1 cursor-pointer items-center gap-2.5 rounded-lg border bg-background px-4 py-3 transition-all ${
                   formData.type === 'day'
                     ? 'border-primary bg-primary/10'
                     : 'border-default-200 hover:border-primary'
@@ -457,7 +484,7 @@ export default function BasicInfoPage() {
                 </div>
               </label>
               <label
-                className={`flex flex-1 cursor-pointer items-center gap-2.5 rounded-lg border-2 bg-background px-4 py-3 transition-all ${
+                className={`flex flex-1 cursor-pointer items-center gap-2.5 rounded-lg border bg-background px-4 py-3 transition-all ${
                   formData.type === 'residential'
                     ? 'border-primary bg-primary/10'
                     : 'border-default-200 hover:border-primary'
@@ -486,17 +513,14 @@ export default function BasicInfoPage() {
           {/* Location */}
           <div className="form-group">
             <div className="mb-2 flex items-center gap-2">
-              <label className="text-base font-semibold text-foreground">
+              <label className="text-sm font-medium text-foreground">
                 Location
                 <span className="ml-1 text-danger">*</span>
               </label>
-              <span className="relative inline-flex cursor-help items-center justify-center text-xs text-default-400">
-                ⓘ
-              </span>
             </div>
             <div className="flex gap-4">
               <label
-                className={`flex flex-1 cursor-pointer items-center gap-2.5 rounded-lg border-2 bg-background px-4 py-3 transition-all ${
+                className={`flex flex-1 cursor-pointer items-center gap-2.5 rounded-lg border bg-background px-4 py-3 transition-all ${
                   formData.locationType === 'provider'
                     ? 'border-primary bg-primary/10'
                     : 'border-default-200 hover:border-primary'
@@ -531,7 +555,7 @@ export default function BasicInfoPage() {
                 </div>
               </label>
               <label
-                className={`flex flex-1 cursor-pointer items-center gap-2.5 rounded-lg border-2 bg-background px-4 py-3 transition-all ${
+                className={`flex flex-1 cursor-pointer items-center gap-2.5 rounded-lg border bg-background px-4 py-3 transition-all ${
                   formData.locationType === 'different'
                     ? 'border-primary bg-primary/10'
                     : 'border-default-200 hover:border-primary'
@@ -609,7 +633,7 @@ export default function BasicInfoPage() {
 
             {/* Google Maps for Different Location */}
             {formData.locationType === 'different' && (
-              <div className="mt-4 space-y-4">
+              <div className="mt-4 flex flex-col gap-4">
                 {/* Show selected location card when location is selected */}
                 {formData.locationPlaceId && (
                   <div className="flex items-center gap-4 rounded-lg bg-default-100 p-4">
@@ -677,8 +701,8 @@ export default function BasicInfoPage() {
                 {/* Show map when no location selected OR when editing */}
                 {(!formData.locationPlaceId || isEditingLocation) && (
                   <>
-                    {/* Map Container with Search */}
-                    <div className="h-80 overflow-hidden rounded-2xl">
+                    {/* Map Container with Search - Desktop */}
+                    <div className="hidden h-80 overflow-hidden rounded-2xl md:block">
                       <div className="relative h-full w-full">
                         {/* Google Maps */}
                         <GoogleMapWithSearch
@@ -688,36 +712,56 @@ export default function BasicInfoPage() {
 
                         {/* Search Overlay */}
                         <div className="absolute left-1/2 top-8 w-[90%] max-w-[500px] -translate-x-1/2">
-                          <div className="relative">
-                            {/* Search Icon */}
-                            <svg
-                              className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-foreground"
-                              width="20"
-                              height="20"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                              />
-                            </svg>
-
-                            {/* Search Input with Google Places Autocomplete */}
-                            <input
-                              ref={searchInputRef}
-                              type="text"
-                              value={searchQuery}
-                              onChange={e => setSearchQuery(e.target.value)}
-                              placeholder="Search for camp location..."
-                              className="w-full rounded-full border-2 border-primary bg-white px-6 py-4 pl-[52px] text-base shadow-[0_4px_16px_rgba(0,0,0,0.15)] focus:border-primary focus:outline-none"
-                            />
-                          </div>
+                          <Input
+                            ref={searchInputRef}
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Search for camp location..."
+                            startContent={<Search size={18} className="text-gray-500" />}
+                            classNames={{
+                              base: 'w-full',
+                              inputWrapper:
+                                'rounded-full h-12 border-2 border-primary bg-white shadow-[0_4px_16px_rgba(0,0,0,0.15)] hover:border-primary focus-within:border-primary',
+                              input: 'text-base',
+                            }}
+                          />
+                          {/* Google Places Autocomplete provides its own dropdown */}
                         </div>
                       </div>
+                    </div>
+
+                    {/* Mobile Search - Clean, no map */}
+                    <div className="md:hidden">
+                      <Input
+                        ref={mobileSearchInputRef}
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        placeholder="Search for camp location..."
+                        startContent={
+                          <svg
+                            className="text-foreground"
+                            width="20"
+                            height="20"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            />
+                          </svg>
+                        }
+                        classNames={{
+                          base: 'w-full',
+                          inputWrapper:
+                            'rounded-full h-12 border-2 border-primary bg-white shadow-[0_4px_16px_rgba(0,0,0,0.15)] hover:border-primary focus-within:border-primary',
+                          input: 'text-base',
+                        }}
+                      />
+                      {/* Google Places Autocomplete provides its own dropdown */}
                     </div>
                   </>
                 )}
@@ -726,27 +770,16 @@ export default function BasicInfoPage() {
           </div>
 
           {/* Short Description */}
-          <div className="form-group">
-            <div className="mb-2 flex items-center gap-2">
-              <label className="text-base font-semibold text-foreground">
-                Short Description
-                <span className="ml-1 text-danger">*</span>
-              </label>
-              <span className="relative inline-flex cursor-help items-center justify-center text-xs text-default-400">
-                ⓘ
-              </span>
-            </div>
-            <textarea
-              className="min-h-[120px] w-full resize-y rounded-lg border border-default-300 bg-background px-4 py-3 text-base leading-relaxed text-foreground transition-all placeholder:text-default-400 hover:border-default-400 focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/20"
-              placeholder="Describe what makes your camp special, your location, and the unique experience you offer..."
-              value={formData.description}
-              onChange={e => setFormData({ ...formData, description: e.target.value })}
-              maxLength={500}
-            />
-            <div className="mt-1.5 text-right text-xs text-default-400">
-              {formData.description.length} / 500 characters
-            </div>
-          </div>
+          <Textarea
+            label="Short Description"
+            placeholder="Describe what makes your camp special, your location, and the unique experience you offer..."
+            value={formData.description}
+            onChange={e => setFormData({ ...formData, description: e.target.value })}
+            maxLength={500}
+            minRows={4}
+            isRequired
+            showCharacterCount
+          />
         </div>
       </div>
     </GoogleMapsLoader>

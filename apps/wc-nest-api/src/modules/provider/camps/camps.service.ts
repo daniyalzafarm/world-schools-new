@@ -225,6 +225,12 @@ export class CampsService {
       },
     })
 
+    // Generate SAS URLs for photos before returning (same as getCamp)
+    if (camp.photos && Array.isArray(camp.photos) && camp.photos.length > 0) {
+      const photosWithUrls = await this.photoUploadService.generatePhotoUrls(camp.photos as any[])
+      return { ...camp, photos: photosWithUrls }
+    }
+
     return camp
   }
 
@@ -403,6 +409,12 @@ export class CampsService {
       where: { id: campId },
       data: { photos: dto.photos as any },
     })
+
+    // Generate SAS URLs for photos before returning (same as getCamp)
+    if (camp.photos && Array.isArray(camp.photos) && camp.photos.length > 0) {
+      const photosWithUrls = await this.photoUploadService.generatePhotoUrls(camp.photos as any[])
+      return { ...camp, photos: photosWithUrls }
+    }
 
     return camp
   }

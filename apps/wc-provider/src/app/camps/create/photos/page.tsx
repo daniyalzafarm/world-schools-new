@@ -158,15 +158,13 @@ export default function PhotosPage() {
       const existingPhotos = photos.filter(p => !p.id.startsWith('temp-'))
 
       // Upload new files along with existing photos metadata
+      // The API now returns the camp with SAS URLs, so no need to fetch again
       await uploadCampPhotos(campId, pendingFiles, existingPhotos)
 
       // Clear pending files and mark as saved
       setPendingFiles([])
       setLocalHasUnsavedChanges(false)
       setSaveSuccess(true)
-
-      // Refresh camp data to get updated photos with SAS URLs
-      await fetchCamp(campId)
 
       // Auto-hide success message after 3 seconds
       setTimeout(() => setSaveSuccess(false), 3000)
@@ -213,28 +211,20 @@ export default function PhotosPage() {
         </p>
       </div>
 
-      <div className="space-y-6">
+      <div className="flex flex-col gap-4">
         {/* Form Group */}
-        <div className="mb-7">
+        <div>
           {/* Label with Tooltip */}
-          <div className="mb-2.5 flex items-center gap-2">
-            <label className="text-base font-semibold text-foreground after:ml-1 after:text-danger after:content-['*']">
-              Camp Photos
-            </label>
-            <span
-              className="relative inline-flex h-4.5 w-4.5 cursor-help items-center justify-center rounded-full border border-default-200 bg-default-100 text-xs font-semibold text-default-500 transition-all hover:border-foreground hover:bg-foreground hover:text-background"
-              title="High-quality photos increase inquiries by 3x"
-            >
-              ⓘ
-            </span>
-          </div>
+          <label className="mb-4 text-base font-medium text-foreground">
+            Camp Photos <span className="text-danger">*</span>
+          </label>
 
           {/* Photo Dropzone - only show when no photos */}
           {photos.length === 0 && (
             <>
               <div
                 onClick={() => document.getElementById('photoInput')?.click()}
-                className="cursor-pointer rounded-xl border-2 border-dashed border-default-200 bg-default-100 px-6 py-12 text-center transition-all hover:border-primary hover:bg-primary/5"
+                className="mt-2 cursor-pointer rounded-xl border-2 border-dashed border-default-200 bg-default-100 px-6 py-12 text-center transition-all hover:border-primary hover:bg-primary/5"
               >
                 <div className="mb-3 text-5xl">📸</div>
                 <div className="mb-1.5 text-base font-semibold text-foreground">
@@ -269,7 +259,7 @@ export default function PhotosPage() {
 
         {/* Photo Gallery with Drag and Drop */}
         {photos.length > 0 && (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             <div className="flex justify-between">
               <p className="text-xs text-default-500">
                 You can drag to arrange the order of the images.
@@ -308,7 +298,7 @@ export default function PhotosPage() {
                   />
 
                   {/* Primary Badge */}
-                  <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-[10px] font-semibold text-foreground">
+                  <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-xs font-semibold text-foreground">
                     Primary
                   </div>
 
@@ -356,7 +346,7 @@ export default function PhotosPage() {
                     />
 
                     {/* Position Number */}
-                    <div className="absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-foreground/50 text-[10px] font-semibold text-background">
+                    <div className="absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-foreground/50 text-xs font-semibold text-background">
                       {actualIndex + 1}
                     </div>
 
@@ -390,7 +380,7 @@ export default function PhotosPage() {
                   >
                     <div className="text-center">
                       <div className="mb-1 text-3xl opacity-30">📸</div>
-                      <div className="text-[10px] text-default-500">Add photo</div>
+                      <div className="text-xs text-default-500">Add photo</div>
                     </div>
                   </div>
                 ))}
@@ -404,7 +394,7 @@ export default function PhotosPage() {
                 >
                   <div className="text-center">
                     <div className="mb-1 text-3xl opacity-30">📸</div>
-                    <div className="text-[10px] text-default-500">Add photo</div>
+                    <div className="text-xs text-default-500">Add photo</div>
                   </div>
                 </div>
               )}
@@ -438,7 +428,7 @@ export default function PhotosPage() {
                       />
 
                       {/* Position Number */}
-                      <div className="absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-foreground/50 text-[10px] font-semibold text-background">
+                      <div className="absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-foreground/50 text-xs font-semibold text-background">
                         {actualIndex + 1}
                       </div>
 
@@ -469,7 +459,7 @@ export default function PhotosPage() {
                 >
                   <div className="text-center">
                     <div className="mb-1 text-3xl opacity-30">📸</div>
-                    <div className="text-[10px] text-default-500">Add photo</div>
+                    <div className="text-xs text-default-500">Add photo</div>
                   </div>
                 </div>
               </div>
@@ -479,7 +469,7 @@ export default function PhotosPage() {
 
         {/* Status Indicators - Show when there are photos */}
         {photos.length > 0 && (
-          <div className="mt-8 flex items-center gap-4">
+          <div className="mt-4 flex items-center gap-4">
             {/* Success Message */}
             {saveSuccess && (
               <div className="flex items-center gap-2 text-sm font-medium text-success">
