@@ -3,30 +3,17 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCampsStore } from '../../../../stores/camps-store'
-import type { UpdateCampProgramsDto } from '../../../../types/camps'
-import { CheckboxButton } from '@world-schools/ui-web'
-
-const ACTIVITY_OPTIONS = [
-  { value: 'sports', label: 'Sports' },
-  { value: 'languages', label: 'Languages' },
-  { value: 'arts', label: 'Arts & Crafts' },
-  { value: 'adventure', label: 'Adventure Activities' },
-  { value: 'water', label: 'Water Activities' },
-  { value: 'environment', label: 'Environmental Activities' },
-  { value: 'academics', label: 'Academics' },
-  { value: 'religion', label: 'Religion Programs' },
-  { value: 'excursions', label: 'Excursions & Trips' },
-]
+import { ProgramsForm, type ProgramsFormData } from '../../../../components/camp-forms/ProgramsForm'
 
 export default function ProgramsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const campId = searchParams.get('id')
 
-  const { updateCampPrograms, fetchCamp, wizardCamp, setWizardCamp, setWizardStep, isLoading } =
+  const { updateCampPrograms, fetchCamp, wizardCamp, setWizardCamp, setWizardStep } =
     useCampsStore()
 
-  const [formData, setFormData] = useState<UpdateCampProgramsDto>({
+  const [formData, setFormData] = useState<ProgramsFormData>({
     activities: [],
   })
   const [localHasUnsavedChanges, setLocalHasUnsavedChanges] = useState(false)
@@ -97,13 +84,6 @@ export default function ProgramsPage() {
     })
   }, [formData, campId, localHasUnsavedChanges])
 
-  const toggleActivity = (value: string) => {
-    const newActivities = formData.activities.includes(value)
-      ? formData.activities.filter(act => act !== value)
-      : [...formData.activities, value]
-    setFormData({ activities: newActivities })
-  }
-
   return (
     <div>
       {/* Header */}
@@ -116,28 +96,14 @@ export default function ProgramsPage() {
         </p>
       </div>
 
-      <form className="flex flex-col gap-8">
-        <div className="form-group">
-          <label className="text-base font-medium text-foreground">
-            Activity Categories <span className="text-danger">*</span>
-          </label>
-          <div className="mb-2 text-sm leading-normal text-default-500">
-            Only editors for selected activities will appear in your dashboard
-          </div>
-          <div className="mt-2 grid grid-cols-2 gap-3">
-            {ACTIVITY_OPTIONS.map(activity => (
-              <CheckboxButton
-                key={activity.value}
-                id={`act${activity.value}`}
-                value={activity.value}
-                label={activity.label}
-                checked={formData.activities.includes(activity.value)}
-                onChange={() => toggleActivity(activity.value)}
-              />
-            ))}
-          </div>
-        </div>
-      </form>
+      {/* Form */}
+      <ProgramsForm
+        formData={formData}
+        onChange={data => {
+          setFormData({ ...formData, ...data })
+          setLocalHasUnsavedChanges(true)
+        }}
+      />
     </div>
   )
 }

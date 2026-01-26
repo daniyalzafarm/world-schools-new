@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Radio, RadioGroup, Textarea } from '@heroui/react'
+import { Radio, RadioGroup } from '@heroui/react'
+import { Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
 import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { CharacterCounter } from '../../../../../components/camp-editor/CharacterCounter'
 import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import {
   PREDEFINED_ACCOMMODATION,
@@ -159,26 +159,16 @@ export default function AccommodationEditorPage() {
 
       <div className="space-y-8">
         <div className="form-group">
-          <div className="mb-2.5 flex items-start justify-between">
-            <label className="text-sm font-medium text-foreground">Accommodation Description</label>
-            <CharacterCounter
-              current={accommodationData.description.length}
-              max={MAX_DESCRIPTION_LENGTH}
-            />
-          </div>
           <Textarea
+            label="Accommodation Description"
             placeholder="Describe your accommodation facilities, sleeping arrangements, and amenities..."
             value={accommodationData.description}
-            onValueChange={handleDescriptionChange}
+            onChange={e => handleDescriptionChange(e.target.value)}
             minRows={6}
             maxLength={MAX_DESCRIPTION_LENGTH}
-            classNames={{
-              input: 'resize-none',
-            }}
+            showCharacterCount
+            description="Include details about cabins/dorms, bedding, bathrooms, and supervision"
           />
-          <p className="mt-2.5 text-sm leading-normal text-default-500">
-            Include details about cabins/dorms, bedding, bathrooms, and supervision
-          </p>
         </div>
 
         <div className="form-group">

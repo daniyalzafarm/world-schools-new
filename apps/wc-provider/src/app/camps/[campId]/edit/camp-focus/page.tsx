@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Radio, RadioGroup, Textarea } from '@heroui/react'
-import { useConfirmDialog } from '@world-schools/ui-web'
+import { Radio, RadioGroup } from '@heroui/react'
+import { Textarea, useConfirmDialog } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
-import { CharacterCounter } from '../../../../../components/camp-editor/CharacterCounter'
 import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import { SingleSelectActivityGrid } from '../../../../../components/camp-editor/SingleSelectActivityGrid'
 import { CampFocusDisplayCard } from '../../../../../components/camp-editor/CampFocusDisplayCard'
@@ -197,25 +196,16 @@ export default function CampFocusEditorPage() {
 
         {/* Camp Focus Description */}
         <div className="form-group">
-          <div className="mb-2.5 flex items-start justify-between">
-            <label className="text-sm font-medium text-foreground">
-              Camp Focus Description (Optional)
-            </label>
-            <CharacterCounter current={focusData.description.length} max={MAX_DESCRIPTION_LENGTH} />
-          </div>
           <Textarea
+            label="Camp Focus Description (Optional)"
             placeholder="Describe why this activity is your camp's focus and what makes your program special..."
             value={focusData.description}
-            onValueChange={handleDescriptionChange}
+            onChange={e => handleDescriptionChange(e.target.value)}
             minRows={4}
             maxLength={MAX_DESCRIPTION_LENGTH}
-            classNames={{
-              input: 'resize-none',
-            }}
+            showCharacterCount
+            description="Explain your camp's approach to this activity and what campers will learn"
           />
-          <p className="mt-2.5 text-sm leading-normal text-default-500">
-            Explain your camp's approach to this activity and what campers will learn
-          </p>
         </div>
 
         {/* Camp Philosophy */}

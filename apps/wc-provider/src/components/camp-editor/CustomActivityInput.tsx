@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, Input } from '@heroui/react'
+import { Button } from '@heroui/react'
+import { Input } from '@world-schools/ui-web'
 
 interface CustomActivityInputProps {
   placeholder: string

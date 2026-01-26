@@ -108,32 +108,32 @@ export default function CampAddOnsEditorPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <header className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <h1 className="text-[24px] font-semibold text-default-900">Optional Add-ons</h1>
-          <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Optional Add-ons</h1>
+          <p className="text-base leading-normal text-default-500">
+            Enable or disable add-ons for this camp. Add-ons are shared across all your camps.
+          </p>
         </div>
-        <p className="text-[15px] text-default-500 max-w-[600px]">
-          Enable or disable add-ons for this camp. Add-ons are shared across all your camps.
-        </p>
-      </header>
+        <AutoSaveIndicator status={autoSaveStatus} />
+      </div>
 
       {/* Info Banner */}
       {showInfoBanner && (
-        <div className="flex items-start gap-3 p-4 bg-primary-50 rounded-xl relative">
-          <span className="text-[20px]">💡</span>
+        <div className="relative flex items-start gap-3 rounded-xl bg-primary-50 p-4">
+          <span className="text-xl">💡</span>
           <div className="flex-1">
-            <div className="text-[14px] font-semibold text-default-900 mb-1">
+            <div className="mb-1 text-sm font-semibold text-foreground">
               Add-ons are shared across all your camps
             </div>
-            <div className="text-[13px] text-default-500 leading-[1.5]">
+            <div className="text-sm leading-normal text-default-500">
               Toggle individual add-ons on/off for this specific camp. To create new add-ons or edit
               existing ones, use the global add-ons management page.
             </div>
           </div>
           <button
             onClick={() => setShowInfoBanner(false)}
-            className="absolute top-3 right-3 w-6 h-6 rounded-full hover:bg-default-200 flex items-center justify-center text-default-400 hover:text-default-600 transition-colors"
+            className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full text-default-400 transition-colors hover:bg-default-200 hover:text-default-600"
             title="Dismiss"
           >
             ×
@@ -145,8 +145,8 @@ export default function CampAddOnsEditorPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[16px] font-semibold text-default-900">Available Add-ons</span>
-            <span className="text-[14px] text-default-400">
+            <span className="text-base font-semibold text-foreground">Available Add-ons</span>
+            <span className="text-sm text-default-400">
               ({enabledCount} of {totalCount} enabled)
             </span>
           </div>
@@ -161,14 +161,14 @@ export default function CampAddOnsEditorPage() {
         </div>
 
         {/* Loading State */}
-        {isLoading && <div className="text-center py-12 text-default-400">Loading add-ons...</div>}
+        {isLoading && <div className="py-12 text-center text-default-400">Loading add-ons...</div>}
 
         {/* Empty State */}
         {!isLoading && addOns.length === 0 && (
-          <div className="text-center py-12 bg-default-50 rounded-xl border-2 border-dashed border-default-200">
-            <div className="text-[48px] mb-4">📦</div>
-            <div className="text-[18px] font-semibold text-default-900 mb-2">No add-ons yet</div>
-            <div className="text-[14px] text-default-500 mb-6 max-w-[400px] mx-auto">
+          <div className="rounded-xl border-2 border-dashed border-default-200 bg-default-50 py-12 text-center">
+            <div className="mb-4 text-5xl">📦</div>
+            <div className="mb-2 text-lg font-semibold text-foreground">No add-ons yet</div>
+            <div className="mx-auto mb-6 max-w-md text-sm text-default-500">
               Create your first add-on to offer optional extras like activities, services, or
               equipment rentals.
             </div>
@@ -196,28 +196,26 @@ export default function CampAddOnsEditorPage() {
                   }`}
                 >
                   {/* Icon */}
-                  <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-default-100 flex items-center justify-center text-[24px]">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-default-100 text-2xl">
                     {addOn.icon || '📦'}
                   </div>
 
                   {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[16px] font-semibold text-default-900 mb-1">
-                      {addOn.name}
-                    </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 text-base font-semibold text-foreground">{addOn.name}</div>
                     {addOn.description && (
-                      <div className="text-[14px] text-default-500 mb-2 line-clamp-1">
+                      <div className="mb-2 line-clamp-1 text-sm text-default-500">
                         {addOn.description}
                       </div>
                     )}
-                    <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex flex-wrap items-center gap-3">
                       <span
-                        className={`text-[11px] font-semibold px-2 py-1 rounded-md ${typeBadge.className}`}
+                        className={`rounded-md px-2 py-1 text-xs font-semibold ${typeBadge.className}`}
                       >
                         {typeBadge.label}
                       </span>
                       {addOn.minAge && addOn.maxAge && (
-                        <span className="text-[13px] text-default-400">
+                        <span className="text-sm text-default-400">
                           Ages {addOn.minAge}-{addOn.maxAge}
                         </span>
                       )}
@@ -225,11 +223,11 @@ export default function CampAddOnsEditorPage() {
                   </div>
 
                   {/* Pricing */}
-                  <div className="flex-shrink-0 text-right min-w-[120px]">
-                    <div className="text-[18px] font-bold text-default-900">
+                  <div className="min-w-[120px] shrink-0 text-right">
+                    <div className="text-lg font-bold text-foreground">
                       {addOn.currency} {price.toFixed(0)}
                     </div>
-                    <div className="text-[12px] text-default-400">
+                    <div className="text-xs text-default-400">
                       {formatPrice(price, addOn.currency, addOn.pricingUnit)
                         .split(' ')
                         .slice(2)
@@ -245,7 +243,7 @@ export default function CampAddOnsEditorPage() {
                   </div>
 
                   {/* Toggle */}
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <Switch
                       isSelected={addOn.isEnabled}
                       onValueChange={checked => handleToggle(addOn.id, checked)}

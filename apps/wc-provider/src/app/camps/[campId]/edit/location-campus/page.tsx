@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Radio, RadioGroup, Textarea } from '@heroui/react'
+import { Radio, RadioGroup } from '@heroui/react'
+import { Textarea } from '@world-schools/ui-web'
 import {
   CAMPUS_SETTING,
   CAMPUS_SIZE,
@@ -10,7 +11,6 @@ import {
 } from '@world-schools/wc-frontend-utils'
 import { useCampsStore } from '../../../../../stores/camps-store'
 import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { CharacterCounter } from '../../../../../components/camp-editor/CharacterCounter'
 import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 
 const MAX_DESCRIPTION_LENGTH = 1200
@@ -132,28 +132,16 @@ export default function LocationCampusEditorPage() {
 
       <div className="space-y-8">
         <div className="form-group">
-          <div className="mb-2.5 flex items-start justify-between">
-            <label className="text-sm font-medium text-foreground">
-              Location & Campus Description
-            </label>
-            <CharacterCounter
-              current={locationData.description.length}
-              max={MAX_DESCRIPTION_LENGTH}
-            />
-          </div>
           <Textarea
+            label="Location & Campus Description"
             placeholder="Describe your camp location, setting, and campus facilities..."
             value={locationData.description}
-            onValueChange={handleDescriptionChange}
+            onChange={e => handleDescriptionChange(e.target.value)}
             minRows={6}
             maxLength={MAX_DESCRIPTION_LENGTH}
-            classNames={{
-              input: 'resize-none',
-            }}
+            showCharacterCount
+            description="Include details about the setting, nearby attractions, and campus grounds"
           />
-          <p className="mt-2.5 text-sm leading-normal text-default-500">
-            Include details about the setting, nearby attractions, and campus grounds
-          </p>
         </div>
 
         <div className="form-group">

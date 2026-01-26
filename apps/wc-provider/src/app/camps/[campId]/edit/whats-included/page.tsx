@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Button, Input } from '@heroui/react'
+import { Button } from '@heroui/react'
+import { Input } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
 import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import { generateAutoInclusions } from '../../../../../utils/generate-inclusions'

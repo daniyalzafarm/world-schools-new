@@ -154,7 +154,7 @@ export function TimelineBuilder({ timeSlots, onChange, errors = {} }: TimelineBu
       </div>
 
       {/* Add Time Slot Button */}
-      <Button onPress={addTimeSlot} variant="bordered" className="w-full">
+      <Button onPress={addTimeSlot} variant="bordered" className="w-full border-dashed">
         + Add Time Slot
       </Button>
     </div>

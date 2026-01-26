@@ -16,7 +16,6 @@ const editorSections: EditorSection[] = [
   // CAMP OVERVIEW
   { id: 'basic-info', label: 'Basic Info', path: 'basic-info', category: 'CAMP OVERVIEW' },
   { id: 'audience', label: 'Audience', path: 'audience', category: 'CAMP OVERVIEW' },
-  { id: 'programs', label: 'Programs', path: 'programs', category: 'CAMP OVERVIEW' },
   { id: 'photos', label: 'Photos & Media', path: 'photos', category: 'CAMP OVERVIEW' },
 
   // SESSIONS & BOOKING
@@ -31,6 +30,7 @@ const editorSections: EditorSection[] = [
 
   // PROGRAM & ACTIVITIES
   { id: 'camp-focus', label: 'Camp Focus', path: 'camp-focus', category: 'PROGRAM & ACTIVITIES' },
+  { id: 'programs', label: 'Programs', path: 'programs', category: 'PROGRAM & ACTIVITIES' },
   {
     id: 'sports',
     label: 'Sports',

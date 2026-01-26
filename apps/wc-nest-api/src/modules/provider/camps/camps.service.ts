@@ -113,10 +113,49 @@ export class CampsService {
   async updateCampAudience(campId: string, providerId: string, dto: UpdateCampAudienceDto) {
     await this.verifyCampOwnership(campId, providerId)
 
-    // Validate age groups
+    // Validate age groups array is not empty
+    if (!dto.ageGroups || dto.ageGroups.length === 0) {
+      throw new BadRequestException('At least one age group is required')
+    }
+
+    // Validate each age group
     for (const group of dto.ageGroups) {
+      // Validate min and max are valid numbers
+      if (typeof group.min !== 'number' || typeof group.max !== 'number') {
+        throw new BadRequestException('Age group min and max must be valid numbers')
+      }
+
+      // Validate age range constraints
+      if (group.min < 4) {
+        throw new BadRequestException('Min age must be at least 4')
+      }
+      if (group.min > 18) {
+        throw new BadRequestException('Min age cannot exceed 18')
+      }
+      if (group.max < 4) {
+        throw new BadRequestException('Max age must be at least 4')
+      }
+      if (group.max > 18) {
+        throw new BadRequestException('Max age cannot exceed 18')
+      }
       if (group.max <= group.min) {
         throw new BadRequestException('Max age must be greater than min age')
+      }
+    }
+
+    // Check for overlapping age ranges
+    for (let i = 0; i < dto.ageGroups.length; i++) {
+      for (let j = i + 1; j < dto.ageGroups.length; j++) {
+        const group1 = dto.ageGroups[i]
+        const group2 = dto.ageGroups[j]
+
+        // Check if ranges overlap
+        // Overlap occurs if: (start1 <= end2) AND (end1 >= start2)
+        if (group1.min <= group2.max && group1.max >= group2.min) {
+          throw new BadRequestException(
+            `Age groups cannot overlap: Group ${i + 1} (${group1.min}-${group1.max}) overlaps with Group ${j + 1} (${group2.min}-${group2.max})`
+          )
+        }
       }
     }
 

@@ -13,12 +13,12 @@ interface CampEditorFooterProps {
 const editorSections = [
   'basic-info',
   'audience',
-  'programs',
   'photos',
   'sessions',
   'whats-included',
   'addons',
   'camp-focus',
+  'programs',
   'sports',
   'languages',
   'arts',

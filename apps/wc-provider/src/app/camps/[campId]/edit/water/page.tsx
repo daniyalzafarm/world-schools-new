@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Radio, RadioGroup, Textarea } from '@heroui/react'
+import { Radio, RadioGroup } from '@heroui/react'
+import { Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
 import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { CharacterCounter } from '../../../../../components/camp-editor/CharacterCounter'
 import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import { CustomActivityInput } from '../../../../../components/camp-editor/CustomActivityInput'
 import {
@@ -171,25 +171,16 @@ export default function WaterEditorPage() {
       <div className="space-y-8">
         {/* Description */}
         <div className="form-group">
-          <div className="mb-2.5 flex items-start justify-between">
-            <label className="text-sm font-medium text-foreground">
-              Water Activities Description
-            </label>
-            <CharacterCounter current={waterData.description.length} max={MAX_DESCRIPTION_LENGTH} />
-          </div>
           <Textarea
+            label="Water Activities Description"
             placeholder="Describe your water activities program, safety measures, and facilities..."
             value={waterData.description}
-            onValueChange={handleDescriptionChange}
+            onChange={e => handleDescriptionChange(e.target.value)}
             minRows={6}
             maxLength={MAX_DESCRIPTION_LENGTH}
-            classNames={{
-              input: 'resize-none',
-            }}
+            showCharacterCount
+            description="Include details about lifeguard supervision, swimming requirements, and water safety"
           />
-          <p className="mt-2.5 text-sm leading-normal text-default-500">
-            Include details about lifeguard supervision, swimming requirements, and water safety
-          </p>
         </div>
 
         {/* Swim Level */}

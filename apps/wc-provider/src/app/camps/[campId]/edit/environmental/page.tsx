@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Radio, RadioGroup, Textarea } from '@heroui/react'
+import { Radio, RadioGroup } from '@heroui/react'
+import { Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
 import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { CharacterCounter } from '../../../../../components/camp-editor/CharacterCounter'
 import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import { CustomActivityInput } from '../../../../../components/camp-editor/CustomActivityInput'
 import {
@@ -163,29 +163,16 @@ export default function EnvironmentalEditorPage() {
       <div className="space-y-8">
         {/* Description */}
         <div className="form-group">
-          <div className="mb-2.5 flex items-start justify-between">
-            <label className="text-sm font-medium text-foreground">
-              Environmental Program Description
-            </label>
-            <CharacterCounter
-              current={environmentalData.description.length}
-              max={MAX_DESCRIPTION_LENGTH}
-            />
-          </div>
           <Textarea
+            label="Environmental Program Description"
             placeholder="Describe your environmental program, sustainability initiatives, and nature education..."
             value={environmentalData.description}
-            onValueChange={handleDescriptionChange}
+            onChange={e => handleDescriptionChange(e.target.value)}
             minRows={6}
             maxLength={MAX_DESCRIPTION_LENGTH}
-            classNames={{
-              input: 'resize-none',
-            }}
+            showCharacterCount
+            description="Include details about conservation projects, eco-friendly practices, and outdoor learning"
           />
-          <p className="mt-2.5 text-sm leading-normal text-default-500">
-            Include details about conservation projects, eco-friendly practices, and outdoor
-            learning
-          </p>
         </div>
 
         {/* Sustainability Focus */}

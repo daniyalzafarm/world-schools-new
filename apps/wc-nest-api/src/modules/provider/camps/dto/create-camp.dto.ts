@@ -1,4 +1,5 @@
 import {
+  ArrayMinSize,
   IsEnum,
   IsNotEmpty,
   IsNumber,
@@ -8,6 +9,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator'
 import { Type } from 'class-transformer'
 
@@ -75,6 +77,8 @@ export class AgeGroupDto {
 
 export class UpdateCampAudienceDto {
   @IsNotEmpty()
+  @ArrayMinSize(1, { message: 'At least one age group is required' })
+  @ValidateNested({ each: true })
   @Type(() => AgeGroupDto)
   ageGroups: AgeGroupDto[]
 

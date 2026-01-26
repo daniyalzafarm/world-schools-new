@@ -93,6 +93,17 @@ export function GoogleMapWithSearch({ selectedPlace, className = '' }: GoogleMap
   useEffect(() => {
     if (!map || !selectedPlace) return
 
+    // Validate that lat and lng are valid numbers
+    if (
+      typeof selectedPlace.lat !== 'number' ||
+      typeof selectedPlace.lng !== 'number' ||
+      !isFinite(selectedPlace.lat) ||
+      !isFinite(selectedPlace.lng)
+    ) {
+      console.warn('Invalid lat/lng values in selectedPlace:', selectedPlace)
+      return
+    }
+
     // Remove existing marker
     if (marker) {
       marker.setMap(null)
