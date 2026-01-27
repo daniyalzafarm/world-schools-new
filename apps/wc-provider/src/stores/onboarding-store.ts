@@ -42,7 +42,7 @@ interface OnboardingStore {
   ) => Promise<void>
   saveContactInfo: (data: ContactInfo) => Promise<void>
   saveCampInfo: (data: { description: string; campTypes: string[] }) => Promise<void>
-  uploadDocument: (file: File, documentType: string) => Promise<void>
+  uploadDocument: (file: File, documentType: string, customTitle?: string) => Promise<void>
   fetchDocuments: () => Promise<void>
   deleteDocument: (documentId: string) => Promise<void>
   completeStep4: () => Promise<void>
@@ -195,11 +195,12 @@ export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
     }
   },
 
-  uploadDocument: async (file: File, documentType: string) => {
+  uploadDocument: async (file: File, documentType: string, customTitle?: string) => {
     set({ isLoading: true, error: null })
     const response = await onboardingService.uploadDocument({
       file,
       documentType: documentType as any,
+      customTitle,
     })
 
     if (response.success) {

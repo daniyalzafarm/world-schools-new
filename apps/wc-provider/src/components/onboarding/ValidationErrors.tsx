@@ -30,7 +30,7 @@ export function ValidationErrors({ errors }: ValidationErrorsProps) {
       <div className="space-y-3">
         {errors.map((error, index) => (
           <div
-            key={index}
+            key={`${error.step}-${error.field}-${index}`}
             className="flex items-start justify-between gap-4 rounded-lg bg-white p-4"
           >
             <div className="flex-1">

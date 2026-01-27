@@ -1,16 +1,46 @@
-import { IsIn, IsNotEmpty, IsString } from 'class-validator'
+import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
+
+const DOCUMENT_TYPES = [
+  // Required documents
+  'business_registration',
+  'insurance_certificate',
+  // Accreditations
+  'aca',
+  'icf',
+  'bsa',
+  'national_accreditation',
+  'regional_accreditation',
+  'other_accreditation',
+  // Safety certifications
+  'risk_policy',
+  'first_aid',
+  'lifeguard',
+  'background_check',
+  'emergency_plan',
+  'food_safety',
+  'other_safety',
+] as const
 
 export class UploadDocumentDto {
   @ApiProperty({
     description: 'Document type',
     example: 'business_registration',
-    enum: ['business_registration', 'insurance_certificate', 'tax_document', 'other'],
+    enum: DOCUMENT_TYPES,
   })
   @IsString()
   @IsNotEmpty()
-  @IsIn(['business_registration', 'insurance_certificate', 'tax_document', 'other'])
+  @IsIn(DOCUMENT_TYPES)
   documentType: string
+
+  @ApiProperty({
+    description: 'Custom title for "other" document types',
+    example: 'BACS Accreditation',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  customTitle?: string
 }
 
 export class DocumentUploadResponseDto {

@@ -40,7 +40,8 @@ export class DocumentProcessingService {
   async uploadDocument(
     providerId: string,
     file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
-    documentType: string
+    documentType: string,
+    customTitle?: string
   ): Promise<any> {
     // Validate file
     if (!file) {
@@ -87,6 +88,17 @@ export class DocumentProcessingService {
       }
 
       // Upload file to Azure Blob Storage
+      const metadata: Record<string, string> = {
+        providerId,
+        documentType,
+        uploadedAt: new Date().toISOString(),
+      }
+
+      // Only add customTitle to metadata if it's provided
+      if (customTitle) {
+        metadata.customTitle = customTitle
+      }
+
       const uploadResult = await azureStorage.uploadFile({
         buffer: file.buffer,
         fileName: file.originalname,
@@ -94,11 +106,7 @@ export class DocumentProcessingService {
         fileSizeBytes: file.size,
         folderPath: `providers/${providerId}/verification`,
         documentType: documentType,
-        metadata: {
-          providerId,
-          documentType,
-          uploadedAt: new Date().toISOString(),
-        },
+        metadata,
       })
 
       // If document exists, update it; otherwise create new
@@ -110,6 +118,7 @@ export class DocumentProcessingService {
               fileName: file.originalname,
               fileSizeBytes: uploadResult.fileSizeBytes,
               mimeType: uploadResult.mimeType,
+              customTitle: customTitle ?? undefined,
               reviewStatus: 'pending',
               uploadedAt: new Date(),
             },
@@ -118,6 +127,7 @@ export class DocumentProcessingService {
             data: {
               providerId,
               documentType,
+              customTitle: customTitle ?? undefined,
               fileUrl: uploadResult.blobName,
               fileName: file.originalname,
               fileSizeBytes: uploadResult.fileSizeBytes,

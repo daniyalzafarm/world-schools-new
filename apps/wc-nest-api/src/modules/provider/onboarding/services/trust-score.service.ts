@@ -109,9 +109,10 @@ export class TrustScoreService {
 
     score += campProfileScore
 
-    // 5. Document Verification (20 points) - Step 4
+    // 5. Document Verification (20 points base + up to 30 bonus) - Step 4
     let documentScore = 0
 
+    // Required Documents (20 points)
     // Business registration: 10 points
     const businessReg = provider.verificationDocuments.find(
       d => d.documentType === 'business_registration'
@@ -129,6 +130,68 @@ export class TrustScoreService {
       documentScore += 10
       breakdown.insuranceCertificate = 10
     }
+
+    // Optional Accreditations (up to 15 bonus points)
+    let accreditationScore = 0
+    const accreditationTypes = [
+      'aca',
+      'icf',
+      'bsa',
+      'national_accreditation',
+      'regional_accreditation',
+      'other_accreditation',
+    ]
+    const accreditations = provider.verificationDocuments.filter(d =>
+      accreditationTypes.includes(d.documentType)
+    )
+
+    // ACA or ICF: 5 points each (premium accreditations)
+    const hasACA = accreditations.some(d => d.documentType === 'aca')
+    const hasICF = accreditations.some(d => d.documentType === 'icf')
+    if (hasACA) {
+      accreditationScore += 5
+      breakdown.acaAccreditation = 5
+    }
+    if (hasICF) {
+      accreditationScore += 5
+      breakdown.icfAccreditation = 5
+    }
+
+    // Other accreditations: 2 points each (max 10 points total for all other accreditations)
+    const otherAccreditations = accreditations.filter(d => !['aca', 'icf'].includes(d.documentType))
+    const otherAccreditationPoints = Math.min(10, otherAccreditations.length * 2)
+    if (otherAccreditationPoints > 0) {
+      accreditationScore += otherAccreditationPoints
+      breakdown.otherAccreditations = otherAccreditationPoints
+    }
+
+    // Cap accreditation score at 15 points
+    accreditationScore = Math.min(15, accreditationScore)
+    documentScore += accreditationScore
+
+    // Optional Safety Certifications (up to 15 bonus points)
+    let safetyScore = 0
+    const safetyTypes = [
+      'risk_policy',
+      'first_aid',
+      'lifeguard',
+      'background_check',
+      'emergency_plan',
+      'food_safety',
+      'other_safety',
+    ]
+    const safetyCerts = provider.verificationDocuments.filter(d =>
+      safetyTypes.includes(d.documentType)
+    )
+
+    // Each safety certification: 2.5 points (max 15 points for 6 certifications)
+    const safetyPoints = Math.min(15, safetyCerts.length * 2.5)
+    if (safetyPoints > 0) {
+      safetyScore += safetyPoints
+      breakdown.safetyCertifications = safetyPoints
+    }
+
+    documentScore += safetyScore
 
     score += documentScore
 

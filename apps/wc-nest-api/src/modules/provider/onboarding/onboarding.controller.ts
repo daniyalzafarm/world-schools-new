@@ -189,7 +189,27 @@ export class OnboardingController {
         },
         documentType: {
           type: 'string',
-          enum: ['business_registration', 'insurance_certificate', 'tax_document', 'other'],
+          enum: [
+            'business_registration',
+            'insurance_certificate',
+            'aca',
+            'icf',
+            'bsa',
+            'national_accreditation',
+            'regional_accreditation',
+            'other_accreditation',
+            'risk_policy',
+            'first_aid',
+            'lifeguard',
+            'background_check',
+            'emergency_plan',
+            'food_safety',
+            'other_safety',
+          ],
+        },
+        customTitle: {
+          type: 'string',
+          description: 'Custom title for "other" document types',
         },
       },
     },
@@ -203,7 +223,8 @@ export class OnboardingController {
     const document = await this.documentProcessingService.uploadDocument(
       providerId,
       file,
-      dto.documentType
+      dto.documentType,
+      dto.customTitle
     )
     await this.onboardingService.updateCurrentStep(providerId, 4)
 

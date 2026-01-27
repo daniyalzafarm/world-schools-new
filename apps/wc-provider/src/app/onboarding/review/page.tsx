@@ -100,12 +100,23 @@ export default function OnboardingStep6Page() {
         // Run backend validation
         const backendValidation = await validateOnboarding()
 
-        // Combine results
+        // Combine results and remove duplicates
         const allErrors = [...frontendValidation.errors, ...backendValidation.errors]
+
+        // Deduplicate errors based on step, field, and message
+        const uniqueErrors = allErrors.filter((error, index, self) => {
+          return (
+            index ===
+            self.findIndex(
+              e => e.step === error.step && e.field === error.field && e.message === error.message
+            )
+          )
+        })
+
         const isValid = frontendValidation.isValid && backendValidation.isValid
 
-        setValidationResult({ isValid, errors: allErrors })
-        setValidationErrors(allErrors)
+        setValidationResult({ isValid, errors: uniqueErrors })
+        setValidationErrors(uniqueErrors)
       } catch (error: any) {
         console.error('Validation error:', error)
         if (error.response?.data?.errors) {

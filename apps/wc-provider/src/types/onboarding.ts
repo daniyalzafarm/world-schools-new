@@ -7,10 +7,24 @@ export type ApprovalStatus =
   | 'suspended'
 
 export type DocumentType =
+  // Required documents
   | 'business_registration'
   | 'insurance_certificate'
-  | 'tax_document'
-  | 'other'
+  // Accreditations
+  | 'aca'
+  | 'icf'
+  | 'bsa'
+  | 'national_accreditation'
+  | 'regional_accreditation'
+  | 'other_accreditation'
+  // Safety certifications
+  | 'risk_policy'
+  | 'first_aid'
+  | 'lifeguard'
+  | 'background_check'
+  | 'emergency_plan'
+  | 'food_safety'
+  | 'other_safety'
 
 export type DocumentReviewStatus = 'pending' | 'approved' | 'rejected' | 'needs_reupload'
 
@@ -33,9 +47,13 @@ export interface TrustScoreBreakdown {
   campTypeSelected?: number // 2 pts
   ageRangeDefined?: number // 4 pts
 
-  // Step 4: Document Verification (max 20 pts)
-  businessRegistration?: number // 10 pts
-  insuranceCertificate?: number // 10 pts
+  // Step 4: Document Verification (max 20 pts base + up to 30 pts bonus)
+  businessRegistration?: number // 10 pts (required)
+  insuranceCertificate?: number // 10 pts (required)
+  acaAccreditation?: number // 5 pts (optional)
+  icfAccreditation?: number // 5 pts (optional)
+  otherAccreditations?: number // up to 10 pts (optional)
+  safetyCertifications?: number // up to 15 pts (optional)
 
   // Step 5: Payment & Policies (max 10 pts)
   depositConfigured?: number // 5 pts
@@ -147,6 +165,7 @@ export interface LegalBusinessInfo {
 export interface VerificationDocument {
   id: string
   documentType: DocumentType
+  customTitle?: string | null
   fileUrl: string
   fileName: string
   fileSizeBytes: number
@@ -194,6 +213,7 @@ export interface SaveGoogleBusinessProfileRequest {
 export interface UploadDocumentRequest {
   file: File
   documentType: DocumentType
+  customTitle?: string
 }
 
 export interface SaveProviderSettingsRequest {

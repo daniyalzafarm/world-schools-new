@@ -382,7 +382,8 @@ model ProviderSettings {
 model VerificationDocument {
   id            String  @id @default(uuid())
   providerId    String  @map("provider_id")
-  documentType  String  @map("document_type") // 'business_registration' | 'insurance_certificate'
+  documentType  String  @map("document_type") // Required: 'business_registration' | 'insurance_certificate' | Accreditations: 'aca' | 'icf' | 'bsa' | 'national_accreditation' | 'regional_accreditation' | 'other_accreditation' | Safety: 'risk_policy' | 'first_aid' | 'lifeguard' | 'background_check' | 'emergency_plan' | 'food_safety' | 'other_safety'
+  customTitle   String? @map("custom_title") // For 'other_accreditation' and 'other_safety' types
   fileUrl       String  @map("file_url")
   fileName      String? @map("file_name")
   fileSizeBytes Int?    @map("file_size_bytes")

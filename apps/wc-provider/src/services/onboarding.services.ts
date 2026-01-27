@@ -97,6 +97,9 @@ export const onboardingService = {
     const formData = new FormData()
     formData.append('file', request.file)
     formData.append('documentType', request.documentType)
+    if (request.customTitle) {
+      formData.append('customTitle', request.customTitle)
+    }
 
     return await apiClient.post<VerificationDocument>(
       '/provider/onboarding/verification/upload',
