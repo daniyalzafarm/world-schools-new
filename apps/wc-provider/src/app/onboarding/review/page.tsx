@@ -185,7 +185,7 @@ export default function OnboardingStep6Page() {
       }
     >
       <div>
-        <div className="mb-8">
+        <div className="mb-4">
           <h1 className="mb-2 text-3xl font-bold leading-tight text-foreground">
             Review & Submit Application
           </h1>
@@ -195,8 +195,8 @@ export default function OnboardingStep6Page() {
         </div>
 
         {/* Trust Score Section */}
-        {status?.trustScore !== undefined && status?.trustScore !== null && (
-          <div className="mb-8 rounded-xl border border-primary-200 bg-primary-50 p-6">
+        {/* {status?.trustScore !== undefined && status?.trustScore !== null && (
+          <div className="mb-4 rounded-xl border border-primary-200 bg-primary-50 p-6">
             <h2 className="mb-4 text-lg font-semibold text-foreground">Your Trust Score</h2>
             <TrustScoreDisplay
               score={status.trustScore}
@@ -205,11 +205,11 @@ export default function OnboardingStep6Page() {
               size="lg"
             />
           </div>
-        )}
+        )} */}
 
         {/* Validation Status Section */}
         {isValidating ? (
-          <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
+          <div className="mb-4 rounded-xl border border-default-200 bg-white p-8">
             <div className="flex items-center justify-center gap-3">
               <Spinner size="md" />
               <span className="text-default-500">Running validation checks...</span>
@@ -219,8 +219,8 @@ export default function OnboardingStep6Page() {
           <>
             {/* Validation Summary */}
             {validationResult?.isValid ? (
-              <div className="mb-8 rounded-xl bg-primary-50 p-4">
-                <h3 className="mb-3 text-sm font-semibold text-foreground">
+              <div className="mb-4 rounded-xl bg-primary-50 p-4">
+                <h3 className="mb-2 text-sm font-semibold text-foreground">
                   All Requirements Complete
                 </h3>
                 <div className="flex flex-col gap-2">
@@ -246,7 +246,7 @@ export default function OnboardingStep6Page() {
                 </div>
               </div>
             ) : (
-              <div className="mb-8 rounded-xl border border-danger-200 bg-danger-50 p-6">
+              <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-6">
                 <div className="mb-4 flex items-center gap-3">
                   <XCircle className="h-6 w-6 text-danger-600" />
                   <h3 className="text-xl font-semibold text-foreground">Validation Issues Found</h3>
@@ -259,9 +259,9 @@ export default function OnboardingStep6Page() {
             )}
 
             {/* What Happens Next */}
-            <div className="mb-8 rounded-xl border border-default-200 bg-default-50 p-6">
-              <h3 className="mb-4 text-lg font-semibold text-foreground">What happens next?</h3>
-              <ul className="flex flex-col gap-3 text-sm text-default-500">
+            <div className="mb-4 p-4 rounded-xl border border-default-200 bg-default-50">
+              <h3 className="mb-2 text-lg font-semibold text-foreground">What happens next?</h3>
+              <ul className="flex flex-col gap-2 text-sm text-default-500">
                 <li className="flex items-start gap-3">
                   <span className="text-secondary">1.</span>
                   <span>Your application will be submitted for review</span>
@@ -282,7 +282,7 @@ export default function OnboardingStep6Page() {
             </div>
 
             {/* Important Notice */}
-            <div className="mb-8 rounded-xl border border-warning-200 bg-warning-50 p-6">
+            <div className="mb-4 p-4 rounded-xl border border-warning-200 bg-warning-50">
               <p className="text-sm text-default-500">
                 <strong className="text-foreground">Important:</strong> After submission, you won't
                 be able to edit your application until the review is complete. Make sure all
@@ -291,7 +291,7 @@ export default function OnboardingStep6Page() {
             </div>
 
             {/* Terms Agreement */}
-            <div className="mb-8 flex items-center rounded-xl border border-default-200 bg-white p-6">
+            <div className="mb-4 flex items-center rounded-xl border border-default-200 bg-white p-6">
               <Checkbox
                 isSelected={agreedToTerms}
                 onValueChange={setAgreedToTerms}
