@@ -135,8 +135,8 @@ export default function VerifyEmailPage() {
           error: null,
         })
 
-        // Redirect to dashboard immediately
-        router.replace('/dashboard')
+        // Redirect to onboarding - let OnboardingGuard handle the routing based on status
+        router.replace('/onboarding')
       } else {
         // Email verified but user was not authenticated (e.g., doesn't have provider role)
         // Redirect to signin after 2 seconds
@@ -202,8 +202,8 @@ export default function VerifyEmailPage() {
           error: null,
         })
 
-        // Redirect to dashboard immediately
-        router.replace('/dashboard')
+        // Redirect to onboarding - let OnboardingGuard handle the routing based on status
+        router.replace('/onboarding')
       } else {
         // Email verified but user was not authenticated (e.g., doesn't have provider role)
         // Redirect to signin after 2 seconds

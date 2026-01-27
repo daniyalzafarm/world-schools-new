@@ -45,7 +45,7 @@ export default function OnboardingStep1Page() {
   // React Hook Form for legal business information
   const {
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors },
     reset,
     control,
     watch,
@@ -61,8 +61,21 @@ export default function OnboardingStep1Page() {
   const isReadOnly = status?.isCompleted ?? false
 
   // Helper function to check if a field has changed from saved value
+  // This should ONLY return true when:
+  // 1. There's previously saved legal info (from a saved business profile)
+  // 2. A new business is selected
+  // 3. The current field value differs from the saved value
   const hasFieldChanged = (fieldName: keyof LegalBusinessInfo): boolean => {
-    if (!savedLegalInfo || !selectedBusiness) return false
+    // No warnings for first-time selection (no saved legal info to compare against)
+    if (!savedLegalInfo) return false
+
+    // No warnings when there's no previously saved Google Business Profile
+    // This ensures we only show warnings when changing an EXISTING saved business
+    if (!googleBusinessProfile?.placeId) return false
+
+    // No warnings when no business is selected
+    if (!selectedBusiness) return false
+
     const currentValue = watchedFields[fieldName]
     const savedValue = savedLegalInfo[fieldName]
     // Compare values, treating empty string and undefined as equal
@@ -74,9 +87,9 @@ export default function OnboardingStep1Page() {
   // and if the warning message should be displayed
   const hasAnyFieldChanged = (): boolean => {
     // Only check for changes when:
-    // 1. We have saved legal info to compare against
+    // 1. We have saved legal info to compare against (from a previously saved business)
     // 2. We have a Google Business Profile (user has completed initial setup)
-    if (!savedLegalInfo || !googleBusinessProfile) return false
+    if (!savedLegalInfo || !googleBusinessProfile?.placeId) return false
 
     // List of all fields to check
     const fieldsToCheck: (keyof LegalBusinessInfo)[] = [
@@ -102,8 +115,14 @@ export default function OnboardingStep1Page() {
   }
 
   // Helper function to check if warning should be shown
-  // Warning should ONLY appear when a new business is selected AND fields differ from saved values
+  // Warning should ONLY appear when:
+  // 1. A new business is selected from Google Places (selectedBusiness exists)
+  // 2. There's previously saved legal info (savedLegalInfo exists)
+  // 3. The auto-filled values differ from the saved values
   const shouldShowWarning = (): boolean => {
+    // No warnings for first-time selection (no saved legal info)
+    if (!savedLegalInfo) return false
+
     // Only show warning when a new business is selected from Google Places
     if (!selectedBusiness) return false
 
@@ -458,24 +477,75 @@ export default function OnboardingStep1Page() {
               }
             }}
             onNext={async () => {
-              if (
-                isReadOnly ||
-                (googleBusinessProfile && !isEditing && !selectedBusiness && !hasAnyFieldChanged())
-              ) {
-                // If read-only or already saved, just navigate
+              // Read-only mode: just navigate to next step
+              if (isReadOnly) {
                 router.push('/onboarding/about-your-camp')
-              } else if (selectedBusiness || hasAnyFieldChanged()) {
-                // Trigger form submission
+                return
+              }
+
+              // Check if a business is selected (either new selection or previously saved)
+              const hasBusinessSelected = selectedBusiness ?? googleBusinessProfile?.placeId
+
+              if (!hasBusinessSelected) {
+                // No business selected - button should be disabled, but handle edge case
+                return
+              }
+
+              // Business is selected - check if we need to save or just navigate
+              if (
+                googleBusinessProfile?.placeId &&
+                !isEditing &&
+                !selectedBusiness &&
+                !hasAnyFieldChanged()
+              ) {
+                // Previously saved business, no changes, not editing - just navigate
+                router.push('/onboarding/about-your-camp')
+              } else {
+                // New business selected OR changes made - trigger form submission
+                // Form validation will be checked by react-hook-form
                 await handleSubmit(onSubmit)()
               }
             }}
             isLoading={isConfirming}
-            isDisabled={!isReadOnly && (selectedBusiness || hasAnyFieldChanged()) && !isValid}
-            nextButtonText={
-              isReadOnly || (!selectedBusiness && !hasAnyFieldChanged())
-                ? 'Next →'
-                : 'Save & Continue →'
-            }
+            isDisabled={(() => {
+              // Read-only mode: never disabled
+              if (isReadOnly) return false
+
+              // Check if a business is selected (either new selection or previously saved)
+              const hasBusinessSelected = selectedBusiness ?? googleBusinessProfile?.placeId
+
+              // No business selected: disable button
+              if (!hasBusinessSelected) return true
+
+              // Business is selected: always enable button
+              // Form validation will be handled by react-hook-form's handleSubmit()
+              // which will show validation errors when user clicks the button
+              return false
+            })()}
+            nextButtonText={(() => {
+              // Read-only mode: always "Next"
+              if (isReadOnly) return 'Next →'
+
+              // Check if a business is selected (either new selection or previously saved)
+              const hasBusinessSelected = selectedBusiness ?? googleBusinessProfile?.placeId
+
+              // No business selected: show "Next" (will be disabled)
+              if (!hasBusinessSelected) return 'Next →'
+
+              // Business is selected - check if we need to save
+              if (
+                googleBusinessProfile?.placeId &&
+                !isEditing &&
+                !selectedBusiness &&
+                !hasAnyFieldChanged()
+              ) {
+                // Previously saved business, no changes, not editing - show "Next"
+                return 'Next →'
+              } else {
+                // New business selected OR changes made - show "Save & Continue"
+                return 'Save & Continue →'
+              }
+            })()}
           />
         }
       >
@@ -495,7 +565,7 @@ export default function OnboardingStep1Page() {
           </div>
 
           {/* Show saved business profile if exists and not editing */}
-          {googleBusinessProfile && !isEditing && !selectedBusiness ? (
+          {googleBusinessProfile?.placeId && !isEditing && !selectedBusiness ? (
             <Card className="mb-6 border-2 border-primary bg-primary-50" shadow="none" radius="lg">
               <CardBody className="flex-row items-center justify-between">
                 <div className="flex items-start gap-4">
