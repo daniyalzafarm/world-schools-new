@@ -2,17 +2,20 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '../../../../prisma/prisma.service'
 import { EmailService } from '@world-schools/global-utils'
 import { EmailTemplateService } from '../../../common/email-templates/email-template.service'
+import { ConfigService } from '../../../../config/config.service'
 
 @Injectable()
 export class EmailVerificationService {
   private readonly logger = new Logger(EmailVerificationService.name)
   private readonly CODE_EXPIRY_MINUTES = 15
   private readonly MAX_RESEND_ATTEMPTS = 5
+  private readonly RESEND_COOLDOWN_SECONDS = 30 // Cooldown period between resend attempts
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
-    private readonly emailTemplateService: EmailTemplateService
+    private readonly emailTemplateService: EmailTemplateService,
+    private readonly configService: ConfigService
   ) {}
 
   /**
@@ -26,6 +29,19 @@ export class EmailVerificationService {
    * Create and send verification code to user's email
    */
   async createAndSendVerificationCode(userId: string, email: string): Promise<void> {
+    // Fetch user data to get name for email template
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        firstName: true,
+        lastName: true,
+      },
+    })
+
+    if (!user) {
+      throw new BadRequestException('User not found')
+    }
+
     // Delete any existing unverified codes for this user
     await this.prisma.emailVerification.deleteMany({
       where: {
@@ -48,11 +64,24 @@ export class EmailVerificationService {
       },
     })
 
+    // Generate verification URL for booking portal
+    const verificationUrl = `${this.configService.bookingPortalUrl}/auth/verify-email?code=${code}&email=${encodeURIComponent(email)}`
+
+    // Prepare user name for email template
+    const userName = user.firstName
+      ? `${user.firstName}${user.lastName ? ' ' + user.lastName : ''}`
+      : 'there'
+
     // Send email
     const emailSent = await this.emailService.sendEmail({
       to: email,
       subject: 'Email Verification - World-Camps',
-      html: this.emailTemplateService.getVerificationEmailTemplate(code, this.CODE_EXPIRY_MINUTES),
+      html: this.emailTemplateService.getVerificationEmailTemplate(
+        code,
+        this.CODE_EXPIRY_MINUTES,
+        userName,
+        verificationUrl
+      ),
     })
 
     if (!emailSent) {
@@ -136,7 +165,29 @@ export class EmailVerificationService {
       throw new BadRequestException('Email is already verified')
     }
 
-    // Check recent attempts to prevent spam
+    // Check for recent code send (cooldown period)
+    const mostRecentCode = await this.prisma.emailVerification.findFirst({
+      where: {
+        userId: user.id,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    })
+
+    if (mostRecentCode) {
+      const timeSinceLastSend = Date.now() - mostRecentCode.createdAt.getTime()
+      const cooldownMs = this.RESEND_COOLDOWN_SECONDS * 1000
+
+      if (timeSinceLastSend < cooldownMs) {
+        const remainingSeconds = Math.ceil((cooldownMs - timeSinceLastSend) / 1000)
+        throw new BadRequestException(
+          `Please wait ${remainingSeconds} seconds before requesting a new code.`
+        )
+      }
+    }
+
+    // Check recent attempts to prevent spam (hourly limit)
     const recentAttempts = await this.prisma.emailVerification.count({
       where: {
         userId: user.id,

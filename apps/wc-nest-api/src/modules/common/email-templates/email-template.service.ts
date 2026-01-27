@@ -22,6 +22,10 @@ export class EmailTemplateService {
     border: '#e5e5e5',
   }
 
+  // Logo URL
+  private readonly logoUrl =
+    'https://sawcstg.blob.core.windows.net/wc-booking-system/favicon-world-camps.png'
+
   /**
    * Get base email template with consistent styling
    */
@@ -170,30 +174,143 @@ export class EmailTemplateService {
   /**
    * Get email verification template
    */
-  getVerificationEmailTemplate(code: string, expiryMinutes: number): string {
-    const content = `
-      <div class="email-header">
-        <div class="logo">World-Camps</div>
-        <h1>Email Verification</h1>
-      </div>
-      <div class="email-body">
-        <p>Thank you for registering with World-Camps!</p>
-        <p>Please use the following verification code to complete your registration:</p>
+  getVerificationEmailTemplate(
+    code: string,
+    expiryMinutes: number,
+    userName: string,
+    verificationUrl: string
+  ): string {
+    return `<!DOCTYPE html>
+    <html lang="en">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Welcome to World Camps</title>
+    </head>
+    <body style="margin:0;padding:0;background-color:${this.colors.backgroundGray};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
 
-        <div class="info-box" style="text-align: center;">
-          <div style="font-size: 36px; font-weight: bold; color: ${this.colors.primary}; letter-spacing: 8px; margin: 10px 0;">
-            ${code}
-          </div>
-        </div>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${this.colors.backgroundGray};">
+    <tr>
+    <td align="center" style="padding:40px 24px;">
 
-        <p class="text-secondary">This code will expire in ${expiryMinutes} minutes.</p>
-        <p class="text-secondary">If you didn't request this code, please ignore this email.</p>
-      </div>
-      <div class="email-footer">
-        <p>&copy; ${new Date().getFullYear()} World-Camps. All rights reserved.</p>
-      </div>
-    `
-    return this.getBaseTemplate(content)
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background-color:${this.colors.background};border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+
+    <!-- Header -->
+    <tr>
+    <td style="padding:32px 48px;border-bottom:1px solid ${this.colors.border};">
+    <img src="${this.logoUrl}" alt="World Camps" width="40" height="40" style="display:block;border-radius:50%;">
+    </td>
+    </tr>
+
+    <!-- Content -->
+    <tr>
+    <td style="padding:48px;">
+
+    <h1 style="margin:0 0 24px 0;font-size:26px;font-weight:700;color:${this.colors.textPrimary};line-height:1.3;">
+    Welcome to World Camps!
+    </h1>
+
+    <p style="margin:0 0 16px 0;font-size:16px;color:${this.colors.textSecondary};line-height:1.7;">
+    Hi ${userName},
+    </p>
+
+    <p style="margin:0 0 16px 0;font-size:16px;color:${this.colors.textSecondary};line-height:1.7;">
+    Thank you for joining World Camps as a camp provider. We're excited to help you connect with families from around the world looking for amazing camp experiences.
+    </p>
+
+    <p style="margin:0 0 32px 0;font-size:16px;color:${this.colors.textSecondary};line-height:1.7;">
+    Please verify your email address to complete your registration and start setting up your camp profile.
+    </p>
+
+    <!-- Button -->
+    <table cellpadding="0" cellspacing="0" border="0">
+    <tr>
+    <td style="padding-bottom:32px;">
+    <a href="${verificationUrl}" style="display:inline-block;padding:14px 32px;background-color:${this.colors.primary};border-radius:8px;text-decoration:none;">
+    <span style="font-size:15px;font-weight:600;color:${this.colors.secondary};">Verify Email Address</span>
+    </a>
+    </td>
+    </tr>
+    </table>
+
+    <p style="margin:0 0 16px 0;font-size:14px;color:${this.colors.textSecondary};line-height:1.6;">
+    Or enter this verification code:
+    </p>
+
+    <!-- Code -->
+    <table cellpadding="0" cellspacing="0" border="0">
+    <tr>
+    <td>
+    <div style="display:inline-block;padding:16px 32px;background-color:${this.colors.backgroundGray};border-radius:8px;border:1px solid ${this.colors.border};">
+    <span style="font-size:28px;font-weight:700;color:${this.colors.textPrimary};letter-spacing:4px;font-family:'SF Mono',SFMono-Regular,Consolas,'Liberation Mono',Menlo,Monaco,monospace;">${code}</span>
+    </div>
+    </td>
+    </tr>
+    </table>
+
+    <p style="margin:24px 0 0 0;font-size:14px;color:${this.colors.textSecondary};line-height:1.6;">
+    This link and code will expire in <strong style="color:${this.colors.textPrimary};">${expiryMinutes} minutes</strong>.
+    </p>
+
+    </td>
+    </tr>
+
+    <!-- Divider -->
+    <tr>
+    <td style="padding:0 48px;">
+    <div style="height:1px;background-color:${this.colors.border};"></div>
+    </td>
+    </tr>
+
+    <!-- Help -->
+    <tr>
+    <td style="padding:24px 48px;">
+    <p style="margin:0;font-size:14px;color:${this.colors.textSecondary};line-height:1.6;">
+    If you didn't create an account, you can safely ignore this email.
+    </p>
+    <p style="margin:12px 0 0 0;font-size:14px;color:${this.colors.textSecondary};line-height:1.6;">
+    Have questions? <a href="mailto:providers@world-camps.com" style="color:${this.colors.primary};text-decoration:none;font-weight:500;">Contact our provider support team</a>
+    </p>
+    </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+    <td style="background-color:${this.colors.secondary};padding:32px 48px;">
+    <table cellpadding="0" cellspacing="0" border="0">
+    <tr>
+    <td style="vertical-align:middle;">
+    <img src="${this.logoUrl}" alt="" width="28" height="28" style="display:inline-block;vertical-align:middle;border-radius:50%;">
+    <span style="font-size:15px;font-weight:600;color:#ffffff;margin-left:10px;vertical-align:middle;">World Camps</span>
+    </td>
+    </tr>
+    </table>
+
+    <p style="margin:20px 0 0 0;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;">
+    © ${new Date().getFullYear()} World Camps. All rights reserved.
+    </p>
+
+    <table cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;">
+    <tr>
+    <td><a href="https://world-camps.com/help" style="font-size:13px;color:rgba(255,255,255,0.6);text-decoration:none;">Help Center</a></td>
+    <td style="padding:0 16px;color:rgba(255,255,255,0.3);">|</td>
+    <td><a href="https://world-camps.com/privacy" style="font-size:13px;color:rgba(255,255,255,0.6);text-decoration:none;">Privacy Policy</a></td>
+    <td style="padding:0 16px;color:rgba(255,255,255,0.3);">|</td>
+    <td><a href="https://world-camps.com/terms" style="font-size:13px;color:rgba(255,255,255,0.6);text-decoration:none;">Terms of Service</a></td>
+    </tr>
+    </table>
+    </td>
+    </tr>
+
+    </table>
+
+    </td>
+    </tr>
+    </table>
+
+    </body>
+    </html>`
   }
 
   /**
