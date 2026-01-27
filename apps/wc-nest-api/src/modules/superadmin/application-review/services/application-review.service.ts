@@ -319,9 +319,6 @@ export class ApplicationReviewService {
   ): Promise<void> {
     const provider = await this.prisma.provider.findUnique({
       where: { id: providerId },
-      include: {
-        verificationDocuments: true,
-      },
     })
 
     if (!provider) {
@@ -330,17 +327,6 @@ export class ApplicationReviewService {
 
     if (provider.approvalStatus === 'approved') {
       throw new BadRequestException('Application is already approved')
-    }
-
-    // Check if any documents are pending review
-    const pendingDocuments = provider.verificationDocuments.filter(
-      doc => doc.reviewStatus === 'pending'
-    )
-
-    if (pendingDocuments.length > 0) {
-      throw new BadRequestException(
-        'Cannot approve application. Please review all pending documents before approval.'
-      )
     }
 
     await this.prisma.provider.update({

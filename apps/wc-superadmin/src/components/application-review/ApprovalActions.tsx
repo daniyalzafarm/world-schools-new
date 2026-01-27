@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import {
-  addToast,
   Button,
   Modal,
   ModalBody,
@@ -81,26 +80,7 @@ export function ApprovalActions({ application }: ApprovalActionsProps) {
         <Button color="danger" variant="flat" onPress={rejectModal.onOpen}>
           {EMOJI.CROSS_MARK} Reject
         </Button>
-        <Button
-          color="success"
-          onPress={() => {
-            // Client-side validation: Check if any documents are pending review
-            const pendingDocuments = application.verificationDocuments.filter(
-              doc => doc.reviewStatus === 'pending'
-            )
-
-            if (pendingDocuments.length > 0) {
-              addToast({
-                title: 'Cannot Approve Application',
-                description: 'Review the pending documents before approving the application',
-                color: 'danger',
-                timeout: 5000,
-              })
-              return
-            }
-            approveModal.onOpen()
-          }}
-        >
+        <Button color="success" onPress={approveModal.onOpen}>
           {EMOJI.CHECK_MARK} Approve
         </Button>
       </div>
