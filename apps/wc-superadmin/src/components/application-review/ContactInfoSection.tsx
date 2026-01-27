@@ -46,10 +46,6 @@ export function ContactInfoSection({ application }: ContactInfoSectionProps) {
         </h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <div className="text-sm text-default-600">Provider Name</div>
-            <div className="text-foreground">{application.providerName ?? 'N/A'}</div>
-          </div>
-          <div>
             <div className="text-sm text-default-600">Provider Phone</div>
             <div className="text-foreground">{application.providerPhone ?? 'N/A'}</div>
           </div>
@@ -59,7 +55,7 @@ export function ContactInfoSection({ application }: ContactInfoSectionProps) {
               {application.providerEmail ? application.providerEmail : 'N/A'}
             </div>
           </div>
-          <div>
+          <div className="col-span-2">
             <div className="text-sm text-default-600">Website</div>
             <div className="text-foreground">
               {application.website ? (

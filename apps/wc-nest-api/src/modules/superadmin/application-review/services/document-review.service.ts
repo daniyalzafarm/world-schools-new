@@ -86,7 +86,7 @@ export class DocumentReviewService {
         provider: {
           select: {
             id: true,
-            name: true,
+            legalCompanyName: true,
             email: true,
           },
         },
@@ -175,7 +175,7 @@ export class DocumentReviewService {
         provider: {
           select: {
             id: true,
-            name: true,
+            legalCompanyName: true,
             email: true,
             approvalStatus: true,
           },

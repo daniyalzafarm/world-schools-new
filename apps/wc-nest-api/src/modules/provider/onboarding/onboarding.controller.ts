@@ -69,30 +69,49 @@ export class OnboardingController {
   }
 
   /**
-   * Step 1: Get Google Business Profile
+   * Step 1: Get Google Business Profile and Legal Business Information
    */
-  @Get('step-1/profile')
+  @Get('find-your-camp/profile')
   @Roles('Provider Admin')
-  @ApiOperation({ summary: 'Get saved Google Business Profile' })
+  @ApiOperation({ summary: 'Get saved Google Business Profile and legal business information' })
   async getGoogleBusinessProfile(@Request() req: any) {
     const providerId = req.user.providerId
     const profile = await this.googleBusinessService.getBusinessProfile(providerId)
-    return ResponseUtil.success(profile)
+
+    // Also get legal business information from provider
+    const provider = await this.onboardingService.getProviderLegalInfo(providerId)
+
+    return ResponseUtil.success({
+      ...profile,
+      legalInfo: provider,
+    })
   }
 
   /**
-   * Step 1: Save Google Business Profile
+   * Step 2: Save Google Business Profile and Legal Business Information
    * Note: Business search is now handled client-side via Google Places Autocomplete
    */
-  @Post('step-1/save')
+  @Post('find-your-camp/save')
   @Roles('Provider Admin')
-  @ApiOperation({ summary: 'Save selected Google Business Profile' })
+  @ApiOperation({ summary: 'Save selected Google Business Profile and legal business information' })
   async saveGoogleBusinessProfile(@Request() req: any, @Body() dto: SaveGoogleBusinessProfileDto) {
     const providerId = req.user.providerId
-    const profile = await this.googleBusinessService.saveBusinessProfile(providerId, dto.placeId)
-    await this.onboardingService.updateCurrentStep(providerId, 2)
+    const profile = await this.googleBusinessService.saveBusinessProfile(providerId, dto.placeId, {
+      legalCompanyName: dto.legalCompanyName,
+      legalStreetAddress: dto.legalStreetAddress,
+      legalAptSuite: dto.legalAptSuite,
+      legalCity: dto.legalCity,
+      legalStateProvince: dto.legalStateProvince,
+      legalPostalCode: dto.legalPostalCode,
+      legalCountry: dto.legalCountry,
+      yearFounded: dto.yearFounded,
+      providerPhone: dto.providerPhone,
+      providerEmail: dto.providerEmail,
+      website: dto.website,
+    })
+    await this.onboardingService.updateCurrentStep(providerId, 3)
 
-    // Update trust score after saving Google Business Profile
+    // Update trust score after saving Google Business Profile and legal info
     await this.trustScoreService.updateTrustScore(providerId)
 
     return ResponseUtil.success(profile)
@@ -101,7 +120,7 @@ export class OnboardingController {
   /**
    * Step 2: Get Contact & Legal Info
    */
-  @Get('step-2/info')
+  @Get('contact/info')
   @Roles('Provider Admin')
   @ApiOperation({ summary: 'Get saved contact and legal information' })
   async getContactInfo(@Request() req: any) {
@@ -111,22 +130,22 @@ export class OnboardingController {
   }
 
   /**
-   * Step 2: Save Contact & Legal Info
+   * Step 1: Save Contact & Legal Info
    */
-  @Post('step-2/save')
+  @Post('contact/save')
   @Roles('Provider Admin')
   @ApiOperation({ summary: 'Save contact and legal information' })
   async saveContactInfo(@Request() req: any, @Body() dto: SaveContactInfoDto) {
     const providerId = req.user.providerId
     await this.onboardingService.saveContactInfo(providerId, dto)
-    await this.onboardingService.updateCurrentStep(providerId, 3)
+    await this.onboardingService.updateCurrentStep(providerId, 2)
     return ResponseUtil.success({ message: 'Contact information saved successfully' })
   }
 
   /**
    * Step 3: Get Camp Info
    */
-  @Get('step-3/info')
+  @Get('about-your-camp/info')
   @Roles('Provider Admin')
   @ApiOperation({ summary: 'Get saved camp information' })
   async getCampInfo(@Request() req: any) {
@@ -138,7 +157,7 @@ export class OnboardingController {
   /**
    * Step 3: Save Camp Info
    */
-  @Post('step-3/save')
+  @Post('about-your-camp/save')
   @Roles('Provider Admin')
   @ApiOperation({ summary: 'Save camp information' })
   async saveCampInfo(@Request() req: any, @Body() dto: SaveCampInfoDto) {
@@ -155,7 +174,7 @@ export class OnboardingController {
   /**
    * Step 4: Upload Document
    */
-  @Post('step-4/upload')
+  @Post('verification/upload')
   @Roles('Provider Admin')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Upload verification document' })
@@ -197,7 +216,7 @@ export class OnboardingController {
   /**
    * Step 4: Get Documents
    */
-  @Get('step-4/documents')
+  @Get('verification/documents')
   @Roles('Provider Admin')
   @ApiOperation({ summary: 'Get all uploaded documents' })
   async getDocuments(@Request() req: any) {
@@ -209,7 +228,7 @@ export class OnboardingController {
   /**
    * Step 4: Complete Step (advance to Step 5)
    */
-  @Post('step-4/complete')
+  @Post('verification/complete')
   @Roles('Provider Admin')
   @ApiOperation({ summary: 'Complete document upload step and advance to Step 5' })
   async completeStep4(@Request() req: any) {
@@ -223,7 +242,7 @@ export class OnboardingController {
   /**
    * Step 4: Delete Document
    */
-  @Delete('step-4/documents/:documentId')
+  @Delete('verification/documents/:documentId')
   @Roles('Provider Admin')
   @ApiOperation({ summary: 'Delete a document' })
   async deleteDocument(@Request() req: any, @Param('documentId') documentId: string) {
@@ -239,7 +258,7 @@ export class OnboardingController {
   /**
    * Step 5: Get Payment & Policy Settings
    */
-  @Get('step-5/settings')
+  @Get('payment-policies/settings')
   @Roles('Provider Admin')
   @ApiOperation({ summary: 'Get saved payment and policy settings' })
   async getSettings(@Request() req: any) {
@@ -251,7 +270,7 @@ export class OnboardingController {
   /**
    * Step 5: Save Payment & Policy Settings
    */
-  @Post('step-5/save')
+  @Post('payment-policies/save')
   @Roles('Provider Admin')
   @ApiOperation({ summary: 'Save payment and policy settings' })
   async saveSettings(@Request() req: any, @Body() dto: SaveProviderSettingsDto) {

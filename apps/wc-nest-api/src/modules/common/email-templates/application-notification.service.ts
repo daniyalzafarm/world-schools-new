@@ -76,7 +76,7 @@ export class ApplicationNotificationService {
         where: { id: providerId },
         select: {
           id: true,
-          name: true,
+          legalCompanyName: true,
           applicationSubmittedAt: true,
         },
       })
@@ -101,7 +101,7 @@ export class ApplicationNotificationService {
           })
 
       const html = this.emailTemplateService.getApplicationSubmittedTemplate({
-        providerName: provider.name,
+        providerName: provider.legalCompanyName || '',
         applicationId: provider.id,
         submittedDate,
       })
@@ -147,7 +147,7 @@ export class ApplicationNotificationService {
         where: { id: providerId },
         select: {
           id: true,
-          name: true,
+          legalCompanyName: true,
         },
       })
 
@@ -163,7 +163,7 @@ export class ApplicationNotificationService {
       const contactEmail = this.configService.emailConfig.from
 
       const html = this.emailTemplateService.getApplicationApprovedTemplate({
-        providerName: provider.name,
+        providerName: provider.legalCompanyName || '',
         loginUrl,
         contactEmail,
       })
@@ -209,7 +209,7 @@ export class ApplicationNotificationService {
         where: { id: providerId },
         select: {
           id: true,
-          name: true,
+          legalCompanyName: true,
           rejectionCategory: true,
           rejectionReason: true,
         },
@@ -226,7 +226,7 @@ export class ApplicationNotificationService {
       const reapplyUrl = `${this.configService.providerPortalUrl}/signup`
 
       const html = this.emailTemplateService.getApplicationRejectedTemplate({
-        providerName: provider.name,
+        providerName: provider.legalCompanyName || '',
         rejectionCategory: provider.rejectionCategory || undefined,
         rejectionReason: provider.rejectionReason || undefined,
         reapplyUrl,

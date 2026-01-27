@@ -37,4 +37,20 @@ export class RegisterProviderDto {
   @IsString()
   @IsNotEmpty()
   lastName: string
+
+  @ApiProperty({
+    description: 'Job title',
+    example: 'Camp Director',
+  })
+  @IsString()
+  @IsNotEmpty()
+  jobTitle: string
+
+  @ApiProperty({
+    description: 'Phone number in E.164 format',
+    example: '+14165551234',
+  })
+  @IsString()
+  @IsNotEmpty()
+  phoneNumber: string
 }

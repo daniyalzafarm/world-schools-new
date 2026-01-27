@@ -133,9 +133,25 @@ export class GoogleBusinessService {
   }
 
   /**
-   * Save Google Business Profile to database
+   * Save Google Business Profile and Legal Business Information to database
    */
-  async saveBusinessProfile(providerId: string, placeId: string): Promise<any> {
+  async saveBusinessProfile(
+    providerId: string,
+    placeId: string,
+    legalInfo: {
+      legalCompanyName: string
+      legalStreetAddress: string
+      legalAptSuite?: string
+      legalCity: string
+      legalStateProvince: string
+      legalPostalCode: string
+      legalCountry: string
+      yearFounded: number
+      providerPhone?: string
+      providerEmail?: string
+      website?: string
+    }
+  ): Promise<any> {
     // Check if this placeId is already linked to a different provider
     const existingProfile = await this.prisma.googleBusinessProfile.findUnique({
       where: { placeId },
@@ -143,7 +159,7 @@ export class GoogleBusinessService {
         provider: {
           select: {
             id: true,
-            name: true,
+            legalCompanyName: true,
           },
         },
       },
@@ -162,53 +178,76 @@ export class GoogleBusinessService {
     // Parse address components
     const addressComponents = this.parseAddressComponents(businessData.address_components || [])
 
-    // Save to database
-    const profile = await this.prisma.googleBusinessProfile.upsert({
-      where: { providerId },
-      create: {
-        providerId,
-        placeId: businessData.place_id,
-        businessName: businessData.name,
-        formattedAddress: businessData.formatted_address,
-        streetNumber: addressComponents.streetNumber,
-        streetName: addressComponents.streetName,
-        city: addressComponents.city,
-        state: addressComponents.state,
-        postalCode: addressComponents.postalCode,
-        country: addressComponents.country,
-        lat: businessData.geometry?.location?.lat || 0,
-        lng: businessData.geometry?.location?.lng || 0,
-        rating: businessData.rating,
-        reviewsCount: businessData.user_ratings_total,
-        phone: businessData.formatted_phone_number,
-        website: businessData.website,
-        photos: businessData.photos?.map((photo: any) => this.getPhotoUrl(photo.photo_reference)),
-        types: businessData.types,
-        dataRaw: businessData,
-      },
-      update: {
-        placeId: businessData.place_id,
-        businessName: businessData.name,
-        formattedAddress: businessData.formatted_address,
-        streetNumber: addressComponents.streetNumber,
-        streetName: addressComponents.streetName,
-        city: addressComponents.city,
-        state: addressComponents.state,
-        postalCode: addressComponents.postalCode,
-        country: addressComponents.country,
-        lat: businessData.geometry?.location?.lat || 0,
-        lng: businessData.geometry?.location?.lng || 0,
-        rating: businessData.rating,
-        reviewsCount: businessData.user_ratings_total,
-        phone: businessData.formatted_phone_number,
-        website: businessData.website,
-        photos: businessData.photos?.map((photo: any) => this.getPhotoUrl(photo.photo_reference)),
-        types: businessData.types,
-        dataRaw: businessData,
-      },
+    // Use Prisma transaction to save both Google Business Profile and Provider legal info
+    const result = await this.prisma.$transaction(async prisma => {
+      // Save Google Business Profile
+      const profile = await prisma.googleBusinessProfile.upsert({
+        where: { providerId },
+        create: {
+          providerId,
+          placeId: businessData.place_id,
+          businessName: businessData.name,
+          formattedAddress: businessData.formatted_address,
+          streetNumber: addressComponents.streetNumber,
+          streetName: addressComponents.streetName,
+          city: addressComponents.city,
+          state: addressComponents.state,
+          postalCode: addressComponents.postalCode,
+          country: addressComponents.country,
+          lat: businessData.geometry?.location?.lat || 0,
+          lng: businessData.geometry?.location?.lng || 0,
+          rating: businessData.rating,
+          reviewsCount: businessData.user_ratings_total,
+          phone: businessData.formatted_phone_number,
+          website: businessData.website,
+          photos: businessData.photos?.map((photo: any) => this.getPhotoUrl(photo.photo_reference)),
+          types: businessData.types,
+          dataRaw: businessData,
+        },
+        update: {
+          placeId: businessData.place_id,
+          businessName: businessData.name,
+          formattedAddress: businessData.formatted_address,
+          streetNumber: addressComponents.streetNumber,
+          streetName: addressComponents.streetName,
+          city: addressComponents.city,
+          state: addressComponents.state,
+          postalCode: addressComponents.postalCode,
+          country: addressComponents.country,
+          lat: businessData.geometry?.location?.lat || 0,
+          lng: businessData.geometry?.location?.lng || 0,
+          rating: businessData.rating,
+          reviewsCount: businessData.user_ratings_total,
+          phone: businessData.formatted_phone_number,
+          website: businessData.website,
+          photos: businessData.photos?.map((photo: any) => this.getPhotoUrl(photo.photo_reference)),
+          types: businessData.types,
+          dataRaw: businessData,
+        },
+      })
+
+      // Update Provider with legal business information
+      await prisma.provider.update({
+        where: { id: providerId },
+        data: {
+          legalCompanyName: legalInfo.legalCompanyName,
+          legalStreetAddress: legalInfo.legalStreetAddress,
+          legalAptSuite: legalInfo.legalAptSuite,
+          legalCity: legalInfo.legalCity,
+          legalStateProvince: legalInfo.legalStateProvince,
+          legalPostalCode: legalInfo.legalPostalCode,
+          legalCountry: legalInfo.legalCountry,
+          yearFounded: legalInfo.yearFounded,
+          phone: legalInfo.providerPhone,
+          email: legalInfo.providerEmail,
+          website: legalInfo.website,
+        },
+      })
+
+      return profile
     })
 
-    return profile
+    return result
   }
 
   /**

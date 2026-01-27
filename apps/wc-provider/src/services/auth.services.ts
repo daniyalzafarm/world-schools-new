@@ -27,6 +27,8 @@ export async function signup(data: {
   password: string
   firstName: string
   lastName: string
+  jobTitle: string
+  phoneNumber: string
 }) {
   return apiClient.post('provider/auth/register', data)
 }

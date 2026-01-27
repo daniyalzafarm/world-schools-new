@@ -22,25 +22,25 @@ export function validateOnboardingCompletion(
 ): ValidationResult {
   const errors: ValidationError[] = []
 
-  // Step 1: Google Business Profile
+  // Step 1: Contact & Account Info
   if (!status.stepCompletion.step1) {
     errors.push({
       step: 1,
-      stepName: 'Find Your Camp',
-      field: 'googleBusinessProfile',
-      message: 'Google Business Profile must be selected and saved',
-      path: '/onboarding/step-1',
+      stepName: 'Contact & Account',
+      field: 'contactInfo',
+      message: 'All required contact information must be completed',
+      path: '/onboarding/contact',
     })
   }
 
-  // Step 2: Contact & Account Info
+  // Step 2: Google Business Profile
   if (!status.stepCompletion.step2) {
     errors.push({
       step: 2,
-      stepName: 'Contact & Account',
-      field: 'contactInfo',
-      message: 'All required contact information and legal company details must be completed',
-      path: '/onboarding/step-2',
+      stepName: 'Find Your Camp',
+      field: 'googleBusinessProfile',
+      message: 'Google Business Profile must be selected and saved',
+      path: '/onboarding/find-your-camp',
     })
   }
 
@@ -51,7 +51,7 @@ export function validateOnboardingCompletion(
       stepName: 'About Your Camp',
       field: 'campInfo',
       message: 'Camp description, type, and age range must be filled',
-      path: '/onboarding/step-3',
+      path: '/onboarding/about-your-camp',
     })
   }
 
@@ -62,7 +62,7 @@ export function validateOnboardingCompletion(
       stepName: 'Verification Documents',
       field: 'documents',
       message: 'Required documents must be uploaded',
-      path: '/onboarding/step-4',
+      path: '/onboarding/verification',
     })
   } else {
     // Check for specific required documents
@@ -79,7 +79,7 @@ export function validateOnboardingCompletion(
         stepName: 'Verification Documents',
         field: 'business_registration',
         message: 'Business Registration document is required',
-        path: '/onboarding/step-4',
+        path: '/onboarding/verification',
       })
     }
 
@@ -89,7 +89,7 @@ export function validateOnboardingCompletion(
         stepName: 'Verification Documents',
         field: 'insurance_certificate',
         message: 'Insurance Certificate document is required',
-        path: '/onboarding/step-4',
+        path: '/onboarding/verification',
       })
     }
   }
@@ -101,7 +101,7 @@ export function validateOnboardingCompletion(
       stepName: 'Payment & Policies',
       field: 'settings',
       message: 'Payment settings and cancellation policy must be configured',
-      path: '/onboarding/step-5',
+      path: '/onboarding/payment-policies',
     })
   }
 

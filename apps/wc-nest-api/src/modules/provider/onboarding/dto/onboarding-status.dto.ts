@@ -50,7 +50,6 @@ export class OnboardingStatusDto {
       businessRegistration: 20,
       insuranceCertificate: 20,
       businessAge: 10,
-      phoneVerified: 5,
       legalInfoComplete: 10,
     },
     required: false,

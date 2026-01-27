@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Autocomplete, AutocompleteItem, Button, Spinner } from '@heroui/react'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
+import { OnboardingFooter } from '../../../components/onboarding/OnboardingFooter'
 import { TrustScoreBadge } from '../../../components/onboarding/TrustScoreBadge'
 import type {
   CancellationPolicy,
@@ -102,6 +103,17 @@ export default function OnboardingStep5Page() {
   // Cancellation policy
   const [selectedPolicy, setSelectedPolicy] = useState<CancellationPolicy>('moderate')
 
+  // Track original data and changes
+  const [originalData, setOriginalData] = useState<{
+    currency: string
+    timezone: string
+    depositType: DepositType
+    depositPercentage: string
+    depositFixedAmount: string
+    selectedPolicy: CancellationPolicy
+  } | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+
   // Inline validation state
   const [depositPercentageError, setDepositPercentageError] = useState('')
   const [depositFixedAmountError, setDepositFixedAmountError] = useState('')
@@ -115,41 +127,92 @@ export default function OnboardingStep5Page() {
     const loadSettings = async () => {
       const response = await onboardingService.getProviderSettings()
 
-      // Check if response is successful and has data
-      if (response.success && response.data) {
-        const savedSettings = response.data
+      // Check if response is successful
+      if (response.success) {
+        if (response.data) {
+          // Data exists - load saved settings
+          const savedSettings = response.data
 
-        // Load currency and timezone
-        setCurrency(savedSettings.currency || 'USD')
-        setTimezone(savedSettings.timezone || 'America/New_York')
+          // Load currency and timezone
+          const loadedCurrency = savedSettings.currency || 'USD'
+          const loadedTimezone = savedSettings.timezone || 'America/New_York'
+          setCurrency(loadedCurrency)
+          setTimezone(loadedTimezone)
 
-        // Convert backend depositType to frontend format
-        // Backend: 'percentage' | 'fixed'
-        // Frontend: 'percentage' | 'fixed_amount'
-        const frontendDepositType =
-          savedSettings.depositType === 'fixed' ? 'fixed_amount' : 'percentage'
+          // Convert backend depositType to frontend format
+          // Backend: 'percentage' | 'fixed'
+          // Frontend: 'percentage' | 'fixed_amount'
+          const frontendDepositType =
+            savedSettings.depositType === 'fixed' ? 'fixed_amount' : 'percentage'
 
-        setDepositType(frontendDepositType as DepositType)
+          setDepositType(frontendDepositType as DepositType)
 
-        if (
-          savedSettings.depositPercentage !== null &&
-          savedSettings.depositPercentage !== undefined
-        ) {
-          setDepositPercentage(savedSettings.depositPercentage.toString())
+          const loadedDepositPercentage =
+            savedSettings.depositPercentage !== null &&
+            savedSettings.depositPercentage !== undefined
+              ? savedSettings.depositPercentage.toString()
+              : '25'
+
+          const loadedDepositFixedAmount =
+            savedSettings.depositFixedAmount !== null &&
+            savedSettings.depositFixedAmount !== undefined
+              ? savedSettings.depositFixedAmount.toString()
+              : ''
+
+          setDepositPercentage(loadedDepositPercentage)
+          setDepositFixedAmount(loadedDepositFixedAmount)
+
+          const loadedPolicy = savedSettings.cancellationPolicy
+          setSelectedPolicy(loadedPolicy)
+
+          // Store original data for comparison
+          setOriginalData({
+            currency: loadedCurrency,
+            timezone: loadedTimezone,
+            depositType: frontendDepositType as DepositType,
+            depositPercentage: loadedDepositPercentage,
+            depositFixedAmount: loadedDepositFixedAmount,
+            selectedPolicy: loadedPolicy,
+          })
+        } else {
+          // No data exists yet - set originalData to represent empty server state
+          // This allows change detection to work with default form values
+          setOriginalData({
+            currency: '',
+            timezone: '',
+            depositType: 'percentage',
+            depositPercentage: '',
+            depositFixedAmount: '',
+            selectedPolicy: 'moderate',
+          })
         }
-
-        if (
-          savedSettings.depositFixedAmount !== null &&
-          savedSettings.depositFixedAmount !== undefined
-        ) {
-          setDepositFixedAmount(savedSettings.depositFixedAmount.toString())
-        }
-
-        setSelectedPolicy(savedSettings.cancellationPolicy)
       }
     }
     void loadSettings()
   }, [])
+
+  // Detect form changes
+  useEffect(() => {
+    if (!originalData) return
+
+    const hasChanges =
+      currency !== originalData.currency ||
+      timezone !== originalData.timezone ||
+      depositType !== originalData.depositType ||
+      depositPercentage !== originalData.depositPercentage ||
+      depositFixedAmount !== originalData.depositFixedAmount ||
+      selectedPolicy !== originalData.selectedPolicy
+
+    setHasUnsavedChanges(hasChanges)
+  }, [
+    currency,
+    timezone,
+    depositType,
+    depositPercentage,
+    depositFixedAmount,
+    selectedPolicy,
+    originalData,
+  ])
 
   // Route protection: Check if user can access Step 5
   useEffect(() => {
@@ -220,7 +283,7 @@ export default function OnboardingStep5Page() {
       await saveProviderSettings(settings)
 
       // Navigate to Step 6 on success
-      router.push('/onboarding/step-6')
+      router.push('/onboarding/review')
     } catch (error: any) {
       setIsSaving(false)
       console.error('Failed to save provider settings:', error)
@@ -247,20 +310,24 @@ export default function OnboardingStep5Page() {
     <OnboardingPageLayout
       breadcrumb="Provider Onboarding / Payment & Cancellation Settings"
       footer={
-        <div className="flex items-center justify-between">
-          <Button variant="light" onPress={() => router.push('/onboarding/step-4')}>
-            ← Back
-          </Button>
-          <Button
-            color="primary"
-            size="lg"
-            onPress={isReadOnly ? () => router.push('/onboarding/step-6') : handleSaveAndContinue}
-            isDisabled={!isReadOnly && (!!depositPercentageError || !!depositFixedAmountError)}
-            isLoading={isLoading || isSaving}
-          >
-            {isReadOnly ? 'Next →' : 'Save & Continue →'}
-          </Button>
-        </div>
+        <OnboardingFooter
+          onNext={async () => {
+            if (isReadOnly || !hasUnsavedChanges) {
+              // No changes or read-only mode - navigate directly without saving
+              router.push('/onboarding/review')
+            } else {
+              // Has unsaved changes - save first, then navigate
+              await handleSaveAndContinue()
+            }
+          }}
+          isLoading={isLoading || isSaving}
+          isDisabled={
+            !isReadOnly &&
+            hasUnsavedChanges &&
+            (!!depositPercentageError || !!depositFixedAmountError)
+          }
+          nextButtonText={isReadOnly || !hasUnsavedChanges ? 'Next →' : 'Save & Continue →'}
+        />
       }
     >
       <div>

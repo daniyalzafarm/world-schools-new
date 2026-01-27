@@ -1,15 +1,13 @@
 'use client'
 
-import { Select, SelectItem } from '@heroui/react'
+import { Select, SelectItem, type SelectProps } from '@heroui/react'
 import { cn } from '../utils/cn'
 
-interface SelectFieldProps {
+export interface SelectFieldProps
+  extends Omit<SelectProps, 'children' | 'selectedKeys' | 'onSelectionChange' | 'onChange'> {
   value?: string
   onChange: (value: string) => void
   options: readonly string[] | string[]
-  placeholder?: string
-  className?: string
-  label?: string
 }
 
 export function SelectField({
@@ -18,7 +16,7 @@ export function SelectField({
   options,
   placeholder = 'Select option',
   className,
-  label,
+  ...props
 }: SelectFieldProps) {
   return (
     <Select
@@ -28,21 +26,21 @@ export function SelectField({
         onChange(selectedValue)
       }}
       placeholder={placeholder}
-      className={cn('w-full', className)}
+      labelPlacement="outside"
       classNames={{
         trigger: cn(
           'rounded-lg bg-white',
           'border border-gray-200',
           'hover:border-gray-300',
-          'focus-within:border-primary!',
-          'focus-within:bg-white!',
-          'focus-within:outline-none',
-          'dark:border-gray-600'
+          'aria-expanded:border-primary!',
+          'aria-expanded:bg-white!',
+          'data-focus:outline-none',
+          'data-focus:border-primary!',
+          'dark:border-gray-600',
+          className
         ),
-        value: 'text-gray-900 dark:text-gray-100',
-        popoverContent: 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700',
       }}
-      aria-label={label}
+      {...props}
     >
       {options.map(option => (
         <SelectItem key={option}>{option}</SelectItem>

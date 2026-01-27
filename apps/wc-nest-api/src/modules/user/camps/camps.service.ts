@@ -124,12 +124,12 @@ export class UserCampsService {
         provider: {
           select: {
             id: true,
-            name: true,
-            address: true,
-            city: true,
-            state: true,
-            postalCode: true,
-            country: true,
+            legalCompanyName: true,
+            legalStreetAddress: true,
+            legalCity: true,
+            legalStateProvince: true,
+            legalPostalCode: true,
+            legalCountry: true,
             phone: true,
             email: true,
             website: true,
@@ -168,7 +168,7 @@ export class UserCampsService {
     }
 
     // Transform sessions to convert Decimal fields to numbers
-    const transformedSessions = camp.sessions.map(session => ({
+    const transformedSessions = (camp.sessions || []).map(session => ({
       ...session,
       price:
         session.price !== null && session.price !== undefined

@@ -3,25 +3,26 @@ import type { OnboardingStatus } from '../types/onboarding'
 /**
  * Determines if a user can access a specific onboarding step
  * based on their completion status
+ * Step order: 1=Contact, 2=Find Your Camp, 3=About Your Camp, 4=Verification, 5=Payment, 6=Review
  */
 export function canAccessStep(step: number, status: OnboardingStatus | null): boolean {
   if (!status) return false
 
-  // Step 1 is always accessible
+  // Step 1 (Contact & Account) is always accessible
   if (step === 1) return true
 
-  // Step 2 requires Step 1 to be completed
+  // Step 2 (Find Your Camp) requires Step 1 to be completed
   if (step === 2) return status.stepCompletion.step1
 
-  // Step 3 requires Steps 1-2 to be completed
+  // Step 3 (About Your Camp) requires Steps 1-2 to be completed
   if (step === 3) return status.stepCompletion.step1 && status.stepCompletion.step2
 
-  // Step 4 requires Steps 1-3 to be completed
+  // Step 4 (Verification) requires Steps 1-3 to be completed
   if (step === 4) {
     return status.stepCompletion.step1 && status.stepCompletion.step2 && status.stepCompletion.step3
   }
 
-  // Step 5 requires Steps 1-4 to be completed
+  // Step 5 (Payment & Policies) requires Steps 1-4 to be completed
   if (step === 5) {
     return (
       status.stepCompletion.step1 &&
@@ -31,7 +32,7 @@ export function canAccessStep(step: number, status: OnboardingStatus | null): bo
     )
   }
 
-  // Step 6 requires Steps 1-5 to be completed
+  // Step 6 (Review) requires Steps 1-5 to be completed
   if (step === 6) {
     return (
       status.stepCompletion.step1 &&
@@ -47,9 +48,10 @@ export function canAccessStep(step: number, status: OnboardingStatus | null): bo
 
 /**
  * Gets the next accessible step for a user based on their completion status
+ * Step order: 1=Contact, 2=Find Your Camp, 3=About Your Camp, 4=Verification, 5=Payment, 6=Review
  */
 export function getNextAccessibleStep(status: OnboardingStatus | null): string {
-  if (!status) return '/onboarding/step-1'
+  if (!status) return '/onboarding/contact'
 
   // If onboarding is completed, check approval status
   if (status.isCompleted) {
@@ -66,13 +68,13 @@ export function getNextAccessibleStep(status: OnboardingStatus | null): string {
     }
   }
 
-  // Find the first incomplete step
-  if (!status.stepCompletion.step1) return '/onboarding/step-1'
-  if (!status.stepCompletion.step2) return '/onboarding/step-2'
-  if (!status.stepCompletion.step3) return '/onboarding/step-3'
-  if (!status.stepCompletion.step4) return '/onboarding/step-4'
-  if (!status.stepCompletion.step5) return '/onboarding/step-5'
-  if (!status.stepCompletion.step6) return '/onboarding/step-6'
+  // Find the first incomplete step (new order: Contact → Find Your Camp → About → Verification → Payment → Review)
+  if (!status.stepCompletion.step1) return '/onboarding/contact'
+  if (!status.stepCompletion.step2) return '/onboarding/find-your-camp'
+  if (!status.stepCompletion.step3) return '/onboarding/about-your-camp'
+  if (!status.stepCompletion.step4) return '/onboarding/verification'
+  if (!status.stepCompletion.step5) return '/onboarding/payment-policies'
+  if (!status.stepCompletion.step6) return '/onboarding/review'
 
   // All steps completed but onboarding not marked as complete
   return '/onboarding/status'

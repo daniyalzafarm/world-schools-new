@@ -89,8 +89,9 @@ export default function BasicInfoEditorPage() {
         locationPlaceId: currentCamp.locationPlaceId || '',
         locationName: currentCamp.locationName || '',
         locationAddress: currentCamp.locationAddress || '',
-        locationLat: currentCamp.locationLat,
-        locationLng: currentCamp.locationLng,
+        // Convert Decimal to number (Prisma may serialize Decimal as string in JSON)
+        locationLat: currentCamp.locationLat ? Number(currentCamp.locationLat) : undefined,
+        locationLng: currentCamp.locationLng ? Number(currentCamp.locationLng) : undefined,
       }
 
       setFormData(campData)

@@ -1,13 +1,4 @@
-import {
-  IsArray,
-  IsInt,
-  IsNotEmpty,
-  IsString,
-  Max,
-  MaxLength,
-  Min,
-  MinLength,
-} from 'class-validator'
+import { IsArray, IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
 
 export class SaveCampInfoDto {
@@ -32,26 +23,4 @@ export class SaveCampInfoDto {
   @IsArray()
   @IsNotEmpty()
   campTypes: string[]
-
-  @ApiProperty({
-    description: 'Minimum camper age',
-    example: 6,
-    minimum: 0,
-    maximum: 99,
-  })
-  @IsInt()
-  @Min(0)
-  @Max(99)
-  minAge: number
-
-  @ApiProperty({
-    description: 'Maximum camper age',
-    example: 16,
-    minimum: 0,
-    maximum: 99,
-  })
-  @IsInt()
-  @Min(0)
-  @Max(99)
-  maxAge: number
 }

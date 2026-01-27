@@ -91,11 +91,19 @@ export class ProviderAuthController {
         },
       })
 
-      // Create provider with placeholder name (will be updated during onboarding)
+      // Create provider with pre-populated contact info
       const provider = await tx.provider.create({
         data: {
-          name: `${registerDto.firstName} ${registerDto.lastName}'s Institute`,
           ownerId: user.id,
+          // Pre-populate contact information from signup
+          contactFirstName: registerDto.firstName,
+          contactLastName: registerDto.lastName,
+          contactRole: registerDto.jobTitle,
+          contactPhone: registerDto.phoneNumber,
+          contactEmail: registerDto.email,
+          // Auto-complete Step 1 (Contact & Account) and set user to start at Step 2 (Find Your Camp)
+          onboardingCurrentStep: 2,
+          onboardingStartedAt: new Date(),
         },
       })
 
@@ -127,7 +135,6 @@ export class ProviderAuthController {
       },
       provider: {
         id: result.provider.id,
-        name: result.provider.name,
       },
     })
   }

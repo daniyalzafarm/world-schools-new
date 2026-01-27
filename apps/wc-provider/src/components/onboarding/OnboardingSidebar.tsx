@@ -48,17 +48,17 @@ export function OnboardingSidebar({
   const steps: Step[] = [
     {
       number: 1,
-      title: 'Find Your Camp',
-      subtitle: 'Google verification',
-      href: '/onboarding/step-1',
+      title: 'Contact & Account',
+      subtitle: 'Your information',
+      href: '/onboarding/contact',
       completed: stepCompletion.step1,
-      enabled: true, // Step 1 is always enabled
+      enabled: true, // Step 1 is always enabled (auto-completed on signup)
     },
     {
       number: 2,
-      title: 'Contact & Account',
-      subtitle: 'Create your login',
-      href: '/onboarding/step-2',
+      title: 'Find Your Camp',
+      subtitle: 'Google verification',
+      href: '/onboarding/find-your-camp',
       completed: stepCompletion.step2,
       enabled: stepCompletion.step1, // Enabled only if step 1 is completed
     },
@@ -66,7 +66,7 @@ export function OnboardingSidebar({
       number: 3,
       title: 'About Your Camp',
       subtitle: 'Basic info',
-      href: '/onboarding/step-3',
+      href: '/onboarding/about-your-camp',
       completed: stepCompletion.step3,
       enabled: stepCompletion.step1 && stepCompletion.step2, // Enabled only if steps 1 & 2 are completed
     },
@@ -74,7 +74,7 @@ export function OnboardingSidebar({
       number: 4,
       title: 'Verification',
       subtitle: 'Documents',
-      href: '/onboarding/step-4',
+      href: '/onboarding/verification',
       completed: stepCompletion.step4,
       enabled: stepCompletion.step1 && stepCompletion.step2 && stepCompletion.step3, // Enabled only if steps 1-3 are completed
     },
@@ -82,7 +82,7 @@ export function OnboardingSidebar({
       number: 5,
       title: 'Payment & Policies',
       subtitle: 'Settings',
-      href: '/onboarding/step-5',
+      href: '/onboarding/payment-policies',
       completed: stepCompletion.step5,
       enabled:
         stepCompletion.step1 &&
@@ -94,7 +94,7 @@ export function OnboardingSidebar({
       number: 6,
       title: 'Acknowledgment',
       subtitle: 'Review & submit',
-      href: '/onboarding/step-6',
+      href: '/onboarding/review',
       completed: stepCompletion.step6,
       enabled:
         stepCompletion.step1 &&

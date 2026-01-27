@@ -13,7 +13,7 @@ export class ValidationErrorDto {
   @ApiProperty({ example: 'Google Business Profile must be selected and saved' })
   message: string
 
-  @ApiProperty({ example: '/onboarding/step-1' })
+  @ApiProperty({ example: '/onboarding/find-your-camp' })
   path: string
 }
 

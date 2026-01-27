@@ -125,28 +125,8 @@ model RolePermission {
 // ============================================
 
 model Provider {
-  id         String   @id @default(uuid())
-  name       String
-  ownerId    String   @unique @map("owner_id")
-  address    String?
-  city       String?
-  state      String?
-  postalCode String?  @map("postal_code")
-  country    String?
-  phone      String?
-  email      String?
-  website    String?
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  // Contact & Account (Step 2)
-  contactFirstName   String?   @map("contact_first_name")
-  contactLastName    String?   @map("contact_last_name")
-  contactRole        String?   @map("contact_role")
-  contactPhone       String?   @map("contact_phone")
-  contactEmail       String?   @map("contact_email")
-  phoneVerified      Boolean   @default(false) @map("phone_verified")
-  phoneVerifiedAt    DateTime? @map("phone_verified_at")
+  id        String   @id @default(uuid())
+  ownerId   String   @unique @map("owner_id")
   legalCompanyName   String?   @map("legal_company_name")
   legalStreetAddress String?   @map("legal_street_address")
   legalAptSuite      String?   @map("legal_apt_suite")
@@ -155,12 +135,22 @@ model Provider {
   legalPostalCode    String?   @map("legal_postal_code")
   legalCountry       String?   @map("legal_country")
   yearFounded        Int?      @map("year_founded")
+  phone     String?
+  email     String?
+  website   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Contact & Account (Step 2)
+  contactFirstName   String?   @map("contact_first_name")
+  contactLastName    String?   @map("contact_last_name")
+  contactRole        String?   @map("contact_role")
+  contactPhone       String?   @map("contact_phone")
+  contactEmail       String?   @map("contact_email")
 
   // Camp Details (Step 3)
   description String? @db.Text
   campType    String? @map("camp_type")
-  minAge      Int?    @map("min_age")
-  maxAge      Int?    @map("max_age")
 
   // Approval Status
   trustScore          Int?           @map("trust_score")

@@ -119,7 +119,6 @@ export interface ApplicationDetail {
   businessName: string
   email: string
   emailVerified: boolean
-  phoneVerified: boolean
   approvalStatus: ApprovalStatus
   trustScore?: number | null
   trustScoreBreakdown?: TrustScoreBreakdown | null
@@ -138,7 +137,6 @@ export interface ApplicationDetail {
   contactRole?: string
   contactPhone?: string
   contactEmail?: string
-  providerName?: string
   providerPhone?: string
   providerEmail?: string
   website?: string

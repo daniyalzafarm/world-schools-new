@@ -118,6 +118,13 @@
 /* Error state */
 .phone-input-wrapper.has-error .PhoneInputCountry,
 .phone-input-wrapper.has-error .PhoneInputInput {
-  border-color: #c20e4d !important; /* danger-500 */
+  border-color: hsl(var(--heroui-error) / 1) !important; /* danger-500 */
 }
 
+/* Warning state (for changed fields) */
+/* Apply warning border only to the input fields, not the wrapper */
+.phone-input-wrapper.has-warning .PhoneInputCountry,
+.phone-input-wrapper.has-warning .PhoneInputInput {
+  border-width: 2px !important;
+  border-color: hsl(var(--heroui-warning) / 1) !important; /* Use theme warning color */
+}

@@ -78,6 +78,14 @@ export interface GoogleBusinessSearchResult {
   website?: string
   photos?: string[]
   types?: string[]
+  // Address components for auto-filling legal business info
+  streetNumber?: string
+  streetName?: string
+  city?: string
+  state?: string
+  postalCode?: string
+  country?: string // Full country name (e.g., "Pakistan", "United States")
+  countryCode?: string // ISO 2-letter country code (e.g., "PK", "US", "CH")
 }
 
 export interface GoogleBusinessProfile {
@@ -99,6 +107,19 @@ export interface GoogleBusinessProfile {
   state?: string
   postalCode?: string
   country?: string
+  legalInfo?: {
+    legalCompanyName: string | null
+    legalStreetAddress: string | null
+    legalAptSuite: string | null
+    legalCity: string | null
+    legalStateProvince: string | null
+    legalPostalCode: string | null
+    legalCountry: string | null
+    yearFounded: number | null
+    providerPhone: string | null
+    providerEmail: string | null
+    website: string | null
+  } | null
 }
 
 export interface ContactInfo {
@@ -107,10 +128,9 @@ export interface ContactInfo {
   contactRole: string
   contactPhone: string // E.164 format phone number (e.g., "+12133734253")
   contactEmail: string
-  providerName: string
-  providerPhone?: string // E.164 format phone number (optional)
-  providerEmail?: string
-  website?: string
+}
+
+export interface LegalBusinessInfo {
   legalCompanyName: string
   legalStreetAddress: string
   legalAptSuite?: string
@@ -119,6 +139,9 @@ export interface ContactInfo {
   legalPostalCode: string
   legalCountry: string
   yearFounded: number
+  providerPhone?: string // E.164 format phone number (optional)
+  providerEmail?: string
+  website?: string
 }
 
 export interface VerificationDocument {
@@ -155,6 +178,17 @@ export interface SearchGoogleBusinessRequest {
 
 export interface SaveGoogleBusinessProfileRequest {
   placeId: string
+  legalCompanyName: string
+  legalStreetAddress: string
+  legalAptSuite?: string
+  legalCity: string
+  legalStateProvince: string
+  legalPostalCode: string
+  legalCountry: string
+  yearFounded: number
+  providerPhone?: string
+  providerEmail?: string
+  website?: string
 }
 
 export interface UploadDocumentRequest {

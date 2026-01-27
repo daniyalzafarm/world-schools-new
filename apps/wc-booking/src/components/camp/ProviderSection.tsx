@@ -3,12 +3,10 @@ import { Button, Card, CardBody } from '@heroui/react'
 interface ProviderSectionProps {
   provider: {
     id: string
-    name: string
-    address?: string
-    city?: string
-    state?: string
-    postalCode?: string
-    country?: string
+    legalCompanyName: string
+    legalCity?: string
+    legalStateProvince?: string
+    legalCountry?: string
     phone?: string
     email?: string
     website?: string
@@ -25,14 +23,14 @@ interface ProviderSectionProps {
 }
 
 export function ProviderSection({ provider }: ProviderSectionProps) {
-  const { name, city, state, country, yearFounded, googleBusinessProfile } = provider
+  const { legalCompanyName, legalCity, legalStateProvince, legalCountry, yearFounded, googleBusinessProfile } = provider
 
   // Use Google Business Profile data if available, otherwise fall back to provider data
-  const displayName = googleBusinessProfile?.businessName || name
+  const displayName = googleBusinessProfile?.businessName || legalCompanyName
   const rating = googleBusinessProfile?.rating ? Number(googleBusinessProfile.rating) : null
   const reviewsCount = googleBusinessProfile?.reviewsCount ?? 0
   const location =
-    googleBusinessProfile?.formattedAddress || [city, state, country].filter(Boolean).join(', ')
+    googleBusinessProfile?.formattedAddress || [legalCity, legalStateProvince, legalCountry].filter(Boolean).join(', ')
 
   // Calculate years in operation
   const yearsInOperation = yearFounded ? new Date().getFullYear() - yearFounded : null

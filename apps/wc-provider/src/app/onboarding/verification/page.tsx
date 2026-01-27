@@ -7,6 +7,7 @@ import { Trash2 } from 'lucide-react'
 import { useConfirmDialog } from '@world-schools/ui-web'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
+import { OnboardingFooter } from '../../../components/onboarding/OnboardingFooter'
 import { TrustScoreBadge } from '../../../components/onboarding/TrustScoreBadge'
 import type { DocumentType } from '../../../types/onboarding'
 import { canAccessStep, getNextAccessibleStep } from '../../../utils/onboarding-access'
@@ -161,7 +162,7 @@ export default function OnboardingStep4Page() {
   const handleContinue = async () => {
     try {
       await completeStep4()
-      router.push('/onboarding/step-5')
+      router.push('/onboarding/payment-policies')
     } catch (error) {
       console.error('Failed to complete step 4:', error)
       addToast({
@@ -184,20 +185,22 @@ export default function OnboardingStep4Page() {
     <OnboardingPageLayout
       breadcrumb="Provider Onboarding / Verification Documents"
       footer={
-        <div className="flex items-center justify-between">
-          <Button variant="light" onPress={() => router.push('/onboarding/step-3')}>
-            ← Back
-          </Button>
-          <Button
-            color="primary"
-            size="lg"
-            onPress={isReadOnly ? () => router.push('/onboarding/step-5') : handleContinue}
-            isDisabled={!isReadOnly && !hasRequiredDocs()}
-            isLoading={isLoading}
-          >
-            {isReadOnly ? 'Next →' : 'Save & Continue →'}
-          </Button>
-        </div>
+        <OnboardingFooter
+          onNext={async () => {
+            if (isReadOnly || status?.stepCompletion.step4) {
+              // Step already completed or read-only mode - navigate directly without saving
+              router.push('/onboarding/payment-policies')
+            } else {
+              // Step not completed - complete it first, then navigate
+              await handleContinue()
+            }
+          }}
+          isLoading={isLoading}
+          isDisabled={!isReadOnly && !status?.stepCompletion.step4 && !hasRequiredDocs()}
+          nextButtonText={
+            isReadOnly || status?.stepCompletion.step4 ? 'Next →' : 'Save & Continue →'
+          }
+        />
       }
     >
       {/* Content */}

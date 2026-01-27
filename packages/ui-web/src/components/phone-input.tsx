@@ -1,7 +1,8 @@
 'use client'
 
-import React, { forwardRef } from 'react'
+import { forwardRef, useMemo } from 'react'
 import PhoneInputWithCountry, { type Country } from 'react-phone-number-input'
+import { cn } from '../utils/cn'
 
 interface PhoneInputProps {
   value?: string
@@ -13,6 +14,10 @@ interface PhoneInputProps {
   className?: string
   label?: string
   isRequired?: boolean
+  classNames?: {
+    wrapper?: string
+    inputWrapper?: string
+  }
 }
 
 /**
@@ -38,13 +43,24 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
       defaultCountry = 'CH',
       error,
       className,
-      label = 'Phone Number',
+      label = '',
       isRequired = false,
+      classNames,
     },
     ref
   ) => {
+    // Memoize the input component to prevent recreation on every render
+    // This is critical to maintain focus while typing
+    const InputComponent = useMemo(
+      () =>
+        forwardRef<HTMLInputElement>((props, inputRef) => (
+          <input {...props} ref={inputRef || ref} />
+        )),
+      [ref]
+    )
+
     return (
-      <div className={className}>
+      <div className={cn(className, classNames?.wrapper)}>
         {/* Label - matches HeroUI Input with labelPlacement="outside" */}
         {label && (
           <label className="mb-1 block text-sm font-medium text-foreground">
@@ -60,12 +76,10 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
           onChange={val => onChange?.(val as string | undefined)}
           disabled={disabled}
           placeholder={placeholder}
-          className={`phone-input-wrapper ${error ? 'has-error' : ''}`}
-          inputComponent={React.forwardRef<HTMLInputElement>((props, inputRef) => (
-            <input {...props} ref={inputRef || ref} />
-          ))}
+          className={cn('phone-input-wrapper', classNames?.inputWrapper, error && 'has-error')}
+          inputComponent={InputComponent}
         />
-        {error && <p className="mt-1 text-sm text-danger">{error}</p>}
+        {error && <p className="mt-1 text-xs text-danger">{error}</p>}
       </div>
     )
   }

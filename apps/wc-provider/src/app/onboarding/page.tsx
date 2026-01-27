@@ -37,20 +37,20 @@ export default function OnboardingPage() {
     // Add defensive check for stepCompletion
     if (!status.stepCompletion) {
       console.error('stepCompletion is missing from status response')
-      router.push('/onboarding/step-1')
+      router.push('/onboarding/find-your-camp')
       return
     }
 
     if (!status.stepCompletion.step1) {
-      router.push('/onboarding/step-1')
+      router.push('/onboarding/find-your-camp')
     } else if (!status.stepCompletion.step2) {
-      router.push('/onboarding/step-2')
+      router.push('/onboarding/contact')
     } else if (!status.stepCompletion.step3) {
-      router.push('/onboarding/step-3')
+      router.push('/onboarding/about-your-camp')
     } else if (!status.stepCompletion.step4) {
-      router.push('/onboarding/step-4')
+      router.push('/onboarding/verification')
     } else if (!status.stepCompletion.step5) {
-      router.push('/onboarding/step-5')
+      router.push('/onboarding/payment-policies')
     } else {
       // All steps completed, redirect to status page
       router.push('/onboarding/status')

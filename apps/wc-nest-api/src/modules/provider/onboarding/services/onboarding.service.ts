@@ -38,15 +38,17 @@ export class OnboardingService {
     }
 
     // Determine step completion
+    // Step order: 1=Contact, 2=Find Your Camp, 3=About Your Camp, 4=Verification, 5=Payment, 6=Review
     const stepCompletion = {
-      step1: !!provider.googleBusinessProfile,
-      step2: !!(
+      step1: !!(
         provider.contactFirstName &&
         provider.contactLastName &&
         provider.contactRole &&
         provider.contactPhone &&
-        provider.contactEmail &&
-        provider.name &&
+        provider.contactEmail
+      ),
+      step2: !!(
+        provider.googleBusinessProfile &&
         provider.legalCompanyName &&
         provider.legalStreetAddress &&
         provider.legalCity &&
@@ -55,7 +57,7 @@ export class OnboardingService {
         provider.legalCountry &&
         provider.yearFounded
       ),
-      step3: !!(provider.description && provider.campType && provider.minAge && provider.maxAge),
+      step3: !!(provider.description && provider.campType),
       step4: provider.verificationDocuments.length > 0,
       step5: !!provider.settings,
       step6: !!provider.onboardingCompletedAt, // Step 6 is completed when onboarding is submitted
@@ -95,7 +97,59 @@ export class OnboardingService {
   }
 
   /**
-   * Get contact and legal information (Step 2)
+   * Get provider legal business information (Step 1)
+   */
+  async getProviderLegalInfo(providerId: string): Promise<{
+    legalCompanyName: string | null
+    legalStreetAddress: string | null
+    legalAptSuite: string | null
+    legalCity: string | null
+    legalStateProvince: string | null
+    legalPostalCode: string | null
+    legalCountry: string | null
+    yearFounded: number | null
+    providerPhone: string | null
+    providerEmail: string | null
+    website: string | null
+  } | null> {
+    const provider = await this.prisma.provider.findUnique({
+      where: { id: providerId },
+      select: {
+        legalCompanyName: true,
+        legalStreetAddress: true,
+        legalAptSuite: true,
+        legalCity: true,
+        legalStateProvince: true,
+        legalPostalCode: true,
+        legalCountry: true,
+        yearFounded: true,
+        phone: true,
+        email: true,
+        website: true,
+      },
+    })
+
+    if (!provider) {
+      return null
+    }
+
+    return {
+      legalCompanyName: provider.legalCompanyName,
+      legalStreetAddress: provider.legalStreetAddress,
+      legalAptSuite: provider.legalAptSuite,
+      legalCity: provider.legalCity,
+      legalStateProvince: provider.legalStateProvince,
+      legalPostalCode: provider.legalPostalCode,
+      legalCountry: provider.legalCountry,
+      yearFounded: provider.yearFounded,
+      providerPhone: provider.phone,
+      providerEmail: provider.email,
+      website: provider.website,
+    }
+  }
+
+  /**
+   * Get contact information (Step 2)
    */
   async getContactInfo(providerId: string): Promise<SaveContactInfoDto | null> {
     const provider = await this.prisma.provider.findUnique({
@@ -106,18 +160,6 @@ export class OnboardingService {
         contactRole: true,
         contactPhone: true,
         contactEmail: true,
-        name: true,
-        phone: true,
-        email: true,
-        website: true,
-        legalCompanyName: true,
-        legalStreetAddress: true,
-        legalAptSuite: true,
-        legalCity: true,
-        legalStateProvince: true,
-        legalPostalCode: true,
-        legalCountry: true,
-        yearFounded: true,
       },
     })
 
@@ -136,23 +178,11 @@ export class OnboardingService {
       contactRole: provider.contactRole,
       contactPhone: provider.contactPhone,
       contactEmail: provider.contactEmail,
-      providerName: provider.name,
-      providerPhone: provider.phone,
-      providerEmail: provider.email,
-      website: provider.website,
-      legalCompanyName: provider.legalCompanyName,
-      legalStreetAddress: provider.legalStreetAddress,
-      legalAptSuite: provider.legalAptSuite,
-      legalCity: provider.legalCity,
-      legalStateProvince: provider.legalStateProvince,
-      legalPostalCode: provider.legalPostalCode,
-      legalCountry: provider.legalCountry,
-      yearFounded: provider.yearFounded,
     } as SaveContactInfoDto
   }
 
   /**
-   * Save contact and legal information (Step 2)
+   * Save contact information (Step 1)
    */
   async saveContactInfo(providerId: string, dto: SaveContactInfoDto): Promise<void> {
     await this.prisma.provider.update({
@@ -163,19 +193,7 @@ export class OnboardingService {
         contactRole: dto.contactRole,
         contactPhone: dto.contactPhone,
         contactEmail: dto.contactEmail,
-        name: dto.providerName,
-        phone: dto.providerPhone,
-        email: dto.providerEmail,
-        website: dto.website,
-        legalCompanyName: dto.legalCompanyName,
-        legalStreetAddress: dto.legalStreetAddress,
-        legalAptSuite: dto.legalAptSuite,
-        legalCity: dto.legalCity,
-        legalStateProvince: dto.legalStateProvince,
-        legalPostalCode: dto.legalPostalCode,
-        legalCountry: dto.legalCountry,
-        yearFounded: dto.yearFounded,
-        onboardingCurrentStep: Math.max(3, (await this.getCurrentStep(providerId)) || 3),
+        onboardingCurrentStep: Math.max(2, (await this.getCurrentStep(providerId)) || 2),
       },
     })
 
@@ -194,8 +212,6 @@ export class OnboardingService {
       select: {
         description: true,
         campType: true,
-        minAge: true,
-        maxAge: true,
       },
     })
 
@@ -211,8 +227,6 @@ export class OnboardingService {
     return {
       description: provider.description,
       campTypes: provider.campType ? provider.campType.split(',') : [],
-      minAge: provider.minAge ?? 0,
-      maxAge: provider.maxAge ?? 0,
     }
   }
 
@@ -225,8 +239,6 @@ export class OnboardingService {
       data: {
         description: dto.description,
         campType: dto.campTypes.join(','), // Store as comma-separated string
-        minAge: dto.minAge,
-        maxAge: dto.maxAge,
         onboardingCurrentStep: Math.max(3, (await this.getCurrentStep(providerId)) || 3),
       },
     })
@@ -304,23 +316,25 @@ export class OnboardingService {
       path: string
     }> = []
 
-    // Step 1: Google Business Profile
-    if (!provider.googleBusinessProfile) {
-      errors.push({
-        step: 1,
-        stepName: 'Find Your Camp',
-        field: 'googleBusinessProfile',
-        message: 'Google Business Profile must be selected and saved',
-        path: '/onboarding/step-1',
-      })
-    }
-
-    // Step 2: Contact & Account Info
+    // Step 1: Contact & Account Info
     if (
       !provider.contactFirstName ||
       !provider.contactLastName ||
       !provider.contactRole ||
-      !provider.contactPhone ||
+      !provider.contactPhone
+    ) {
+      errors.push({
+        step: 1,
+        stepName: 'Contact & Account',
+        field: 'contactInfo',
+        message: 'All required contact information must be completed',
+        path: '/onboarding/contact',
+      })
+    }
+
+    // Step 2: Google Business Profile and Legal Business Information
+    if (
+      !provider.googleBusinessProfile ||
       !provider.legalCompanyName ||
       !provider.legalStreetAddress ||
       !provider.legalCity ||
@@ -331,21 +345,21 @@ export class OnboardingService {
     ) {
       errors.push({
         step: 2,
-        stepName: 'Contact & Account',
-        field: 'contactInfo',
-        message: 'All required contact information and legal company details must be completed',
-        path: '/onboarding/step-2',
+        stepName: 'Find Your Camp',
+        field: 'googleBusinessProfile',
+        message: 'Google Business Profile and legal business information must be completed',
+        path: '/onboarding/find-your-camp',
       })
     }
 
     // Step 3: Camp Info
-    if (!provider.description || !provider.campType || !provider.minAge || !provider.maxAge) {
+    if (!provider.description || !provider.campType) {
       errors.push({
         step: 3,
         stepName: 'About Your Camp',
         field: 'campInfo',
-        message: 'Camp description, type, and age range must be filled',
-        path: '/onboarding/step-3',
+        message: 'Camp description and type must be filled',
+        path: '/onboarding/about-your-camp',
       })
     }
 
@@ -363,7 +377,7 @@ export class OnboardingService {
         stepName: 'Verification Documents',
         field: 'business_registration',
         message: 'Business Registration document is required',
-        path: '/onboarding/step-4',
+        path: '/onboarding/verification',
       })
     }
 
@@ -373,7 +387,7 @@ export class OnboardingService {
         stepName: 'Verification Documents',
         field: 'insurance_certificate',
         message: 'Insurance Certificate document is required',
-        path: '/onboarding/step-4',
+        path: '/onboarding/verification',
       })
     }
 
@@ -384,7 +398,7 @@ export class OnboardingService {
         stepName: 'Payment & Policies',
         field: 'settings',
         message: 'Payment settings and cancellation policy must be configured',
-        path: '/onboarding/step-5',
+        path: '/onboarding/payment-policies',
       })
     } else {
       // Validate deposit settings
@@ -395,7 +409,7 @@ export class OnboardingService {
             stepName: 'Payment & Policies',
             field: 'depositType',
             message: 'Deposit type must be selected',
-            path: '/onboarding/step-5',
+            path: '/onboarding/payment-policies',
           })
         } else if (
           provider.settings.depositType === 'percentage' &&
@@ -408,7 +422,7 @@ export class OnboardingService {
             stepName: 'Payment & Policies',
             field: 'depositPercentage',
             message: 'Deposit percentage must be between 1 and 100',
-            path: '/onboarding/step-5',
+            path: '/onboarding/payment-policies',
           })
         } else if (
           provider.settings.depositType === 'fixed_amount' &&
@@ -420,7 +434,7 @@ export class OnboardingService {
             stepName: 'Payment & Policies',
             field: 'depositFixedAmount',
             message: 'Deposit amount must be at least $1',
-            path: '/onboarding/step-5',
+            path: '/onboarding/payment-policies',
           })
         }
       }
@@ -432,7 +446,7 @@ export class OnboardingService {
           stepName: 'Payment & Policies',
           field: 'cancellationPolicy',
           message: 'Cancellation policy must be selected',
-          path: '/onboarding/step-5',
+          path: '/onboarding/payment-policies',
         })
       }
     }

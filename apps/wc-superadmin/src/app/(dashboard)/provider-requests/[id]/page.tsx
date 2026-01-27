@@ -102,11 +102,6 @@ export default function ProviderRequestDetailPage() {
                   {EMOJI.CHECK_MARK} Email Verified
                 </Chip>
               )}
-              {selectedApplication.phoneVerified && (
-                <Chip size="md" color="success" variant="flat">
-                  {EMOJI.CHECK_MARK} Phone Verified
-                </Chip>
-              )}
             </div>
           </div>
 

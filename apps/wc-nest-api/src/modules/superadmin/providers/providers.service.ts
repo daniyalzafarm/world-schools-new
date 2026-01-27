@@ -136,6 +136,8 @@ export class SuperAdminProvidersService {
       where: { id },
     })
 
-    return { message: `Provider '${provider.name}' deleted successfully` }
+    return {
+      message: `Provider '${provider.legalCompanyName || provider.id}' deleted successfully`,
+    }
   }
 }

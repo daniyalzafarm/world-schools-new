@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, Spinner } from '@heroui/react'
+import { Spinner } from '@heroui/react'
 import { Input, Textarea } from '@world-schools/ui-web'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
+import { OnboardingFooter } from '../../../components/onboarding/OnboardingFooter'
 import { TrustScoreBadge } from '../../../components/onboarding/TrustScoreBadge'
 import { canAccessStep, getNextAccessibleStep } from '../../../utils/onboarding-access'
 import { onboardingService } from '../../../services/onboarding.services'
@@ -15,8 +16,11 @@ export default function OnboardingStep3Page() {
   const { status, isLoading, saveCampInfo } = useOnboardingStore()
   const [description, setDescription] = useState('')
   const [campTypes, setCampTypes] = useState<string[]>([])
-  const [minAge, setMinAge] = useState('')
-  const [maxAge, setMaxAge] = useState('')
+
+  // Track original data and changes
+  const [originalDescription, setOriginalDescription] = useState('')
+  const [originalCampTypes, setOriginalCampTypes] = useState<string[]>([])
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   const charCount = description.length
   const isDescriptionValid = charCount >= 100 && charCount <= 300
@@ -31,12 +35,21 @@ export default function OnboardingStep3Page() {
       if (response.success && response.data) {
         setDescription(response.data.description)
         setCampTypes(response.data.campTypes)
-        setMinAge(response.data.minAge.toString())
-        setMaxAge(response.data.maxAge.toString())
+        setOriginalDescription(response.data.description)
+        setOriginalCampTypes(response.data.campTypes)
       }
     }
     void loadCampInfo()
   }, [])
+
+  // Detect form changes
+  useEffect(() => {
+    const hasChanges =
+      description !== originalDescription ||
+      JSON.stringify(campTypes.sort()) !== JSON.stringify(originalCampTypes.sort())
+
+    setHasUnsavedChanges(hasChanges)
+  }, [description, campTypes, originalDescription, originalCampTypes])
 
   // Route protection: Check if user can access Step 3
   useEffect(() => {
@@ -55,12 +68,10 @@ export default function OnboardingStep3Page() {
     await saveCampInfo({
       description,
       campTypes,
-      minAge: parseInt(minAge),
-      maxAge: parseInt(maxAge),
     })
     // Store will handle errors and set them in error state
     // Only navigate if no error occurred
-    router.push('/onboarding/step-4')
+    router.push('/onboarding/verification')
   }
 
   if (!status) {
@@ -75,22 +86,22 @@ export default function OnboardingStep3Page() {
     <OnboardingPageLayout
       breadcrumb="Provider Onboarding / About Your Camp"
       footer={
-        <div className="flex items-center justify-between">
-          <Button variant="light" onPress={() => router.push('/onboarding/step-2')}>
-            ← Back
-          </Button>
-          <Button
-            color="primary"
-            size="lg"
-            onPress={isReadOnly ? () => router.push('/onboarding/step-4') : handleContinue}
-            isDisabled={
-              !isReadOnly && (!isDescriptionValid || campTypes.length === 0 || !minAge || !maxAge)
+        <OnboardingFooter
+          onNext={async () => {
+            if (isReadOnly || !hasUnsavedChanges) {
+              // No changes or read-only mode - navigate directly without saving
+              router.push('/onboarding/verification')
+            } else {
+              // Has unsaved changes - save first, then navigate
+              await handleContinue()
             }
-            isLoading={isLoading}
-          >
-            {isReadOnly ? 'Next →' : 'Save & Continue →'}
-          </Button>
-        </div>
+          }}
+          isLoading={isLoading}
+          isDisabled={
+            !isReadOnly && hasUnsavedChanges && (!isDescriptionValid || campTypes.length === 0)
+          }
+          nextButtonText={isReadOnly || !hasUnsavedChanges ? 'Next →' : 'Save & Continue →'}
+        />
       }
     >
       {/* Content */}
@@ -167,38 +178,6 @@ export default function OnboardingStep3Page() {
                   <div className="text-sm text-default-500">Campers stay overnight</div>
                 </div>
               </button>
-            </div>
-          </div>
-
-          {/* Age Range */}
-          <div className="flex flex-col gap-4">
-            <h2 className="text-xl font-semibold text-foreground">Age Range Served</h2>
-
-            <div className="flex items-start gap-4">
-              <Input
-                type="number"
-                label="Minimum Age"
-                isRequired
-                value={minAge}
-                onChange={e => setMinAge(e.target.value)}
-                placeholder="Min age"
-                min="0"
-                max="99"
-                isDisabled={isReadOnly}
-                description="Specify the age range of campers you serve"
-              />
-              <span className="mt-8 text-default-500">to</span>
-              <Input
-                type="number"
-                label="Maximum Age"
-                isRequired
-                value={maxAge}
-                onChange={e => setMaxAge(e.target.value)}
-                placeholder="Max age"
-                min="0"
-                max="99"
-                isDisabled={isReadOnly}
-              />
             </div>
           </div>
         </div>

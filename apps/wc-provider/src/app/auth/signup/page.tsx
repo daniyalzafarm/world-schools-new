@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button, Link, Progress } from '@heroui/react'
 import { Eye, EyeOff } from 'lucide-react'
 
-import { Input } from '@world-schools/ui-web'
+import { Input, PhoneInput, SelectField } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
 import { signup } from '@/services/auth.services'
 import {
@@ -14,6 +14,7 @@ import {
   PasswordRequirementsDisplay,
   validatePassword,
 } from '@world-schools/wc-frontend-utils'
+import { isValidPhoneNumber } from 'react-phone-number-input'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -28,8 +29,20 @@ export default function SignUpPage() {
     confirmPassword: '',
     firstName: '',
     lastName: '',
+    jobTitle: '',
+    customJobTitle: '', // For "Other" option
+    phoneNumber: '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Job title options
+  const JOB_TITLE_OPTIONS = [
+    'Owner / Director',
+    'Camp Manager',
+    'Administrator',
+    'Marketing / Sales',
+    'Other',
+  ] as const
 
   // Clear validation errors when user starts typing
   useEffect(() => {
@@ -67,6 +80,17 @@ export default function SignUpPage() {
       nextErrors.lastName = 'Last name is required'
     }
 
+    if (!formData.jobTitle.trim()) {
+      nextErrors.jobTitle = 'Job title is required'
+    }
+    // Custom job title is optional, no validation needed
+
+    if (!formData.phoneNumber.trim()) {
+      nextErrors.phoneNumber = 'Phone number is required'
+    } else if (!isValidPhoneNumber(formData.phoneNumber)) {
+      nextErrors.phoneNumber = 'Please enter a valid phone number'
+    }
+
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }
@@ -79,11 +103,19 @@ export default function SignUpPage() {
     setIsLoading(true)
     setError(null)
 
+    // Determine the final job title value
+    const finalJobTitle =
+      formData.jobTitle === 'Other' && formData.customJobTitle.trim()
+        ? formData.customJobTitle.trim()
+        : formData.jobTitle
+
     const response = await signup({
       email: formData.email,
       password: formData.password,
       firstName: formData.firstName,
       lastName: formData.lastName,
+      jobTitle: finalJobTitle,
+      phoneNumber: formData.phoneNumber,
     })
 
     if (response.success) {
@@ -111,12 +143,12 @@ export default function SignUpPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-8">
-        <div className="w-full max-w-2xl space-y-6">
+        <div className="w-full max-w-2xl flex flex-col gap-4">
           <div className="flex justify-center mb-4">
             <Logo size="lg" />
           </div>
-          <div className="bg-gray-50 rounded-2xl p-8 space-y-6">
-            <div className="space-y-2 text-center">
+          <div className="bg-gray-50 rounded-2xl p-8 flex flex-col gap-4">
+            <div className="flex flex-col gap-2 text-center">
               <h1 className="text-2xl font-bold text-secondary-500">Create your account</h1>
               <p className="text-sm text-gray-500">
                 Register your organization to start managing camps and bookings
@@ -129,7 +161,8 @@ export default function SignUpPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              {/* First Name & Last Name */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   type="text"
@@ -138,9 +171,6 @@ export default function SignUpPage() {
                   onValueChange={value => handleInputChange('firstName', value)}
                   isInvalid={!!errors.firstName}
                   errorMessage={errors.firstName}
-                  variant="bordered"
-                  radius="lg"
-                  size="lg"
                 />
 
                 <Input
@@ -150,25 +180,65 @@ export default function SignUpPage() {
                   onValueChange={value => handleInputChange('lastName', value)}
                   isInvalid={!!errors.lastName}
                   errorMessage={errors.lastName}
-                  variant="bordered"
-                  radius="lg"
-                  size="lg"
                 />
               </div>
 
-              <Input
-                type="email"
-                placeholder="Email address"
-                value={formData.email}
-                onValueChange={value => handleInputChange('email', value)}
-                isInvalid={!!errors.email}
-                errorMessage={errors.email}
-                variant="bordered"
-                radius="lg"
-                size="lg"
-              />
+              {/* Email & Phone Number */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  type="email"
+                  placeholder="Email address"
+                  value={formData.email}
+                  onValueChange={value => handleInputChange('email', value)}
+                  isInvalid={!!errors.email}
+                  errorMessage={errors.email}
+                />
 
-              <div className="space-y-4">
+                <PhoneInput
+                  value={formData.phoneNumber}
+                  onChange={value => handleInputChange('phoneNumber', value || '')}
+                  placeholder="Phone Number"
+                  error={errors.phoneNumber}
+                  className="phone-input-signup"
+                />
+              </div>
+
+              {/* Job Title & Custom Job Title */}
+              <div className={formData.jobTitle === 'Other' ? 'grid gap-4 md:grid-cols-2' : ''}>
+                <div className="flex flex-col gap-2">
+                  <SelectField
+                    aria-label="Job Title"
+                    placeholder="Select Job Title"
+                    value={formData.jobTitle}
+                    onChange={value => {
+                      handleInputChange('jobTitle', value)
+                      // Clear custom job title when switching away from "Other"
+                      if (value !== 'Other') {
+                        handleInputChange('customJobTitle', '')
+                      }
+                    }}
+                    options={JOB_TITLE_OPTIONS}
+                    isRequired
+                    disallowEmptySelection
+                  />
+                  {errors.jobTitle && (
+                    <span className="text-xs text-danger">{errors.jobTitle}</span>
+                  )}
+                </div>
+
+                {/* Show custom job title input when "Other" is selected */}
+                {formData.jobTitle === 'Other' && (
+                  <Input
+                    aria-label="Other Job Title"
+                    type="text"
+                    placeholder="Please specify your job title"
+                    value={formData.customJobTitle}
+                    onValueChange={value => handleInputChange('customJobTitle', value)}
+                  />
+                )}
+              </div>
+
+              <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
                     type={showPassword ? 'text' : 'password'}
@@ -187,9 +257,6 @@ export default function SignUpPage() {
                     }
                     isInvalid={!!errors.password}
                     errorMessage={errors.password}
-                    variant="bordered"
-                    radius="lg"
-                    size="lg"
                   />
 
                   <Input
@@ -209,15 +276,12 @@ export default function SignUpPage() {
                     }
                     isInvalid={!!errors.confirmPassword}
                     errorMessage={errors.confirmPassword}
-                    variant="bordered"
-                    radius="lg"
-                    size="lg"
                   />
                 </div>
 
                 {formData.password && (
-                  <div className="space-y-3">
-                    <div className="space-y-1">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">Password strength:</span>
                         <span className="font-medium text-gray-700">

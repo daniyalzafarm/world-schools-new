@@ -24,14 +24,24 @@ interface OnboardingStore {
   fetchStatus: () => Promise<void>
   fetchGoogleBusinessProfile: () => Promise<void>
   searchGoogleBusiness: (query: string, lat?: number, lng?: number) => Promise<void>
-  saveGoogleBusinessProfile: (placeId: string) => Promise<void>
+  saveGoogleBusinessProfile: (
+    placeId: string,
+    legalInfo: {
+      legalCompanyName: string
+      legalStreetAddress: string
+      legalAptSuite?: string
+      legalCity: string
+      legalStateProvince: string
+      legalPostalCode: string
+      legalCountry: string
+      yearFounded: number
+      providerPhone?: string
+      providerEmail?: string
+      website?: string
+    }
+  ) => Promise<void>
   saveContactInfo: (data: ContactInfo) => Promise<void>
-  saveCampInfo: (data: {
-    description: string
-    campTypes: string[]
-    minAge: number
-    maxAge: number
-  }) => Promise<void>
+  saveCampInfo: (data: { description: string; campTypes: string[] }) => Promise<void>
   uploadDocument: (file: File, documentType: string) => Promise<void>
   fetchDocuments: () => Promise<void>
   deleteDocument: (documentId: string) => Promise<void>
@@ -110,9 +120,27 @@ export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
     }
   },
 
-  saveGoogleBusinessProfile: async (placeId: string) => {
+  saveGoogleBusinessProfile: async (
+    placeId: string,
+    legalInfo: {
+      legalCompanyName: string
+      legalStreetAddress: string
+      legalAptSuite?: string
+      legalCity: string
+      legalStateProvince: string
+      legalPostalCode: string
+      legalCountry: string
+      yearFounded: number
+      providerPhone?: string
+      providerEmail?: string
+      website?: string
+    }
+  ) => {
     set({ isLoading: true, error: null })
-    const response = await onboardingService.saveGoogleBusinessProfile({ placeId })
+    const response = await onboardingService.saveGoogleBusinessProfile({
+      placeId,
+      ...legalInfo,
+    })
 
     if (response.success) {
       await get().fetchStatus()
@@ -148,12 +176,7 @@ export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
     }
   },
 
-  saveCampInfo: async (data: {
-    description: string
-    campTypes: string[]
-    minAge: number
-    maxAge: number
-  }) => {
+  saveCampInfo: async (data: { description: string; campTypes: string[] }) => {
     set({ isLoading: true, error: null })
     const response = await onboardingService.saveCampInfo(data)
 

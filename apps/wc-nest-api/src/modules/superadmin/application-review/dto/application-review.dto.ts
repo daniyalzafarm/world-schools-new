@@ -115,7 +115,6 @@ export class ApplicationDetailDto {
   businessName: string
   email: string
   emailVerified: boolean
-  phoneVerified: boolean
   approvalStatus: string
   trustScore: number | null
   onboardingCompletedAt: string | null
@@ -141,7 +140,6 @@ export class ApplicationDetailDto {
   contactEmail: string | null
 
   // Provider Details
-  providerName: string | null
   providerPhone: string | null
   providerEmail: string | null
   website: string | null

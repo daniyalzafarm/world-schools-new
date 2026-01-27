@@ -98,17 +98,14 @@ export class TrustScoreService {
       }
     }
 
-    // Camp type selected: 2 points
+    // Camp type selected: 6 points (increased from 2 to compensate for removed age range)
     if (provider.campType) {
-      campProfileScore += 2
-      breakdown.campTypeSelected = 2
+      campProfileScore += 6
+      breakdown.campTypeSelected = 6
     }
 
-    // Age range defined: 4 points
-    if (provider.minAge !== null && provider.maxAge !== null && provider.minAge < provider.maxAge) {
-      campProfileScore += 4
-      breakdown.ageRangeDefined = 4
-    }
+    // Note: Age range scoring removed as minAge/maxAge fields were removed from Provider model
+    // Age ranges are now defined per camp/session instead of at provider level
 
     score += campProfileScore
 

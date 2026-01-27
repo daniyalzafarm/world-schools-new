@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, Checkbox, Spinner } from '@heroui/react'
+import { Checkbox, Spinner } from '@heroui/react'
 import { AlertCircle, CheckCircle2, XCircle } from 'lucide-react'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
+import { OnboardingFooter } from '../../../components/onboarding/OnboardingFooter'
 import { ValidationErrors } from '../../../components/onboarding/ValidationErrors'
 import { SubmitConfirmationDialog } from '../../../components/onboarding/SubmitConfirmationDialog'
 import { TrustScoreDisplay } from '../../../components/onboarding/TrustScoreDisplay'
@@ -16,11 +17,15 @@ import {
 } from '../../../utils/onboarding-validation'
 
 const COMPLETION_ITEMS = [
-  { step: 1, label: 'Google Business Profile selected', path: '/onboarding/step-1' },
-  { step: 2, label: 'Contact and legal information completed', path: '/onboarding/step-2' },
-  { step: 3, label: 'Camp description and details provided', path: '/onboarding/step-3' },
-  { step: 4, label: 'Required documents uploaded', path: '/onboarding/step-4' },
-  { step: 5, label: 'Payment and cancellation policies configured', path: '/onboarding/step-5' },
+  { step: 1, label: 'Google Business Profile selected', path: '/onboarding/find-your-camp' },
+  { step: 2, label: 'Contact and legal information completed', path: '/onboarding/contact' },
+  { step: 3, label: 'Camp description and details provided', path: '/onboarding/about-your-camp' },
+  { step: 4, label: 'Required documents uploaded', path: '/onboarding/verification' },
+  {
+    step: 5,
+    label: 'Payment and cancellation policies configured',
+    path: '/onboarding/payment-policies',
+  },
 ]
 
 export default function OnboardingStep6Page() {
@@ -154,31 +159,18 @@ export default function OnboardingStep6Page() {
       breadcrumb="Provider Onboarding / Review & Submit"
       showAutoSave={false}
       footer={
-        <div className="flex items-center justify-between">
-          <Button variant="light" onPress={() => router.push('/onboarding/step-5')}>
-            ← Back
-          </Button>
-          {!isReadOnly && (
-            <Button
-              className="bg-primary font-semibold text-foreground hover:bg-primary-600"
-              size="lg"
-              onPress={handleSubmitApplication}
-              isDisabled={!agreedToTerms || !validationResult?.isValid}
-              isLoading={isSubmitting}
-            >
-              Submit Application →
-            </Button>
-          )}
-          {isReadOnly && (
-            <Button
-              className="bg-primary font-semibold text-foreground hover:bg-primary-600"
-              size="lg"
-              onPress={() => router.push('/onboarding/status')}
-            >
-              View Status →
-            </Button>
-          )}
-        </div>
+        <OnboardingFooter
+          onNext={() => {
+            if (isReadOnly) {
+              router.push('/onboarding/status')
+            } else {
+              handleSubmitApplication()
+            }
+          }}
+          isLoading={isSubmitting}
+          isDisabled={!isReadOnly && (!agreedToTerms || !validationResult?.isValid)}
+          nextButtonText={isReadOnly ? 'View Status →' : 'Submit Application →'}
+        />
       }
     >
       <div>

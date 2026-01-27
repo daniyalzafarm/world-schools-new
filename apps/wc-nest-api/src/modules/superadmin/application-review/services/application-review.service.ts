@@ -75,7 +75,6 @@ export class ApplicationReviewService {
 
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
         { legalCompanyName: { contains: search, mode: 'insensitive' } },
       ]
@@ -99,7 +98,6 @@ export class ApplicationReviewService {
       where,
       select: {
         id: true,
-        name: true,
         email: true,
         approvalStatus: true,
         trustScore: true,
@@ -117,7 +115,7 @@ export class ApplicationReviewService {
 
     const data: ApplicationListItemDto[] = providers.map(p => ({
       id: p.id,
-      businessName: p.name,
+      businessName: p.legalCompanyName || '',
       email: p.email || '',
       approvalStatus: p.approvalStatus,
       trustScore: p.trustScore,
@@ -269,10 +267,9 @@ export class ApplicationReviewService {
 
     return {
       id: provider.id,
-      businessName: provider.name,
+      businessName: provider.legalCompanyName || '',
       email: provider.email || '',
       emailVerified: provider.owner.emailVerified,
-      phoneVerified: provider.phoneVerified,
       approvalStatus: provider.approvalStatus,
       trustScore: provider.trustScore,
       onboardingCompletedAt: provider.onboardingCompletedAt?.toISOString() || null,
@@ -291,7 +288,6 @@ export class ApplicationReviewService {
       contactRole: provider.contactRole,
       contactPhone: provider.contactPhone,
       contactEmail: provider.contactEmail,
-      providerName: provider.name,
       providerPhone: provider.phone,
       providerEmail: provider.email,
       website: provider.website,
