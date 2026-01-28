@@ -34,7 +34,7 @@ export function SessionFormFooter({
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-default-100 bg-white px-12 py-4 md:left-[280px]">
-      <div className="flex items-center justify-between">
+      <div className="mx-auto max-w-4xl px-12 flex items-center justify-between">
         {/* Back to Sessions Button */}
         <Button
           variant="flat"

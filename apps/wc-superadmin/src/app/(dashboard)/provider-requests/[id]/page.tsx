@@ -14,6 +14,7 @@ import { DocumentsSection } from '../../../../components/application-review/Docu
 import { SettingsSection } from '../../../../components/application-review/SettingsSection'
 import { TrustScoreSection } from '../../../../components/application-review/TrustScoreSection'
 import type { ApprovalStatus } from '../../../../types/application-review'
+import { PageSlot } from '@world-schools/ui-web'
 
 export default function ProviderRequestDetailPage() {
   const params = useParams()
@@ -73,7 +74,7 @@ export default function ProviderRequestDetailPage() {
   }
 
   return (
-    <div className="p-6">
+    <PageSlot>
       <div className="space-y-6">
         {/* Breadcrumb */}
         <Breadcrumb
@@ -204,6 +205,6 @@ export default function ProviderRequestDetailPage() {
           </Tabs>
         </CardBody>
       </Card>
-    </div>
+    </PageSlot>
   )
 }

@@ -54,7 +54,9 @@ const SettingsLayout = ({ children }: { children: React.ReactNode }) => {
           </div>
 
           {/* Main Content */}
-          <main className="flex-1 min-w-0 lg:ml-0 overflow-auto">{children}</main>
+          <main className="flex-1 min-w-0 lg:ml-0 overflow-auto">
+            <div className="mx-auto max-w-4xl">{children}</div>
+          </main>
         </div>
       </div>
     </ProtectedRoute>

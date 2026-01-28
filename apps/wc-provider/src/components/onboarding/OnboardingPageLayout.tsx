@@ -54,13 +54,13 @@ export function OnboardingPageLayout({
 
         {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto">
-          <div className="px-12 py-8">{children}</div>
+          <div className="mx-auto max-w-4xl px-12 py-8">{children}</div>
         </div>
 
         {/* Footer - Sticky at bottom of left column only */}
         {footer && (
           <div className="sticky bottom-0 z-40 h-20 shrink-0 border-t-2 border-default-100 bg-white px-12 py-4">
-            {footer}
+            <div className="mx-auto max-w-4xl px-12"> {footer}</div>
           </div>
         )}
       </div>

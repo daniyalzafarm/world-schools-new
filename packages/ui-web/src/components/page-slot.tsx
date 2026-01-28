@@ -26,6 +26,5 @@ interface PageSlotProps {
 }
 
 export function PageSlot({ children }: PageSlotProps) {
-  return <div className="p-6 lg:p-8">{children}</div>
+  return <div className="mx-auto max-w-7xl p-6 lg:p-8">{children}</div>
 }
-

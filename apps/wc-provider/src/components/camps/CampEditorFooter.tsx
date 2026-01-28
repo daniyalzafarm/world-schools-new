@@ -268,7 +268,7 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
 
   return (
     <div className="border-t border-default-100 bg-white px-12 py-4">
-      <div className="flex items-center justify-between">
+      <div className="mx-auto max-w-4xl px-12 flex items-center justify-between">
         {/* Section Navigation Buttons */}
         <div className="flex items-center gap-3">
           <Button

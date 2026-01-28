@@ -62,7 +62,7 @@ const SettingsLayout = ({ children }: { children: React.ReactNode }) => {
           {/* Main Content */}
           <main className="flex-1 min-w-0 lg:ml-0">
             <div className="h-full overflow-auto">
-              <div className="w-full">{children}</div>
+              <div className="mx-auto max-w-4xl w-full">{children}</div>
             </div>
           </main>
         </div>

@@ -42,7 +42,7 @@ export default function CampCreateLayout({ children }: { children: React.ReactNo
 
         {/* Scrollable Content Area - fills remaining space */}
         <div className="flex-1 overflow-y-auto">
-          <div className="px-12 py-8">{children}</div>
+          <div className="mx-auto max-w-4xl px-12 py-8">{children}</div>
         </div>
 
         {/* Footer - Sticky with reserved space */}

@@ -437,7 +437,7 @@ export default function OnboardingStep5DepositSettingsPage() {
             {/* Percentage Option */}
             <label
               htmlFor="deposit_percentage"
-              className="relative flex cursor-pointer items-start gap-4 rounded-xl border-2 border-default-200 p-5 transition-all hover:border-default-400 has-[:checked]:border-primary has-[:checked]:bg-primary-50"
+              className="relative flex cursor-pointer items-start gap-4 rounded-xl border-2 border-default-200 p-5 transition-all hover:border-default-400 has-checked:border-primary has-checked:bg-primary-50"
             >
               <input
                 type="radio"
@@ -492,7 +492,7 @@ export default function OnboardingStep5DepositSettingsPage() {
             {/* Fixed Amount Option */}
             <label
               htmlFor="deposit_fixed"
-              className="relative flex cursor-pointer items-start gap-4 rounded-xl border-2 border-default-200 p-5 transition-all hover:border-default-400 has-[:checked]:border-primary has-[:checked]:bg-primary-50"
+              className="relative flex cursor-pointer items-start gap-4 rounded-xl border-2 border-default-200 p-5 transition-all hover:border-default-400 has-checked:border-primary has-checked:bg-primary-50"
             >
               <input
                 type="radio"
@@ -548,7 +548,7 @@ export default function OnboardingStep5DepositSettingsPage() {
             {/* No Deposit Option */}
             <label
               htmlFor="deposit_none"
-              className="relative flex cursor-pointer items-start gap-4 rounded-xl border-2 border-default-200 p-5 transition-all hover:border-default-400 has-[:checked]:border-primary has-[:checked]:bg-primary-50"
+              className="relative flex cursor-pointer items-start gap-4 rounded-xl border-2 border-default-200 p-5 transition-all hover:border-default-400 has-checked:border-primary has-checked:bg-primary-50"
             >
               <input
                 type="radio"

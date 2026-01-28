@@ -63,7 +63,7 @@ export function UnderReviewContent({ status }: UnderReviewContentProps) {
       </div>
 
       {/* Trust Score */}
-      {status.trustScore !== null && status.trustScore !== undefined && (
+      {/* {status.trustScore !== null && status.trustScore !== undefined && (
         <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
           <h2 className="mb-4 text-2xl font-semibold text-foreground">Your Trust Score</h2>
           <div className="mb-4 flex items-center gap-4">
@@ -84,7 +84,7 @@ export function UnderReviewContent({ status }: UnderReviewContentProps) {
                 : 'Our team will carefully review your application.'}
           </p>
         </div>
-      )}
+      )} */}
 
       {/* Estimated Review Time */}
       <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
