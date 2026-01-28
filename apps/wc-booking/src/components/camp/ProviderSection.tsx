@@ -23,14 +23,22 @@ interface ProviderSectionProps {
 }
 
 export function ProviderSection({ provider }: ProviderSectionProps) {
-  const { legalCompanyName, legalCity, legalStateProvince, legalCountry, yearFounded, googleBusinessProfile } = provider
+  const {
+    legalCompanyName,
+    legalCity,
+    legalStateProvince,
+    legalCountry,
+    yearFounded,
+    googleBusinessProfile,
+  } = provider
 
   // Use Google Business Profile data if available, otherwise fall back to provider data
   const displayName = googleBusinessProfile?.businessName || legalCompanyName
   const rating = googleBusinessProfile?.rating ? Number(googleBusinessProfile.rating) : null
   const reviewsCount = googleBusinessProfile?.reviewsCount ?? 0
   const location =
-    googleBusinessProfile?.formattedAddress || [legalCity, legalStateProvince, legalCountry].filter(Boolean).join(', ')
+    googleBusinessProfile?.formattedAddress ||
+    [legalCity, legalStateProvince, legalCountry].filter(Boolean).join(', ')
 
   // Calculate years in operation
   const yearsInOperation = yearFounded ? new Date().getFullYear() - yearFounded : null

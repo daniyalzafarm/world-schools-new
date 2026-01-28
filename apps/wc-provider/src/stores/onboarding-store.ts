@@ -39,6 +39,8 @@ interface OnboardingStore {
       providerPhone?: string
       providerEmail?: string
       website?: string
+      currency: string
+      timezone: string
     }
   ) => Promise<void>
   saveContactInfo: (data: ContactInfo) => Promise<void>
@@ -136,6 +138,8 @@ export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
       providerPhone?: string
       providerEmail?: string
       website?: string
+      currency: string
+      timezone: string
     }
   ) => {
     set({ isLoading: true, error: null })

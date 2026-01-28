@@ -36,7 +36,14 @@ export function TrustScoreBreakdown() {
       try {
         setIsLoading(true)
         const response = await onboardingService.getTrustScoreBreakdown()
-        setData(response)
+
+        if (!response.success) {
+          const errorResponse = response as { success: false; data: { message: string } }
+          setError(errorResponse.data.message || 'Failed to load trust score breakdown')
+          return
+        }
+
+        setData(response.data)
       } catch (err: any) {
         console.error('Error fetching trust score breakdown:', err)
         setError(err?.message || 'Failed to load trust score breakdown')

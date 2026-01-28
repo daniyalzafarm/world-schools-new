@@ -178,13 +178,12 @@ export interface Camp {
   // Relations
   provider?: {
     id: string
-    name: string
-    logo?: string
-    address?: string
-    city?: string
-    state?: string
-    postalCode?: string
-    country?: string
+    legalCompanyName: string
+    legalStreetAddress?: string
+    legalCity?: string
+    legalStateProvince?: string
+    legalPostalCode?: string
+    legalCountry?: string
     phone?: string
     email?: string
     website?: string

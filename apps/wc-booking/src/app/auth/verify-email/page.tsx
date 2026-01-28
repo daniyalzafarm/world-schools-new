@@ -55,7 +55,9 @@ export default function VerifyEmailPage() {
     if (codeFromUrl && email && !autoVerifyAttempted) {
       setAutoVerifyAttempted(true)
       // Automatically trigger verification
-      handleAutoVerification(email, codeFromUrl)
+      handleAutoVerification(email, codeFromUrl).catch(error => {
+        console.error('Auto-verification error:', error)
+      })
     }
   }, [codeFromUrl, email, autoVerifyAttempted])
 
@@ -69,9 +71,10 @@ export default function VerifyEmailPage() {
   useEffect(() => {
     if (code.length === 6 && /^\d{6}$/.test(code) && !isLoading && email.trim()) {
       // Automatically trigger verification
-      handleSubmit(new Event('submit') as any)
+      handleSubmit(new Event('submit') as any).catch(error => {
+        console.error('Auto-submit error:', error)
+      })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code])
 
   const validateForm = () => {
