@@ -24,7 +24,7 @@ const stringToCalendarDate = (dateString: string): CalendarDate | null => {
 
 export default function OnboardingStep5DepositSettingsPage() {
   const router = useRouter()
-  const { status } = useOnboardingStore()
+  const { status, saveDepositSettings } = useOnboardingStore()
 
   // Check if onboarding is completed (read-only mode)
   const isReadOnly = status?.isCompleted ?? false
@@ -228,10 +228,12 @@ export default function OnboardingStep5DepositSettingsPage() {
 
     try {
       setIsSaving(true)
-      await onboardingService.saveDepositSettings(settings)
+      // Use store method which automatically fetches updated status
+      await saveDepositSettings(settings)
+      setIsSaving(false)
 
       // Navigate to Step 6 (Cancellation Policy) on success
-      // Note: Backend automatically advances to Step 6
+      // Note: Backend automatically advances to Step 6, and store fetches updated status
       router.push('/onboarding/payment-policies')
     } catch (error: any) {
       setIsSaving(false)

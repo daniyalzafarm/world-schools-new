@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { Button } from '@heroui/react'
 import { GripVertical, Trash2 } from 'lucide-react'
+import { DocumentDropzone } from '@world-schools/ui-web'
 import type { CampPhoto } from '../../types/camps'
 
 export interface PhotosFormData {
@@ -14,6 +15,7 @@ export interface PhotosFormProps {
   formData: PhotosFormData
   onChange: (data: Partial<PhotosFormData>) => void
   onFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void
+  onFilesSelected?: (files: File[]) => void
   onRemovePhoto: (photoId: string) => void
   isUploading?: boolean
 }
@@ -22,6 +24,7 @@ export const PhotosForm: React.FC<PhotosFormProps> = ({
   formData,
   onChange,
   onFileSelect,
+  onFilesSelected,
   onRemovePhoto,
   isUploading = false,
 }) => {
@@ -77,6 +80,19 @@ export const PhotosForm: React.FC<PhotosFormProps> = ({
     setDragOverIndex(null)
   }
 
+  // Handler for file selection from empty slots
+  const handleEmptySlotFilesSelect = (files: File[]) => {
+    if (onFilesSelected) {
+      onFilesSelected(files)
+    } else {
+      // Fallback to event-based handler
+      const event = {
+        target: { files },
+      } as unknown as React.ChangeEvent<HTMLInputElement>
+      onFileSelect(event)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {/* Form Group */}
@@ -89,17 +105,27 @@ export const PhotosForm: React.FC<PhotosFormProps> = ({
         {/* Photo Dropzone - only show when no photos */}
         {photos.length === 0 && (
           <>
-            <div
-              onClick={() => document.getElementById('photoInput')?.click()}
-              className="mt-2 cursor-pointer rounded-xl border-2 border-dashed border-default-200 bg-default-100 px-6 py-12 text-center transition-all hover:border-primary hover:bg-primary/5"
-            >
-              <div className="mb-3 text-5xl">📸</div>
-              <div className="mb-1.5 text-base font-semibold text-foreground">
-                Drag photos here or click to browse
-              </div>
-              <div className="text-xs text-default-500">
-                JPG, PNG or WebP • Max 5MB each • Minimum 5 photos
-              </div>
+            <div className="mt-2">
+              <DocumentDropzone
+                onFilesSelect={files => {
+                  if (onFilesSelected) {
+                    onFilesSelected(files)
+                  } else {
+                    // Fallback to event-based handler for backward compatibility
+                    const event = {
+                      target: { files },
+                    } as unknown as React.ChangeEvent<HTMLInputElement>
+                    onFileSelect(event)
+                  }
+                }}
+                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                multiple
+                isUploading={isUploading}
+                icon="📸"
+                title="Drag photos here or click to browse"
+                description="JPG, PNG or WebP • Max 5MB each • Minimum 5 photos"
+                maxSize={5}
+              />
             </div>
 
             {/* Photo Tips - only show when no photos */}
@@ -237,31 +263,31 @@ export const PhotosForm: React.FC<PhotosFormProps> = ({
             {/* Empty slots when less than 5 photos */}
             {photos.length < 5 &&
               Array.from({ length: 5 - photos.length }).map((_, index) => (
-                <div
+                <DocumentDropzone
                   key={`empty-top-${index}`}
-                  onClick={() => document.getElementById('photoInput')?.click()}
-                  className="flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-default-200 bg-default-100 transition-all hover:border-primary hover:bg-primary/5"
+                  variant="compact"
+                  multiple
+                  onFilesSelect={handleEmptySlotFilesSelect}
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                  isUploading={isUploading}
+                  icon="📸"
+                  title="Add photo"
                   style={{ aspectRatio: '4/3' }}
-                >
-                  <div className="text-center">
-                    <div className="mb-1 text-3xl opacity-30">📸</div>
-                    <div className="text-xs text-default-500">Add photo</div>
-                  </div>
-                </div>
+                />
               ))}
 
             {/* Persistent Add Photo button when exactly 5 photos */}
             {photos.length === 5 && (
-              <div
-                onClick={() => document.getElementById('photoInput')?.click()}
-                className="flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-default-200 bg-default-100 transition-all hover:border-primary hover:bg-primary/5"
+              <DocumentDropzone
+                variant="compact"
+                multiple
+                onFilesSelect={handleEmptySlotFilesSelect}
+                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                isUploading={isUploading}
+                icon="📸"
+                title="Add photo"
                 style={{ aspectRatio: '4/3' }}
-              >
-                <div className="text-center">
-                  <div className="mb-1 text-3xl opacity-30">📸</div>
-                  <div className="text-xs text-default-500">Add photo</div>
-                </div>
-              </div>
+              />
             )}
           </div>
 
@@ -317,16 +343,16 @@ export const PhotosForm: React.FC<PhotosFormProps> = ({
               })}
 
               {/* Always show Add Photo button */}
-              <div
-                onClick={() => document.getElementById('photoInput')?.click()}
-                className="flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-default-200 bg-default-100 transition-all hover:border-primary hover:bg-primary/5"
+              <DocumentDropzone
+                variant="compact"
+                multiple
+                onFilesSelect={handleEmptySlotFilesSelect}
+                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                isUploading={isUploading}
+                icon="📸"
+                title="Add photo"
                 style={{ aspectRatio: '4/3' }}
-              >
-                <div className="text-center">
-                  <div className="mb-1 text-3xl opacity-30">📸</div>
-                  <div className="text-xs text-default-500">Add photo</div>
-                </div>
-              </div>
+              />
             </div>
           )}
         </div>

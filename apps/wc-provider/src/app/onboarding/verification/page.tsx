@@ -131,13 +131,13 @@ export default function OnboardingStep4Page() {
     deleteDocument,
     completeStep4,
     uploadDocument,
-    isLoading,
     googleBusinessProfile,
   } = useOnboardingStore()
   const [uploadingType, setUploadingType] = useState<DocumentType | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [selectedDocs, setSelectedDocs] = useState<Set<DocumentType>>(new Set())
   const [customTitles, setCustomTitles] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false) // Local state for "Save & Continue" loading
   const { confirm } = useConfirmDialog()
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
@@ -279,8 +279,9 @@ export default function OnboardingStep4Page() {
 
   const handleContinue = async () => {
     try {
+      setIsSubmitting(true)
       await completeStep4()
-      router.push('/onboarding/payment-policies')
+      router.push('/onboarding/deposit-settings')
     } catch (error) {
       console.error('Failed to complete step 4:', error)
       addToast({
@@ -288,6 +289,8 @@ export default function OnboardingStep4Page() {
         description: 'Failed to save progress. Please try again.',
         color: 'danger',
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -337,6 +340,10 @@ export default function OnboardingStep4Page() {
     )
   }
 
+  const hasAllRequiredDocs = hasRequiredDocs()
+  // OR when step IS completed but user is trying to re-upload (shouldn't happen in normal flow)
+  const shouldDisableButton = !isReadOnly && !hasAllRequiredDocs
+
   return (
     <OnboardingPageLayout
       breadcrumb="Provider Onboarding / Verification Documents"
@@ -345,17 +352,15 @@ export default function OnboardingStep4Page() {
           onNext={async () => {
             if (isReadOnly || status?.stepCompletion.step4) {
               // Step already completed or read-only mode - navigate directly without saving
-              router.push('/onboarding/payment-policies')
+              router.push('/onboarding/deposit-settings')
             } else {
               // Step not completed - complete it first, then navigate
               await handleContinue()
             }
           }}
-          isLoading={isLoading}
-          isDisabled={!isReadOnly && !status?.stepCompletion.step4 && !hasRequiredDocs()}
-          nextButtonText={
-            isReadOnly || status?.stepCompletion.step4 ? 'Next →' : 'Save & Continue →'
-          }
+          isLoading={isSubmitting}
+          isDisabled={shouldDisableButton}
+          nextButtonText="Next →"
         />
       }
     >

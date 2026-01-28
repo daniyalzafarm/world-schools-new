@@ -44,7 +44,8 @@ interface ActiveFilters {
 export default function CampsPage() {
   const router = useRouter()
   const { confirm } = useConfirmDialog()
-  const { camps, statistics, fetchCamps, fetchStatistics, deleteCamp, isLoading } = useCampsStore()
+  const { camps, statistics, fetchCamps, fetchStatistics, deleteCamp, resetWizard, isLoading } =
+    useCampsStore()
   const [activeTab, setActiveTab] = useState<TabFilter>('all')
   const [searchInput, setSearchInput] = useState('')
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({})
@@ -138,6 +139,8 @@ export default function CampsPage() {
   }
 
   const handleCreateCamp = () => {
+    // Reset wizard state to ensure clean slate for new camp creation
+    resetWizard()
     router.push('/camps/create/basic-info')
   }
 

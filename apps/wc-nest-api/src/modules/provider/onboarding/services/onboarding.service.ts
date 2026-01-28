@@ -28,8 +28,6 @@ export class OnboardingService {
       where: { id: providerId },
       include: {
         googleBusinessProfile: true,
-        settings: true,
-        verificationDocuments: true,
       },
     })
 
@@ -58,12 +56,11 @@ export class OnboardingService {
         provider.yearFounded
       ),
       step3: !!(provider.description && provider.campType),
-      step4: provider.verificationDocuments.length > 0,
-      step5: !!(
-        provider.settings?.depositRequired !== null &&
-        provider.settings?.depositRequired !== undefined
-      ), // Step 5: Deposit settings configured
-      step6: !!provider.settings?.cancellationPolicy, // Step 6: Cancellation policy configured
+      step4: provider.onboardingCurrentStep >= 5,
+      // Step 5: Deposit settings configured - only complete if user has reached Step 6 or beyond
+      step5: provider.onboardingCurrentStep >= 6,
+      // Step 6: Cancellation policy configured - only complete if user has reached Step 7 or beyond
+      step6: provider.onboardingCurrentStep >= 7,
       step7: !!provider.onboardingCompletedAt, // Step 7 is completed when onboarding is submitted
     }
 

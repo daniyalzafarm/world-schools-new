@@ -36,6 +36,10 @@ export class ProviderSettingsService {
         cancellationPolicy: dto.cancellationPolicy,
         cancellationPolicyCustom: dto.cancellationPolicyCustom,
       },
+      select: {
+        cancellationPolicy: true,
+        cancellationPolicyCustom: true,
+      },
     })
 
     // Automatically advance to Step 7 (Review)

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Spinner } from '@heroui/react'
-import { Input, Textarea } from '@world-schools/ui-web'
+import { Textarea } from '@world-schools/ui-web'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
 import { OnboardingFooter } from '../../../components/onboarding/OnboardingFooter'
@@ -46,7 +46,7 @@ export default function OnboardingStep3Page() {
   useEffect(() => {
     const hasChanges =
       description !== originalDescription ||
-      JSON.stringify(campTypes.sort()) !== JSON.stringify(originalCampTypes.sort())
+      JSON.stringify([...campTypes].sort()) !== JSON.stringify([...originalCampTypes].sort())
 
     setHasUnsavedChanges(hasChanges)
   }, [description, campTypes, originalDescription, originalCampTypes])
@@ -82,6 +82,12 @@ export default function OnboardingStep3Page() {
     )
   }
 
+  // Check if user has saved data (has visited this step before)
+  const hasSavedData = originalDescription !== '' || originalCampTypes.length > 0
+
+  // Form is valid when description is valid AND at least one camp type is selected
+  const isFormValid = isDescriptionValid && campTypes.length > 0
+
   return (
     <OnboardingPageLayout
       breadcrumb="Provider Onboarding / About Your Camp"
@@ -97,10 +103,26 @@ export default function OnboardingStep3Page() {
             }
           }}
           isLoading={isLoading}
-          isDisabled={
-            !isReadOnly && hasUnsavedChanges && (!isDescriptionValid || campTypes.length === 0)
-          }
-          nextButtonText={isReadOnly || !hasUnsavedChanges ? 'Next →' : 'Save & Continue →'}
+          isDisabled={(() => {
+            // Read-only mode: never disabled
+            if (isReadOnly) return false
+
+            // If user has saved data and no changes: allow navigation (button enabled)
+            if (hasSavedData && !hasUnsavedChanges) return false
+
+            // If user has unsaved changes OR no saved data: require valid form
+            return !isFormValid
+          })()}
+          nextButtonText={(() => {
+            // Read-only mode: always "Next"
+            if (isReadOnly) return 'Next →'
+
+            // If user has saved data and no changes: show "Next"
+            if (hasSavedData && !hasUnsavedChanges) return 'Next →'
+
+            // If user has unsaved changes OR no saved data: show "Save & Continue"
+            return 'Save & Continue →'
+          })()}
         />
       }
     >
@@ -121,7 +143,9 @@ export default function OnboardingStep3Page() {
         <div className="flex flex-col gap-8">
           {/* Brief Description */}
           <div className="flex flex-col gap-4">
-            <h2 className="text-xl font-semibold text-foreground">Brief Description</h2>
+            <h2 className="text-xl font-semibold text-foreground">
+              Brief Description <span className="text-danger">*</span>
+            </h2>
 
             <Textarea
               aria-label="Brief Description"
@@ -140,7 +164,9 @@ export default function OnboardingStep3Page() {
 
           {/* Camp Type */}
           <div className="flex flex-col gap-4">
-            <h2 className="text-xl font-semibold text-foreground">Camp Type</h2>
+            <h2 className="text-xl font-semibold text-foreground">
+              Camp Type <span className="text-danger">*</span>
+            </h2>
 
             <div className="grid gap-4 md:grid-cols-2">
               {/* Day Camp */}

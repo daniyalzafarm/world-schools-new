@@ -21,8 +21,9 @@ const COMPLETION_ITEMS = [
   { step: 2, label: 'Contact and legal information completed', path: '/onboarding/contact' },
   { step: 3, label: 'Camp description and details provided', path: '/onboarding/about-your-camp' },
   { step: 4, label: 'Required documents uploaded', path: '/onboarding/verification' },
+  { step: 5, label: 'Deposit settings configured', path: '/onboarding/deposit-settings' },
   {
-    step: 5,
+    step: 6,
     label: 'Payment and cancellation policies configured',
     path: '/onboarding/payment-policies',
   },

@@ -119,6 +119,13 @@ export const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
       return
     }
 
+    // Only initialize when the search inputs are visible
+    // Inputs are visible when: no location selected OR editing existing location
+    const shouldInitialize = !differentLocationData || isEditingLocation
+    if (!shouldInitialize) {
+      return
+    }
+
     let retryTimeout: NodeJS.Timeout | null = null
     let isCleanedUp = false
 
@@ -223,7 +230,7 @@ export const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
         mobileAutocompleteRef.current = null
       }
     }
-  }, [formData.locationType, onChange])
+  }, [formData.locationType, isEditingLocation, differentLocationData, onChange])
 
   const handleNameChange = (name: string) => {
     if (onNameChange) {
@@ -502,7 +509,6 @@ export const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                 {!isEditingLocation && (
                   <Button
                     size="sm"
-                    variant="light"
                     color="primary"
                     onPress={handleEditLocation}
                     className="shrink-0"

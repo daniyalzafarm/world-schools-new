@@ -46,7 +46,7 @@ const POLICY_TEMPLATES = [
 
 export default function OnboardingStep6CancellationPolicyPage() {
   const router = useRouter()
-  const { status, isLoading } = useOnboardingStore()
+  const { status, isLoading, saveProviderSettings } = useOnboardingStore()
 
   // Check if onboarding is completed (read-only mode)
   const isReadOnly = status?.isCompleted ?? false
@@ -113,7 +113,8 @@ export default function OnboardingStep6CancellationPolicyPage() {
 
     try {
       setIsSaving(true)
-      await onboardingService.saveProviderSettings(settings)
+      await saveProviderSettings(settings)
+      setIsSaving(false)
 
       // Navigate to Step 7 (Review) on success
       router.push('/onboarding/review')

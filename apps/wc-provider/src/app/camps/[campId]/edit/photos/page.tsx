@@ -139,6 +139,37 @@ export default function PhotosEditorPage() {
     }
   }
 
+  const handleFilesSelected = async (files: File[]) => {
+    if (!files || files.length === 0) return
+
+    setIsUploading(true)
+    try {
+      // Create temporary preview objects for selected files
+      const newPhotos: CampPhoto[] = files.map((file, index) => ({
+        id: `temp-${Date.now()}-${index}`,
+        url: URL.createObjectURL(file),
+        thumbnail: URL.createObjectURL(file),
+        isPrimary: formData.photos.length === 0 && index === 0,
+        order: formData.photos.length + index,
+      }))
+
+      const updatedPhotos = [...formData.photos, ...newPhotos]
+      setFormData({
+        photos: updatedPhotos,
+        pendingFiles: [...formData.pendingFiles, ...files],
+      })
+    } catch (error) {
+      console.error('Failed to select photos:', error)
+      addToast({
+        title: 'Error',
+        description: 'Failed to select photos. Please try again.',
+        color: 'danger',
+      })
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   const handleRemovePhoto = (photoId: string) => {
     const filteredPhotos = formData.photos.filter(p => p.id !== photoId)
     // Reorder remaining photos
@@ -165,6 +196,7 @@ export default function PhotosEditorPage() {
         formData={formData}
         onChange={data => setFormData({ ...formData, ...data })}
         onFileSelect={handleFileSelect}
+        onFilesSelected={handleFilesSelected}
         onRemovePhoto={handleRemovePhoto}
         isUploading={isUploading}
       />

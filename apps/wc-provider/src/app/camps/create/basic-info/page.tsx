@@ -84,8 +84,9 @@ export default function BasicInfoPage() {
   }, [campId, fetchCamp, setWizardCamp, setWizardStep, resetWizard, fetchGoogleBusinessProfile])
 
   useEffect(() => {
-    // Populate form with existing data
-    if (wizardCamp) {
+    // Only populate form with existing data if we're editing an existing camp (campId exists)
+    // This prevents pre-populating the form with stale data when creating a new camp
+    if (wizardCamp && campId) {
       setFormData({
         name: wizardCamp.name,
         slug: wizardCamp.slug,
@@ -99,7 +100,7 @@ export default function BasicInfoPage() {
         locationLng: wizardCamp.locationLng,
       })
     }
-  }, [wizardCamp])
+  }, [wizardCamp, campId])
 
   // Handle name change with auto-slug generation
   const handleNameChange = (name: string) => {
