@@ -43,6 +43,7 @@ const ONBOARDING_STEPS = [
   'find-your-camp',
   'about-your-camp',
   'verification',
+  'deposit-settings',
   'payment-policies',
   'review',
 ]

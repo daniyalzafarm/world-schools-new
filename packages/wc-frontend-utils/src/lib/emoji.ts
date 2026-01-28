@@ -69,6 +69,7 @@ export const EMOJI = {
 
   // Finance
   CREDIT_CARD: '💳',
+  MONEY_BAG: '💰',
 
   // Navigation
   ARROW_LEFT: '←',

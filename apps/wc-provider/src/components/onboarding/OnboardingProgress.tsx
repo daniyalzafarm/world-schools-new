@@ -19,6 +19,8 @@ interface OnboardingProgressProps {
     step3: boolean
     step4: boolean
     step5: boolean
+    step6: boolean
+    step7: boolean
   }
 }
 
@@ -54,10 +56,24 @@ export function OnboardingProgress({ currentStep, stepCompletion }: OnboardingPr
     },
     {
       number: 5,
-      title: 'Payment & Policies',
-      emoji: EMOJI.CREDIT_CARD,
+      title: 'Deposit Settings',
+      emoji: EMOJI.MONEY_BAG,
       completed: stepCompletion.step5,
       current: currentStep === 5,
+    },
+    {
+      number: 6,
+      title: 'Cancellation Policy',
+      emoji: EMOJI.CREDIT_CARD,
+      completed: stepCompletion.step6,
+      current: currentStep === 6,
+    },
+    {
+      number: 7,
+      title: 'Review & Submit',
+      emoji: EMOJI.CHECK_MARK,
+      completed: stepCompletion.step7,
+      current: currentStep === 7,
     },
   ]
 

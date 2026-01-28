@@ -4,6 +4,7 @@ import type {
   GoogleBusinessProfile,
   GoogleBusinessSearchResult,
   OnboardingStatus,
+  SaveDepositSettingsRequest,
   SaveProviderSettingsRequest,
   VerificationDocument,
 } from '../types/onboarding'
@@ -46,6 +47,7 @@ interface OnboardingStore {
   fetchDocuments: () => Promise<void>
   deleteDocument: (documentId: string) => Promise<void>
   completeStep4: () => Promise<void>
+  saveDepositSettings: (data: SaveDepositSettingsRequest) => Promise<void>
   saveProviderSettings: (data: SaveProviderSettingsRequest) => Promise<void>
   validateOnboarding: () => Promise<ValidationResult>
   completeOnboarding: () => Promise<void>
@@ -273,6 +275,26 @@ export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
           ? String(response.data.message)
           : 'Failed to complete step 4'
       set({ error: errorMessage, isLoading: false })
+    }
+  },
+
+  saveDepositSettings: async (data: SaveDepositSettingsRequest) => {
+    set({ isLoading: true, error: null })
+    const response = await onboardingService.saveDepositSettings(data)
+
+    if (response.success) {
+      await get().fetchStatus()
+      set({ isLoading: false })
+    } else {
+      const errorMessage =
+        'data' in response &&
+        typeof response.data === 'object' &&
+        response.data &&
+        'message' in response.data
+          ? String(response.data.message)
+          : 'Failed to save deposit settings'
+      set({ error: errorMessage, isLoading: false })
+      throw new Error(errorMessage)
     }
   },
 

@@ -25,6 +25,7 @@ interface OnboardingSidebarProps {
     step4: boolean
     step5: boolean
     step6: boolean
+    step7: boolean
   }
   isOnboardingCompleted?: boolean
   approvalStatus?: string
@@ -80,9 +81,9 @@ export function OnboardingSidebar({
     },
     {
       number: 5,
-      title: 'Payment & Policies',
-      subtitle: 'Settings',
-      href: '/onboarding/payment-policies',
+      title: 'Deposit Settings',
+      subtitle: 'Payment deposit',
+      href: '/onboarding/deposit-settings',
       completed: stepCompletion.step5,
       enabled:
         stepCompletion.step1 &&
@@ -92,9 +93,9 @@ export function OnboardingSidebar({
     },
     {
       number: 6,
-      title: 'Acknowledgment',
-      subtitle: 'Review & submit',
-      href: '/onboarding/review',
+      title: 'Cancellation Policy',
+      subtitle: 'Refund policy',
+      href: '/onboarding/payment-policies',
       completed: stepCompletion.step6,
       enabled:
         stepCompletion.step1 &&
@@ -105,6 +106,20 @@ export function OnboardingSidebar({
     },
     {
       number: 7,
+      title: 'Acknowledgment',
+      subtitle: 'Review & submit',
+      href: '/onboarding/review',
+      completed: stepCompletion.step7,
+      enabled:
+        stepCompletion.step1 &&
+        stepCompletion.step2 &&
+        stepCompletion.step3 &&
+        stepCompletion.step4 &&
+        stepCompletion.step5 &&
+        stepCompletion.step6, // Enabled only if steps 1-6 are completed
+    },
+    {
+      number: 8,
       title: 'Application Status',
       subtitle:
         approvalStatus === 'under_review'

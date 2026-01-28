@@ -3,7 +3,7 @@ import type { OnboardingStatus } from '../types/onboarding'
 /**
  * Determines if a user can access a specific onboarding step
  * based on their completion status
- * Step order: 1=Contact, 2=Find Your Camp, 3=About Your Camp, 4=Verification, 5=Payment, 6=Review
+ * Step order: 1=Contact, 2=Find Your Camp, 3=About Your Camp, 4=Verification, 5=Deposit Settings, 6=Cancellation Policy, 7=Review
  */
 export function canAccessStep(step: number, status: OnboardingStatus | null): boolean {
   if (!status) return false
@@ -22,7 +22,7 @@ export function canAccessStep(step: number, status: OnboardingStatus | null): bo
     return status.stepCompletion.step1 && status.stepCompletion.step2 && status.stepCompletion.step3
   }
 
-  // Step 5 (Payment & Policies) requires Steps 1-4 to be completed
+  // Step 5 (Deposit Settings) requires Steps 1-4 to be completed
   if (step === 5) {
     return (
       status.stepCompletion.step1 &&
@@ -32,7 +32,7 @@ export function canAccessStep(step: number, status: OnboardingStatus | null): bo
     )
   }
 
-  // Step 6 (Review) requires Steps 1-5 to be completed
+  // Step 6 (Cancellation Policy) requires Steps 1-5 to be completed
   if (step === 6) {
     return (
       status.stepCompletion.step1 &&
@@ -43,12 +43,24 @@ export function canAccessStep(step: number, status: OnboardingStatus | null): bo
     )
   }
 
+  // Step 7 (Review) requires Steps 1-6 to be completed
+  if (step === 7) {
+    return (
+      status.stepCompletion.step1 &&
+      status.stepCompletion.step2 &&
+      status.stepCompletion.step3 &&
+      status.stepCompletion.step4 &&
+      status.stepCompletion.step5 &&
+      status.stepCompletion.step6
+    )
+  }
+
   return false
 }
 
 /**
  * Gets the next accessible step for a user based on their completion status
- * Step order: 1=Contact, 2=Find Your Camp, 3=About Your Camp, 4=Verification, 5=Payment, 6=Review
+ * Step order: 1=Contact, 2=Find Your Camp, 3=About Your Camp, 4=Verification, 5=Deposit Settings, 6=Cancellation Policy, 7=Review
  */
 export function getNextAccessibleStep(status: OnboardingStatus | null): string {
   if (!status) return '/onboarding/contact'
@@ -68,13 +80,14 @@ export function getNextAccessibleStep(status: OnboardingStatus | null): string {
     }
   }
 
-  // Find the first incomplete step (new order: Contact → Find Your Camp → About → Verification → Payment → Review)
+  // Find the first incomplete step (new order: Contact → Find Your Camp → About → Verification → Deposit Settings → Cancellation Policy → Review)
   if (!status.stepCompletion.step1) return '/onboarding/contact'
   if (!status.stepCompletion.step2) return '/onboarding/find-your-camp'
   if (!status.stepCompletion.step3) return '/onboarding/about-your-camp'
   if (!status.stepCompletion.step4) return '/onboarding/verification'
-  if (!status.stepCompletion.step5) return '/onboarding/payment-policies'
-  if (!status.stepCompletion.step6) return '/onboarding/review'
+  if (!status.stepCompletion.step5) return '/onboarding/deposit-settings'
+  if (!status.stepCompletion.step6) return '/onboarding/payment-policies'
+  if (!status.stepCompletion.step7) return '/onboarding/review'
 
   // All steps completed but onboarding not marked as complete
   return '/onboarding/status'

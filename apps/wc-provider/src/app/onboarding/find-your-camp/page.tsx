@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, Card, CardBody, Chip, Spinner } from '@heroui/react'
+import {
+  Autocomplete,
+  AutocompleteItem,
+  Button,
+  Card,
+  CardBody,
+  Chip,
+  Spinner,
+} from '@heroui/react'
 import { Input, PhoneInput } from '@world-schools/ui-web'
 import { Controller, useForm } from 'react-hook-form'
 import { isValidPhoneNumber, parsePhoneNumber } from 'react-phone-number-input'
@@ -17,6 +25,42 @@ import { Search } from 'lucide-react'
 
 /* eslint-disable no-undef */
 // Google Maps API types are loaded via script tag
+
+const CURRENCIES = [
+  { value: 'USD', label: 'USD - US Dollar' },
+  { value: 'EUR', label: 'EUR - Euro' },
+  { value: 'GBP', label: 'GBP - British Pound' },
+  { value: 'CAD', label: 'CAD - Canadian Dollar' },
+  { value: 'AUD', label: 'AUD - Australian Dollar' },
+  { value: 'NZD', label: 'NZD - New Zealand Dollar' },
+  { value: 'CHF', label: 'CHF - Swiss Franc' },
+  { value: 'JPY', label: 'JPY - Japanese Yen' },
+  { value: 'CNY', label: 'CNY - Chinese Yuan' },
+  { value: 'INR', label: 'INR - Indian Rupee' },
+]
+
+const TIMEZONES = [
+  { value: 'America/New_York', label: 'Eastern Time (ET)' },
+  { value: 'America/Chicago', label: 'Central Time (CT)' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+  { value: 'America/Anchorage', label: 'Alaska Time (AKT)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii Time (HT)' },
+  { value: 'Europe/London', label: 'London (GMT/BST)' },
+  { value: 'Europe/Paris', label: 'Paris (CET/CEST)' },
+  { value: 'Europe/Berlin', label: 'Berlin (CET/CEST)' },
+  { value: 'Europe/Rome', label: 'Rome (CET/CEST)' },
+  { value: 'Europe/Madrid', label: 'Madrid (CET/CEST)' },
+  { value: 'Europe/Zurich', label: 'Zurich (CET/CEST)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
+  { value: 'Asia/Hong_Kong', label: 'Hong Kong (HKT)' },
+  { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
+  { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AEDT/AEST)' },
+  { value: 'Australia/Melbourne', label: 'Melbourne (AEDT/AEST)' },
+  { value: 'Pacific/Auckland', label: 'Auckland (NZDT/NZST)' },
+]
 
 export default function OnboardingStep1Page() {
   const router = useRouter()
@@ -104,6 +148,8 @@ export default function OnboardingStep1Page() {
       'providerPhone',
       'providerEmail',
       'website',
+      'currency',
+      'timezone',
     ]
 
     return fieldsToCheck.some(fieldName => {
@@ -154,6 +200,8 @@ export default function OnboardingStep1Page() {
         providerPhone: legalInfo.providerPhone || '',
         providerEmail: legalInfo.providerEmail || '',
         website: legalInfo.website || '',
+        currency: legalInfo.currency || '',
+        timezone: legalInfo.timezone || '',
       }
       reset(formData)
       // Save the loaded data for comparison (cast to match the partial type)
@@ -226,6 +274,8 @@ export default function OnboardingStep1Page() {
         providerPhone: formattedPhone,
         providerEmail: '', // Not available from Google Places - clear it
         website: selectedBusiness.website || '',
+        currency: '', // Not available from Google Places - user must select
+        timezone: '', // Not available from Google Places - user must select
       }
 
       // Use reset() to update all fields at once (more reliable than individual setValue calls)
@@ -1045,6 +1095,77 @@ export default function OnboardingStep1Page() {
                   />
                 )}
               />
+
+              {/* Currency and Timezone */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <Controller
+                  name="currency"
+                  control={control}
+                  rules={{ required: 'Currency is required' }}
+                  render={({ field }) => (
+                    <Autocomplete
+                      label="Currency"
+                      labelPlacement="outside"
+                      placeholder="Select currency"
+                      selectedKey={field.value || ''}
+                      onSelectionChange={key => field.onChange(key as string)}
+                      isDisabled={isReadOnly}
+                      isRequired
+                      isInvalid={!!errors.currency}
+                      errorMessage={errors.currency?.message}
+                      classNames={{
+                        base: 'w-full',
+                        listboxWrapper: 'max-h-[320px]',
+                      }}
+                      inputProps={{
+                        classNames: {
+                          inputWrapper: hasFieldChanged('currency')
+                            ? 'border-2 border-warning'
+                            : 'rounded-lg bg-white border border-gray-200 hover:border-gray-300 focus-within:border-primary! focus-within:bg-white! dark:border-gray-600',
+                        },
+                      }}
+                    >
+                      {CURRENCIES.map(curr => (
+                        <AutocompleteItem key={curr.value}>{curr.label}</AutocompleteItem>
+                      ))}
+                    </Autocomplete>
+                  )}
+                />
+
+                <Controller
+                  name="timezone"
+                  control={control}
+                  rules={{ required: 'Timezone is required' }}
+                  render={({ field }) => (
+                    <Autocomplete
+                      label="Timezone"
+                      labelPlacement="outside"
+                      placeholder="Select timezone"
+                      selectedKey={field.value || ''}
+                      onSelectionChange={key => field.onChange(key as string)}
+                      isDisabled={isReadOnly}
+                      isRequired
+                      isInvalid={!!errors.timezone}
+                      errorMessage={errors.timezone?.message}
+                      classNames={{
+                        base: 'w-full',
+                        listboxWrapper: 'max-h-[320px]',
+                      }}
+                      inputProps={{
+                        classNames: {
+                          inputWrapper: hasFieldChanged('timezone')
+                            ? 'border-2 border-warning'
+                            : 'rounded-lg bg-white border border-gray-200 hover:border-gray-300 focus-within:border-primary! focus-within:bg-white! dark:border-gray-600',
+                        },
+                      }}
+                    >
+                      {TIMEZONES.map(tz => (
+                        <AutocompleteItem key={tz.value}>{tz.label}</AutocompleteItem>
+                      ))}
+                    </Autocomplete>
+                  )}
+                />
+              </div>
             </div>
           </form>
 

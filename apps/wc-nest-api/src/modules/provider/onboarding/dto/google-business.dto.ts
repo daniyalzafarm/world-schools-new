@@ -136,6 +136,22 @@ export class SaveGoogleBusinessProfileDto {
   @IsOptional()
   @IsString()
   website?: string
+
+  @ApiProperty({
+    description: 'Currency code (ISO 4217)',
+    example: 'USD',
+  })
+  @IsString()
+  @IsNotEmpty()
+  currency: string
+
+  @ApiProperty({
+    description: 'Timezone (IANA timezone)',
+    example: 'America/New_York',
+  })
+  @IsString()
+  @IsNotEmpty()
+  timezone: string
 }
 
 export class GoogleBusinessSearchResultDto {

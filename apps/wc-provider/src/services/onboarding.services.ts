@@ -5,6 +5,7 @@ import type {
   GoogleBusinessSearchResult,
   OnboardingStatus,
   ProviderSettings,
+  SaveDepositSettingsRequest,
   SaveGoogleBusinessProfileRequest,
   SaveProviderSettingsRequest,
   SearchGoogleBusinessRequest,
@@ -136,24 +137,71 @@ export const onboardingService = {
   },
 
   /**
-   * Get provider settings (Step 5)
+   * Get deposit settings (Step 5)
    */
-  async getProviderSettings(): Promise<ApiResult<ProviderSettings | null>> {
-    return await apiClient.get<ProviderSettings | null>(
-      '/provider/onboarding/payment-policies/settings'
-    )
+  async getDepositSettings(): Promise<
+    ApiResult<{
+      depositRequired: boolean
+      depositType?: 'percentage' | 'fixed' | null
+      depositPercentage?: number | null
+      depositFixedAmount?: number | null
+    } | null>
+  > {
+    return await apiClient.get<{
+      depositRequired: boolean
+      depositType?: 'percentage' | 'fixed' | null
+      depositPercentage?: number | null
+      depositFixedAmount?: number | null
+    } | null>('/provider/onboarding/deposit-settings/info')
   },
 
   /**
-   * Save provider settings (Step 5)
+   * Save deposit settings (Step 5) - automatically advances to Step 6
    */
-  async saveProviderSettings(
-    data: SaveProviderSettingsRequest
-  ): Promise<ApiResult<ProviderSettings>> {
-    return await apiClient.post<ProviderSettings>(
-      '/provider/onboarding/payment-policies/save',
-      data
-    )
+  async saveDepositSettings(data: SaveDepositSettingsRequest): Promise<
+    ApiResult<{
+      depositRequired: boolean
+      depositType?: 'percentage' | 'fixed' | null
+      depositPercentage?: number | null
+      depositFixedAmount?: number | null
+    }>
+  > {
+    return await apiClient.post<{
+      depositRequired: boolean
+      depositType?: 'percentage' | 'fixed' | null
+      depositPercentage?: number | null
+      depositFixedAmount?: number | null
+    }>('/provider/onboarding/deposit-settings/save', data)
+  },
+
+  /**
+   * Get provider settings (Step 6 - Cancellation Policy only)
+   */
+  async getProviderSettings(): Promise<
+    ApiResult<{
+      cancellationPolicy: string
+      cancellationPolicyCustom?: string | null
+    } | null>
+  > {
+    return await apiClient.get<{
+      cancellationPolicy: string
+      cancellationPolicyCustom?: string | null
+    } | null>('/provider/onboarding/payment-policies/settings')
+  },
+
+  /**
+   * Save provider settings (Step 6 - Cancellation Policy only)
+   */
+  async saveProviderSettings(data: SaveProviderSettingsRequest): Promise<
+    ApiResult<{
+      cancellationPolicy: string
+      cancellationPolicyCustom?: string | null
+    }>
+  > {
+    return await apiClient.post<{
+      cancellationPolicy: string
+      cancellationPolicyCustom?: string | null
+    }>('/provider/onboarding/payment-policies/save', data)
   },
 
   /**

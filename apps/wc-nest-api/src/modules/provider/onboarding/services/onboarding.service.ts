@@ -38,7 +38,7 @@ export class OnboardingService {
     }
 
     // Determine step completion
-    // Step order: 1=Contact, 2=Find Your Camp, 3=About Your Camp, 4=Verification, 5=Payment, 6=Review
+    // Step order: 1=Contact, 2=Find Your Camp, 3=About Your Camp, 4=Verification, 5=Deposit Settings, 6=Cancellation Policy, 7=Review
     const stepCompletion = {
       step1: !!(
         provider.contactFirstName &&
@@ -59,8 +59,12 @@ export class OnboardingService {
       ),
       step3: !!(provider.description && provider.campType),
       step4: provider.verificationDocuments.length > 0,
-      step5: !!provider.settings,
-      step6: !!provider.onboardingCompletedAt, // Step 6 is completed when onboarding is submitted
+      step5: !!(
+        provider.settings?.depositRequired !== null &&
+        provider.settings?.depositRequired !== undefined
+      ), // Step 5: Deposit settings configured
+      step6: !!provider.settings?.cancellationPolicy, // Step 6: Cancellation policy configured
+      step7: !!provider.onboardingCompletedAt, // Step 7 is completed when onboarding is submitted
     }
 
     return {
@@ -111,6 +115,8 @@ export class OnboardingService {
     providerPhone: string | null
     providerEmail: string | null
     website: string | null
+    currency: string | null
+    timezone: string | null
   } | null> {
     const provider = await this.prisma.provider.findUnique({
       where: { id: providerId },
@@ -126,6 +132,12 @@ export class OnboardingService {
         phone: true,
         email: true,
         website: true,
+        settings: {
+          select: {
+            currency: true,
+            timezone: true,
+          },
+        },
       },
     })
 
@@ -145,6 +157,8 @@ export class OnboardingService {
       providerPhone: provider.phone,
       providerEmail: provider.email,
       website: provider.website,
+      currency: provider.settings?.currency || null,
+      timezone: provider.settings?.timezone || null,
     }
   }
 
@@ -277,7 +291,7 @@ export class OnboardingService {
 
     if (missingDocuments.length > 0) {
       throw new BadRequestException(
-        `Cannot proceed to Step 5. Missing required documents: ${missingDocuments.join(', ')}`
+        `Cannot proceed to Step 5 (Deposit Settings). Missing required documents: ${missingDocuments.join(', ')}`
       )
     }
   }
@@ -391,25 +405,36 @@ export class OnboardingService {
       })
     }
 
-    // Step 5: Payment & Policies
+    // Step 5: Deposit Settings
     if (!provider.settings) {
       errors.push({
         step: 5,
-        stepName: 'Payment & Policies',
+        stepName: 'Deposit Settings',
         field: 'settings',
-        message: 'Payment settings and cancellation policy must be configured',
-        path: '/onboarding/payment-policies',
+        message: 'Deposit settings must be configured',
+        path: '/onboarding/deposit-settings',
       })
     } else {
       // Validate deposit settings
-      if (provider.settings.depositRequired) {
+      if (
+        provider.settings.depositRequired === null ||
+        provider.settings.depositRequired === undefined
+      ) {
+        errors.push({
+          step: 5,
+          stepName: 'Deposit Settings',
+          field: 'depositRequired',
+          message: 'Deposit requirement must be specified',
+          path: '/onboarding/deposit-settings',
+        })
+      } else if (provider.settings.depositRequired) {
         if (!provider.settings.depositType) {
           errors.push({
             step: 5,
-            stepName: 'Payment & Policies',
+            stepName: 'Deposit Settings',
             field: 'depositType',
             message: 'Deposit type must be selected',
-            path: '/onboarding/payment-policies',
+            path: '/onboarding/deposit-settings',
           })
         } else if (
           provider.settings.depositType === 'percentage' &&
@@ -419,36 +444,44 @@ export class OnboardingService {
         ) {
           errors.push({
             step: 5,
-            stepName: 'Payment & Policies',
+            stepName: 'Deposit Settings',
             field: 'depositPercentage',
             message: 'Deposit percentage must be between 1 and 100',
-            path: '/onboarding/payment-policies',
+            path: '/onboarding/deposit-settings',
           })
         } else if (
-          provider.settings.depositType === 'fixed_amount' &&
+          provider.settings.depositType === 'fixed' &&
           (!provider.settings.depositFixedAmount ||
             Number(provider.settings.depositFixedAmount) < 1)
         ) {
           errors.push({
             step: 5,
-            stepName: 'Payment & Policies',
+            stepName: 'Deposit Settings',
             field: 'depositFixedAmount',
             message: 'Deposit amount must be at least $1',
-            path: '/onboarding/payment-policies',
+            path: '/onboarding/deposit-settings',
           })
         }
       }
+    }
 
-      // Validate cancellation policy
-      if (!provider.settings.cancellationPolicy) {
-        errors.push({
-          step: 5,
-          stepName: 'Payment & Policies',
-          field: 'cancellationPolicy',
-          message: 'Cancellation policy must be selected',
-          path: '/onboarding/payment-policies',
-        })
-      }
+    // Step 6: Cancellation Policy
+    if (!provider.settings) {
+      errors.push({
+        step: 6,
+        stepName: 'Cancellation Policy',
+        field: 'settings',
+        message: 'Cancellation policy must be configured',
+        path: '/onboarding/payment-policies',
+      })
+    } else if (!provider.settings.cancellationPolicy) {
+      errors.push({
+        step: 6,
+        stepName: 'Cancellation Policy',
+        field: 'cancellationPolicy',
+        message: 'Cancellation policy must be selected',
+        path: '/onboarding/payment-policies',
+      })
     }
 
     return {
@@ -458,7 +491,7 @@ export class OnboardingService {
   }
 
   /**
-   * Complete onboarding (after Step 6)
+   * Complete onboarding (after Step 7)
    */
   async completeOnboarding(providerId: string): Promise<void> {
     // Check if application has already been submitted
@@ -494,7 +527,7 @@ export class OnboardingService {
       where: { id: providerId },
       data: {
         onboardingCompletedAt: now,
-        onboardingCurrentStep: 6,
+        onboardingCurrentStep: 7,
         approvalStatus: 'under_review',
         applicationSubmittedAt: now,
 

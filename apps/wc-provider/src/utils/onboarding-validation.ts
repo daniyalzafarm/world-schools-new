@@ -94,13 +94,24 @@ export function validateOnboardingCompletion(
     }
   }
 
-  // Step 5: Payment & Policies
+  // Step 5: Deposit Settings
   if (!status.stepCompletion.step5) {
     errors.push({
       step: 5,
-      stepName: 'Payment & Policies',
-      field: 'settings',
-      message: 'Payment settings and cancellation policy must be configured',
+      stepName: 'Deposit Settings',
+      field: 'depositSettings',
+      message: 'Deposit settings must be configured',
+      path: '/onboarding/deposit-settings',
+    })
+  }
+
+  // Step 6: Cancellation Policy
+  if (!status.stepCompletion.step6) {
+    errors.push({
+      step: 6,
+      stepName: 'Cancellation Policy',
+      field: 'cancellationPolicy',
+      message: 'Cancellation policy must be configured',
       path: '/onboarding/payment-policies',
     })
   }

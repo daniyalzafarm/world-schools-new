@@ -77,6 +77,7 @@ export interface OnboardingStatus {
     step4: boolean
     step5: boolean
     step6: boolean
+    step7: boolean
   }
   termsAcceptedAt?: string | null
   termsVersion?: string | null
@@ -137,6 +138,8 @@ export interface GoogleBusinessProfile {
     providerPhone: string | null
     providerEmail: string | null
     website: string | null
+    currency: string | null
+    timezone: string | null
   } | null
 }
 
@@ -160,6 +163,8 @@ export interface LegalBusinessInfo {
   providerPhone?: string // E.164 format phone number (optional)
   providerEmail?: string
   website?: string
+  currency: string
+  timezone: string
 }
 
 export interface VerificationDocument {
@@ -208,6 +213,8 @@ export interface SaveGoogleBusinessProfileRequest {
   providerPhone?: string
   providerEmail?: string
   website?: string
+  currency: string
+  timezone: string
 }
 
 export interface UploadDocumentRequest {
@@ -216,13 +223,14 @@ export interface UploadDocumentRequest {
   customTitle?: string
 }
 
-export interface SaveProviderSettingsRequest {
-  currency: string
-  timezone: string
+export interface SaveDepositSettingsRequest {
   depositRequired: boolean
   depositType?: 'percentage' | 'fixed' | null // Backend expects 'fixed', not 'fixed_amount'
   depositPercentage?: number | null
   depositFixedAmount?: number | null
+}
+
+export interface SaveProviderSettingsRequest {
   cancellationPolicy: CancellationPolicy
   cancellationPolicyCustom?: string | null
 }

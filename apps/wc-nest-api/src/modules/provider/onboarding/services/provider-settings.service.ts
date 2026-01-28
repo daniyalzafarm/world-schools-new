@@ -9,66 +9,55 @@ export class ProviderSettingsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Create or update provider settings
+   * Update cancellation policy settings (Step 6)
+   * Note: Deposit settings are handled separately in Step 5 via DepositSettingsService
    */
   async saveSettings(providerId: string, dto: SaveProviderSettingsDto): Promise<any> {
-    // Validate deposit settings
-    if (dto.depositRequired) {
-      if (!dto.depositType) {
-        throw new BadRequestException('Deposit type is required when deposit is enabled')
-      }
-
-      if (dto.depositType === 'percentage' && !dto.depositPercentage) {
-        throw new BadRequestException(
-          'Deposit percentage is required when deposit type is percentage'
-        )
-      }
-
-      if (dto.depositType === 'fixed' && !dto.depositFixedAmount) {
-        throw new BadRequestException('Deposit fixed amount is required when deposit type is fixed')
-      }
-    }
-
     // Validate custom cancellation policy
     if (dto.cancellationPolicy === 'custom' && !dto.cancellationPolicyCustom) {
       throw new BadRequestException('Custom cancellation policy details are required')
     }
 
-    // Create or update settings
-    const settings = await this.prisma.providerSettings.upsert({
+    // Validate that ProviderSettings exists (should be created in Step 2)
+    const existingSettings = await this.prisma.providerSettings.findUnique({
       where: { providerId },
-      create: {
-        providerId,
-        currency: dto.currency,
-        timezone: dto.timezone,
-        depositRequired: dto.depositRequired,
-        depositType: dto.depositType,
-        depositPercentage: dto.depositPercentage,
-        depositFixedAmount: dto.depositFixedAmount,
+    })
+
+    if (!existingSettings) {
+      throw new BadRequestException(
+        'Provider settings not found. Please complete Step 2 (Find Your Camp) first.'
+      )
+    }
+
+    // Update only cancellation policy fields
+    const settings = await this.prisma.providerSettings.update({
+      where: { providerId },
+      data: {
         cancellationPolicy: dto.cancellationPolicy,
         cancellationPolicyCustom: dto.cancellationPolicyCustom,
       },
-      update: {
-        currency: dto.currency,
-        timezone: dto.timezone,
-        depositRequired: dto.depositRequired,
-        depositType: dto.depositType,
-        depositPercentage: dto.depositPercentage,
-        depositFixedAmount: dto.depositFixedAmount,
-        cancellationPolicy: dto.cancellationPolicy,
-        cancellationPolicyCustom: dto.cancellationPolicyCustom,
-      },
+    })
+
+    // Automatically advance to Step 7 (Review)
+    await this.prisma.provider.update({
+      where: { id: providerId },
+      data: { onboardingCurrentStep: 7 },
     })
 
     return settings
   }
 
   /**
-   * Get provider settings
+   * Get cancellation policy settings (Step 6)
+   * Note: Deposit settings are retrieved separately via DepositSettingsService
    */
   async getSettings(providerId: string): Promise<any> {
     const settings = await this.prisma.providerSettings.findUnique({
       where: { providerId },
+      select: {
+        cancellationPolicy: true,
+        cancellationPolicyCustom: true,
+      },
     })
 
     return settings

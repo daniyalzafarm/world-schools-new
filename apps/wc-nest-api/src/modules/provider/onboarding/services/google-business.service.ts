@@ -150,6 +150,8 @@ export class GoogleBusinessService {
       providerPhone?: string
       providerEmail?: string
       website?: string
+      currency: string
+      timezone: string
     }
   ): Promise<any> {
     // Check if this placeId is already linked to a different provider
@@ -241,6 +243,23 @@ export class GoogleBusinessService {
           phone: legalInfo.providerPhone,
           email: legalInfo.providerEmail,
           website: legalInfo.website,
+        },
+      })
+
+      // Save currency and timezone to ProviderSettings
+      // These fields are required in the DTO, so they will always have values
+      await prisma.providerSettings.upsert({
+        where: { providerId },
+        create: {
+          providerId,
+          currency: legalInfo.currency,
+          timezone: legalInfo.timezone,
+          depositRequired: false,
+          cancellationPolicy: 'moderate',
+        },
+        update: {
+          currency: legalInfo.currency,
+          timezone: legalInfo.timezone,
         },
       })
 

@@ -21,6 +21,7 @@ import { ResponseUtil } from '../../../common/utils/response.util'
 import { OnboardingService } from './services/onboarding.service'
 import { GoogleBusinessService } from './services/google-business.service'
 import { ProviderSettingsService } from './services/provider-settings.service'
+import { DepositSettingsService } from './services/deposit-settings.service'
 import { DocumentProcessingService } from './services/document-processing.service'
 import { TrustScoreService } from './services/trust-score.service'
 
@@ -29,6 +30,7 @@ import { SaveGoogleBusinessProfileDto } from './dto/google-business.dto'
 import { SaveContactInfoDto } from './dto/contact-info.dto'
 import { SaveCampInfoDto } from './dto/camp-info.dto'
 import { SaveProviderSettingsDto } from './dto/provider-settings.dto'
+import { SaveDepositSettingsDto } from './dto/deposit-settings.dto'
 import { UploadDocumentDto } from './dto/document-upload.dto'
 
 @ApiTags('Provider Onboarding')
@@ -40,6 +42,7 @@ export class OnboardingController {
     private readonly onboardingService: OnboardingService,
     private readonly googleBusinessService: GoogleBusinessService,
     private readonly providerSettingsService: ProviderSettingsService,
+    private readonly depositSettingsService: DepositSettingsService,
     private readonly documentProcessingService: DocumentProcessingService,
     private readonly trustScoreService: TrustScoreService
   ) {}
@@ -108,6 +111,8 @@ export class OnboardingController {
       providerPhone: dto.providerPhone,
       providerEmail: dto.providerEmail,
       website: dto.website,
+      currency: dto.currency,
+      timezone: dto.timezone,
     })
     await this.onboardingService.updateCurrentStep(providerId, 3)
 
@@ -277,11 +282,36 @@ export class OnboardingController {
   }
 
   /**
-   * Step 5: Get Payment & Policy Settings
+   * Step 5: Get Deposit Settings
+   */
+  @Get('deposit-settings/info')
+  @Roles('Provider Admin')
+  @ApiOperation({ summary: 'Get deposit settings' })
+  async getDepositSettings(@Request() req: any) {
+    const providerId = req.user.providerId
+    const settings = await this.depositSettingsService.getDepositSettings(providerId)
+    return ResponseUtil.success(settings)
+  }
+
+  /**
+   * Step 5: Save Deposit Settings (automatically advances to Step 6)
+   */
+  @Post('deposit-settings/save')
+  @Roles('Provider Admin')
+  @ApiOperation({ summary: 'Save deposit settings and advance to Step 6' })
+  async saveDepositSettings(@Request() req: any, @Body() dto: SaveDepositSettingsDto) {
+    const providerId = req.user.providerId
+    const settings = await this.depositSettingsService.saveDepositSettings(providerId, dto)
+    return ResponseUtil.success(settings)
+  }
+
+  /**
+   * Step 6: Get Cancellation Policy Settings
+   * Note: Deposit settings are retrieved separately via /deposit-settings/info endpoint
    */
   @Get('payment-policies/settings')
   @Roles('Provider Admin')
-  @ApiOperation({ summary: 'Get saved payment and policy settings' })
+  @ApiOperation({ summary: 'Get saved cancellation policy settings' })
   async getSettings(@Request() req: any) {
     const providerId = req.user.providerId
     const settings = await this.providerSettingsService.getSettings(providerId)
@@ -289,17 +319,19 @@ export class OnboardingController {
   }
 
   /**
-   * Step 5: Save Payment & Policy Settings
+   * Step 6: Save Cancellation Policy Settings
+   * Note: Deposit settings are saved separately via /deposit-settings/save endpoint
+   * This endpoint automatically advances to Step 7 (Review) after saving
    */
   @Post('payment-policies/save')
   @Roles('Provider Admin')
-  @ApiOperation({ summary: 'Save payment and policy settings' })
+  @ApiOperation({ summary: 'Save cancellation policy settings and advance to Step 7' })
   async saveSettings(@Request() req: any, @Body() dto: SaveProviderSettingsDto) {
     const providerId = req.user.providerId
     const settings = await this.providerSettingsService.saveSettings(providerId, dto)
-    await this.onboardingService.updateCurrentStep(providerId, 6)
+    // Note: Step advancement to 7 is now handled inside the service method
 
-    // Update trust score after saving payment & policy settings
+    // Update trust score after saving cancellation policy settings
     await this.trustScoreService.updateTrustScore(providerId)
 
     return ResponseUtil.success(settings)

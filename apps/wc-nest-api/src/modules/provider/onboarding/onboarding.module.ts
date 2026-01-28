@@ -3,6 +3,7 @@ import { OnboardingController } from './onboarding.controller'
 import { OnboardingService } from './services/onboarding.service'
 import { GoogleBusinessService } from './services/google-business.service'
 import { ProviderSettingsService } from './services/provider-settings.service'
+import { DepositSettingsService } from './services/deposit-settings.service'
 import { DocumentProcessingService } from './services/document-processing.service'
 import { TrustScoreService } from './services/trust-score.service'
 import { PrismaModule } from '../../../prisma/prisma.module'
@@ -17,6 +18,7 @@ import { EmailTemplatesModule } from '../../common/email-templates/email-templat
     OnboardingService,
     GoogleBusinessService,
     ProviderSettingsService,
+    DepositSettingsService,
     DocumentProcessingService,
     TrustScoreService,
   ],
@@ -24,6 +26,7 @@ import { EmailTemplatesModule } from '../../common/email-templates/email-templat
     OnboardingService,
     GoogleBusinessService,
     ProviderSettingsService,
+    DepositSettingsService,
     DocumentProcessingService,
     TrustScoreService,
   ],

@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger'
 
 export class OnboardingStatusDto {
   @ApiProperty({
-    description: 'Current onboarding step (1-6)',
+    description: 'Current onboarding step (1-7)',
     example: 3,
   })
   currentStep: number
@@ -79,6 +79,7 @@ export class OnboardingStatusDto {
       step4: false,
       step5: false,
       step6: false,
+      step7: false,
     },
   })
   stepCompletion: {
@@ -88,6 +89,7 @@ export class OnboardingStatusDto {
     step4: boolean
     step5: boolean
     step6: boolean
+    step7: boolean
   }
 
   @ApiProperty({
