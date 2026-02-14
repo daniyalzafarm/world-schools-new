@@ -91,10 +91,18 @@ export default function OnboardingStep6CancellationPolicyPage() {
   useEffect(() => {
     if (!originalData) return
 
+    // If step hasn't been completed yet, we don't have saved values to compare against
+    // In this case, hasUnsavedChanges should be false (no changes from saved state)
+    if (!status?.stepCompletion.step6) {
+      setHasUnsavedChanges(false)
+      return
+    }
+
+    // Step is completed - check if any field has changed from saved values
     const hasChanges = selectedPolicy !== originalData.selectedPolicy
 
     setHasUnsavedChanges(hasChanges)
-  }, [selectedPolicy, originalData])
+  }, [selectedPolicy, originalData, status?.stepCompletion.step6])
 
   // Route protection: Check if user can access Step 6
   useEffect(() => {
@@ -138,18 +146,22 @@ export default function OnboardingStep6CancellationPolicyPage() {
       footer={
         <OnboardingFooter
           onNext={async () => {
-            if (isReadOnly || !hasUnsavedChanges) {
-              // No changes or read-only mode - navigate directly without saving
+            // If step is already completed and no changes, just navigate
+            if (isReadOnly || (status?.stepCompletion.step6 && !hasUnsavedChanges)) {
               router.push('/onboarding/review')
             } else {
-              // Has unsaved changes - save first, then navigate
+              // Step not completed or changes detected - save first
               await handleSaveAndContinue()
             }
           }}
           onBack={() => router.push('/onboarding/deposit-settings')}
           isLoading={isLoading || isSaving}
           isDisabled={false}
-          nextButtonText={isReadOnly || !hasUnsavedChanges ? 'Next →' : 'Save & Continue →'}
+          nextButtonText={
+            isReadOnly || (status?.stepCompletion.step6 && !hasUnsavedChanges)
+              ? 'Next →'
+              : 'Save & Continue →'
+          }
         />
       }
     >
