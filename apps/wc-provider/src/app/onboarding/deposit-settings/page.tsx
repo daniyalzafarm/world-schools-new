@@ -147,17 +147,13 @@ export default function OnboardingStep5DepositSettingsPage() {
   // Helper function to check if ANY fields have changed from saved values
   // This is used to determine if the "Save & Continue" button should be shown
   const hasAnyFieldChanged = (): boolean => {
-    // Only check for changes when we have saved values to compare against
-    if (
-      savedValues.depositRequired === null ||
-      savedValues.depositType === null ||
-      savedValues.depositPercentage === null ||
-      savedValues.depositFixedAmount === null
-    ) {
+    // If step hasn't been completed yet, we don't have saved values to compare against
+    // In this case, return false (no changes from saved state) since nothing has been saved yet
+    if (!status?.stepCompletion.step5) {
       return false
     }
 
-    // Check if any field has changed
+    // Step is completed - check if any field has changed from saved values
     if (depositRequired !== savedValues.depositRequired) return true
     if (depositType !== savedValues.depositType) return true
     if (depositPercentage !== savedValues.depositPercentage) return true
@@ -390,11 +386,11 @@ export default function OnboardingStep5DepositSettingsPage() {
       footer={
         <OnboardingFooter
           onNext={async () => {
-            // If no changes, just navigate
-            if (savedValues.depositRequired !== null && !hasAnyFieldChanged()) {
+            // If step is already completed and no changes, just navigate
+            if (status?.stepCompletion.step5 && !hasAnyFieldChanged()) {
               router.push('/onboarding/payment-policies')
             } else {
-              // Changes detected - save first
+              // Step not completed or changes detected - save first
               await handleSaveAndContinue()
             }
           }}
@@ -403,8 +399,8 @@ export default function OnboardingStep5DepositSettingsPage() {
             if (isReadOnly) return 'Next →'
             if (isSaving) return 'Saving...'
 
-            // Check if we have saved values and no changes
-            if (savedValues.depositRequired !== null && !hasAnyFieldChanged()) {
+            // Check if step is completed and no changes
+            if (status?.stepCompletion.step5 && !hasAnyFieldChanged()) {
               return 'Next →'
             } else {
               return 'Save & Continue →'
