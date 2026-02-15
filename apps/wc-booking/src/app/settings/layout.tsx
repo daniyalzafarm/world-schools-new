@@ -1,26 +1,32 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Button } from '@heroui/react'
 import { cn } from '@world-schools/ui-web'
 import { Menu, X } from 'lucide-react'
-import TopNav from '@/components/layout/top-nav'
+import { MainLayout } from '@/components/layout/main-layout'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { SettingsSidebar } from '@/components/layout/settings-sidebar'
+import eventBus from '@/utils/event-bus'
 
 const SettingsLayout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  // Emit sidebar collapse event when settings page mounts
+  useEffect(() => {
+    // Emit the collapse event to the main sidebar
+    eventBus.$emit('sidebar:collapse')
+  }, []) // Empty dependency array ensures this only runs once on mount
+
   return (
-    <ProtectedRoute requireAuth={true}>
-      <div className="flex flex-col h-screen bg-white dark:bg-gray-900 overflow-hidden">
-        <TopNav />
-        <div className="flex flex-1 overflow-hidden bg-white dark:bg-gray-900">
+    <ProtectedRoute requireAuth={true} requireParentRole={true}>
+      <MainLayout>
+        <div className="flex h-full bg-white dark:bg-gray-900">
           {/* Settings Sidebar */}
           <SettingsSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
           {/* Mobile Header with Menu Toggle - only visible on mobile */}
-          <div className="lg:hidden fixed top-16 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+          <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between px-4 py-3">
               <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
               <Button
@@ -54,11 +60,13 @@ const SettingsLayout = ({ children }: { children: React.ReactNode }) => {
           </div>
 
           {/* Main Content */}
-          <main className="flex-1 min-w-0 lg:ml-0 overflow-auto">
-            <div className="mx-auto max-w-4xl">{children}</div>
+          <main className="flex-1 min-w-0 lg:ml-0">
+            <div className="h-full overflow-auto">
+              <div className="mx-auto max-w-4xl w-full">{children}</div>
+            </div>
           </main>
         </div>
-      </div>
+      </MainLayout>
     </ProtectedRoute>
   )
 }
