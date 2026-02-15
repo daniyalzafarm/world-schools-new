@@ -96,7 +96,7 @@ export function ChatInput({
             onPress={handleSend}
             disabled={!canSend}
             className={cn(
-              'w-8 h-8 rounded-full flex-shrink-0 transition-all duration-200',
+              'w-8 h-8 rounded-full shrink-0 transition-all duration-200',
               canSend
                 ? 'bg-primary-dark text-primary-foreground hover:bg-primary-dark/90'
                 : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'

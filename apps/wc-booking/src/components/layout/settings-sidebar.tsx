@@ -91,7 +91,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                       )}
                     >
                       <span className="w-8 flex justify-center">
-                        <span className={cn('flex-shrink-0')}>{item.icon}</span>
+                        <span className={cn('shrink-0')}>{item.icon}</span>
                       </span>
                       <div className="flex select-none items-center justify-between w-full ml-2">
                         <span className={cn('font-medium transition-all duration-200')}>

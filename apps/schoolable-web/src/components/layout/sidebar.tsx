@@ -606,7 +606,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen }) => {
 
             {/* 3-dot menu button - only show on hover */}
             {hoveredHistoryItem === historyItem.id && (
-              <div className="flex-shrink-0 ml-2" onClick={e => e.stopPropagation()}>
+              <div className="shrink-0 ml-2" onClick={e => e.stopPropagation()}>
                 <Dropdown placement="right-start">
                   <DropdownTrigger>
                     <button className={COMMON_STYLES.menuButton}>
@@ -697,7 +697,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen }) => {
               data-interactive
             >
               <div className={cn('flex w-full', 'justify-start')}>
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   <Logo showText={false} size={'md'} />
                 </div>
               </div>
@@ -919,7 +919,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen }) => {
                       !isCollapsed && 'w-full'
                     )}
                   >
-                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
                       <span className="text-white font-semibold">
                         {user?.firstName?.charAt(0).toUpperCase() || 'J'}
                       </span>

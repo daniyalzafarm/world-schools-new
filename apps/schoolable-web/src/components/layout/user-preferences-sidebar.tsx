@@ -45,7 +45,7 @@ function ReviewItem({ review, className }: ReviewItemProps) {
               src={review.reviewerAvatar}
               alt={review.reviewerName}
               size="sm"
-              className="w-10 h-10 flex-shrink-0"
+              className="w-10 h-10 shrink-0"
               fallback={
                 <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
                   <span className="text-white font-semibold text-sm">

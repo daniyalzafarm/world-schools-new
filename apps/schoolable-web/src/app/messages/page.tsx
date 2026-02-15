@@ -355,7 +355,7 @@ Transfer Request: User requested to speak with a human representative.`
                 }
               }}
             >
-              <Avatar src={avatarSrc} alt={name} className="h-8 w-8 flex-shrink-0" />
+              <Avatar src={avatarSrc} alt={name} className="h-8 w-8 shrink-0" />
               <div className="min-w-0 flex-1">
                 <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
                   {selectedConversation?.name || 'School'}
@@ -369,7 +369,7 @@ Transfer Request: User requested to speak with a human representative.`
             </div>
 
             {/* Right Section */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <Dropdown placement="bottom-end">
                 <DropdownTrigger>
                   <Button
@@ -408,7 +408,7 @@ Transfer Request: User requested to speak with a human representative.`
                     <div key={m.id}>
                       {!m.isUser ? (
                         <div className="flex items-end gap-3 mb-4 animate-in slide-in-from-left-2 duration-300">
-                          <div className="flex-shrink-0">
+                          <div className="shrink-0">
                             <Avatar
                               src={m.isChatbot ? avatarSrc : '/assets/avatar.png'}
                               alt={m.isChatbot ? name : 'Admin'}

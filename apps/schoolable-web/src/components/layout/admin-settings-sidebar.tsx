@@ -181,7 +181,7 @@ export const AdminSettingsSidebar: React.FC<AdminSettingsSidebarProps> = ({
                             {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                           </div>
                         ) : (
-                          <span className={cn('flex-shrink-0')}>{item.icon}</span>
+                          <span className={cn('shrink-0')}>{item.icon}</span>
                         )}
                       </span>
                       <div className="flex select-none items-center justify-between w-full ml-2">

@@ -41,9 +41,9 @@ const HistoryItem = ({
     <div className="flex items-start justify-between gap-3">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <MessageCircle size={20} className="flex-shrink-0" />
+          <MessageCircle size={20} className="shrink-0" />
           <h4 className="font-medium truncate flex-1 min-w-0">{item.title}</h4>
-          <span className="text-sm transition-opacity duration-200 flex-shrink-0 ml-2 opacity-0 group-hover:opacity-100">
+          <span className="text-sm transition-opacity duration-200 shrink-0 ml-2 opacity-0 group-hover:opacity-100">
             {item.timestamp}
           </span>
         </div>

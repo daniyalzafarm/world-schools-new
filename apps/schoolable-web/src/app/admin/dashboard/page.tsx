@@ -218,7 +218,7 @@ export default function AdminDashboardPage() {
                   >
                     <CardBody className="p-4">
                       <div className="flex items-start space-x-3">
-                        <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center shrink-0">
                           <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
                             {getInitials(chat.name)}
                           </span>
@@ -235,7 +235,7 @@ export default function AdminDashboardPage() {
                             {chat.lastMessage}
                           </p>
                         </div>
-                        <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center shrink-0">
                           <MessageCircle className="w-4 h-4 text-gray-500" />
                         </div>
                       </div>
@@ -252,7 +252,7 @@ export default function AdminDashboardPage() {
                     >
                       <CardBody className="p-4">
                         <div className="flex items-start space-x-3">
-                          <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
+                          <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center shrink-0">
                             <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
                               JD
                             </span>
@@ -268,7 +268,7 @@ export default function AdminDashboardPage() {
                               Lorem ipsum dolor sit...
                             </p>
                           </div>
-                          <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center shrink-0">
                             <MessageCircle className="w-4 h-4 text-gray-500" />
                           </div>
                         </div>

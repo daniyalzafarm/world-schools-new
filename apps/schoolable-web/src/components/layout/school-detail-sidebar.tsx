@@ -257,7 +257,7 @@ export function SchoolDetailSidebar({
             These results are tailored just for you, based on your preferences.
           </p>
           <div className="flex items-start gap-4">
-            <div className="flex-shrink-0 text-center font-bold">
+            <div className="shrink-0 text-center font-bold">
               <div className="text-3xl">95%</div>
               <div className="text-sm">Best Match</div>
             </div>

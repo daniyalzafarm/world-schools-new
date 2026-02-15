@@ -42,7 +42,7 @@ export function AddOnCard({ addOn, onEdit }: AddOnCardProps) {
   return (
     <div className="flex items-center gap-4 p-4 bg-default-50 rounded-xl border border-default-200 hover:border-default-300 transition-colors">
       {/* Icon */}
-      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-default-100 flex items-center justify-center text-[24px]">
+      <div className="shrink-0 w-12 h-12 rounded-lg bg-default-100 flex items-center justify-center text-[24px]">
         {addOn.icon || '📦'}
       </div>
 
@@ -67,7 +67,7 @@ export function AddOnCard({ addOn, onEdit }: AddOnCardProps) {
       </div>
 
       {/* Pricing */}
-      <div className="flex-shrink-0 text-right min-w-[100px]">
+      <div className="shrink-0 text-right min-w-[100px]">
         <div className="text-[18px] font-bold text-default-900">
           {addOn.currency} {price.toFixed(0)}
         </div>
@@ -84,7 +84,7 @@ export function AddOnCard({ addOn, onEdit }: AddOnCardProps) {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         <Button
           isIconOnly
           size="sm"

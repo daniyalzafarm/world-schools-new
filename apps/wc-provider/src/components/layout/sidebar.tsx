@@ -395,7 +395,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
           <div className={cn('pt-4 pb-2', !isCollapsed ? 'px-4' : 'px-4')}>
             <div className="flex items-center justify-between gap-2 whitespace-nowrap overflow-hidden">
               <div className={cn('flex w-full', 'justify-start')}>
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   <Logo size={'md'} showText={!isCollapsed} />
                 </div>
               </div>

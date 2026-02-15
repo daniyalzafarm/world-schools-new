@@ -24,13 +24,13 @@ export function CampFocusDisplayCard({ primaryFocus, onRemove }: CampFocusDispla
 
   return (
     <div className="flex items-center gap-4 rounded-xl border-2 border-primary bg-primary-50/50 p-6 dark:bg-primary-50/10">
-      <div className="flex-shrink-0 text-5xl">{primaryFocus.icon}</div>
+      <div className="shrink-0 text-5xl">{primaryFocus.icon}</div>
       <div className="flex-1">
         <div className="text-sm font-medium text-default-500">Your camp appears as:</div>
         <div className="text-2xl font-bold text-foreground">{primaryFocus.activityName} Camp</div>
         <div className="text-sm text-default-600">From {primaryFocus.categoryName} program</div>
       </div>
-      <Button color="danger" variant="flat" size="sm" onPress={onRemove} className="flex-shrink-0">
+      <Button color="danger" variant="flat" size="sm" onPress={onRemove} className="shrink-0">
         Remove Focus
       </Button>
     </div>

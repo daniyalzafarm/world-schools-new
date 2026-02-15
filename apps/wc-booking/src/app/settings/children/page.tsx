@@ -51,10 +51,7 @@ const ChildrenPage = () => {
         {error && !isLoading && (
           <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4 mb-4">
             <div className="flex items-start gap-3">
-              <AlertCircle
-                className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5"
-                size={20}
-              />
+              <AlertCircle className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" size={20} />
               <div className="flex-1">
                 <h3 className="font-medium text-red-800 dark:text-red-300 mb-1">
                   Error Loading Children

@@ -151,7 +151,7 @@ export default function UsersPage() {
             <CardBody className="px-6 py-3">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="bg-primary text-white text-sm font-medium min-w-10 min-h-10 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="bg-primary text-white text-sm font-medium min-w-10 min-h-10 rounded-full flex items-center justify-center shrink-0">
                     {getUserInitials(providerOwner)}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -171,7 +171,7 @@ export default function UsersPage() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 flex-shrink-0">
+                <div className="flex items-center gap-4 shrink-0">
                   <span className="text-sm text-slate-600 dark:text-slate-400 hidden sm:block">
                     {providerOwner.email}
                   </span>

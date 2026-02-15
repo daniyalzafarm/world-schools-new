@@ -301,7 +301,7 @@ Transfer Request: User requested to speak with a human representative.`,
                   if (e.key === 'Enter' || e.key === ' ') setShowUserPreferences(true)
                 }}
               >
-                <Avatar src={avatarSrc} alt={name} className="h-8 w-8 flex-shrink-0" />
+                <Avatar src={avatarSrc} alt={name} className="h-8 w-8 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
                     {name}
@@ -313,7 +313,7 @@ Transfer Request: User requested to speak with a human representative.`,
               </div>
 
               {/* Right Section */}
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
                 <Dropdown placement="bottom-end">
                   <DropdownTrigger>
                     <Button
@@ -350,7 +350,7 @@ Transfer Request: User requested to speak with a human representative.`,
                         {/* User messages and transfer summary - shown on LEFT in admin view */}
                         {m.isUser || m.isTransferSummary ? (
                           <div className="flex items-end gap-3 mb-4 animate-in slide-in-from-left-2 duration-300">
-                            <div className="flex-shrink-0">
+                            <div className="shrink-0">
                               <Avatar
                                 src={m.isTransferSummary ? '/assets/avatar.png' : avatarSrc}
                                 alt={m.isTransferSummary ? 'System' : name}
@@ -473,7 +473,7 @@ Transfer Request: User requested to speak with a human representative.`,
                       onPress={() => handleSend(input)}
                       isDisabled={input.trim().length === 0}
                       className={cn(
-                        'w-8 h-8 rounded-full flex-shrink-0 transition-all duration-200',
+                        'w-8 h-8 rounded-full shrink-0 transition-all duration-200',
                         input.trim().length > 0
                           ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                           : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'

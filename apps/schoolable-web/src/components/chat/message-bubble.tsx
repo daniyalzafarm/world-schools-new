@@ -38,7 +38,7 @@ export function MessageBubble({ message, className }: MessageBubbleProps) {
       )}
     >
       {/* AI Avatar */}
-      <div className="flex-shrink-0">
+      <div className="shrink-0">
         <Avatar
           src="/assets/schoolable-icon-solid.png"
           alt="Schoolable AI"

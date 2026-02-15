@@ -104,7 +104,7 @@ export function ChatInterface({ className, chatId, initialChatData }: ChatInterf
                 {/* Loading indicator */}
                 {/* {isLoading && (
                   <div className="flex items-start gap-3 mb-4 animate-in slide-in-from-left-2 duration-300">
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
                         <div className="w-4 h-4 border-2 border-gray-400 dark:border-gray-500 border-t-transparent rounded-full animate-spin" />
                       </div>

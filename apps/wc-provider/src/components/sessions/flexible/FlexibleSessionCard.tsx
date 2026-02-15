@@ -47,7 +47,7 @@ export function FlexibleSessionCard({
                 <SessionStatusBadge isActive={session.isActive} />
               </div>
               <div className="flex items-center gap-2 text-default-600">
-                <Calendar className="w-4 h-4 flex-shrink-0" />
+                <Calendar className="w-4 h-4 shrink-0" />
                 <span className="text-[14px]">
                   {formatDateRange(session.startDate, session.endDate)}
                 </span>
@@ -101,7 +101,7 @@ export function FlexibleSessionCard({
                 Blackout Dates
               </p>
               <div className="flex items-center gap-2 text-default-600">
-                <Ban className="w-4 h-4 flex-shrink-0" />
+                <Ban className="w-4 h-4 shrink-0" />
                 <span className="text-[13px]">
                   {session.blackoutDates!.length}{' '}
                   {session.blackoutDates!.length === 1 ? 'period' : 'periods'} blocked

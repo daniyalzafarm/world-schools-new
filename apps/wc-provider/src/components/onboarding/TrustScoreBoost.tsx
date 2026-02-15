@@ -22,7 +22,7 @@ export function TrustScoreBoost({
       } ${className}`}
     >
       <div
-        className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
           isEarned ? 'bg-success text-white' : 'bg-primary text-white'
         }`}
       >

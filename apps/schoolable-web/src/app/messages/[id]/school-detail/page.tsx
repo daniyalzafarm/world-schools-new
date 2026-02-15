@@ -214,7 +214,7 @@ export default function SchoolDetailPage() {
               size="sm"
               radius="full"
               onPress={handleBack}
-              className="flex-shrink-0"
+              className="shrink-0"
               aria-label="Go back"
             >
               <ChevronLeft size={20} />
@@ -228,7 +228,7 @@ export default function SchoolDetailPage() {
             size="md"
             radius="full"
             onPress={() => router.push(`/messages/${conversationId}`)}
-            className="px-4 sm:px-6 lg:px-8 text-sm sm:text-base flex-shrink-0 ml-2"
+            className="px-4 sm:px-6 lg:px-8 text-sm sm:text-base shrink-0 ml-2"
           >
             <span className="hidden sm:inline">Continue Chat</span>
             <span className="sm:hidden">Chat</span>
@@ -293,7 +293,7 @@ export default function SchoolDetailPage() {
               <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 lg:gap-10">
                 <div className="flex flex-col gap-2 sm:gap-3">
                   <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <MapPin className="w-4 h-4 flex-shrink-0" />
+                    <MapPin className="w-4 h-4 shrink-0" />
                     <span>{school.location}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -313,19 +313,19 @@ export default function SchoolDetailPage() {
                 </div>
                 <div className="flex flex-col gap-2 sm:gap-3">
                   <div className="flex items-center gap-3">
-                    <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-secondary flex-shrink-0" />
+                    <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-secondary shrink-0" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">
                       {school.curriculum.join(', ')}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Users className="w-4 h-4 sm:w-5 sm:h-5 text-secondary flex-shrink-0" />
+                    <Users className="w-4 h-4 sm:w-5 sm:h-5 text-secondary shrink-0" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">
                       {school.gradeRange}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-secondary flex-shrink-0" />
+                    <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-secondary shrink-0" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">
                       {school.tuitionRange}
                     </span>
@@ -423,7 +423,7 @@ export default function SchoolDetailPage() {
 
               <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
                 {/* Overall Match Score */}
-                <div className="flex-shrink-0 text-center font-bold sm:text-left">
+                <div className="shrink-0 text-center font-bold sm:text-left">
                   <div className="text-3xl sm:text-4xl">95%</div>
                   <div className="text-sm">Best Match</div>
                 </div>
@@ -439,7 +439,7 @@ export default function SchoolDetailPage() {
                   ].map(criteria => (
                     <div key={criteria.name} className="space-y-1">
                       <div className="flex justify-between items-center gap-2">
-                        <span className="w-20 sm:w-28 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 flex-shrink-0">
+                        <span className="w-20 sm:w-28 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 shrink-0">
                           {criteria.name}
                         </span>
                         <Progress
@@ -454,7 +454,7 @@ export default function SchoolDetailPage() {
                             indicator: 'bg-blue-500',
                           }}
                         />
-                        <span className="w-12 sm:w-16 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-right flex-shrink-0">
+                        <span className="w-12 sm:w-16 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-right shrink-0">
                           {criteria.percentage}%
                         </span>
                       </div>
@@ -508,7 +508,7 @@ export default function SchoolDetailPage() {
                   <div className="flex items-center gap-2 sm:gap-3">
                     <IconComponent
                       size={20}
-                      className={`${highlight.iconColor} flex-shrink-0 sm:w-6 sm:h-6`}
+                      className={`${highlight.iconColor} shrink-0 sm:w-6 sm:h-6`}
                     />
                     <div className="min-w-0">
                       <h3
