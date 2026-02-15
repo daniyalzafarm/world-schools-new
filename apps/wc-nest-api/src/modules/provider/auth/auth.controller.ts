@@ -21,7 +21,7 @@ import { Public } from '../../core/auth/decorators/public.decorator'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 import { RegisterProviderDto } from './dto/register.dto'
 import { ProviderLoginDto } from './dto/login.dto'
-import { ResendVerificationCodeDto, VerifyEmailDto } from './dto/verify-email.dto'
+import { ProviderResendVerificationCodeDto, ProviderVerifyEmailDto } from './dto/verify-email.dto'
 import {
   ChangePasswordDto,
   ForgotPasswordDto,
@@ -148,7 +148,7 @@ export class ProviderAuthController {
       'Verify user email address using the 6-digit code sent to their email. After successful verification, automatically authenticates the user and returns JWT tokens.',
   })
   async verifyEmail(
-    @Body() verifyEmailDto: VerifyEmailDto,
+    @Body() verifyEmailDto: ProviderVerifyEmailDto,
     @Res({ passthrough: true }) response: Response
   ) {
     // Verify the email and get the user
@@ -214,7 +214,7 @@ export class ProviderAuthController {
     summary: 'Resend verification code',
     description: 'Resend verification code to user email',
   })
-  async resendVerificationCode(@Body() resendDto: ResendVerificationCodeDto) {
+  async resendVerificationCode(@Body() resendDto: ProviderResendVerificationCodeDto) {
     await this.emailVerificationService.resendVerificationCode(resendDto.email)
 
     return ResponseUtil.success({

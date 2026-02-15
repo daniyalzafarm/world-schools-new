@@ -24,7 +24,7 @@ import { UserLoginDto } from './dto/login.dto'
 import { GoogleSignInDto } from './dto/google-signin.dto'
 import { RegisterUserDto } from './dto/register.dto'
 import { UpdateProfileDto } from './dto/update-profile.dto'
-import { ResendVerificationCodeDto, VerifyEmailDto } from './dto/verify-email.dto'
+import { UserResendVerificationCodeDto, UserVerifyEmailDto } from './dto/verify-email.dto'
 import {
   ChangePasswordDto,
   ForgotPasswordDto,
@@ -148,7 +148,7 @@ export class UserAuthController {
       'Verify user email address using the 6-digit code sent to their email. After successful verification, automatically authenticates the user and returns JWT tokens.',
   })
   async verifyEmail(
-    @Body() verifyEmailDto: VerifyEmailDto,
+    @Body() verifyEmailDto: UserVerifyEmailDto,
     @Res({ passthrough: true }) response: Response
   ) {
     // Verify the email and get the user
@@ -212,7 +212,7 @@ export class UserAuthController {
     summary: 'Resend verification code',
     description: 'Resend verification code to user email',
   })
-  async resendVerificationCode(@Body() resendDto: ResendVerificationCodeDto) {
+  async resendVerificationCode(@Body() resendDto: UserResendVerificationCodeDto) {
     await this.emailVerificationService.resendVerificationCode(resendDto.email)
 
     return ResponseUtil.success({
