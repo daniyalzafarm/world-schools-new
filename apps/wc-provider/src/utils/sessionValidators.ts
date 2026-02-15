@@ -1,4 +1,4 @@
-import type { BlackoutDate } from '@/types/sessions'
+import type { AgeGroupPrice, AgeGroupSpots, AvailabilityType, PricingType } from '@/types/sessions'
 
 /**
  * Validation utilities for sessions
@@ -20,44 +20,51 @@ export function validateDateRange(startDate: string, endDate: string): boolean {
 }
 
 /**
- * Validate blackout date is within session range
+ * Validate total spots
  */
-export function validateBlackoutDate(
-  blackout: BlackoutDate,
-  sessionStart: string,
-  sessionEnd: string
-): boolean {
-  const blackoutStart = new Date(blackout.start)
-  const blackoutEnd = new Date(blackout.end)
-  const sessionStartDate = new Date(sessionStart)
-  const sessionEndDate = new Date(sessionEnd)
-
-  if (isNaN(blackoutStart.getTime()) || isNaN(blackoutEnd.getTime())) return false
-  if (blackoutStart >= blackoutEnd) return false
-  if (blackoutStart < sessionStartDate || blackoutEnd > sessionEndDate) return false
-
-  return true
+export function validateTotalSpots(totalSpots?: number): boolean {
+  if (totalSpots === undefined || totalSpots === null) return true // Optional (unlimited)
+  return totalSpots >= 1 && totalSpots <= 10000
 }
 
 /**
- * Validate blackout dates array
+ * Validate pricing type
  */
-export function validateBlackoutDates(
-  blackoutDates: BlackoutDate[],
-  sessionStart: string,
-  sessionEnd: string
-): boolean {
-  if (!blackoutDates || blackoutDates.length === 0) return true // Optional
-
-  return blackoutDates.every(blackout => validateBlackoutDate(blackout, sessionStart, sessionEnd))
+export function validatePricingType(pricingType: PricingType): boolean {
+  return pricingType === 'single' || pricingType === 'age_group'
 }
 
 /**
- * Validate capacity
+ * Validate availability type
  */
-export function validateCapacity(capacity?: number): boolean {
-  if (capacity === undefined || capacity === null) return true // Optional (unlimited)
-  return capacity >= 1 && capacity <= 10000
+export function validateAvailabilityType(availabilityType: AvailabilityType): boolean {
+  return availabilityType === 'single' || availabilityType === 'age_group'
+}
+
+/**
+ * Validate age group prices array
+ */
+export function validateAgeGroupPrices(ageGroupPrices?: AgeGroupPrice[]): boolean {
+  if (!ageGroupPrices || ageGroupPrices.length === 0) return false // Required for age_group pricing
+  if (ageGroupPrices.length < 2) return false // Must have at least 2 age groups
+
+  // Validate each price entry
+  return ageGroupPrices.every(ag => {
+    return ag.ageGroupId && ag.ageGroupId.trim().length > 0 && ag.price > 0 && ag.price <= 1000000
+  })
+}
+
+/**
+ * Validate age group spots array
+ */
+export function validateAgeGroupSpots(ageGroupSpots?: AgeGroupSpots[]): boolean {
+  if (!ageGroupSpots || ageGroupSpots.length === 0) return false // Required for age_group availability
+  if (ageGroupSpots.length < 2) return false // Must have at least 2 age groups
+
+  // Validate each spots entry
+  return ageGroupSpots.every(ag => {
+    return ag.ageGroupId && ag.ageGroupId.trim().length > 0 && ag.spots >= 1 && ag.spots <= 10000
+  })
 }
 
 /**

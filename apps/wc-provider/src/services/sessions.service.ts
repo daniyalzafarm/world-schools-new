@@ -1,121 +1,48 @@
 import apiClient from '@/utils/api-client'
 import type {
-  CreateFixedSessionDto,
-  CreateFlexibleSessionDto,
+  CreateSessionDto,
   DeleteSessionResponse,
-  FixedSessionsResponse,
-  FlexibleSessionsResponse,
   SessionResponse,
-  SessionTypeResponse,
-  UpdateFixedSessionDto,
-  UpdateFlexibleSessionDto,
-  UpdateSessionTypeDto,
+  SessionsResponse,
+  UpdateSessionDto,
 } from '@/types/sessions'
 
 const BASE_PATH = '/provider/camps'
 
 /**
- * Get session type for a camp
+ * Get all sessions for a camp
  */
-export async function getSessionType(campId: string): Promise<SessionTypeResponse> {
-  const response = await apiClient.get<SessionTypeResponse>(`${BASE_PATH}/${campId}/sessions/type`)
+export async function getAllSessions(campId: string, sortBy?: string): Promise<SessionsResponse> {
+  const url = sortBy
+    ? `${BASE_PATH}/${campId}/sessions?sortBy=${sortBy}`
+    : `${BASE_PATH}/${campId}/sessions`
+  const response = await apiClient.get<SessionsResponse>(url)
   if (!response.success) throw new Error((response.data as any).message)
-  return response.data as SessionTypeResponse
+  return response.data as SessionsResponse
 }
 
 /**
- * Set session type for a camp
+ * Create a session
  */
-export async function setSessionType(
+export async function createSession(
   campId: string,
-  data: UpdateSessionTypeDto
-): Promise<{ sessionType: string; message: string }> {
-  const response = await apiClient.put<{ sessionType: string; message: string }>(
-    `${BASE_PATH}/${campId}/sessions/type`,
-    data
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return response.data as { sessionType: string; message: string }
-}
-
-/**
- * Get all flexible sessions for a camp
- */
-export async function getFlexibleSessions(campId: string): Promise<FlexibleSessionsResponse> {
-  const response = await apiClient.get<FlexibleSessionsResponse>(
-    `${BASE_PATH}/${campId}/sessions/flexible`
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return response.data as FlexibleSessionsResponse
-}
-
-/**
- * Get all fixed sessions for a camp
- */
-export async function getFixedSessions(campId: string): Promise<FixedSessionsResponse> {
-  const response = await apiClient.get<FixedSessionsResponse>(
-    `${BASE_PATH}/${campId}/sessions/fixed`
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return response.data as FixedSessionsResponse
-}
-
-/**
- * Create a flexible session
- */
-export async function createFlexibleSession(
-  campId: string,
-  data: CreateFlexibleSessionDto
+  data: CreateSessionDto
 ): Promise<SessionResponse> {
-  const response = await apiClient.post<SessionResponse>(
-    `${BASE_PATH}/${campId}/sessions/flexible`,
-    data
-  )
+  const response = await apiClient.post<SessionResponse>(`${BASE_PATH}/${campId}/sessions`, data)
   if (!response.success) throw new Error((response.data as any).message)
   return response.data as SessionResponse
 }
 
 /**
- * Create a fixed session
+ * Update a session
  */
-export async function createFixedSession(
-  campId: string,
-  data: CreateFixedSessionDto
-): Promise<SessionResponse> {
-  const response = await apiClient.post<SessionResponse>(
-    `${BASE_PATH}/${campId}/sessions/fixed`,
-    data
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return response.data as SessionResponse
-}
-
-/**
- * Update a flexible session
- */
-export async function updateFlexibleSession(
+export async function updateSession(
   campId: string,
   sessionId: string,
-  data: UpdateFlexibleSessionDto
+  data: UpdateSessionDto
 ): Promise<SessionResponse> {
   const response = await apiClient.put<SessionResponse>(
-    `${BASE_PATH}/${campId}/sessions/flexible/${sessionId}`,
-    data
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return response.data as SessionResponse
-}
-
-/**
- * Update a fixed session
- */
-export async function updateFixedSession(
-  campId: string,
-  sessionId: string,
-  data: UpdateFixedSessionDto
-): Promise<SessionResponse> {
-  const response = await apiClient.put<SessionResponse>(
-    `${BASE_PATH}/${campId}/sessions/fixed/${sessionId}`,
+    `${BASE_PATH}/${campId}/sessions/${sessionId}`,
     data
   )
   if (!response.success) throw new Error((response.data as any).message)
@@ -137,7 +64,7 @@ export async function deleteSession(
 }
 
 /**
- * Toggle session active status
+ * Toggle session status (draft/published)
  */
 export async function toggleSessionStatus(
   campId: string,
@@ -152,14 +79,14 @@ export async function toggleSessionStatus(
 }
 
 /**
- * Duplicate a fixed session
+ * Duplicate a session
  */
-export async function duplicateFixedSession(
+export async function duplicateSession(
   campId: string,
   sessionId: string
 ): Promise<SessionResponse> {
   const response = await apiClient.post<SessionResponse>(
-    `${BASE_PATH}/${campId}/sessions/fixed/${sessionId}/duplicate`,
+    `${BASE_PATH}/${campId}/sessions/${sessionId}/duplicate`,
     {}
   )
   if (!response.success) throw new Error((response.data as any).message)

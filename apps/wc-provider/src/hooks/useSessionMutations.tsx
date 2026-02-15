@@ -1,18 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import type {
-  CreateFixedSessionDto,
-  CreateFlexibleSessionDto,
-  DeleteSessionResponse,
-  FixedSession,
-  FlexibleSession,
-  SessionResponse,
-  SessionType,
-  UpdateFixedSessionDto,
-  UpdateFlexibleSessionDto,
-  UpdateSessionTypeDto,
-} from '@/types/sessions'
+import type { CreateSessionDto, Session, SessionResponse, UpdateSessionDto } from '@/types/sessions'
 import * as sessionsService from '@/services/sessions.service'
 
 interface MutationCallbacks {
@@ -21,49 +10,29 @@ interface MutationCallbacks {
 }
 
 interface UseSessionMutationsReturn {
-  // Session Type
-  setSessionType: (type: SessionType, callbacks?: MutationCallbacks) => Promise<void>
-  isSettingType: boolean
-
-  // Flexible Sessions
-  createFlexibleSession: (
-    data: CreateFlexibleSessionDto,
-    callbacks?: MutationCallbacks
-  ) => Promise<FlexibleSession | null>
-  updateFlexibleSession: (
+  // Session Operations
+  createSession: (data: CreateSessionDto, callbacks?: MutationCallbacks) => Promise<Session | null>
+  updateSession: (
     sessionId: string,
-    data: UpdateFlexibleSessionDto,
+    data: UpdateSessionDto,
     callbacks?: MutationCallbacks
-  ) => Promise<FlexibleSession | null>
-  isCreatingFlexible: boolean
-  isUpdatingFlexible: boolean
-
-  // Fixed Sessions
-  createFixedSession: (
-    data: CreateFixedSessionDto,
-    callbacks?: MutationCallbacks
-  ) => Promise<FixedSession | null>
-  updateFixedSession: (
-    sessionId: string,
-    data: UpdateFixedSessionDto,
-    callbacks?: MutationCallbacks
-  ) => Promise<FixedSession | null>
-  duplicateFixedSession: (
-    sessionId: string,
-    callbacks?: MutationCallbacks
-  ) => Promise<FixedSession | null>
-  isCreatingFixed: boolean
-  isUpdatingFixed: boolean
-  isDuplicating: boolean
-
-  // Common Operations
+  ) => Promise<Session | null>
+  duplicateSession: (sessionId: string, callbacks?: MutationCallbacks) => Promise<Session | null>
   deleteSession: (sessionId: string, callbacks?: MutationCallbacks) => Promise<boolean>
-  toggleSessionStatus: (
+  toggleSessionStatus: (sessionId: string, callbacks?: MutationCallbacks) => Promise<Session | null>
+  updateSessionSpots: (
     sessionId: string,
+    spots: number | Record<string, number>,
     callbacks?: MutationCallbacks
-  ) => Promise<FlexibleSession | FixedSession | null>
+  ) => Promise<Session | null>
+
+  // Loading states
+  isCreating: boolean
+  isUpdating: boolean
+  isDuplicating: boolean
   isDeleting: boolean
   isToggling: boolean
+  isUpdatingSpots: boolean
 
   // General state
   error: string | null
@@ -75,151 +44,74 @@ interface UseSessionMutationsReturn {
  * Handles all mutations with loading states and error handling
  */
 export function useSessionMutations(campId: string): UseSessionMutationsReturn {
-  const [isSettingType, setIsSettingType] = useState(false)
-  const [isCreatingFlexible, setIsCreatingFlexible] = useState(false)
-  const [isUpdatingFlexible, setIsUpdatingFlexible] = useState(false)
-  const [isCreatingFixed, setIsCreatingFixed] = useState(false)
-  const [isUpdatingFixed, setIsUpdatingFixed] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
   const [isDuplicating, setIsDuplicating] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isToggling, setIsToggling] = useState(false)
+  const [isUpdatingSpots, setIsUpdatingSpots] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Set session type
-  const setSessionType = useCallback(
-    async (type: SessionType, callbacks?: MutationCallbacks) => {
-      setIsSettingType(true)
+  // Create session
+  const createSession = useCallback(
+    async (data: CreateSessionDto, callbacks?: MutationCallbacks) => {
+      setIsCreating(true)
       setError(null)
 
       try {
-        const dto: UpdateSessionTypeDto = { sessionType: type }
-        await sessionsService.setSessionType(campId, dto)
+        const response: SessionResponse = await sessionsService.createSession(campId, data)
         callbacks?.onSuccess?.()
+        return response.session
       } catch (err: any) {
-        const errorMessage = err?.message || 'Failed to set session type'
+        const errorMessage = err?.message || 'Failed to create session'
         setError(errorMessage)
         callbacks?.onError?.(err)
-        console.error('Failed to set session type:', err)
-      } finally {
-        setIsSettingType(false)
-      }
-    },
-    [campId]
-  )
-
-  // Create flexible session
-  const createFlexibleSession = useCallback(
-    async (data: CreateFlexibleSessionDto, callbacks?: MutationCallbacks) => {
-      setIsCreatingFlexible(true)
-      setError(null)
-
-      try {
-        const response: SessionResponse = await sessionsService.createFlexibleSession(campId, data)
-        callbacks?.onSuccess?.()
-        return response.session as FlexibleSession
-      } catch (err: any) {
-        const errorMessage = err?.message || 'Failed to create flexible session'
-        setError(errorMessage)
-        callbacks?.onError?.(err)
-        console.error('Failed to create flexible session:', err)
+        console.error('Failed to create session:', err)
         return null
       } finally {
-        setIsCreatingFlexible(false)
+        setIsCreating(false)
       }
     },
     [campId]
   )
 
-  // Update flexible session
-  const updateFlexibleSession = useCallback(
-    async (sessionId: string, data: UpdateFlexibleSessionDto, callbacks?: MutationCallbacks) => {
-      setIsUpdatingFlexible(true)
+  // Update session
+  const updateSession = useCallback(
+    async (sessionId: string, data: UpdateSessionDto, callbacks?: MutationCallbacks) => {
+      setIsUpdating(true)
       setError(null)
 
       try {
-        const response: SessionResponse = await sessionsService.updateFlexibleSession(
+        const response: SessionResponse = await sessionsService.updateSession(
           campId,
           sessionId,
           data
         )
         callbacks?.onSuccess?.()
-        return response.session as FlexibleSession
+        return response.session
       } catch (err: any) {
-        const errorMessage = err?.message || 'Failed to update flexible session'
+        const errorMessage = err?.message || 'Failed to update session'
         setError(errorMessage)
         callbacks?.onError?.(err)
-        console.error('Failed to update flexible session:', err)
+        console.error('Failed to update session:', err)
         return null
       } finally {
-        setIsUpdatingFlexible(false)
+        setIsUpdating(false)
       }
     },
     [campId]
   )
 
-  // Create fixed session
-  const createFixedSession = useCallback(
-    async (data: CreateFixedSessionDto, callbacks?: MutationCallbacks) => {
-      setIsCreatingFixed(true)
-      setError(null)
-
-      try {
-        const response: SessionResponse = await sessionsService.createFixedSession(campId, data)
-        callbacks?.onSuccess?.()
-        return response.session as FixedSession
-      } catch (err: any) {
-        const errorMessage = err?.message || 'Failed to create fixed session'
-        setError(errorMessage)
-        callbacks?.onError?.(err)
-        console.error('Failed to create fixed session:', err)
-        return null
-      } finally {
-        setIsCreatingFixed(false)
-      }
-    },
-    [campId]
-  )
-
-  // Update fixed session
-  const updateFixedSession = useCallback(
-    async (sessionId: string, data: UpdateFixedSessionDto, callbacks?: MutationCallbacks) => {
-      setIsUpdatingFixed(true)
-      setError(null)
-
-      try {
-        const response: SessionResponse = await sessionsService.updateFixedSession(
-          campId,
-          sessionId,
-          data
-        )
-        callbacks?.onSuccess?.()
-        return response.session as FixedSession
-      } catch (err: any) {
-        const errorMessage = err?.message || 'Failed to update fixed session'
-        setError(errorMessage)
-        callbacks?.onError?.(err)
-        console.error('Failed to update fixed session:', err)
-        return null
-      } finally {
-        setIsUpdatingFixed(false)
-      }
-    },
-    [campId]
-  )
-
-  // Duplicate fixed session
-  const duplicateFixedSession = useCallback(
+  // Duplicate session
+  const duplicateSession = useCallback(
     async (sessionId: string, callbacks?: MutationCallbacks) => {
       setIsDuplicating(true)
       setError(null)
 
       try {
-        const response: SessionResponse = await sessionsService.duplicateFixedSession(
-          campId,
-          sessionId
-        )
+        const response: SessionResponse = await sessionsService.duplicateSession(campId, sessionId)
         callbacks?.onSuccess?.()
-        return response.session as FixedSession
+        return response.session
       } catch (err: any) {
         const errorMessage = err?.message || 'Failed to duplicate session'
         setError(errorMessage)
@@ -282,34 +174,68 @@ export function useSessionMutations(campId: string): UseSessionMutationsReturn {
     [campId]
   )
 
+  // Update session spots
+  const updateSessionSpots = useCallback(
+    async (
+      sessionId: string,
+      spots: number | Record<string, number>,
+      callbacks?: MutationCallbacks
+    ) => {
+      setIsUpdatingSpots(true)
+      setError(null)
+
+      try {
+        // Determine if it's single or age group availability
+        const updateData: UpdateSessionDto =
+          typeof spots === 'number'
+            ? { totalSpots: spots }
+            : {
+                ageGroupSpots: Object.entries(spots).map(([ageGroupId, spotsCount]) => ({
+                  ageGroupId,
+                  spots: spotsCount,
+                })),
+              }
+
+        const response: SessionResponse = await sessionsService.updateSession(
+          campId,
+          sessionId,
+          updateData
+        )
+        callbacks?.onSuccess?.()
+        return response.session
+      } catch (err: any) {
+        const errorMessage = err?.message || 'Failed to update session spots'
+        setError(errorMessage)
+        callbacks?.onError?.(err)
+        console.error('Failed to update session spots:', err)
+        return null
+      } finally {
+        setIsUpdatingSpots(false)
+      }
+    },
+    [campId]
+  )
+
   const clearError = useCallback(() => {
     setError(null)
   }, [])
 
   return {
-    // Session Type
-    setSessionType,
-    isSettingType,
-
-    // Flexible Sessions
-    createFlexibleSession,
-    updateFlexibleSession,
-    isCreatingFlexible,
-    isUpdatingFlexible,
-
-    // Fixed Sessions
-    createFixedSession,
-    updateFixedSession,
-    duplicateFixedSession,
-    isCreatingFixed,
-    isUpdatingFixed,
-    isDuplicating,
-
-    // Common Operations
+    // Session Operations
+    createSession,
+    updateSession,
+    duplicateSession,
     deleteSession,
     toggleSessionStatus,
+    updateSessionSpots,
+
+    // Loading states
+    isCreating,
+    isUpdating,
+    isDuplicating,
     isDeleting,
     isToggling,
+    isUpdatingSpots,
 
     // General state
     error,

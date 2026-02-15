@@ -441,9 +441,6 @@ model Camp {
   // Photos (Step 4 - Wizard, Editor has separate section)
   photos Json? // [{id, url, thumbnail, isPrimary}, ...]
 
-  // Sessions (Step 5 - Wizard & Editor)
-  sessionType SessionType? @map("session_type") // 'flexible' | 'fixed' - set once, cannot change after first session
-
   // Editor-only fields
   whatsIncluded           Json?   // {items: string[], customItems: string[]}
   scheduleType            String? // 'daily' | 'weekly' | null
@@ -479,7 +476,6 @@ model Camp {
 
   @@index([providerId])
   @@index([status])
-  @@index([sessionType])
   @@index([slug])
   @@map("camps")
 }
@@ -526,9 +522,24 @@ enum CampStatus {
   archived
 }
 
-enum SessionType {
-  flexible
-  fixed
+enum SessionDayType {
+  full_day
+  half_day
+}
+
+enum PricingType {
+  single
+  age_group
+}
+
+enum AvailabilityType {
+  single
+  age_group
+}
+
+enum SessionStatus {
+  draft
+  published
 }
 
 // ============================================
@@ -536,43 +547,34 @@ enum SessionType {
 // ============================================
 
 model Session {
-  id     String      @id @default(uuid())
-  campId String      @map("camp_id")
-  type   SessionType
+  id     String @id @default(uuid())
+  campId String @map("camp_id")
 
-  // Common Fields
-  name        String  @db.VarChar(100)
-  description String? @db.Text
-  isActive    Boolean @default(true) @map("is_active")
-  capacity    Int? // null = unlimited
-  sortOrder   Int     @default(0) @map("sort_order")
+  // Basic Fields
+  name      String   @db.VarChar(60)
+  startDate DateTime @map("start_date") // Actual session start
+  endDate   DateTime @map("end_date") // Actual session end
 
-  // Flexible Session Fields (only used when type = 'flexible')
-  startDate     DateTime? @map("start_date") // Booking window start
-  endDate       DateTime? @map("end_date") // Booking window end
-  blackoutDates Json?     @map("blackout_dates") // [{start: '2026-07-04', end: '2026-07-04', reason: 'Holiday'}, ...]
+  // Session Type (only for day camps)
+  sessionDayType   SessionDayType? @map("session_day_type") // 'full_day' | 'half_day'
+  arrivalTime   String?         @map("arrival_time") // HH:MM format, only for half_day
+  departureTime String?         @map("departure_time") // HH:MM format, only for half_day
 
-  // Flexible Session Pricing & Configuration
-  basePricePerDay        Decimal? @map("base_price_per_day") @db.Decimal(10, 2)
-  requireConsecutiveDays Boolean? @default(false) @map("require_consecutive_days")
-  minDaysLimit           Int?     @map("min_days_limit")
-  maxDaysLimit           Int?     @map("max_days_limit")
-  availableDaysOfWeek    Json?    @map("available_days_of_week") // [0,1,2,3,4,5,6]
-  specificStartDays      Json?    @map("specific_start_days") // [0,1,2,3,4,5,6]
-  discountTiers          Json?    @map("discount_tiers") // [{minDays: 7, maxDays: 13, discountPercent: 10}, ...]
-  dayOfWeekPricing       Json?    @map("day_of_week_pricing") // [{dayOfWeek: 0, price: 100}, ...]
-  ageRange               Json?    @map("age_range") // {min: 5, max: 12}
-  unlimitedCapacity      Boolean? @default(false) @map("unlimited_capacity")
-  boysCapacity           Int?     @map("boys_capacity")
-  girlsCapacity          Int?     @map("girls_capacity")
-  separateGenderCapacity Boolean? @default(false) @map("separate_gender_capacity")
+  // Pricing
+  pricingType    PricingType @default(single) @map("pricing_type") // 'single' | 'age_group'
+  price          Decimal?    @db.Decimal(10, 2) // For single pricing
+  ageGroupPrices Json?       @map("age_group_prices") // [{age_group_id: string, price: number}]
 
-  // Fixed Session Fields (only used when type = 'fixed')
-  sessionStartDate DateTime? @map("session_start_date") // Actual session start
-  sessionEndDate   DateTime? @map("session_end_date") // Actual session end
-  price            Decimal?  @db.Decimal(10, 2)
+  // Availability
+  availabilityType AvailabilityType @default(single) @map("availability_type") // 'single' | 'age_group'
+  totalSpots       Int?             @map("total_spots") // For single availability
+  ageGroupSpots    Json?            @map("age_group_spots") // [{age_group_id: string, spots: number}]
+
+  // Status
+  status SessionStatus @default(draft) // 'draft' | 'published'
 
   // Metadata
+  sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -581,8 +583,7 @@ model Session {
   bookings Booking[]
 
   @@index([campId])
-  @@index([type])
-  @@index([isActive])
+  @@index([status])
   @@index([sortOrder])
   @@map("sessions")
 }

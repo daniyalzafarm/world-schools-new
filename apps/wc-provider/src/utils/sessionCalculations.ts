@@ -1,4 +1,4 @@
-import type { FixedSession, FlexibleSession } from '@/types/sessions'
+import type { Session } from '@/types/sessions'
 
 /**
  * Calculation utilities for sessions
@@ -54,36 +54,36 @@ export function calculatePricePerWeek(totalPrice: number, weeks: number): number
 }
 
 /**
- * Calculate available spots (capacity - booked)
+ * Calculate available spots (totalSpots - booked)
  */
-export function calculateAvailableSpots(capacity?: number, booked = 0): number | null {
-  if (capacity === undefined || capacity === null) return null // Unlimited
-  return Math.max(0, capacity - booked)
+export function calculateAvailableSpots(totalSpots?: number, booked = 0): number | null {
+  if (totalSpots === undefined || totalSpots === null) return null // Unlimited
+  return Math.max(0, totalSpots - booked)
 }
 
 /**
  * Calculate capacity percentage
  */
-export function calculateCapacityPercentage(capacity?: number, booked = 0): number | null {
-  if (capacity === undefined || capacity === null) return null // Unlimited
-  if (capacity === 0) return 0
-  return Math.round((booked / capacity) * 100)
+export function calculateCapacityPercentage(totalSpots?: number, booked = 0): number | null {
+  if (totalSpots === undefined || totalSpots === null) return null // Unlimited
+  if (totalSpots === 0) return 0
+  return Math.round((booked / totalSpots) * 100)
 }
 
 /**
  * Check if session is full
  */
-export function isSessionFull(capacity?: number, booked = 0): boolean {
-  if (capacity === undefined || capacity === null) return false // Unlimited
-  return booked >= capacity
+export function isSessionFull(totalSpots?: number, booked = 0): boolean {
+  if (totalSpots === undefined || totalSpots === null) return false // Unlimited
+  return booked >= totalSpots
 }
 
 /**
  * Check if session is almost full (>= 80% capacity)
  */
-export function isSessionAlmostFull(capacity?: number, booked = 0): boolean {
-  if (capacity === undefined || capacity === null) return false // Unlimited
-  const percentage = calculateCapacityPercentage(capacity, booked)
+export function isSessionAlmostFull(totalSpots?: number, booked = 0): boolean {
+  if (totalSpots === undefined || totalSpots === null) return false // Unlimited
+  const percentage = calculateCapacityPercentage(totalSpots, booked)
   return percentage !== null && percentage >= 80
 }
 
@@ -91,26 +91,26 @@ export function isSessionAlmostFull(capacity?: number, booked = 0): boolean {
  * Get capacity status
  */
 export function getCapacityStatus(
-  capacity?: number,
+  totalSpots?: number,
   booked = 0
 ): 'available' | 'almost-full' | 'full' {
-  if (isSessionFull(capacity, booked)) return 'full'
-  if (isSessionAlmostFull(capacity, booked)) return 'almost-full'
+  if (isSessionFull(totalSpots, booked)) return 'full'
+  if (isSessionAlmostFull(totalSpots, booked)) return 'almost-full'
   return 'available'
 }
 
 /**
- * Calculate session duration in days (for fixed sessions)
+ * Calculate session duration in days
  */
-export function calculateSessionDuration(session: FixedSession): number {
-  return calculateDaysBetween(session.sessionStartDate, session.sessionEndDate)
+export function calculateSessionDuration(session: Session): number {
+  return calculateDaysBetween(session.startDate, session.endDate)
 }
 
 /**
- * Calculate session duration in weeks (for fixed sessions)
+ * Calculate session duration in weeks
  */
-export function calculateSessionDurationWeeks(session: FixedSession): number {
-  return calculateWeeksBetween(session.sessionStartDate, session.sessionEndDate)
+export function calculateSessionDurationWeeks(session: Session): number {
+  return calculateWeeksBetween(session.startDate, session.endDate)
 }
 
 /**

@@ -113,12 +113,11 @@ export class UserCampsService {
       include: {
         sessions: {
           where: {
-            isActive: true, // Only include active sessions for public viewing
+            status: 'published', // Only include published sessions for public viewing
           },
           orderBy: [
-            { type: 'asc' }, // flexible first, then fixed
-            { sortOrder: 'asc' }, // then by sort order
-            { sessionStartDate: 'asc' }, // then by start date for fixed sessions
+            { sortOrder: 'asc' }, // by sort order
+            { startDate: 'asc' }, // then by start date
           ],
         },
         provider: {
@@ -174,10 +173,6 @@ export class UserCampsService {
         session.price !== null && session.price !== undefined
           ? Number(session.price)
           : session.price,
-      basePricePerDay:
-        session.basePricePerDay !== null && session.basePricePerDay !== undefined
-          ? Number(session.basePricePerDay)
-          : session.basePricePerDay,
     }))
 
     return {

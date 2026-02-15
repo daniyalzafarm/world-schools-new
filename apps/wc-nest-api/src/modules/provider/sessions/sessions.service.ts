@@ -5,11 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { PrismaService } from '../../../prisma/prisma.service'
-import { CreateFlexibleSessionDto } from './dto/create-flexible-session.dto'
-import { CreateFixedSessionDto } from './dto/create-fixed-session.dto'
-import { UpdateFlexibleSessionDto } from './dto/update-flexible-session.dto'
+import {
+  AvailabilityType,
+  CreateFixedSessionDto,
+  PricingType,
+  SessionDayType,
+} from './dto/create-fixed-session.dto'
 import { UpdateFixedSessionDto } from './dto/update-fixed-session.dto'
-import { UpdateSessionTypeDto } from './dto/update-session-type.dto'
 
 @Injectable()
 export class SessionsService {
@@ -22,10 +24,6 @@ export class SessionsService {
   private transformSessionForResponse(session: any) {
     return {
       ...session,
-      basePricePerDay:
-        session.basePricePerDay !== null && session.basePricePerDay !== undefined
-          ? Number(session.basePricePerDay)
-          : session.basePricePerDay,
       price:
         session.price !== null && session.price !== undefined
           ? Number(session.price)
@@ -79,108 +77,63 @@ export class SessionsService {
   }
 
   /**
-   * Get session type for a camp
+   * Get all sessions for a camp
    */
-  async getSessionType(campId: string, providerId: string) {
-    const camp = await this.validateCampOwnership(campId, providerId)
+  async getFixedSessions(campId: string, providerId: string, sortBy?: string) {
+    await this.validateCampOwnership(campId, providerId)
 
-    const sessionsCount = await this.prisma.session.count({
-      where: { campId },
-    })
+    // Determine orderBy clause based on sortBy parameter
+    let orderBy: any = { sortOrder: 'asc' } // Default sorting
 
-    return {
-      sessionType: camp.sessionType,
-      canChange: sessionsCount === 0,
-    }
-  }
-
-  /**
-   * Set session type for a camp (can only be done once)
-   */
-  async setSessionType(campId: string, providerId: string, dto: UpdateSessionTypeDto) {
-    const camp = await this.validateCampOwnership(campId, providerId)
-
-    // Check if sessions already exist
-    const sessionsCount = await this.prisma.session.count({
-      where: { campId },
-    })
-
-    if (sessionsCount > 0) {
-      throw new BadRequestException(
-        'Cannot change session type after sessions have been created. Delete all sessions first.'
-      )
-    }
-
-    const updatedCamp = await this.prisma.camp.update({
-      where: { id: campId },
-      data: { sessionType: dto.sessionType },
-    })
-
-    return {
-      sessionType: updatedCamp.sessionType,
-      message: 'Session type updated successfully',
-    }
-  }
-
-  /**
-   * Get all flexible sessions for a camp
-   */
-  async getFlexibleSessions(campId: string, providerId: string) {
-    const camp = await this.validateCampOwnership(campId, providerId)
-
-    if (camp.sessionType !== 'flexible') {
-      throw new BadRequestException('This camp does not use flexible sessions')
+    if (sortBy) {
+      switch (sortBy) {
+        case 'date-asc':
+          orderBy = { startDate: 'asc' }
+          break
+        case 'date-desc':
+          orderBy = { startDate: 'desc' }
+          break
+        case 'duration':
+          // Duration will be calculated and sorted in-memory after fetching
+          orderBy = { startDate: 'asc' }
+          break
+        case 'price':
+          orderBy = { price: 'asc' }
+          break
+        case 'capacity':
+          orderBy = { totalSpots: 'asc' }
+          break
+        default:
+          orderBy = { sortOrder: 'asc' }
+      }
     }
 
     const sessions = await this.prisma.session.findMany({
       where: {
         campId,
-        type: 'flexible',
-      },
-      orderBy: {
-        sortOrder: 'asc',
-      },
-    })
-
-    // Transform Decimal fields to numbers for proper JSON serialization
-    const transformedSessions = sessions.map(session => this.transformSessionForResponse(session))
-
-    return {
-      sessions: transformedSessions,
-      total: transformedSessions.length,
-    }
-  }
-
-  /**
-   * Get all fixed sessions for a camp
-   */
-  async getFixedSessions(campId: string, providerId: string) {
-    const camp = await this.validateCampOwnership(campId, providerId)
-
-    if (camp.sessionType !== 'fixed') {
-      throw new BadRequestException('This camp does not use fixed sessions')
-    }
-
-    const sessions = await this.prisma.session.findMany({
-      where: {
-        campId,
-        type: 'fixed',
       },
       include: {
         _count: {
           select: { bookings: true },
         },
       },
-      orderBy: {
-        sessionStartDate: 'asc',
-      },
+      orderBy,
     })
 
     // Transform Decimal fields to numbers and add booked count
-    const transformedSessions = sessions.map(session => ({
+    let transformedSessions = sessions.map(session => ({
       ...this.transformSessionForResponse(session),
       bookedCount: session._count.bookings,
     }))
+
+    // Handle duration sorting (requires in-memory sorting)
+    if (sortBy === 'duration') {
+      transformedSessions = transformedSessions.sort((a, b) => {
+        const durationA = new Date(a.endDate).getTime() - new Date(a.startDate).getTime()
+        const durationB = new Date(b.endDate).getTime() - new Date(b.startDate).getTime()
+        return durationA - durationB
+      })
+    }
 
     return {
       sessions: transformedSessions,
@@ -189,21 +142,10 @@ export class SessionsService {
   }
 
   /**
-   * Create a flexible session
+   * Create a session
    */
-  async createFlexibleSession(campId: string, providerId: string, dto: CreateFlexibleSessionDto) {
+  async createFixedSession(campId: string, providerId: string, dto: CreateFixedSessionDto) {
     const camp = await this.validateCampOwnership(campId, providerId)
-
-    // Validate session type
-    if (!camp.sessionType) {
-      // Auto-set session type if not set
-      await this.prisma.camp.update({
-        where: { id: campId },
-        data: { sessionType: 'flexible' },
-      })
-    } else if (camp.sessionType !== 'flexible') {
-      throw new BadRequestException('This camp is configured for fixed sessions')
-    }
 
     // Validate dates
     const startDate = new Date(dto.startDate)
@@ -217,134 +159,80 @@ export class SessionsService {
       throw new BadRequestException('Start date must be in the future')
     }
 
-    // Validate blackout dates if provided
-    if (dto.blackoutDates && dto.blackoutDates.length > 0) {
-      for (const blackout of dto.blackoutDates) {
-        const blackoutStart = new Date(blackout.start)
-        const blackoutEnd = new Date(blackout.end)
+    // Validate half-day sessions (only for day camps)
+    if (dto.sessionDayType === SessionDayType.HALF_DAY) {
+      if (camp.type !== 'day') {
+        throw new BadRequestException('Half-day sessions are only allowed for day camps')
+      }
 
-        if (blackoutStart < startDate || blackoutEnd > endDate) {
-          throw new BadRequestException('Blackout dates must be within session date range')
-        }
+      if (!dto.arrivalTime || !dto.departureTime) {
+        throw new BadRequestException(
+          'Arrival and departure times are required for half-day sessions'
+        )
+      }
 
-        if (blackoutEnd <= blackoutStart) {
-          throw new BadRequestException('Blackout end date must be after start date')
-        }
+      // Validate time format and order
+      const [arrivalHour, arrivalMin] = dto.arrivalTime.split(':').map(Number)
+      const [departureHour, departureMin] = dto.departureTime.split(':').map(Number)
+      const arrivalMinutes = arrivalHour * 60 + arrivalMin
+      const departureMinutes = departureHour * 60 + departureMin
+
+      if (departureMinutes <= arrivalMinutes) {
+        throw new BadRequestException('Departure time must be after arrival time')
       }
     }
 
-    // Check session limit (max 10 flexible sessions)
-    const existingCount = await this.prisma.session.count({
-      where: { campId, type: 'flexible' },
-    })
+    // Validate age group pricing
+    if (dto.pricingType === PricingType.AGE_GROUP) {
+      if (!dto.ageGroupPrices || dto.ageGroupPrices.length < 2) {
+        throw new BadRequestException('Age group pricing requires at least 2 age groups')
+      }
 
-    if (existingCount >= 10) {
-      throw new BadRequestException('Maximum 10 flexible sessions allowed per camp')
+      // Validate that camp has age groups configured
+      const campAgeGroups = camp.ageGroups as any[]
+      if (!campAgeGroups || campAgeGroups.length < 2) {
+        throw new BadRequestException(
+          'Camp must have at least 2 age groups configured for age group pricing'
+        )
+      }
+    } else if (dto.pricingType === PricingType.SINGLE) {
+      if (dto.price === undefined || dto.price === null) {
+        throw new BadRequestException('Price is required for single pricing type')
+      }
     }
 
-    // Get next sort order
-    const lastSession = await this.prisma.session.findFirst({
-      where: { campId },
-      orderBy: { sortOrder: 'desc' },
-    })
+    // Validate age group availability
+    if (dto.availabilityType === AvailabilityType.AGE_GROUP) {
+      if (!dto.ageGroupSpots || dto.ageGroupSpots.length < 2) {
+        throw new BadRequestException('Age group availability requires at least 2 age groups')
+      }
 
-    const sortOrder = lastSession ? lastSession.sortOrder + 1 : 0
-
-    // Create session
-    const session = await this.prisma.session.create({
-      data: {
-        campId,
-        type: 'flexible',
-        name: dto.name,
-        description: dto.description,
-        startDate,
-        endDate,
-        blackoutDates: (dto.blackoutDates ?? []) as any,
-        capacity: dto.capacity,
-        sortOrder,
-        // Pricing & configuration fields
-        basePricePerDay: dto.basePricePerDay,
-        requireConsecutiveDays: dto.requireConsecutiveDays,
-        minDaysLimit: dto.minDaysLimit,
-        maxDaysLimit: dto.maxDaysLimit,
-        availableDaysOfWeek: (dto.availableDaysOfWeek ?? null) as any,
-        specificStartDays: (dto.specificStartDays ?? null) as any,
-        discountTiers: (dto.discountTiers ?? null) as any,
-        dayOfWeekPricing: (dto.dayOfWeekPricing ?? null) as any,
-        ageRange: (dto.ageRange ?? null) as any,
-        unlimitedCapacity: dto.unlimitedCapacity,
-        boysCapacity: dto.boysCapacity,
-        girlsCapacity: dto.girlsCapacity,
-        separateGenderCapacity: dto.separateGenderCapacity,
-      },
-    })
-
-    return {
-      session: this.transformSessionForResponse(session),
-      message: 'Flexible session created successfully',
-    }
-  }
-
-  /**
-   * Create a fixed session
-   */
-  async createFixedSession(campId: string, providerId: string, dto: CreateFixedSessionDto) {
-    const camp = await this.validateCampOwnership(campId, providerId)
-
-    // Validate session type
-    if (!camp.sessionType) {
-      // Auto-set session type if not set
-      await this.prisma.camp.update({
-        where: { id: campId },
-        data: { sessionType: 'fixed' },
-      })
-    } else if (camp.sessionType !== 'fixed') {
-      throw new BadRequestException('This camp is configured for flexible sessions')
-    }
-
-    // Validate dates
-    const sessionStartDate = new Date(dto.sessionStartDate)
-    const sessionEndDate = new Date(dto.sessionEndDate)
-
-    if (sessionEndDate <= sessionStartDate) {
-      throw new BadRequestException('End date must be after start date')
-    }
-
-    if (sessionStartDate < new Date()) {
-      throw new BadRequestException('Start date must be in the future')
-    }
-
-    const durationDays = Math.ceil(
-      (sessionEndDate.getTime() - sessionStartDate.getTime()) / (1000 * 60 * 60 * 24)
-    )
-
-    if (durationDays < 1) {
-      throw new BadRequestException('Session must be at least 1 day long')
+      // Validate that camp has age groups configured
+      const campAgeGroups = camp.ageGroups as any[]
+      if (!campAgeGroups || campAgeGroups.length < 2) {
+        throw new BadRequestException(
+          'Camp must have at least 2 age groups configured for age group availability'
+        )
+      }
+    } else if (dto.availabilityType === AvailabilityType.SINGLE) {
+      if (!dto.totalSpots) {
+        throw new BadRequestException('Total spots is required for single availability type')
+      }
     }
 
     // Check for overlapping sessions
     const overlappingSessions = await this.prisma.session.findFirst({
       where: {
         campId,
-        type: 'fixed',
         OR: [
           {
-            AND: [
-              { sessionStartDate: { lte: sessionStartDate } },
-              { sessionEndDate: { gte: sessionStartDate } },
-            ],
+            AND: [{ startDate: { lte: startDate } }, { endDate: { gte: startDate } }],
           },
           {
-            AND: [
-              { sessionStartDate: { lte: sessionEndDate } },
-              { sessionEndDate: { gte: sessionEndDate } },
-            ],
+            AND: [{ startDate: { lte: endDate } }, { endDate: { gte: endDate } }],
           },
           {
-            AND: [
-              { sessionStartDate: { gte: sessionStartDate } },
-              { sessionEndDate: { lte: sessionEndDate } },
-            ],
+            AND: [{ startDate: { gte: startDate } }, { endDate: { lte: endDate } }],
           },
         ],
       },
@@ -356,13 +244,13 @@ export class SessionsService {
       )
     }
 
-    // Check session limit (max 50 fixed sessions)
+    // Check session limit (max 50 sessions)
     const existingCount = await this.prisma.session.count({
-      where: { campId, type: 'fixed' },
+      where: { campId },
     })
 
     if (existingCount >= 50) {
-      throw new BadRequestException('Maximum 50 fixed sessions allowed per camp')
+      throw new BadRequestException('Maximum 50 sessions allowed per camp')
     }
 
     // Get next sort order
@@ -377,108 +265,31 @@ export class SessionsService {
     const session = await this.prisma.session.create({
       data: {
         campId,
-        type: 'fixed',
         name: dto.name,
-        description: dto.description,
-        sessionStartDate,
-        sessionEndDate,
-        price: dto.price,
-        capacity: dto.capacity,
+        startDate,
+        endDate,
+        sessionDayType: dto.sessionDayType || null,
+        arrivalTime: dto.arrivalTime || null,
+        departureTime: dto.departureTime || null,
+        pricingType: dto.pricingType,
+        price: dto.price ?? null,
+        ageGroupPrices: dto.ageGroupPrices ? (dto.ageGroupPrices as any) : null,
+        availabilityType: dto.availabilityType,
+        totalSpots: dto.totalSpots ?? null,
+        ageGroupSpots: dto.ageGroupSpots ? (dto.ageGroupSpots as any) : null,
+        status: dto.status,
         sortOrder,
       },
     })
 
     return {
       session: this.transformSessionForResponse(session),
-      message: 'Fixed session created successfully',
+      message: 'Session created successfully',
     }
   }
 
   /**
-   * Update a flexible session
-   */
-  async updateFlexibleSession(
-    campId: string,
-    sessionId: string,
-    providerId: string,
-    dto: UpdateFlexibleSessionDto
-  ) {
-    const session = await this.validateSessionOwnership(sessionId, campId, providerId)
-
-    if (session.type !== 'flexible') {
-      throw new BadRequestException('This is not a flexible session')
-    }
-
-    // Check if session has bookings
-    const bookingsCount = await this.prisma.booking.count({
-      where: { sessionId },
-    })
-
-    // Validate date changes if bookings exist
-    if (bookingsCount > 0) {
-      if (dto.startDate || dto.endDate) {
-        throw new BadRequestException('Cannot change dates for a session with existing bookings')
-      }
-      if (dto.capacity && dto.capacity < bookingsCount) {
-        throw new BadRequestException(
-          `Cannot reduce capacity to ${dto.capacity}. Current bookings: ${bookingsCount}`
-        )
-      }
-    }
-
-    // Validate dates if provided
-    if (dto.startDate || dto.endDate) {
-      const startDate = dto.startDate ? new Date(dto.startDate) : session.startDate!
-      const endDate = dto.endDate ? new Date(dto.endDate) : session.endDate!
-
-      if (endDate <= startDate) {
-        throw new BadRequestException('End date must be after start date')
-      }
-    }
-
-    // Build update data
-    const updateData: any = {}
-    if (dto.name !== undefined) updateData.name = dto.name
-    if (dto.description !== undefined) updateData.description = dto.description
-    if (dto.startDate) updateData.startDate = new Date(dto.startDate)
-    if (dto.endDate) updateData.endDate = new Date(dto.endDate)
-    if (dto.blackoutDates !== undefined) updateData.blackoutDates = dto.blackoutDates as any
-    if (dto.capacity !== undefined) updateData.capacity = dto.capacity
-    if (dto.isActive !== undefined) updateData.isActive = dto.isActive
-
-    // Update pricing & configuration fields
-    if (dto.basePricePerDay !== undefined) updateData.basePricePerDay = dto.basePricePerDay
-    if (dto.requireConsecutiveDays !== undefined)
-      updateData.requireConsecutiveDays = dto.requireConsecutiveDays
-    if (dto.minDaysLimit !== undefined) updateData.minDaysLimit = dto.minDaysLimit
-    if (dto.maxDaysLimit !== undefined) updateData.maxDaysLimit = dto.maxDaysLimit
-    if (dto.availableDaysOfWeek !== undefined)
-      updateData.availableDaysOfWeek = dto.availableDaysOfWeek as any
-    if (dto.specificStartDays !== undefined)
-      updateData.specificStartDays = dto.specificStartDays as any
-    if (dto.discountTiers !== undefined) updateData.discountTiers = dto.discountTiers as any
-    if (dto.dayOfWeekPricing !== undefined)
-      updateData.dayOfWeekPricing = dto.dayOfWeekPricing as any
-    if (dto.ageRange !== undefined) updateData.ageRange = dto.ageRange as any
-    if (dto.unlimitedCapacity !== undefined) updateData.unlimitedCapacity = dto.unlimitedCapacity
-    if (dto.boysCapacity !== undefined) updateData.boysCapacity = dto.boysCapacity
-    if (dto.girlsCapacity !== undefined) updateData.girlsCapacity = dto.girlsCapacity
-    if (dto.separateGenderCapacity !== undefined)
-      updateData.separateGenderCapacity = dto.separateGenderCapacity
-
-    const updatedSession = await this.prisma.session.update({
-      where: { id: sessionId },
-      data: updateData,
-    })
-
-    return {
-      session: this.transformSessionForResponse(updatedSession),
-      message: 'Session updated successfully',
-    }
-  }
-
-  /**
-   * Update a fixed session
+   * Update a session
    */
   async updateFixedSession(
     campId: string,
@@ -487,10 +298,7 @@ export class SessionsService {
     dto: UpdateFixedSessionDto
   ) {
     const session = await this.validateSessionOwnership(sessionId, campId, providerId)
-
-    if (session.type !== 'fixed') {
-      throw new BadRequestException('This is not a fixed session')
-    }
+    const camp = await this.prisma.camp.findUnique({ where: { id: campId } })
 
     // Check if session has bookings
     const bookingsCount = await this.prisma.booking.count({
@@ -499,29 +307,29 @@ export class SessionsService {
 
     // Validate changes if bookings exist
     if (bookingsCount > 0) {
-      if (dto.sessionStartDate || dto.sessionEndDate) {
+      if (dto.startDate || dto.endDate) {
         throw new BadRequestException('Cannot change dates for a session with existing bookings')
       }
-      if (dto.price !== undefined) {
-        throw new BadRequestException('Cannot change price for a session with existing bookings')
+      if (
+        dto.price !== undefined ||
+        dto.pricingType !== undefined ||
+        dto.ageGroupPrices !== undefined
+      ) {
+        throw new BadRequestException('Cannot change pricing for a session with existing bookings')
       }
-      if (dto.capacity && dto.capacity < bookingsCount) {
+      if (dto.totalSpots && dto.totalSpots < bookingsCount) {
         throw new BadRequestException(
-          `Cannot reduce capacity to ${dto.capacity}. Current bookings: ${bookingsCount}`
+          `Cannot reduce total spots to ${dto.totalSpots}. Current bookings: ${bookingsCount}`
         )
       }
     }
 
     // Validate dates if provided
-    if (dto.sessionStartDate || dto.sessionEndDate) {
-      const sessionStartDate = dto.sessionStartDate
-        ? new Date(dto.sessionStartDate)
-        : session.sessionStartDate!
-      const sessionEndDate = dto.sessionEndDate
-        ? new Date(dto.sessionEndDate)
-        : session.sessionEndDate!
+    if (dto.startDate || dto.endDate) {
+      const startDate = dto.startDate ? new Date(dto.startDate) : session.startDate
+      const endDate = dto.endDate ? new Date(dto.endDate) : session.endDate
 
-      if (sessionEndDate <= sessionStartDate) {
+      if (endDate <= startDate) {
         throw new BadRequestException('End date must be after start date')
       }
 
@@ -529,26 +337,16 @@ export class SessionsService {
       const overlappingSessions = await this.prisma.session.findFirst({
         where: {
           campId,
-          type: 'fixed',
           id: { not: sessionId },
           OR: [
             {
-              AND: [
-                { sessionStartDate: { lte: sessionStartDate } },
-                { sessionEndDate: { gte: sessionStartDate } },
-              ],
+              AND: [{ startDate: { lte: startDate } }, { endDate: { gte: startDate } }],
             },
             {
-              AND: [
-                { sessionStartDate: { lte: sessionEndDate } },
-                { sessionEndDate: { gte: sessionEndDate } },
-              ],
+              AND: [{ startDate: { lte: endDate } }, { endDate: { gte: endDate } }],
             },
             {
-              AND: [
-                { sessionStartDate: { gte: sessionStartDate } },
-                { sessionEndDate: { lte: sessionEndDate } },
-              ],
+              AND: [{ startDate: { gte: startDate } }, { endDate: { lte: endDate } }],
             },
           ],
         },
@@ -561,15 +359,69 @@ export class SessionsService {
       }
     }
 
+    // Validate half-day sessions (only for day camps)
+    if (dto.sessionDayType === SessionDayType.HALF_DAY) {
+      if (camp?.type !== 'day') {
+        throw new BadRequestException('Half-day sessions are only allowed for day camps')
+      }
+
+      const arrivalTime = dto.arrivalTime || session.arrivalTime
+      const departureTime = dto.departureTime || session.departureTime
+
+      if (!arrivalTime || !departureTime) {
+        throw new BadRequestException(
+          'Arrival and departure times are required for half-day sessions'
+        )
+      }
+
+      // Validate time order
+      const [arrivalHour, arrivalMin] = arrivalTime.split(':').map(Number)
+      const [departureHour, departureMin] = departureTime.split(':').map(Number)
+      const arrivalMinutes = arrivalHour * 60 + arrivalMin
+      const departureMinutes = departureHour * 60 + departureMin
+
+      if (departureMinutes <= arrivalMinutes) {
+        throw new BadRequestException('Departure time must be after arrival time')
+      }
+    }
+
+    // Validate age group pricing
+    if (
+      dto.pricingType === PricingType.AGE_GROUP ||
+      (dto.ageGroupPrices && session.pricingType === 'age_group')
+    ) {
+      const ageGroupPrices = dto.ageGroupPrices ?? (session.ageGroupPrices as any)
+      if (!ageGroupPrices || ageGroupPrices.length < 2) {
+        throw new BadRequestException('Age group pricing requires at least 2 age groups')
+      }
+    }
+
+    // Validate age group availability
+    if (
+      dto.availabilityType === AvailabilityType.AGE_GROUP ||
+      (dto.ageGroupSpots && session.availabilityType === 'age_group')
+    ) {
+      const ageGroupSpots = dto.ageGroupSpots ?? (session.ageGroupSpots as any)
+      if (!ageGroupSpots || ageGroupSpots.length < 2) {
+        throw new BadRequestException('Age group availability requires at least 2 age groups')
+      }
+    }
+
     // Build update data
     const updateData: any = {}
     if (dto.name !== undefined) updateData.name = dto.name
-    if (dto.description !== undefined) updateData.description = dto.description
-    if (dto.sessionStartDate) updateData.sessionStartDate = new Date(dto.sessionStartDate)
-    if (dto.sessionEndDate) updateData.sessionEndDate = new Date(dto.sessionEndDate)
+    if (dto.startDate) updateData.startDate = new Date(dto.startDate)
+    if (dto.endDate) updateData.endDate = new Date(dto.endDate)
+    if (dto.sessionDayType !== undefined) updateData.sessionDayType = dto.sessionDayType
+    if (dto.arrivalTime !== undefined) updateData.arrivalTime = dto.arrivalTime
+    if (dto.departureTime !== undefined) updateData.departureTime = dto.departureTime
+    if (dto.pricingType !== undefined) updateData.pricingType = dto.pricingType
     if (dto.price !== undefined) updateData.price = dto.price
-    if (dto.capacity !== undefined) updateData.capacity = dto.capacity
-    if (dto.isActive !== undefined) updateData.isActive = dto.isActive
+    if (dto.ageGroupPrices !== undefined) updateData.ageGroupPrices = dto.ageGroupPrices as any
+    if (dto.availabilityType !== undefined) updateData.availabilityType = dto.availabilityType
+    if (dto.totalSpots !== undefined) updateData.totalSpots = dto.totalSpots
+    if (dto.ageGroupSpots !== undefined) updateData.ageGroupSpots = dto.ageGroupSpots as any
+    if (dto.status !== undefined) updateData.status = dto.status
 
     const updatedSession = await this.prisma.session.update({
       where: { id: sessionId },
@@ -586,7 +438,7 @@ export class SessionsService {
    * Delete a session
    */
   async deleteSession(campId: string, sessionId: string, providerId: string) {
-    const session = await this.validateSessionOwnership(sessionId, campId, providerId)
+    await this.validateSessionOwnership(sessionId, campId, providerId)
 
     // Check if session has bookings
     const bookingsCount = await this.prisma.booking.count({
@@ -610,31 +462,29 @@ export class SessionsService {
   }
 
   /**
-   * Toggle session active status
+   * Toggle session status between draft and published
    */
   async toggleSessionStatus(campId: string, sessionId: string, providerId: string) {
     const session = await this.validateSessionOwnership(sessionId, campId, providerId)
 
+    const newStatus = session.status === 'draft' ? 'published' : 'draft'
+
     const updatedSession = await this.prisma.session.update({
       where: { id: sessionId },
-      data: { isActive: !session.isActive },
+      data: { status: newStatus },
     })
 
     return {
       session: this.transformSessionForResponse(updatedSession),
-      message: `Session ${updatedSession.isActive ? 'activated' : 'deactivated'} successfully`,
+      message: `Session ${newStatus === 'published' ? 'published' : 'set to draft'} successfully`,
     }
   }
 
   /**
-   * Duplicate a fixed session
+   * Duplicate a session
    */
   async duplicateFixedSession(campId: string, sessionId: string, providerId: string) {
     const session = await this.validateSessionOwnership(sessionId, campId, providerId)
-
-    if (session.type !== 'fixed') {
-      throw new BadRequestException('Can only duplicate fixed sessions')
-    }
 
     // Get next sort order
     const lastSession = await this.prisma.session.findFirst({
@@ -648,14 +498,19 @@ export class SessionsService {
     const duplicatedSession = await this.prisma.session.create({
       data: {
         campId: session.campId,
-        type: session.type,
         name: `${session.name} (Copy)`,
-        description: session.description,
-        sessionStartDate: session.sessionStartDate,
-        sessionEndDate: session.sessionEndDate,
+        startDate: session.startDate,
+        endDate: session.endDate,
+        sessionDayType: session.sessionDayType,
+        arrivalTime: session.arrivalTime,
+        departureTime: session.departureTime,
+        pricingType: session.pricingType,
         price: session.price,
-        capacity: session.capacity,
-        isActive: false, // Start as inactive
+        ageGroupPrices: session.ageGroupPrices as any,
+        availabilityType: session.availabilityType,
+        totalSpots: session.totalSpots,
+        ageGroupSpots: session.ageGroupSpots as any,
+        status: 'draft', // Start as draft
         sortOrder,
       },
     })

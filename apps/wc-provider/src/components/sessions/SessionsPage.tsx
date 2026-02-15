@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Spinner } from '@heroui/react'
-import type { SessionType } from '@/types/sessions'
-import { useSessionsData } from '@/hooks/useSessionsData'
+import { useRouter } from 'next/navigation'
+import { SessionsList } from './SessionsList'
+import { SessionDetailPanel } from './SessionDetailPanel'
+import { useCampsStore } from '@/stores/camps-store'
+import { useCampEditorLayout } from '@/components/camps/CampEditorLayoutContext'
 import { useSessionMutations } from '@/hooks/useSessionMutations'
-import { SessionTypeSelector } from './SessionTypeSelector'
-import { FlexibleSessionsManager } from './flexible/FlexibleSessionsManager'
-import { FixedSessionsManager } from './fixed/FixedSessionsManager'
+import { useSessionsData } from '@/hooks/useSessionsData'
+import type { Session } from '@/types/sessions'
 
 interface SessionsPageProps {
   campId: string
@@ -16,83 +17,92 @@ interface SessionsPageProps {
 /**
  * Sessions Page Component
  * Main entry point for session management
- * Handles session type selection and routing to appropriate manager
+ * Manages session selection state and communicates with camp editor layout for right sidebar
  */
 export function SessionsPage({ campId }: SessionsPageProps) {
-  const { sessions, sessionType, canChangeType, isLoading, reload } = useSessionsData(campId)
-  const { setSessionType, isSettingType } = useSessionMutations(campId)
-  const [showTypeSelector, setShowTypeSelector] = useState(false)
-  const [forceShowTypeSelector, setForceShowTypeSelector] = useState(false)
+  const router = useRouter()
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null)
+  const [sortBy, setSortBy] = useState<string | undefined>(undefined)
+  const currentCamp = useCampsStore(state => state.currentCamp)
+  const { setRightSidebar } = useCampEditorLayout()
 
-  // Determine if we need to show the type selector
+  // Data hooks - single source of truth
+  const { sessions, isLoading, reload } = useSessionsData(campId, sortBy)
+  const { duplicateSession, deleteSession, toggleSessionStatus, updateSessionSpots } =
+    useSessionMutations(campId)
+
+  // Navigation handlers
+  const handleCreate = () => {
+    router.push(`/camps/${campId}/edit/sessions/create`)
+  }
+
+  const handleEdit = (session: Session) => {
+    router.push(`/camps/${campId}/edit/sessions/${session.id}/edit`)
+  }
+
+  // Mutation handlers
+  const handleDelete = async (session: Session) => {
+    const success = await deleteSession(session.id)
+    if (success) {
+      setSelectedSession(null)
+      await reload()
+    }
+  }
+
+  const handleDuplicate = async (session: Session) => {
+    const newSession = await duplicateSession(session.id)
+    if (newSession) {
+      await reload()
+    }
+  }
+
+  const handlePublish = async (session: Session) => {
+    const updatedSession = await toggleSessionStatus(session.id)
+    if (updatedSession) {
+      setSelectedSession(updatedSession)
+      await reload()
+    }
+  }
+
+  const handleUpdateSpots = async (sessionId: string, spots: number | Record<string, number>) => {
+    const updatedSession = await updateSessionSpots(sessionId, spots)
+    if (updatedSession) {
+      setSelectedSession(updatedSession)
+      await reload()
+    }
+  }
+
+  // Sync right sidebar with selected session
   useEffect(() => {
-    if (!isLoading) {
-      // Show type selector if:
-      // 1. No session type is set AND
-      // 2. No sessions exist (canChangeType is true)
-      const needsTypeSelection = !sessionType && canChangeType
-      setShowTypeSelector(needsTypeSelection)
+    if (selectedSession) {
+      setRightSidebar(
+        <SessionDetailPanel
+          session={selectedSession}
+          ageGroups={currentCamp?.ageGroups}
+          onClose={() => setSelectedSession(null)}
+          onEdit={handleEdit}
+          onDuplicate={handleDuplicate}
+          onDelete={handleDelete}
+          onPublish={handlePublish}
+          onUpdateSpots={handleUpdateSpots}
+        />
+      )
+    } else {
+      setRightSidebar(null)
     }
-  }, [isLoading, sessionType, canChangeType])
 
-  // Handle session type selection
-  const handleTypeSelected = async (type: SessionType) => {
-    try {
-      await setSessionType(type, {
-        onSuccess: async () => {
-          // Reload session data to get the updated session type
-          await reload()
-          setShowTypeSelector(false)
-          setForceShowTypeSelector(false)
-        },
-      })
-    } catch (error) {
-      console.error('Failed to set session type:', error)
-    }
-  }
+    return () => setRightSidebar(null)
+  }, [selectedSession, currentCamp?.ageGroups, setRightSidebar])
 
-  // Handle request to change session type
-  const handleChangeSessionType = () => {
-    setForceShowTypeSelector(true)
-  }
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
-  // Show type selector if needed or forced
-  if (showTypeSelector || forceShowTypeSelector) {
-    return (
-      <SessionTypeSelector
-        campId={campId}
-        currentType={sessionType}
-        onTypeSelected={handleTypeSelected}
-        isLoading={isSettingType}
-      />
-    )
-  }
-
-  // Show appropriate manager based on session type
-  if (sessionType === 'flexible') {
-    return <FlexibleSessionsManager campId={campId} onChangeSessionType={handleChangeSessionType} />
-  }
-
-  if (sessionType === 'fixed') {
-    return <FixedSessionsManager campId={campId} onChangeSessionType={handleChangeSessionType} />
-  }
-
-  // Fallback - should not reach here
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <div className="text-center space-y-2">
-        <p className="text-[16px] text-default-600">No session type configured</p>
-        <p className="text-[14px] text-default-500">Please contact support</p>
-      </div>
-    </div>
+    <SessionsList
+      sessions={sessions}
+      isLoading={isLoading}
+      selectedSession={selectedSession}
+      onSelectSession={setSelectedSession}
+      onCreateSession={handleCreate}
+      sortBy={sortBy}
+      onSortChange={setSortBy}
+    />
   )
 }

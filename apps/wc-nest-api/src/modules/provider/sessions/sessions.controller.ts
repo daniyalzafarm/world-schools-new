@@ -9,15 +9,13 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { SessionsService } from './sessions.service'
-import { CreateFlexibleSessionDto } from './dto/create-flexible-session.dto'
 import { CreateFixedSessionDto } from './dto/create-fixed-session.dto'
-import { UpdateFlexibleSessionDto } from './dto/update-flexible-session.dto'
 import { UpdateFixedSessionDto } from './dto/update-fixed-session.dto'
-import { UpdateSessionTypeDto } from './dto/update-session-type.dto'
 import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
 import { Permissions } from '../../core/auth/decorators/permissions.decorator'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
@@ -30,75 +28,27 @@ export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
 
   /**
-   * Get session type for a camp
+   * Get all sessions
    */
-  @Get('type')
-  @Permissions('camps.read', 'camps.create', 'camps.update')
-  @ApiOperation({ summary: 'Get session type for a camp' })
-  @ApiResponse({ status: 200, description: 'Session type retrieved successfully' })
-  async getSessionType(@Param('campId') campId: string, @CurrentUser() user: any) {
-    return this.sessionsService.getSessionType(campId, user.providerId)
-  }
-
-  /**
-   * Set session type for a camp
-   */
-  @Put('type')
-  @Permissions('camps.create', 'camps.update')
-  @ApiOperation({ summary: 'Set session type for a camp' })
-  @ApiResponse({ status: 200, description: 'Session type updated successfully' })
-  async setSessionType(
-    @Param('campId') campId: string,
-    @CurrentUser() user: any,
-    @Body() dto: UpdateSessionTypeDto
-  ) {
-    return this.sessionsService.setSessionType(campId, user.providerId, dto)
-  }
-
-  /**
-   * Get all flexible sessions
-   */
-  @Get('flexible')
-  @Permissions('camps.read', 'camps.create', 'camps.update')
-  @ApiOperation({ summary: 'Get all flexible sessions for a camp' })
-  @ApiResponse({ status: 200, description: 'Flexible sessions retrieved successfully' })
-  async getFlexibleSessions(@Param('campId') campId: string, @CurrentUser() user: any) {
-    return this.sessionsService.getFlexibleSessions(campId, user.providerId)
-  }
-
-  /**
-   * Get all fixed sessions
-   */
-  @Get('fixed')
+  @Get()
   @Permissions('camps.read')
-  @ApiOperation({ summary: 'Get all fixed sessions for a camp' })
-  @ApiResponse({ status: 200, description: 'Fixed sessions retrieved successfully' })
-  async getFixedSessions(@Param('campId') campId: string, @CurrentUser() user: any) {
-    return this.sessionsService.getFixedSessions(campId, user.providerId)
-  }
-
-  /**
-   * Create a flexible session
-   */
-  @Post('flexible')
-  @Permissions('camps.update')
-  @ApiOperation({ summary: 'Create a flexible session' })
-  @ApiResponse({ status: 201, description: 'Flexible session created successfully' })
-  async createFlexibleSession(
+  @ApiOperation({ summary: 'Get all sessions for a camp' })
+  @ApiResponse({ status: 200, description: 'Sessions retrieved successfully' })
+  async getFixedSessions(
     @Param('campId') campId: string,
-    @CurrentUser() user: any,
-    @Body() dto: CreateFlexibleSessionDto
+    @Query('sortBy') sortBy: string | undefined,
+    @CurrentUser() user: any
   ) {
-    return this.sessionsService.createFlexibleSession(campId, user.providerId, dto)
+    return this.sessionsService.getFixedSessions(campId, user.providerId, sortBy)
   }
 
   /**
-   * Create a fixed session
+   * Create a session
    */
-  @Post('fixed')
+  @Post()
   @Permissions('camps.update')
-  @ApiOperation({ summary: 'Create a fixed session' })
-  @ApiResponse({ status: 201, description: 'Fixed session created successfully' })
+  @ApiOperation({ summary: 'Create a session' })
+  @ApiResponse({ status: 201, description: 'Session created successfully' })
   async createFixedSession(
     @Param('campId') campId: string,
     @CurrentUser() user: any,
@@ -108,28 +58,12 @@ export class SessionsController {
   }
 
   /**
-   * Update a flexible session
+   * Update a session
    */
-  @Put('flexible/:sessionId')
+  @Put(':sessionId')
   @Permissions('camps.update')
-  @ApiOperation({ summary: 'Update a flexible session' })
-  @ApiResponse({ status: 200, description: 'Flexible session updated successfully' })
-  async updateFlexibleSession(
-    @Param('campId') campId: string,
-    @Param('sessionId') sessionId: string,
-    @CurrentUser() user: any,
-    @Body() dto: UpdateFlexibleSessionDto
-  ) {
-    return this.sessionsService.updateFlexibleSession(campId, sessionId, user.providerId, dto)
-  }
-
-  /**
-   * Update a fixed session
-   */
-  @Put('fixed/:sessionId')
-  @Permissions('camps.update')
-  @ApiOperation({ summary: 'Update a fixed session' })
-  @ApiResponse({ status: 200, description: 'Fixed session updated successfully' })
+  @ApiOperation({ summary: 'Update a session' })
+  @ApiResponse({ status: 200, description: 'Session updated successfully' })
   async updateFixedSession(
     @Param('campId') campId: string,
     @Param('sessionId') sessionId: string,
@@ -171,11 +105,11 @@ export class SessionsController {
   }
 
   /**
-   * Duplicate a fixed session
+   * Duplicate a session
    */
-  @Post('fixed/:sessionId/duplicate')
+  @Post(':sessionId/duplicate')
   @Permissions('camps.update')
-  @ApiOperation({ summary: 'Duplicate a fixed session' })
+  @ApiOperation({ summary: 'Duplicate a session' })
   @ApiResponse({ status: 201, description: 'Session duplicated successfully' })
   async duplicateFixedSession(
     @Param('campId') campId: string,

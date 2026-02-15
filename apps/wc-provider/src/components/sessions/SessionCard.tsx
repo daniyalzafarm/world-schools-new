@@ -11,35 +11,35 @@ import {
   Progress,
 } from '@heroui/react'
 import { Ban, Calendar, Copy, Edit, MoreVertical, Trash2 } from 'lucide-react'
-import type { FixedSession } from '@/types/sessions'
-import { SessionStatusBadge } from '../shared/SessionStatusBadge'
-import { SessionCapacityIndicator } from '../shared/SessionCapacityIndicator'
-import { SessionPricingDisplay } from '../shared/SessionPricingDisplay'
+import type { Session } from '@/types/sessions'
+import { SessionStatusBadge } from './shared/SessionStatusBadge'
+import { SessionCapacityIndicator } from './shared/SessionCapacityIndicator'
+import { SessionPricingDisplay } from './shared/SessionPricingDisplay'
 import { formatDateRange } from '@/utils/sessionFormatters'
 import { calculateCapacityPercentage } from '@/utils/sessionCalculations'
 
-interface FixedSessionCardProps {
-  session: FixedSession
-  onEdit: (session: FixedSession) => void
-  onDelete: (session: FixedSession) => void
-  onDuplicate: (session: FixedSession) => void
-  onToggleStatus: (session: FixedSession) => void
+interface SessionCardProps {
+  session: Session
+  onEdit: (session: Session) => void
+  onDelete: (session: Session) => void
+  onDuplicate: (session: Session) => void
+  onToggleStatus: (session: Session) => void
 }
 
 /**
- * Fixed Session Card Component
- * Displays a single fixed session with actions
- * Reference: Design fixed-session-1.2.png
+ * Session Card Component
+ * Displays a single session with actions
  */
-export function FixedSessionCard({
+export function SessionCard({
   session,
   onEdit,
   onDelete,
   onDuplicate,
   onToggleStatus,
-}: FixedSessionCardProps) {
-  const capacityPercentage = calculateCapacityPercentage(session.capacity, session.bookedCount)
-  const isFull = session.capacity !== undefined && (session.bookedCount ?? 0) >= session.capacity
+}: SessionCardProps) {
+  const capacityPercentage = calculateCapacityPercentage(session.totalSpots, session.bookedCount)
+  const isFull =
+    session.totalSpots !== undefined && (session.bookedCount ?? 0) >= session.totalSpots
 
   return (
     <Card className="border border-default-200 hover:border-default-300 transition-colors">
@@ -50,12 +50,12 @@ export function FixedSessionCard({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
                 <h3 className="text-[18px] font-bold text-default-900 truncate">{session.name}</h3>
-                <SessionStatusBadge isActive={session.isActive} />
+                <SessionStatusBadge status={session.status} />
               </div>
               <div className="flex items-center gap-2 text-default-600">
                 <Calendar className="w-4 h-4 shrink-0" />
                 <span className="text-[14px]">
-                  {formatDateRange(session.sessionStartDate, session.sessionEndDate)}
+                  {formatDateRange(session.startDate, session.endDate)}
                 </span>
               </div>
             </div>
@@ -92,7 +92,7 @@ export function FixedSessionCard({
                   startContent={<Ban className="w-4 h-4" />}
                   onPress={() => onToggleStatus(session)}
                 >
-                  {session.isActive ? 'Deactivate' : 'Activate'}
+                  {session.status === 'published' ? 'Set to Draft' : 'Publish'}
                 </DropdownItem>
                 <DropdownItem
                   key="delete"
@@ -109,7 +109,12 @@ export function FixedSessionCard({
 
           {/* Pricing */}
           <div className="flex items-center justify-between">
-            <SessionPricingDisplay price={session.price} variant="compact" />
+            <SessionPricingDisplay
+              pricingType={session.pricingType}
+              price={session.price}
+              ageGroupPrices={session.ageGroupPrices}
+              variant="compact"
+            />
           </div>
 
           {/* Capacity */}
@@ -117,12 +122,14 @@ export function FixedSessionCard({
             <div className="flex items-center justify-between">
               <span className="text-[13px] text-default-600">Capacity</span>
               <SessionCapacityIndicator
-                capacity={session.capacity}
+                availabilityType={session.availabilityType}
+                totalSpots={session.totalSpots}
+                ageGroupSpots={session.ageGroupSpots}
                 booked={session.bookedCount}
                 showBooked
               />
             </div>
-            {session.capacity !== undefined && (
+            {session.totalSpots !== undefined && (
               <Progress
                 value={capacityPercentage ?? 0}
                 color={

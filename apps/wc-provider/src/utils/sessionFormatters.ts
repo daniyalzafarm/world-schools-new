@@ -102,15 +102,8 @@ export function formatDuration(weeks: number, days = 0): string {
 /**
  * Format session status
  */
-export function formatSessionStatus(isActive: boolean): string {
-  return isActive ? 'Active' : 'Inactive'
-}
-
-/**
- * Format session type
- */
-export function formatSessionType(type: 'flexible' | 'fixed'): string {
-  return type === 'flexible' ? 'Flexible' : 'Fixed'
+export function formatSessionStatus(status: 'draft' | 'published'): string {
+  return status === 'published' ? 'Published' : 'Draft'
 }
 
 /**

@@ -1,30 +1,47 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { SessionBreadcrumb } from '@/components/sessions/SessionBreadcrumb'
-import {
-  FixedSessionForm,
-  type FixedSessionFormData,
-} from '@/components/sessions/fixed/FixedSessionForm'
+import { SessionForm, type SessionFormData } from '@/components/sessions/SessionForm'
 import { SessionFormFooter } from '@/components/sessions/SessionFormFooter'
 import { useSessionMutations } from '@/hooks/useSessionMutations'
+import { useCampsStore } from '@/stores/camps-store'
+import type { CampType } from '@/types/camps'
 
 /**
- * Create Fixed Session Page
- * Standalone page for creating a new fixed session
+ * Create Session Page
+ * Standalone page for creating a new session
  */
-export default function CreateFixedSessionPage() {
+export default function CreateSessionPage() {
   const params = useParams()
   const router = useRouter()
   const campId = params.campId as string
   const submitRef = useRef<(() => void) | undefined>(undefined)
 
-  const { createFixedSession, isCreatingFixed } = useSessionMutations(campId)
+  const { createSession, isCreating } = useSessionMutations(campId)
+  const { currentCamp, fetchCamp } = useCampsStore()
+  const [campType, setCampType] = useState<CampType | null>(null)
+
+  // Fetch camp data to get camp type
+  useEffect(() => {
+    if (campId) {
+      fetchCamp(campId)
+        .then(() => {
+          const camp = useCampsStore.getState().currentCamp
+          if (camp) {
+            setCampType(camp.type)
+          }
+        })
+        .catch(error => {
+          console.error('Failed to fetch camp:', error)
+        })
+    }
+  }, [campId, fetchCamp])
 
   // Handle form submit
-  const handleSubmit = async (data: FixedSessionFormData) => {
-    await createFixedSession(data, {
+  const handleSubmit = async (data: SessionFormData) => {
+    await createSession(data, {
       onSuccess: () => {
         router.push(`/camps/${campId}/edit/sessions`)
       },
@@ -59,18 +76,23 @@ export default function CreateFixedSessionPage() {
       {/* Add padding-bottom to prevent content from being hidden behind fixed footer */}
       <div className="pb-20">
         <SessionBreadcrumb
-          title="Create Fixed Session"
-          subtitle="Set up a fixed session with specific start and end dates."
+          title="Create Session"
+          subtitle="Set up a session with specific start and end dates."
         />
 
-        <FixedSessionForm onSubmit={handleSubmit} onSubmitRef={submitRef} />
+        <SessionForm
+          onSubmit={handleSubmit}
+          onSubmitRef={submitRef}
+          campType={campType}
+          camp={currentCamp}
+        />
       </div>
 
       <SessionFormFooter
         campId={campId}
         onCancel={handleCancel}
         onSubmit={handleFooterSubmit}
-        isSubmitting={isCreatingFixed}
+        isSubmitting={isCreating}
         mode="create"
       />
     </>

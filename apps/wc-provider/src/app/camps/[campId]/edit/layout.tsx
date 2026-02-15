@@ -2,16 +2,25 @@
 
 import { useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { useCampsStore } from '../../../../stores/camps-store'
-import { CampEditorSidebar } from '../../../../components/camps/CampEditorSidebar'
-import { CampEditorTopBar } from '../../../../components/camps/CampEditorTopBar'
-import { CampEditorFooter } from '../../../../components/camps/CampEditorFooter'
+import { useCampsStore } from '@/stores/camps-store'
+import { CampEditorSidebar } from '@/components/camps/CampEditorSidebar'
+import { CampEditorTopBar } from '@/components/camps/CampEditorTopBar'
+import { CampEditorFooter } from '@/components/camps/CampEditorFooter'
+import {
+  CampEditorLayoutProvider,
+  useCampEditorLayout,
+} from '@/components/camps/CampEditorLayoutContext'
 import { Logo } from '@/components/layout/logo'
 
-export default function CampEditorLayout({ children }: { children: React.ReactNode }) {
-  const params = useParams()
-  const campId = params.campId as string
-  const { fetchCamp, currentCamp: _currentCamp } = useCampsStore()
+function CampEditorLayoutContent({
+  children,
+  campId,
+}: {
+  children: React.ReactNode
+  campId: string
+}) {
+  const { fetchCamp } = useCampsStore()
+  const { rightSidebar } = useCampEditorLayout()
 
   useEffect(() => {
     if (campId) {
@@ -33,23 +42,48 @@ export default function CampEditorLayout({ children }: { children: React.ReactNo
         <CampEditorSidebar campId={campId} />
       </div>
 
-      {/* Main Content - Full height with flex column layout */}
-      <main className="flex h-full flex-1 flex-col pt-[60px] md:ml-[280px] md:pt-0">
-        {/* Top Bar - Sticky with reserved space */}
-        <div className="sticky top-0 z-40 shrink-0">
-          <CampEditorTopBar campId={campId} />
+      {/* Main Content - Full height with flex layout */}
+      <main className="flex h-full flex-1 overflow-hidden pt-[60px] md:ml-[280px] md:pt-0">
+        {/* Left Column: Main Content Area (Top Bar + Content + Footer) */}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {/* Top Bar - Sticky with reserved space */}
+          <div className="sticky top-0 z-40 shrink-0">
+            <CampEditorTopBar campId={campId} />
+          </div>
+
+          {/* Scrollable Content Area */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-4xl px-12 py-8">{children}</div>
+          </div>
+
+          {/* Footer - Sticky with reserved space */}
+          <div className="sticky bottom-0 z-40 shrink-0">
+            <CampEditorFooter campId={campId} />
+          </div>
         </div>
 
-        {/* Scrollable Content Area - fills remaining space */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-4xl px-12 py-8">{children}</div>
-        </div>
-
-        {/* Footer - Sticky with reserved space */}
-        <div className="sticky bottom-0 z-40 shrink-0">
-          <CampEditorFooter campId={campId} />
+        {/* Right Column: Optional Sidebar (Full Height) with Slide Animation */}
+        <div
+          className={`hidden h-full shrink-0 overflow-y-auto border-l border-default-200 bg-background transition-all duration-300 ease-in-out lg:block ${
+            rightSidebar
+              ? 'lg:w-[380px] xl:w-[400px] translate-x-0 opacity-100'
+              : 'lg:w-0 xl:w-0 translate-x-full opacity-0'
+          }`}
+        >
+          {rightSidebar}
         </div>
       </main>
     </div>
+  )
+}
+
+export default function CampEditorLayout({ children }: { children: React.ReactNode }) {
+  const params = useParams()
+  const campId = params.campId as string
+
+  return (
+    <CampEditorLayoutProvider>
+      <CampEditorLayoutContent campId={campId}>{children}</CampEditorLayoutContent>
+    </CampEditorLayoutProvider>
   )
 }

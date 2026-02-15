@@ -1,11 +1,14 @@
 'use client'
 
 import { Chip } from '@heroui/react'
+import type { AgeGroupSpots, AvailabilityType } from '@/types/sessions'
 import { formatCapacity, formatCapacityWithBooked } from '@/utils/sessionFormatters'
 import { getCapacityStatus } from '@/utils/sessionCalculations'
 
 interface SessionCapacityIndicatorProps {
-  capacity?: number
+  availabilityType: AvailabilityType
+  totalSpots?: number
+  ageGroupSpots?: AgeGroupSpots[]
   booked?: number
   showBooked?: boolean
   size?: 'sm' | 'md' | 'lg'
@@ -14,13 +17,22 @@ interface SessionCapacityIndicatorProps {
 /**
  * Session Capacity Indicator Component
  * Displays capacity information with color coding based on availability
+ * Supports both single and age group availability types
  */
 export function SessionCapacityIndicator({
-  capacity,
+  availabilityType,
+  totalSpots,
+  ageGroupSpots,
   booked = 0,
   showBooked = false,
   size = 'sm',
 }: SessionCapacityIndicatorProps) {
+  // For age group availability, calculate total spots
+  const capacity =
+    availabilityType === 'age_group' && ageGroupSpots
+      ? ageGroupSpots.reduce((sum, ag) => sum + ag.spots, 0)
+      : totalSpots
+
   const status = getCapacityStatus(capacity, booked)
 
   // Color coding based on capacity status

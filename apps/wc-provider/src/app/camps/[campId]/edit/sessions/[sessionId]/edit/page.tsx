@@ -4,76 +4,61 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Spinner } from '@heroui/react'
 import { SessionBreadcrumb } from '@/components/sessions/SessionBreadcrumb'
-import {
-  FlexibleSessionForm,
-  type FlexibleSessionFormData,
-} from '@/components/sessions/flexible/FlexibleSessionForm'
+import { SessionForm, type SessionFormData } from '@/components/sessions/SessionForm'
 import { SessionFormFooter } from '@/components/sessions/SessionFormFooter'
 import { useSessionsData } from '@/hooks/useSessionsData'
 import { useSessionMutations } from '@/hooks/useSessionMutations'
-import type { FlexibleSession } from '@/types/sessions'
 import { useCampsStore } from '@/stores/camps-store'
+import type { Session } from '@/types/sessions'
+import type { CampType } from '@/types/camps'
 
 /**
- * Edit Flexible Session Page
- * Standalone page for editing an existing flexible session
+ * Edit Session Page
+ * Standalone page for editing an existing session
  */
-export default function EditFlexibleSessionPage() {
+export default function EditSessionPage() {
   const params = useParams()
   const router = useRouter()
   const campId = params.campId as string
   const sessionId = params.sessionId as string
   const submitRef = useRef<(() => void) | undefined>(undefined)
 
-  const { flexibleSessions, isLoading } = useSessionsData(campId)
-  const { updateFlexibleSession, isUpdatingFlexible } = useSessionMutations(campId)
-  const { currentCamp, fetchCamp, isLoading: isCampLoading } = useCampsStore()
+  const { sessions, isLoading } = useSessionsData(campId)
+  const { updateSession, isUpdating } = useSessionMutations(campId)
+  const { fetchCamp, currentCamp } = useCampsStore()
 
-  const [session, setSession] = useState<FlexibleSession | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
+  const [campType, setCampType] = useState<CampType | null>(null)
 
-  // Fetch camp data to get gender setting
+  // Fetch camp data to get camp type
   useEffect(() => {
     if (campId) {
-      fetchCamp(campId).catch(error => {
-        console.error('Failed to fetch camp:', error)
-      })
+      fetchCamp(campId)
+        .then(() => {
+          const camp = useCampsStore.getState().currentCamp
+          if (camp) {
+            setCampType(camp.type)
+          }
+        })
+        .catch(error => {
+          console.error('Failed to fetch camp:', error)
+        })
     }
   }, [campId, fetchCamp])
 
   // Find the session to edit
   useEffect(() => {
-    if (!isLoading && flexibleSessions) {
-      const foundSession = flexibleSessions.find(s => s.id === sessionId)
+    if (!isLoading && sessions) {
+      const foundSession = sessions.find(s => s.id === sessionId)
       if (foundSession) {
-        // Ensure basePricePerDay is a number (defensive conversion in case backend returns string)
-        const normalizedSession = {
-          ...foundSession,
-          basePricePerDay:
-            foundSession.basePricePerDay !== null && foundSession.basePricePerDay !== undefined
-              ? Number(foundSession.basePricePerDay)
-              : foundSession.basePricePerDay,
-        }
-        setSession(normalizedSession)
+        setSession(foundSession)
       }
     }
-  }, [isLoading, flexibleSessions, sessionId])
+  }, [isLoading, sessions, sessionId])
 
   // Handle form submit
-  const handleSubmit = async (data: FlexibleSessionFormData) => {
-    // Transform form data to DTO (convert null to undefined)
-    const dto = {
-      ...data,
-      capacity: data.capacity ?? undefined,
-      basePricePerDay: data.basePricePerDay ?? undefined,
-      minDaysLimit: data.minDaysLimit ?? undefined,
-      maxDaysLimit: data.maxDaysLimit ?? undefined,
-      ageRange: data.ageRange ?? undefined,
-      boysCapacity: data.boysCapacity ?? undefined,
-      girlsCapacity: data.girlsCapacity ?? undefined,
-      separateGenderCapacity: data.separateGenderCapacity,
-    }
-
-    await updateFlexibleSession(sessionId, dto, {
+  const handleSubmit = async (data: SessionFormData) => {
+    await updateSession(sessionId, data, {
       onSuccess: () => {
         router.push(`/camps/${campId}/edit/sessions`)
       },
@@ -104,7 +89,7 @@ export default function EditFlexibleSessionPage() {
   }, [])
 
   // Loading state
-  if (isLoading || isCampLoading || !session || !currentCamp) {
+  if (isLoading || !session) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Spinner size="lg" />
@@ -118,14 +103,15 @@ export default function EditFlexibleSessionPage() {
       <div className="pb-20">
         <SessionBreadcrumb
           title={`Edit Session: ${session.name}`}
-          subtitle="Update the flexible session details."
+          subtitle="Update the session details."
         />
 
-        <FlexibleSessionForm
+        <SessionForm
           session={session}
           onSubmit={handleSubmit}
           onSubmitRef={submitRef}
-          campGender={currentCamp.gender}
+          campType={campType}
+          camp={currentCamp}
         />
       </div>
 
@@ -133,7 +119,7 @@ export default function EditFlexibleSessionPage() {
         campId={campId}
         onCancel={handleCancel}
         onSubmit={handleFooterSubmit}
-        isSubmitting={isUpdatingFlexible}
+        isSubmitting={isUpdating}
         mode="edit"
       />
     </>

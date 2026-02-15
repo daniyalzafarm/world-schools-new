@@ -1,74 +1,56 @@
 // Session Types for wc-booking app
 
-export type SessionType = 'flexible' | 'fixed'
+// Session Enums
+export type SessionDayType = 'full_day' | 'half_day'
+export type PricingType = 'single' | 'age_group'
+export type AvailabilityType = 'single' | 'age_group'
+export type SessionStatus = 'draft' | 'published'
 
-// Blackout dates for flexible sessions
-export interface BlackoutDate {
-  start: string // ISO date string
-  end: string // ISO date string
-  reason?: string
-}
-
-// Multi-day discount tier
-export interface DiscountTier {
-  minDays: number
-  maxDays?: number
-  discountPercent: number
-}
-
-// Day-of-week pricing
-export interface DayOfWeekPricing {
-  dayOfWeek: number // 0 = Sunday, 1 = Monday, etc.
+// Age Group Pricing
+export interface AgeGroupPrice {
+  ageGroupId: string
   price: number
 }
 
-// Age range
-export interface AgeRange {
-  min: number
-  max: number
+// Age Group Availability
+export interface AgeGroupSpots {
+  ageGroupId: string
+  spots: number
 }
 
-// Base Session interface
+// Session Interface
 export interface Session {
   id: string
   campId: string
-  type: SessionType
+
+  // Basic Fields
   name: string
-  description?: string
-  isActive: boolean
-  capacity?: number
+  startDate: string // ISO date string
+  endDate: string // ISO date string
+
+  // Session Type (only for day camps)
+  sessionDayType?: SessionDayType
+  arrivalTime?: string // HH:MM format
+  departureTime?: string // HH:MM format
+
+  // Pricing
+  pricingType: PricingType
+  price?: number
+  ageGroupPrices?: AgeGroupPrice[]
+
+  // Availability
+  availabilityType: AvailabilityType
+  totalSpots?: number
+  ageGroupSpots?: AgeGroupSpots[]
+
+  // Status
+  status: SessionStatus
+
+  // Metadata
   sortOrder: number
   createdAt: string
   updatedAt: string
-}
 
-// Flexible Session
-export interface FlexibleSession extends Session {
-  type: 'flexible'
-  startDate: string // ISO date string - booking window start
-  endDate: string // ISO date string - booking window end
-  blackoutDates?: BlackoutDate[]
-
-  // Pricing & configuration
-  basePricePerDay?: number
-  requireConsecutiveDays?: boolean
-  minDaysLimit?: number
-  maxDaysLimit?: number
-  availableDaysOfWeek?: number[] // Array of day indices (0 = Sunday, 1 = Monday, etc.)
-  specificStartDays?: number[] // Which days of the week sessions can begin
-  discountTiers?: DiscountTier[]
-  dayOfWeekPricing?: DayOfWeekPricing[]
-  ageRange?: AgeRange
-  unlimitedCapacity?: boolean
-  boysCapacity?: number
-  girlsCapacity?: number
-  separateGenderCapacity?: boolean
-}
-
-// Fixed Session
-export interface FixedSession extends Session {
-  type: 'fixed'
-  sessionStartDate: string // ISO date string - actual session start
-  sessionEndDate: string // ISO date string - actual session end
-  price: number
+  // Computed fields (from backend)
+  bookedCount?: number
 }
