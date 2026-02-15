@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { SessionsList } from './SessionsList'
 import { SessionDetailPanel } from './SessionDetailPanel'
 import { useCampsStore } from '@/stores/camps-store'
-import { useCampEditorLayout } from '@/components/camps/CampEditorLayoutContext'
+import { useCampEditorLayoutOptional } from '@/components/camps/CampEditorLayoutContext'
 import { useSessionMutations } from '@/hooks/useSessionMutations'
 import { useSessionsData } from '@/hooks/useSessionsData'
 import type { Session } from '@/types/sessions'
@@ -18,13 +18,15 @@ interface SessionsPageProps {
  * Sessions Page Component
  * Main entry point for session management
  * Manages session selection state and communicates with camp editor layout for right sidebar
+ * Works in both camp editor (with sidebar) and camp wizard (without sidebar) contexts
  */
 export function SessionsPage({ campId }: SessionsPageProps) {
   const router = useRouter()
   const [selectedSession, setSelectedSession] = useState<Session | null>(null)
   const [sortBy, setSortBy] = useState<string | undefined>(undefined)
   const currentCamp = useCampsStore(state => state.currentCamp)
-  const { setRightSidebar } = useCampEditorLayout()
+  const layoutContext = useCampEditorLayoutOptional()
+  const setRightSidebar = layoutContext?.setRightSidebar
 
   // Data hooks - single source of truth
   const { sessions, isLoading, reload } = useSessionsData(campId, sortBy)
@@ -72,8 +74,11 @@ export function SessionsPage({ campId }: SessionsPageProps) {
     }
   }
 
-  // Sync right sidebar with selected session
+  // Sync right sidebar with selected session (only if layout context is available)
   useEffect(() => {
+    // Skip sidebar management if not in camp editor context (e.g., in wizard)
+    if (!setRightSidebar) return
+
     if (selectedSession) {
       setRightSidebar(
         <SessionDetailPanel

@@ -31,11 +31,24 @@ export function CampEditorLayoutProvider({ children }: { children: ReactNode }) 
  *
  * Hook to access the camp editor layout context.
  * Used by child pages to set the right sidebar content.
+ * Throws an error if used outside of CampEditorLayoutProvider.
  */
 export function useCampEditorLayout() {
   const context = useContext(CampEditorLayoutContext)
   if (context === undefined) {
     throw new Error('useCampEditorLayout must be used within a CampEditorLayoutProvider')
   }
+  return context
+}
+
+/**
+ * useCampEditorLayoutOptional
+ *
+ * Optional version of useCampEditorLayout that returns undefined
+ * when used outside of CampEditorLayoutProvider instead of throwing an error.
+ * Useful for components that need to work in both contexts (with and without the provider).
+ */
+export function useCampEditorLayoutOptional() {
+  const context = useContext(CampEditorLayoutContext)
   return context
 }
