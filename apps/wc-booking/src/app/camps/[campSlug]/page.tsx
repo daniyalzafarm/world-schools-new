@@ -10,7 +10,7 @@ import {
 } from '@world-schools/wc-frontend-utils'
 import { getCampBySlug } from '@/services/camps.services'
 import type { ActivityItem, Camp, MetaCard } from '@/types/camps'
-import type { FixedSession, FlexibleSession } from '@/types/sessions'
+import type { Session } from '@/types/sessions'
 import config from '@/config/config'
 import { InnerPageNav } from '@/components/camp/InnerPageNav'
 import { SectionHeader, SectionSubheader } from '@/components/camp/SectionHeader'
@@ -639,12 +639,10 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
 
 // Booking Sidebar Component
 function BookingSidebar({ camp }: { camp: Camp }) {
-  const [selectedSession, setSelectedSession] = useState<(FixedSession | FlexibleSession) | null>(
-    null
-  )
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null)
 
   const sessions = camp.sessions ?? []
-  const activeSessions = sessions.filter(s => s.isActive)
+  const activeSessions = sessions.filter(s => s.status === 'published')
   const currency = camp.provider?.settings?.currency || 'USD'
 
   // Calculate minimum price from sessions
@@ -652,11 +650,12 @@ function BookingSidebar({ camp }: { camp: Camp }) {
     if (activeSessions.length === 0) return null
 
     const prices = activeSessions.map(session => {
-      if (session.type === 'fixed') {
-        return (session as FixedSession).price
-      } else {
-        return (session as FlexibleSession).basePricePerDay ?? 0
+      if (session.pricingType === 'single' && session.price !== undefined) {
+        return session.price
+      } else if (session.pricingType === 'age_group' && session.ageGroupPrices && session.ageGroupPrices.length > 0) {
+        return Math.min(...session.ageGroupPrices.map(agp => agp.price))
       }
+      return 0
     })
 
     return Math.min(...prices)
@@ -668,8 +667,8 @@ function BookingSidebar({ camp }: { camp: Camp }) {
   const displayedSessions = activeSessions.slice(0, 3)
 
   // Determine badge for each session
-  const getSessionBadge = (session: FixedSession | FlexibleSession, index: number) => {
-    const spotsLeft = session.capacity ?? null
+  const getSessionBadge = (session: Session, index: number) => {
+    const spotsLeft = session.totalSpots ?? null
 
     // LAST SPOTS - if 5 or fewer spots left
     if (spotsLeft !== null && spotsLeft <= 5) {
@@ -698,7 +697,7 @@ function BookingSidebar({ camp }: { camp: Camp }) {
   }
 
   // Handle session selection
-  const handleSessionClick = (session: FixedSession | FlexibleSession) => {
+  const handleSessionClick = (session: Session) => {
     if (selectedSession?.id === session.id) {
       setSelectedSession(null) // Deselect if clicking the same session
     } else {
@@ -709,11 +708,12 @@ function BookingSidebar({ camp }: { camp: Camp }) {
   // Get selected session price
   const getSelectedPrice = () => {
     if (!selectedSession) return null
-    if (selectedSession.type === 'fixed') {
-      return (selectedSession as FixedSession).price
-    } else {
-      return (selectedSession as FlexibleSession).basePricePerDay ?? 0
+    if (selectedSession.pricingType === 'single' && selectedSession.price !== undefined) {
+      return selectedSession.price
+    } else if (selectedSession.pricingType === 'age_group' && selectedSession.ageGroupPrices && selectedSession.ageGroupPrices.length > 0) {
+      return Math.min(...selectedSession.ageGroupPrices.map(agp => agp.price))
     }
+    return 0
   }
 
   // Get selected session date range
@@ -725,19 +725,9 @@ function BookingSidebar({ camp }: { camp: Camp }) {
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     }
 
-    if (selectedSession.type === 'fixed') {
-      const fixedSession = selectedSession as FixedSession
-      const startDate = new Date(fixedSession.sessionStartDate)
-      const endDate = new Date(fixedSession.sessionEndDate)
-      const year = endDate.getFullYear()
-      return `${formatDate(fixedSession.sessionStartDate)} - ${formatDate(fixedSession.sessionEndDate)}, ${year}`
-    } else {
-      const flexSession = selectedSession as FlexibleSession
-      const startDate = new Date(flexSession.startDate)
-      const endDate = new Date(flexSession.endDate)
-      const year = endDate.getFullYear()
-      return `${formatDate(flexSession.startDate)} - ${formatDate(flexSession.endDate)}, ${year}`
-    }
+    const endDate = new Date(selectedSession.endDate)
+    const year = endDate.getFullYear()
+    return `${formatDate(selectedSession.startDate)} - ${formatDate(selectedSession.endDate)}, ${year}`
   }
 
   const selectedPrice = getSelectedPrice()
@@ -839,7 +829,7 @@ function BookingSidebar({ camp }: { camp: Camp }) {
 
 // Sidebar Session Card Component
 interface SidebarSessionCardProps {
-  session: FixedSession | FlexibleSession
+  session: Session
   badge: { text: string; icon: string; color: string } | null
   isSelected: boolean
   onClick: () => void
@@ -859,7 +849,6 @@ function SidebarSessionCard({
   }
 
   const formatDateRange = (start: string, end: string) => {
-    const startDate = new Date(start)
     const endDate = new Date(end)
     const year = endDate.getFullYear()
 
@@ -884,20 +873,8 @@ function SidebarSessionCard({
     }
   }
 
-  const getAgeRangeText = () => {
-    if (session.type === 'flexible') {
-      const flexSession = session as FlexibleSession
-      if (flexSession.ageRange) {
-        return `Ages ${flexSession.ageRange.min}-${flexSession.ageRange.max}`
-      }
-    }
-    // For fixed sessions, we'd need to get age range from camp data
-    // For now, return null
-    return null
-  }
-
   const getSpotsLeftText = () => {
-    const capacity = session.capacity
+    const capacity = session.totalSpots
     if (capacity === null || capacity === undefined) return null
 
     if (capacity <= 5) {
@@ -908,32 +885,22 @@ function SidebarSessionCard({
   }
 
   const getPrice = () => {
-    if (session.type === 'fixed') {
-      return (session as FixedSession).price
-    } else {
-      return (session as FlexibleSession).basePricePerDay ?? 0
+    if (session.pricingType === 'single' && session.price !== undefined) {
+      return session.price
+    } else if (session.pricingType === 'age_group' && session.ageGroupPrices && session.ageGroupPrices.length > 0) {
+      return Math.min(...session.ageGroupPrices.map(agp => agp.price))
     }
+    return 0
   }
 
   const getDateRange = () => {
-    if (session.type === 'fixed') {
-      const fixedSession = session as FixedSession
-      return formatDateRange(fixedSession.sessionStartDate, fixedSession.sessionEndDate)
-    } else {
-      const flexSession = session as FlexibleSession
-      return formatDateRange(flexSession.startDate, flexSession.endDate)
-    }
+    return formatDateRange(session.startDate, session.endDate)
   }
 
   const getDuration = () => {
-    if (session.type === 'fixed') {
-      const fixedSession = session as FixedSession
-      return calculateDuration(fixedSession.sessionStartDate, fixedSession.sessionEndDate)
-    }
-    return null
+    return calculateDuration(session.startDate, session.endDate)
   }
 
-  const ageRangeText = getAgeRangeText()
   const spotsLeftText = getSpotsLeftText()
   const duration = getDuration()
 
@@ -969,12 +936,10 @@ function SidebarSessionCard({
       {/* Date Range */}
       <p className="text-sm text-gray-600 mb-1">{getDateRange()}</p>
 
-      {/* Duration, Age Range, Spots Left */}
+      {/* Duration, Spots Left */}
       <div className="text-sm text-gray-600">
         {duration && <span>{duration}</span>}
-        {duration && ageRangeText && <span> • </span>}
-        {ageRangeText && <span>{ageRangeText}</span>}
-        {(duration || ageRangeText) && spotsLeftText && <span> • </span>}
+        {duration && spotsLeftText && <span> • </span>}
         {spotsLeftText && <span className="font-medium">{spotsLeftText}</span>}
       </div>
     </div>

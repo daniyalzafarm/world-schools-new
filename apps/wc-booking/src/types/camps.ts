@@ -1,5 +1,5 @@
 // Camp types for wc-booking app
-import type { FixedSession, FlexibleSession } from './sessions'
+import type { Session } from './sessions'
 
 export type CampType = 'day' | 'residential'
 export type LocationType = 'provider' | 'different'
@@ -202,5 +202,5 @@ export interface Camp {
       cancellationPolicyCustom?: any
     }
   }
-  sessions?: (FlexibleSession | FixedSession)[]
+  sessions?: Session[]
 }

@@ -3,12 +3,12 @@
 import { useState } from 'react'
 import { Button } from '@heroui/react'
 import { SectionHeader } from './SectionHeader'
-import type { FixedSession, FlexibleSession } from '@/types/sessions'
+import type { Session } from '@/types/sessions'
 import type { SessionType } from '@/types/camps'
 import { formatCurrency } from '@/utils/currency'
 
 interface SessionsSectionProps {
-  sessions: (FlexibleSession | FixedSession)[]
+  sessions: Session[]
   sessionType: SessionType | null | undefined
   campName: string
   currency?: string
@@ -35,25 +35,9 @@ export function SessionsSection({
       <SectionHeader title="Dates & Pricing" icon="📅" className="mb-6" />
 
       <div className="space-y-4 mt-6">
-        {displayedSessions.map(session => {
-          if (session.type === 'fixed') {
-            return (
-              <FixedSessionCard
-                key={session.id}
-                session={session as FixedSession}
-                currency={currency}
-              />
-            )
-          } else {
-            return (
-              <FlexibleSessionCard
-                key={session.id}
-                session={session as FlexibleSession}
-                currency={currency}
-              />
-            )
-          }
-        })}
+        {displayedSessions.map(session => (
+          <SessionCard key={session.id} session={session} currency={currency} />
+        ))}
       </div>
 
       {hasMore && !showAll && (
@@ -71,16 +55,16 @@ export function SessionsSection({
   )
 }
 
-// Fixed Session Card Component
-function FixedSessionCard({
+// Session Card Component
+function SessionCard({
   session,
   currency = 'USD',
 }: {
-  session: FixedSession
+  session: Session
   currency?: string
 }) {
-  const startDate = new Date(session.sessionStartDate)
-  const endDate = new Date(session.sessionEndDate)
+  const startDate = new Date(session.startDate)
+  const endDate = new Date(session.endDate)
 
   // Calculate duration
   const durationDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
@@ -92,8 +76,8 @@ function FixedSessionCard({
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
-  // Calculate spots left (if capacity is set)
-  const spotsLeft = session.capacity ?? null
+  // Calculate spots left (if totalSpots is set)
+  const spotsLeft = session.totalSpots ?? null
 
   // Determine badge
   const getBadge = () => {
@@ -105,6 +89,19 @@ function FixedSessionCard({
   }
 
   const badge = getBadge()
+
+  // Get price (single pricing or first age group price)
+  const getPrice = () => {
+    if (session.pricingType === 'single' && session.price !== undefined) {
+      return session.price
+    } else if (session.pricingType === 'age_group' && session.ageGroupPrices && session.ageGroupPrices.length > 0) {
+      // Return the minimum price from age groups
+      return Math.min(...session.ageGroupPrices.map(agp => agp.price))
+    }
+    return 0
+  }
+
+  const price = getPrice()
 
   return (
     <div className="border border-gray-300 rounded-xl p-6 hover:shadow-md transition-shadow">
@@ -131,7 +128,6 @@ function FixedSessionCard({
               {days > 0 && `${days} day${days > 1 ? 's' : ''}`}
               {weeks === 0 && days === 0 && '1 day'}
             </p>
-            {session.description && <p className="text-gray-500 mt-2">{session.description}</p>}
             {spotsLeft !== null && (
               <p className="text-gray-700 font-medium mt-2">
                 {spotsLeft > 0 ? `${spotsLeft} spots left` : 'Fully booked'}
@@ -142,67 +138,11 @@ function FixedSessionCard({
 
         <div className="text-right ml-6">
           <div className="text-2xl font-bold text-gray-900">
-            {formatCurrency(session.price, currency)}
+            {formatCurrency(price, currency)}
           </div>
-          <div className="text-sm text-gray-500 mt-1">per child</div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Flexible Session Card Component
-function FlexibleSessionCard({
-  session,
-  currency = 'USD',
-}: {
-  session: FlexibleSession
-  currency?: string
-}) {
-  const startDate = new Date(session.startDate)
-  const endDate = new Date(session.endDate)
-
-  // Format dates
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  }
-
-  return (
-    <div className="border border-gray-300 rounded-xl p-6 hover:shadow-md transition-shadow">
-      <div className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium mb-3 bg-blue-50 text-blue-700">
-        <span>⭐</span>
-        <span>FLEXIBLE DATES</span>
-      </div>
-
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">{session.name}</h3>
-
-          <div className="text-sm text-gray-600 space-y-1">
-            <p>
-              Available: {formatDate(startDate)} - {formatDate(endDate)}
-            </p>
-            {session.description && <p className="text-gray-500 mt-2">{session.description}</p>}
-            {session.minDaysLimit && session.maxDaysLimit && (
-              <p className="text-gray-700 mt-2">
-                Choose {session.minDaysLimit}-{session.maxDaysLimit} days
-              </p>
-            )}
-            {session.capacity && !session.unlimitedCapacity && (
-              <p className="text-gray-700 font-medium mt-2">{session.capacity} spots available</p>
-            )}
+          <div className="text-sm text-gray-500 mt-1">
+            {session.pricingType === 'age_group' ? 'from' : 'per child'}
           </div>
-        </div>
-
-        <div className="text-right ml-6">
-          {session.basePricePerDay && (
-            <>
-              <div className="text-2xl font-bold text-gray-900">
-                {formatCurrency(session.basePricePerDay, currency)}
-              </div>
-              <div className="text-sm text-gray-500 mt-1">per day</div>
-            </>
-          )}
         </div>
       </div>
     </div>
