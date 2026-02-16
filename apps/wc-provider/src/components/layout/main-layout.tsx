@@ -44,7 +44,7 @@ export function MainLayout({ children }: MainLayoutProps) {
               />
 
               {/* Main content */}
-              <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900">
+              <main className="flex-1 overflow-auto bg-white dark:bg-slate-900">
                 <div className="h-full pt-14 lg:pt-0">{children}</div>
               </main>
             </div>

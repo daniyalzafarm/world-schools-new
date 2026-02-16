@@ -56,13 +56,7 @@ export function SessionsSection({
 }
 
 // Session Card Component
-function SessionCard({
-  session,
-  currency = 'USD',
-}: {
-  session: Session
-  currency?: string
-}) {
+function SessionCard({ session, currency = 'USD' }: { session: Session; currency?: string }) {
   const startDate = new Date(session.startDate)
   const endDate = new Date(session.endDate)
 
@@ -94,7 +88,11 @@ function SessionCard({
   const getPrice = () => {
     if (session.pricingType === 'single' && session.price !== undefined) {
       return session.price
-    } else if (session.pricingType === 'age_group' && session.ageGroupPrices && session.ageGroupPrices.length > 0) {
+    } else if (
+      session.pricingType === 'age_group' &&
+      session.ageGroupPrices &&
+      session.ageGroupPrices.length > 0
+    ) {
       // Return the minimum price from age groups
       return Math.min(...session.ageGroupPrices.map(agp => agp.price))
     }
@@ -137,9 +135,7 @@ function SessionCard({
         </div>
 
         <div className="text-right ml-6">
-          <div className="text-2xl font-bold text-gray-900">
-            {formatCurrency(price, currency)}
-          </div>
+          <div className="text-2xl font-bold text-gray-900">{formatCurrency(price, currency)}</div>
           <div className="text-sm text-gray-500 mt-1">
             {session.pricingType === 'age_group' ? 'from' : 'per child'}
           </div>

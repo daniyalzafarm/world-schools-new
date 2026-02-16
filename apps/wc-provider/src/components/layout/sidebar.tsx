@@ -379,7 +379,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
       <aside
         ref={asideRef}
         className={cn(
-          'h-full bg-default-50 dark:bg-gray-900/95 backdrop-blur-md z-40',
+          'h-full bg-white dark:bg-gray-900 backdrop-blur-md z-40',
           'border-r border-default-200 dark:border-gray-700',
           'fixed lg:static z-20',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',

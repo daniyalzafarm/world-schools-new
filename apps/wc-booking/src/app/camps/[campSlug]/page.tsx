@@ -652,7 +652,11 @@ function BookingSidebar({ camp }: { camp: Camp }) {
     const prices = activeSessions.map(session => {
       if (session.pricingType === 'single' && session.price !== undefined) {
         return session.price
-      } else if (session.pricingType === 'age_group' && session.ageGroupPrices && session.ageGroupPrices.length > 0) {
+      } else if (
+        session.pricingType === 'age_group' &&
+        session.ageGroupPrices &&
+        session.ageGroupPrices.length > 0
+      ) {
         return Math.min(...session.ageGroupPrices.map(agp => agp.price))
       }
       return 0
@@ -710,7 +714,11 @@ function BookingSidebar({ camp }: { camp: Camp }) {
     if (!selectedSession) return null
     if (selectedSession.pricingType === 'single' && selectedSession.price !== undefined) {
       return selectedSession.price
-    } else if (selectedSession.pricingType === 'age_group' && selectedSession.ageGroupPrices && selectedSession.ageGroupPrices.length > 0) {
+    } else if (
+      selectedSession.pricingType === 'age_group' &&
+      selectedSession.ageGroupPrices &&
+      selectedSession.ageGroupPrices.length > 0
+    ) {
       return Math.min(...selectedSession.ageGroupPrices.map(agp => agp.price))
     }
     return 0
@@ -887,7 +895,11 @@ function SidebarSessionCard({
   const getPrice = () => {
     if (session.pricingType === 'single' && session.price !== undefined) {
       return session.price
-    } else if (session.pricingType === 'age_group' && session.ageGroupPrices && session.ageGroupPrices.length > 0) {
+    } else if (
+      session.pricingType === 'age_group' &&
+      session.ageGroupPrices &&
+      session.ageGroupPrices.length > 0
+    ) {
       return Math.min(...session.ageGroupPrices.map(agp => agp.price))
     }
     return 0
