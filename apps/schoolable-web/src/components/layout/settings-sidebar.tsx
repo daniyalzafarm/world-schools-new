@@ -111,7 +111,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
           'border-r border-gray-200 dark:border-gray-700',
           'fixed lg:static z-40',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-          'transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
+          'transition-all duration-300 ease-in-out',
           // Full width on mobile, fixed width on desktop
           'w-full lg:w-80',
           // Add top padding on mobile to account for MobileHeader height

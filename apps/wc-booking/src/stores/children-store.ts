@@ -13,20 +13,24 @@ interface ChildrenActions {
   fetchChildren: () => Promise<void>
   getChildren: () => Child[]
   getChildById: (id: string) => Child | undefined
-  addChild: (child: Omit<Child, 'id' | 'createdAt' | 'updatedAt'>) => Promise<boolean>
+  addChild: (child: {
+    firstName: string
+    lastName?: string
+    dateOfBirth: string
+    gender: 'boy' | 'girl' | 'non_binary' | 'prefer_not_to_say'
+  }) => Promise<boolean>
   updateChild: (
     id: string,
-    updates: Partial<Omit<Child, 'id' | 'createdAt' | 'updatedAt'>>
+    updates: Partial<
+      Omit<Child, 'id' | 'createdAt' | 'updatedAt' | 'parentId' | 'profileCompletion' | 'archived'>
+    >
   ) => Promise<boolean>
+  archiveChild: (id: string) => Promise<boolean>
   removeChild: (id: string) => Promise<boolean>
   setChildren: (children: Child[]) => void
   clearError: () => void
-  // Progress tracking functions
-  getPersonalInfoProgress: (child: Child) => number
-  getAcademicPreferencesProgress: (child: Child) => number
-  getExtraCurricularProgress: (child: Child) => number
-  getSpecialNeedsProgress: (child: Child) => number
-  getOverallProgress: (child: Child) => number
+  // Helper functions
+  getBookingEligibleChildren: () => Child[]
 }
 
 type ChildrenStore = ChildrenState & ChildrenActions
@@ -119,6 +123,30 @@ export const useChildrenStore = create<ChildrenStore>()(
       }
     },
 
+    archiveChild: async (id: string) => {
+      set(state => {
+        state.isLoading = true
+        state.error = null
+      })
+
+      const response = await childrenService.archive(id)
+
+      if (response.success) {
+        set(state => {
+          // Remove archived child from the list
+          state.children = state.children.filter(child => child.id !== id)
+          state.isLoading = false
+        })
+        return true
+      } else {
+        set(state => {
+          state.error = (response.data as any)?.message || 'Failed to archive child'
+          state.isLoading = false
+        })
+        return false
+      }
+    },
+
     removeChild: async (id: string) => {
       set(state => {
         state.isLoading = true
@@ -154,71 +182,11 @@ export const useChildrenStore = create<ChildrenStore>()(
       })
     },
 
-    // Progress tracking functions
-    getPersonalInfoProgress: (child: Child) => {
-      const { personalInfo } = child
-      const completedFields = [
-        personalInfo.firstName?.trim(),
-        personalInfo.dateOfBirth,
-        personalInfo.gender,
-        personalInfo.nationality,
-        personalInfo.languages.length > 0,
-      ].filter(Boolean).length
-      return (completedFields / 5) * 100
-    },
-
-    getAcademicPreferencesProgress: (child: Child) => {
-      const { academicPreferences } = child
-      const completedFields = [
-        academicPreferences.currentGrade,
-        academicPreferences.favoriteSubjects.length > 0,
-        academicPreferences.learningStyle,
-        academicPreferences.languagesOfInstruction.length > 0,
-        academicPreferences.interestedInBoarding,
-      ].filter(Boolean).length
-      return (completedFields / 5) * 100
-    },
-
-    getExtraCurricularProgress: (child: Child) => {
-      const { extraCurricular } = child
-      const completedFields = [
-        extraCurricular.interests.length > 0,
-        extraCurricular.preferredSchedule,
-      ].filter(Boolean).length
-      return (completedFields / 2) * 100
-    },
-
-    getSpecialNeedsProgress: (child: Child) => {
-      const { specialNeeds } = child
-      const hasAreas = specialNeeds.areas.length > 0
-      const hasSupport = specialNeeds.supportNeeds.length > 0
-      const hasNotes = specialNeeds.additionalNotes?.trim()
-
-      // Count completed fields - all fields are optional but we track completion
-      const completedFields = [
-        hasAreas, // Areas of need
-        hasSupport, // Support needs
-        hasNotes, // Additional notes
-      ].filter(Boolean).length
-
-      // Return percentage based on 3 possible fields
-      return (completedFields / 3) * 100
-    },
-
-    getOverallProgress: (child: Child) => {
-      const personalProgress = get().getPersonalInfoProgress(child)
-      const academicProgress = get().getAcademicPreferencesProgress(child)
-      const extraCurricularProgress = get().getExtraCurricularProgress(child)
-      const specialNeedsProgress = get().getSpecialNeedsProgress(child)
-
-      // Equal weight for all sections (25% each)
-      const weightedProgress =
-        personalProgress * 0.25 +
-        academicProgress * 0.25 +
-        extraCurricularProgress * 0.25 +
-        specialNeedsProgress * 0.25
-
-      return Math.round(weightedProgress)
+    // Helper functions
+    getBookingEligibleChildren: () => {
+      return get().children.filter(
+        child => child.profileCompletion >= 75 && child.emergencyContacts.length >= 1
+      )
     },
   }))
 )

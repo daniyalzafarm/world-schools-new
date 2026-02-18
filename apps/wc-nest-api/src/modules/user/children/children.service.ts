@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { CreateChildDto } from './dto/create-child.dto'
 import { UpdateChildDto } from './dto/update-child.dto'
@@ -17,39 +22,21 @@ export class UserChildrenService {
       throw new NotFoundException('Parent profile not found for this user')
     }
 
-    // Convert date string to Date if provided
-    const dateOfBirth = createChildDto.personalInfo.dateOfBirth
-      ? new Date(createChildDto.personalInfo.dateOfBirth)
-      : null
+    // Convert date string to Date
+    const dateOfBirth = new Date(createChildDto.dateOfBirth)
 
-    // Create child
+    // Create child with minimal fields
     const child = await this.prisma.children.create({
       data: {
-        // Personal Info
-        firstName: createChildDto.personalInfo.firstName,
-        lastName: createChildDto.personalInfo.lastName,
+        firstName: createChildDto.firstName,
+        lastName: createChildDto.lastName,
         dateOfBirth: dateOfBirth,
-        gender: createChildDto.personalInfo.gender,
-        nationality: createChildDto.personalInfo.nationality,
-        languages: createChildDto.personalInfo.languages ?? [],
-
-        // Academic Preferences
-        currentGrade: createChildDto.academicPreferences?.currentGrade,
-        favoriteSubjects: createChildDto.academicPreferences?.favoriteSubjects ?? [],
-        learningStyle: createChildDto.academicPreferences?.learningStyle,
-        languagesOfInstruction: createChildDto.academicPreferences?.languagesOfInstruction ?? [],
-        interestedInBoarding: createChildDto.academicPreferences?.interestedInBoarding,
-
-        // Extra-Curricular
-        interests: createChildDto.extraCurricular?.interests ?? [],
-        preferredSchedule: createChildDto.extraCurricular?.preferredSchedule,
-
-        // Special Needs
-        specialNeedsAreas: createChildDto.specialNeeds?.areas ?? [],
-        specialNeedsSupportNeeds: createChildDto.specialNeeds?.supportNeeds ?? [],
-        specialNeedsNotes: createChildDto.specialNeeds?.additionalNotes,
-
+        gender: createChildDto.gender,
         parentId: parent.id,
+        // Initialize JSONB fields
+        emergencyContacts: [],
+        // Profile completion will be calculated (30% for basic info)
+        profileCompletion: 30,
       },
     })
 
@@ -66,13 +53,14 @@ export class UserChildrenService {
       throw new NotFoundException('Parent profile not found for this user')
     }
 
-    // Get all children for this parent
+    // Get all non-archived children for this parent
     const children = await this.prisma.children.findMany({
       where: {
         parentId: parent.id,
+        archived: false,
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: 'asc',
       },
     })
 
@@ -108,80 +96,85 @@ export class UserChildrenService {
 
   async update(userId: string, id: string, updateChildDto: UpdateChildDto) {
     // Verify child exists and belongs to parent
-    await this.findOne(userId, id)
+    const existingChild = await this.findOne(userId, id)
+
+    // Validate emergency contacts (max 3)
+    if (updateChildDto.emergencyContacts && updateChildDto.emergencyContacts.length > 3) {
+      throw new BadRequestException('Maximum 3 emergency contacts allowed')
+    }
 
     // Build update data
     const updateData: any = {}
 
-    // Personal Info
-    if (updateChildDto.personalInfo) {
-      if (updateChildDto.personalInfo.firstName !== undefined) {
-        updateData.firstName = updateChildDto.personalInfo.firstName
-      }
-      if (updateChildDto.personalInfo.lastName !== undefined) {
-        updateData.lastName = updateChildDto.personalInfo.lastName
-      }
-      if (updateChildDto.personalInfo.dateOfBirth !== undefined) {
-        updateData.dateOfBirth = new Date(updateChildDto.personalInfo.dateOfBirth)
-      }
-      if (updateChildDto.personalInfo.gender !== undefined) {
-        updateData.gender = updateChildDto.personalInfo.gender
-      }
-      if (updateChildDto.personalInfo.nationality !== undefined) {
-        updateData.nationality = updateChildDto.personalInfo.nationality
-      }
-      if (updateChildDto.personalInfo.languages !== undefined) {
-        updateData.languages = updateChildDto.personalInfo.languages
-      }
+    // Basic info
+    if (updateChildDto.firstName !== undefined) {
+      updateData.firstName = updateChildDto.firstName
+    }
+    if (updateChildDto.lastName !== undefined) {
+      updateData.lastName = updateChildDto.lastName
+    }
+    if (updateChildDto.nickname !== undefined) {
+      updateData.nickname = updateChildDto.nickname
+    }
+    if (updateChildDto.dateOfBirth !== undefined) {
+      updateData.dateOfBirth = new Date(updateChildDto.dateOfBirth)
+    }
+    if (updateChildDto.gender !== undefined) {
+      updateData.gender = updateChildDto.gender
+    }
+    if (updateChildDto.photoUrl !== undefined) {
+      updateData.photoUrl = updateChildDto.photoUrl
+    }
+    if (updateChildDto.schoolYear !== undefined) {
+      updateData.schoolYear = updateChildDto.schoolYear
+    }
+    if (updateChildDto.schoolCountry !== undefined) {
+      updateData.schoolCountry = updateChildDto.schoolCountry
+    }
+    if (updateChildDto.languages !== undefined) {
+      updateData.languages = updateChildDto.languages
     }
 
-    // Academic Preferences
-    if (updateChildDto.academicPreferences) {
-      if (updateChildDto.academicPreferences.currentGrade !== undefined) {
-        updateData.currentGrade = updateChildDto.academicPreferences.currentGrade
-      }
-      if (updateChildDto.academicPreferences.favoriteSubjects !== undefined) {
-        updateData.favoriteSubjects = updateChildDto.academicPreferences.favoriteSubjects
-      }
-      if (updateChildDto.academicPreferences.learningStyle !== undefined) {
-        updateData.learningStyle = updateChildDto.academicPreferences.learningStyle
-      }
-      if (updateChildDto.academicPreferences.languagesOfInstruction !== undefined) {
-        updateData.languagesOfInstruction =
-          updateChildDto.academicPreferences.languagesOfInstruction
-      }
-      if (updateChildDto.academicPreferences.interestedInBoarding !== undefined) {
-        updateData.interestedInBoarding = updateChildDto.academicPreferences.interestedInBoarding
-      }
+    // JSONB fields
+    if (updateChildDto.medicalInfo !== undefined) {
+      updateData.medicalInfo = updateChildDto.medicalInfo
     }
-
-    // Extra-Curricular
-    if (updateChildDto.extraCurricular) {
-      if (updateChildDto.extraCurricular.interests !== undefined) {
-        updateData.interests = updateChildDto.extraCurricular.interests
-      }
-      if (updateChildDto.extraCurricular.preferredSchedule !== undefined) {
-        updateData.preferredSchedule = updateChildDto.extraCurricular.preferredSchedule
-      }
+    if (updateChildDto.emergencyContacts !== undefined) {
+      updateData.emergencyContacts = updateChildDto.emergencyContacts
     }
-
-    // Special Needs
-    if (updateChildDto.specialNeeds) {
-      if (updateChildDto.specialNeeds.areas !== undefined) {
-        updateData.specialNeedsAreas = updateChildDto.specialNeeds.areas
-      }
-      if (updateChildDto.specialNeeds.supportNeeds !== undefined) {
-        updateData.specialNeedsSupportNeeds = updateChildDto.specialNeeds.supportNeeds
-      }
-      if (updateChildDto.specialNeeds.additionalNotes !== undefined) {
-        updateData.specialNeedsNotes = updateChildDto.specialNeeds.additionalNotes
-      }
+    if (updateChildDto.campPreferences !== undefined) {
+      updateData.campPreferences = updateChildDto.campPreferences
     }
 
     // Update child
-    const child = await this.prisma.children.update({
+    const updatedChild = await this.prisma.children.update({
       where: { id },
       data: updateData,
+    })
+
+    // Recalculate profile completion
+    const profileCompletion = this.calculateProfileCompletion(updatedChild)
+
+    // Update profile completion if changed
+    if (profileCompletion !== updatedChild.profileCompletion) {
+      const finalChild = await this.prisma.children.update({
+        where: { id },
+        data: { profileCompletion },
+      })
+      return this.formatChildResponse(finalChild)
+    }
+
+    return this.formatChildResponse(updatedChild)
+  }
+
+  async archive(userId: string, id: string) {
+    // Verify child exists and belongs to parent
+    await this.findOne(userId, id)
+
+    // Soft delete by setting archived flag
+    const child = await this.prisma.children.update({
+      where: { id },
+      data: { archived: true },
     })
 
     return this.formatChildResponse(child)
@@ -209,46 +202,94 @@ export class UserChildrenService {
       throw new ForbiddenException('You do not have permission to access this child')
     }
 
-    // Delete child
+    // Hard delete child (use archive() for soft delete)
     await this.prisma.children.delete({
       where: { id },
     })
 
     return {
-      message: `Child '${child.firstName} ${child.lastName}' deleted successfully`,
+      message: `Child '${child.firstName} ${child.lastName || ''}' deleted successfully`,
     }
   }
 
   /**
-   * Format child database record to match frontend Child type structure
+   * Calculate profile completion percentage based on filled fields
+   * Formula: Basic (30%) + Medical (20%) + Emergency (25%) + Preferences (15%) + Photo (10%)
+   */
+  private calculateProfileCompletion(child: any): number {
+    let score = 0
+
+    // Basic info (30%): firstName, dateOfBirth, gender
+    if (child.firstName && child.dateOfBirth && child.gender) {
+      score += 30
+    }
+
+    // Medical info (20%): has medical_info with any meaningful data
+    const medicalInfo = child.medicalInfo
+    const hasMedicalInfo =
+      medicalInfo &&
+      (medicalInfo.allergies?.length > 0 ||
+        medicalInfo.dietaryRequirements?.length > 0 ||
+        medicalInfo.medications ||
+        medicalInfo.medicalConditions ||
+        medicalInfo.specialNeeds ||
+        medicalInfo.swimmingAbility)
+    if (hasMedicalInfo) {
+      score += 20
+    }
+
+    // Emergency contacts (25%): has at least 1 contact
+    const emergencyContacts = Array.isArray(child.emergencyContacts) ? child.emergencyContacts : []
+    if (emergencyContacts.length >= 1) {
+      score += 25
+    }
+
+    // Preferences (15%): has camp_preferences with interests
+    const campPreferences = child.campPreferences
+    if (campPreferences?.interests?.length > 0) {
+      score += 15
+    }
+
+    // Photo (10%): has photo_url
+    if (child.photoUrl) {
+      score += 10
+    }
+
+    return score
+  }
+
+  /**
+   * Format child database record to match frontend Child interface
    */
   private formatChildResponse(child: any) {
+    // Parse JSONB fields
+    const medicalInfo = child.medicalInfo || null
+    const emergencyContacts = Array.isArray(child.emergencyContacts) ? child.emergencyContacts : []
+    const campPreferences = child.campPreferences || null
+
     return {
       id: child.id,
-      personalInfo: {
-        firstName: child.firstName,
-        lastName: child.lastName,
-        dateOfBirth: child.dateOfBirth,
-        gender: child.gender,
-        nationality: child.nationality,
-        languages: child.languages || [],
-      },
-      academicPreferences: {
-        currentGrade: child.currentGrade,
-        favoriteSubjects: child.favoriteSubjects || [],
-        learningStyle: child.learningStyle,
-        languagesOfInstruction: child.languagesOfInstruction || [],
-        interestedInBoarding: child.interestedInBoarding,
-      },
-      extraCurricular: {
-        interests: child.interests || [],
-        preferredSchedule: child.preferredSchedule,
-      },
-      specialNeeds: {
-        areas: child.specialNeedsAreas || [],
-        supportNeeds: child.specialNeedsSupportNeeds || [],
-        additionalNotes: child.specialNeedsNotes,
-      },
+      parentId: child.parentId,
+      // Basic info
+      firstName: child.firstName,
+      lastName: child.lastName || null,
+      nickname: child.nickname || null,
+      dateOfBirth: child.dateOfBirth,
+      gender: child.gender,
+      photoUrl: child.photoUrl || null,
+      schoolYear: child.schoolYear || null,
+      schoolCountry: child.schoolCountry || null,
+      languages: child.languages || [],
+      // Medical info
+      medicalInfo,
+      // Emergency contacts
+      emergencyContacts,
+      // Camp preferences
+      campPreferences,
+      // Profile completion
+      profileCompletion: child.profileCompletion || 0,
+      // Metadata
+      archived: child.archived || false,
       createdAt: child.createdAt,
       updatedAt: child.updatedAt,
     }

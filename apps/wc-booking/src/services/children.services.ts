@@ -21,9 +21,14 @@ export const childrenService = {
   },
 
   /**
-   * Create a new child
+   * Create a new child (minimal fields only)
    */
-  async create(child: Omit<Child, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResult<Child>> {
+  async create(child: {
+    firstName: string
+    lastName?: string
+    dateOfBirth: string
+    gender: 'boy' | 'girl' | 'non_binary' | 'prefer_not_to_say'
+  }): Promise<ApiResult<Child>> {
     return apiClient.post<Child>('/user/children', child)
   },
 
@@ -32,13 +37,22 @@ export const childrenService = {
    */
   async update(
     id: string,
-    updates: Partial<Omit<Child, 'id' | 'createdAt' | 'updatedAt'>>
+    updates: Partial<
+      Omit<Child, 'id' | 'createdAt' | 'updatedAt' | 'parentId' | 'profileCompletion' | 'archived'>
+    >
   ): Promise<ApiResult<Child>> {
     return apiClient.patch<Child>(`/user/children/${id}`, updates)
   },
 
   /**
-   * Delete a child
+   * Archive a child (soft delete)
+   */
+  async archive(id: string): Promise<ApiResult<Child>> {
+    return apiClient.patch<Child>(`/user/children/${id}/archive`, {})
+  },
+
+  /**
+   * Delete a child (permanent)
    */
   async delete(id: string): Promise<ApiResult<{ message: string }>> {
     return apiClient.del<{ message: string }>(`/user/children/${id}`)

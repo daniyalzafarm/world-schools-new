@@ -228,29 +228,31 @@ model Parent {
 model Children {
   id          String    @id @default(uuid())
 
-  // Personal Information
-  firstName   String    @map("first_name")
-  lastName    String    @map("last_name")
-  dateOfBirth DateTime? @map("date_of_birth")
-  gender      String?
-  nationality String?
-  languages   String[]  @default([])
+  // Basic Information (30% weight)
+  firstName     String    @map("first_name")
+  lastName      String?   @map("last_name")
+  nickname      String?
+  dateOfBirth   DateTime? @map("date_of_birth")
+  gender        String?
+  photoUrl      String?   @map("photo_url")
+  schoolYear    String?   @map("school_year")
+  schoolCountry String?   @map("school_country")
+  languages     String[]  @default([])
 
-  // Academic Preferences
-  currentGrade              String?   @map("current_grade")
-  favoriteSubjects          String[]  @default([]) @map("favorite_subjects")
-  learningStyle             String?   @map("learning_style")
-  languagesOfInstruction    String[]  @default([]) @map("languages_of_instruction")
-  interestedInBoarding      String?   @map("interested_in_boarding")
+  // Medical Information (20% weight) - JSONB
+  medicalInfo Json? @map("medical_info")
 
-  // Extra-Curricular
-  interests         String[]  @default([])
-  preferredSchedule String?   @map("preferred_schedule")
+  // Emergency Contacts (25% weight) - JSONB array
+  emergencyContacts Json @default("[]") @map("emergency_contacts")
 
-  // Special Needs
-  specialNeedsAreas        String[]  @default([]) @map("special_needs_areas")
-  specialNeedsSupportNeeds String[]  @default([]) @map("special_needs_support_needs")
-  specialNeedsNotes        String?   @map("special_needs_notes")
+  // Camp Preferences (15% weight) - JSONB
+  campPreferences Json? @map("camp_preferences")
+
+  // Profile Completion
+  profileCompletion Int @default(0) @map("profile_completion")
+
+  // Soft Delete
+  archived Boolean @default(false)
 
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
@@ -263,6 +265,7 @@ model Children {
   bookings Booking[]
 
   @@index([parentId])
+  @@index([archived])
   @@map("children")
 }
 

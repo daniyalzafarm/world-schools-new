@@ -23,6 +23,7 @@ import {
   LogOut,
   MessageCircle,
   Settings,
+  Users,
 } from 'lucide-react'
 import { cn } from '@world-schools/ui-web'
 
@@ -99,6 +100,12 @@ const NAV_ITEMS: NavItem[] = [
     name: 'Wishlists',
     href: '/wishlists',
     icon: <Heart size={20} />,
+    type: 'regular',
+  },
+  {
+    name: 'Children',
+    href: '/children',
+    icon: <Users size={20} />,
     type: 'regular',
   },
   {

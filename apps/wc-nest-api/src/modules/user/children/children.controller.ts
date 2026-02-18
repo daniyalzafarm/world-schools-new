@@ -49,7 +49,7 @@ export class UserChildrenController {
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a child',
-    description: 'Update child information',
+    description: 'Update child information (any section)',
   })
   async update(
     @CurrentUser() user: any,
@@ -60,10 +60,20 @@ export class UserChildrenController {
     return ResponseUtil.success(child)
   }
 
+  @Patch(':id/archive')
+  @ApiOperation({
+    summary: 'Archive a child',
+    description: 'Soft delete a child (can be restored later)',
+  })
+  async archive(@CurrentUser() user: any, @Param('id') id: string) {
+    const child = await this.childrenService.archive(user.id, id)
+    return ResponseUtil.success(child)
+  }
+
   @Delete(':id')
   @ApiOperation({
     summary: 'Delete a child',
-    description: 'Remove a child from your profile',
+    description: 'Permanently remove a child from your profile',
   })
   async remove(@CurrentUser() user: any, @Param('id') id: string) {
     const result = await this.childrenService.remove(user.id, id)
