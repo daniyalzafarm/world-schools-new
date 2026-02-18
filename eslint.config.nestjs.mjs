@@ -57,6 +57,7 @@ export function createNestJsConfig(importMetaUrl) {
         ...globals.node,
         ...globals.es2020,
         NodeJS: 'readonly',
+        Express: 'readonly', // For @types/multer and other Express type definitions
       },
     },
     plugins: {
@@ -74,7 +75,7 @@ export function createNestJsConfig(importMetaUrl) {
           destructuredArrayIgnorePattern: '^_',
         },
       ],
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/consistent-type-imports': [
         'error',

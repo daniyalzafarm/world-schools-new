@@ -1,4 +1,11 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button, Card, CardBody } from '@heroui/react'
+import { useAuth } from '@/hooks/use-auth'
+import { conversationsService, useMessagingStore } from '@/stores/messaging-store'
+import { ContextType } from '@world-schools/wc-frontend-utils'
 
 interface ProviderSectionProps {
   provider: {
@@ -20,9 +27,19 @@ interface ProviderSectionProps {
       website?: string
     }
   }
+  campId?: string
+  campSlug?: string
 }
 
-export function ProviderSection({ provider }: ProviderSectionProps) {
+export function ProviderSection({
+  provider,
+  campId,
+  campSlug,
+  campTitle,
+}: ProviderSectionProps & { campTitle?: string }) {
+  const router = useRouter()
+  const { isAuthenticated, user } = useAuth()
+  const { setDraftConversation } = useMessagingStore()
   const {
     legalCompanyName,
     legalCity,
@@ -42,6 +59,34 @@ export function ProviderSection({ provider }: ProviderSectionProps) {
 
   // Calculate years in operation
   const yearsInOperation = yearFounded ? new Date().getFullYear() - yearFounded : null
+
+  /**
+   * Handle message organizer button click
+   * - If not authenticated: redirect to login with return URL
+   * - If authenticated: save draft conversation and navigate to /messages (WhatsApp Web pattern)
+   */
+  const handleMessageOrganizer = () => {
+    // Check if user is authenticated
+    if (!isAuthenticated || !user) {
+      // Redirect to login with return URL
+      const returnUrl = campSlug ? `/camps/${campSlug}` : window.location.pathname
+      router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`)
+      return
+    }
+
+    // ✅ WhatsApp Web pattern: Save draft conversation metadata
+    setDraftConversation({
+      providerId: provider.id,
+      providerName: provider.legalCompanyName || 'Provider',
+      participantType: 'provider',
+      contextType: campId ? ContextType.CAMP : undefined,
+      contextId: campId,
+      contextName: campTitle,
+    })
+
+    // Navigate to /messages (not /messages/new or /messages/:id)
+    router.push('/messages')
+  }
 
   return (
     <div className="mb-12 pb-8 border-b border-gray-300">
@@ -109,10 +154,7 @@ export function ProviderSection({ provider }: ProviderSectionProps) {
             variant="bordered"
             size="lg"
             className="w-full md:w-auto font-semibold border-gray-900 text-gray-900"
-            onPress={() => {
-              // TODO: Implement message organizer functionality
-              console.log('Message organizer clicked')
-            }}
+            onPress={handleMessageOrganizer}
           >
             Message organizer
           </Button>

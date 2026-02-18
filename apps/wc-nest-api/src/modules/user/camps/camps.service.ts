@@ -6,26 +6,40 @@ import { AzureStorageService } from '@world-schools/wc-utils/backend'
 
 @Injectable()
 export class UserCampsService {
-  private readonly azureStorage: AzureStorageService
+  private azureStorage: AzureStorageService | null = null
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService
   ) {
-    // Initialize Azure Storage Service
-    this.azureStorage = new AzureStorageService(this.configService.azureStorageConfig)
+    // Azure Storage Service will be initialized lazily when needed
+  }
+
+  /**
+   * Get or initialize Azure Storage Service
+   */
+  private getAzureStorage(): AzureStorageService {
+    if (!this.azureStorage) {
+      const config = this.configService.azureStorageConfig
+      if (!config.accountName || !config.accountKey || !config.containerName) {
+        throw new Error('Azure Storage is not configured. Please contact the administrator.')
+      }
+      this.azureStorage = new AzureStorageService(config)
+    }
+    return this.azureStorage
   }
 
   /**
    * Generate SAS URLs for photos
    */
   private async generatePhotoUrls(photos: any[]): Promise<any[]> {
+    const azureStorage = this.getAzureStorage()
     return Promise.all(
       photos.map(async photo => {
         try {
           // Generate SAS URL for secure access (24 hours expiry)
-          const sasUrl = await this.azureStorage.generateSasUrl(photo.url, 24)
+          const sasUrl = await azureStorage.generateSasUrl(photo.url, 24)
           return {
             ...photo,
             url: sasUrl,

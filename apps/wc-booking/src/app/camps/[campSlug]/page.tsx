@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import {
   CAMPUS_SETTING,
   CAMPUS_SIZE,
+  ContextType,
   PREDEFINED_DIETARY_OPTIONS,
   PREDEFINED_FACILITIES,
 } from '@world-schools/wc-frontend-utils'
@@ -43,6 +44,8 @@ import {
 } from '@/utils/activity-transformers'
 import { Button } from '@heroui/react'
 import { formatCurrency } from '@/utils/currency'
+import { useAuth } from '@/hooks/use-auth'
+import { useMessagingStore } from '@/stores/messaging-store'
 
 export default function CampPage() {
   const params = useParams()
@@ -602,7 +605,12 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
       {/* Provider/Organizer Information */}
       {camp.provider && (
         <div id="provider">
-          <ProviderSection provider={camp.provider} />
+          <ProviderSection
+            provider={camp.provider}
+            campId={camp.id}
+            campSlug={camp.slug}
+            campTitle={camp.name}
+          />
         </div>
       )}
 
@@ -639,11 +647,49 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
 
 // Booking Sidebar Component
 function BookingSidebar({ camp }: { camp: Camp }) {
+  const router = useRouter()
+  const { isAuthenticated, user } = useAuth()
+  const { setDraftConversation } = useMessagingStore()
   const [selectedSession, setSelectedSession] = useState<Session | null>(null)
 
   const sessions = camp.sessions ?? []
   const activeSessions = sessions.filter(s => s.status === 'published')
   const currency = camp.provider?.settings?.currency || 'USD'
+
+  /**
+   * Handle message organizer button click
+   * - If not authenticated: redirect to login with return URL
+   * - If authenticated: create/get conversation and navigate to messages
+   */
+  const handleMessageOrganizer = () => {
+    // Check if user is authenticated
+    if (!isAuthenticated || !user) {
+      // Redirect to login with return URL
+      const returnUrl = `/camps/${camp.slug}`
+      router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`)
+      return
+    }
+
+    // Check if camp has a provider
+    if (!camp.provider?.id) {
+      console.error('Camp does not have a provider')
+      alert('Unable to start conversation. Provider information is missing.')
+      return
+    }
+
+    // ✅ WhatsApp Web pattern: Save draft conversation metadata
+    setDraftConversation({
+      providerId: camp.provider.id,
+      providerName: camp.provider.legalCompanyName || 'Provider',
+      participantType: 'provider',
+      contextType: ContextType.CAMP,
+      contextId: camp.id,
+      contextName: camp.name, // Use 'name' instead of 'title'
+    })
+
+    // Navigate to /messages (not /messages/new or /messages/:id)
+    router.push('/messages')
+  }
 
   // Calculate minimum price from sessions
   const getMinPrice = () => {
@@ -822,10 +868,7 @@ function BookingSidebar({ camp }: { camp: Camp }) {
             size="lg"
             color="secondary"
             className="w-full"
-            onPress={() => {
-              // TODO: Implement message organizer functionality
-              console.log('Message organizer clicked')
-            }}
+            onPress={handleMessageOrganizer}
           >
             Message organizer
           </Button>

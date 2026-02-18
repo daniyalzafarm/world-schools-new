@@ -115,26 +115,11 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     name: 'Messages',
-    href: '',
+    href: '/messages',
     icon: <MessageCircle size={20} />,
-    type: 'collapsible',
-    badge: 5,
+    type: 'regular',
+    // badge: 5,
     // No permission required - available to all authenticated users
-    children: [
-      {
-        name: 'My Inbox',
-        href: '/messages/my-inbox',
-        badge: 3,
-        icon: <MessageCircle size={18} />,
-      },
-      {
-        name: 'Unassigned',
-        href: '/messages/unassigned',
-        badge: 2,
-        icon: <MessageCircleWarning size={18} />,
-      },
-      { name: 'Team Inbox', href: '/messages/team-inbox', icon: <Inbox size={18} /> },
-    ],
   },
   {
     name: 'Camps',
@@ -198,9 +183,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
     collapseSidebar,
   } = useSidebarExpansion(toggleCollapsed)
 
-  const [expandedSections, setExpandedSections] = React.useState<Record<string, boolean>>({
-    Messages: false,
-  })
+  const [expandedSections, setExpandedSections] = React.useState<Record<string, boolean>>({})
 
   // Refs
   const asideRef = React.useRef<HTMLDivElement | null>(null)

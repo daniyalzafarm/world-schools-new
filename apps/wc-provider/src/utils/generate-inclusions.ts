@@ -18,7 +18,7 @@ const ACTIVITY_INCLUSIONS: Record<string, { text: string; icon: string; source: 
   },
   arts: {
     text: 'Arts and crafts materials',
-    icon: '�',
+    icon: '🎨',
     source: 'Arts',
   },
   adventure: {

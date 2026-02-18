@@ -30,3 +30,24 @@ export * from './constants/meals-activities'
 
 // Location and campus facilities constants
 export * from './constants/location-campus-activities'
+
+// Messaging types (enums, models, DTOs, utilities)
+export * from './lib/messaging/types'
+
+// Messaging services (conversations, messages, WebSocket)
+export * from './lib/messaging/services'
+
+// Messaging store (Zustand store factory)
+export * from './lib/messaging/store'
+
+// Global WebSocket service (shared across apps)
+export * from './lib/websocket'
+
+// Messaging WebSocket adapter
+export {
+  createMessagingWebSocketAdapter,
+  type MessagingWebSocketAdapter,
+} from './lib/messaging/adapters/messaging-websocket-adapter'
+
+// Feature flags (shared across apps)
+export * from './lib/config/feature-flags'

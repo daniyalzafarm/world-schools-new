@@ -7,6 +7,7 @@ import { OnboardingModule } from './onboarding/onboarding.module'
 import { CampsModule } from './camps/camps.module'
 import { AddOnsModule } from './add-ons/add-ons.module'
 import { SessionsModule } from './sessions/sessions.module'
+import { ProviderMessagingModule } from './messaging/provider-messaging.module'
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { SessionsModule } from './sessions/sessions.module'
     CampsModule,
     AddOnsModule,
     SessionsModule,
+    ProviderMessagingModule,
   ],
 })
 export class ProviderModule {}

@@ -36,6 +36,25 @@ model User {
   passwordResets       PasswordReset[]
   reviewedDocuments    VerificationDocument[] @relation("ReviewedDocuments")
 
+  // Messaging Relations
+  conversationParticipants   ConversationParticipant[]
+  sentMessages               Message[]
+  messageReadReceipts        MessageReadReceipt[]
+  uploadedAttachments        MessageAttachment[]
+  presence                   UserPresence?
+  messageDeliveryReceipts    MessageDeliveryReceipt[]
+  messageReactions           MessageReaction[]
+  messageEdits               MessageEditHistory[]          @relation("MessageEditor")
+  messageMentions            MessageMention[]
+  messageBookmarks           MessageBookmark[]
+  reportedMessages           MessageReport[]               @relation("ReportedMessages")
+  reviewedReports            MessageReport[]               @relation("ReviewedReports")
+  createdLabels              ConversationLabel[]
+  assignedLabels             ConversationLabelAssignment[]
+  assignedConversations      Conversation[]                @relation("AssignedConversations")
+  conversationsAssigned      Conversation[]                @relation("AssignedByUser")
+  statusChangedConversations Conversation[]                @relation("StatusChangedByUser")
+
   @@map("users")
 }
 
@@ -125,28 +144,28 @@ model RolePermission {
 // ============================================
 
 model Provider {
-  id        String   @id @default(uuid())
-  ownerId   String   @unique @map("owner_id")
-  legalCompanyName   String?   @map("legal_company_name")
-  legalStreetAddress String?   @map("legal_street_address")
-  legalAptSuite      String?   @map("legal_apt_suite")
-  legalCity          String?   @map("legal_city")
-  legalStateProvince String?   @map("legal_state_province")
-  legalPostalCode    String?   @map("legal_postal_code")
-  legalCountry       String?   @map("legal_country")
-  yearFounded        Int?      @map("year_founded")
-  phone     String?
-  email     String?
-  website   String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                 String   @id @default(uuid())
+  ownerId            String   @unique @map("owner_id")
+  legalCompanyName   String?  @map("legal_company_name")
+  legalStreetAddress String?  @map("legal_street_address")
+  legalAptSuite      String?  @map("legal_apt_suite")
+  legalCity          String?  @map("legal_city")
+  legalStateProvince String?  @map("legal_state_province")
+  legalPostalCode    String?  @map("legal_postal_code")
+  legalCountry       String?  @map("legal_country")
+  yearFounded        Int?     @map("year_founded")
+  phone              String?
+  email              String?
+  website            String?
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   // Contact & Account (Step 2)
-  contactFirstName   String?   @map("contact_first_name")
-  contactLastName    String?   @map("contact_last_name")
-  contactRole        String?   @map("contact_role")
-  contactPhone       String?   @map("contact_phone")
-  contactEmail       String?   @map("contact_email")
+  contactFirstName String? @map("contact_first_name")
+  contactLastName  String? @map("contact_last_name")
+  contactRole      String? @map("contact_role")
+  contactPhone     String? @map("contact_phone")
+  contactEmail     String? @map("contact_email")
 
   // Camp Details (Step 3)
   description String? @db.Text
@@ -189,6 +208,9 @@ model Provider {
   camps                 Camp[]
   addOns                AddOn[]
 
+  // Messaging Relations
+  conversationParticipants ConversationParticipant[]
+
   @@index([ownerId])
   @@index([approvalStatus])
   @@index([approvedByAdminId])
@@ -226,7 +248,7 @@ model Parent {
 // ============================================
 
 model Children {
-  id          String    @id @default(uuid())
+  id String @id @default(uuid())
 
   // Basic Information (30% weight)
   firstName     String    @map("first_name")
@@ -254,8 +276,8 @@ model Children {
   // Soft Delete
   archived Boolean @default(false)
 
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // The parent this child belongs to
   parentId String @map("parent_id")
@@ -445,11 +467,11 @@ model Camp {
   photos Json? // [{id, url, thumbnail, isPrimary}, ...]
 
   // Editor-only fields
-  whatsIncluded           Json?   // {items: string[], customItems: string[]}
+  whatsIncluded           Json? // {items: string[], customItems: string[]}
   scheduleType            String? // 'daily' | 'weekly' | null
-  dailySchedule           Json?   // For daily schedule data
-  weeklySchedule          Json?   // For weekly schedule data
-  meals                   Json?   // {breakfast, lunch, dinner, snacks, dietary}
+  dailySchedule           Json? // For daily schedule data
+  weeklySchedule          Json? // For weekly schedule data
+  meals                   Json? // {breakfast, lunch, dinner, snacks, dietary}
   sportsActivities        Json? // {selected: string[], details: {...}}
   languagePrograms        Json? // {selected: string[], details: {...}}
   artsAndCrafts           Json? // {selected: string[], details: {...}}
@@ -559,9 +581,9 @@ model Session {
   endDate   DateTime @map("end_date") // Actual session end
 
   // Session Type (only for day camps)
-  sessionDayType   SessionDayType? @map("session_day_type") // 'full_day' | 'half_day'
-  arrivalTime   String?         @map("arrival_time") // HH:MM format, only for half_day
-  departureTime String?         @map("departure_time") // HH:MM format, only for half_day
+  sessionDayType SessionDayType? @map("session_day_type") // 'full_day' | 'half_day'
+  arrivalTime    String?         @map("arrival_time") // HH:MM format, only for half_day
+  departureTime  String?         @map("departure_time") // HH:MM format, only for half_day
 
   // Pricing
   pricingType    PricingType @default(single) @map("pricing_type") // 'single' | 'age_group'
@@ -726,4 +748,515 @@ enum PricingUnit {
   per_week
   per_bag
   one_time
+}
+
+// ============================================
+// Messaging System Models
+// ============================================
+
+model Conversation {
+  id            String           @id @default(uuid())
+  type          ConversationType
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  lastMessageId String?          @unique @map("last_message_id")
+
+  // Context & Metadata (GAP 5)
+  subject     String?      @db.VarChar(255)
+  contextType ContextType? @map("context_type")
+  contextId   String?      @map("context_id")
+  metadata    Json?
+
+  // Assignment (GAP 12)
+  assignedToId String?   @map("assigned_to_id")
+  assignedAt   DateTime? @map("assigned_at")
+  assignedBy   String?   @map("assigned_by")
+
+  // Status tracking (GAP 13)
+  status              ConversationStatus @default(OPEN)
+  openedAt            DateTime           @default(now()) @map("opened_at")
+  statusChangedAt     DateTime?          @map("status_changed_at")
+  statusChangedByUser String?            @map("status_changed_by")
+
+  // Cached metrics (GAP 28)
+  messageCount     Int      @default(0) @map("message_count")
+  participantCount Int      @default(0) @map("participant_count")
+  avgResponseTime  Int?     @map("avg_response_time") // seconds
+  lastActivityAt   DateTime @default(now()) @map("last_activity_at")
+
+  // Relations
+  participants       ConversationParticipant[]
+  messages           Message[]
+  lastMessage        Message?                      @relation("LastMessage", fields: [lastMessageId], references: [id])
+  labels             ConversationLabelAssignment[]
+  assignedTo         User?                         @relation("AssignedConversations", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assigner           User?                         @relation("AssignedByUser", fields: [assignedBy], references: [id])
+  statusChangedByRel User?                         @relation("StatusChangedByUser", fields: [statusChangedByUser], references: [id])
+
+  @@index([type])
+  @@index([updatedAt])
+  @@index([contextType, contextId])
+  @@index([assignedToId])
+  @@index([assignedAt])
+  @@index([status, updatedAt])
+  @@index([lastActivityAt])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String  @id @default(uuid())
+  conversationId String  @map("conversation_id")
+  userId         String  @map("user_id")
+  providerId     String? @map("provider_id") // For provider participants
+
+  // Participant-specific settings
+  pinned     Boolean   @default(false)
+  pinnedAt   DateTime? @map("pinned_at")
+  starred    Boolean   @default(false)
+  muted      Boolean   @default(false)
+  archived   Boolean   @default(false)
+  archivedAt DateTime? @map("archived_at")
+
+  // Read tracking
+  lastReadAt  DateTime? @map("last_read_at")
+  unreadCount Int       @default(0) @map("unread_count")
+
+  // Auto-response settings (GAP 17)
+  autoResponseEnabled Boolean   @default(false) @map("auto_response_enabled")
+  autoResponseMessage String?   @map("auto_response_message") @db.Text
+  autoResponseUntil   DateTime? @map("auto_response_until")
+  businessHoursOnly   Boolean   @default(false) @map("business_hours_only")
+
+  // Rate limiting (GAP 26)
+  messageCount24h Int       @default(0) @map("message_count_24h")
+  lastMessageAt   DateTime? @map("last_message_at")
+  isRateLimited   Boolean   @default(false) @map("is_rate_limited")
+  rateLimitUntil  DateTime? @map("rate_limit_until")
+
+  // Metadata
+  joinedAt DateTime  @default(now()) @map("joined_at")
+  leftAt   DateTime? @map("left_at")
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider     Provider?    @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([providerId])
+  @@index([conversationId, lastReadAt])
+  @@index([isRateLimited])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String     @id @default(uuid())
+  conversationId String     @map("conversation_id")
+  senderId       String     @map("sender_id")
+  senderType     SenderType @map("sender_type")
+
+  // Message content
+  content     String      @db.Text
+  contentType ContentType @default(TEXT) @map("content_type")
+
+  // Attachments
+  attachments Json? // Array of {id, url, type, size, name}
+
+  // Message metadata
+  type     MessageType @default(REGULAR)
+  metadata Json? // For transfer requests, system messages, etc.
+
+  // Reply/Threading support (GAP 1)
+  replyToId String? @map("reply_to_id")
+
+  // Forwarding support (GAP 9)
+  forwardedFromId String? @map("forwarded_from_id")
+  forwardCount    Int     @default(0) @map("forward_count")
+
+  // Priority & Pinning (GAP 11)
+  isPinned Boolean          @default(false) @map("is_pinned")
+  pinnedAt DateTime?        @map("pinned_at")
+  pinnedBy String?          @map("pinned_by")
+  priority MessagePriority? @default(NORMAL)
+
+  // Scheduling support (GAP 18)
+  scheduledFor DateTime? @map("scheduled_for")
+  scheduledBy  String?   @map("scheduled_by")
+  isScheduled  Boolean   @default(false) @map("is_scheduled")
+
+  // Status tracking
+  status      MessageStatus @default(SENT)
+  deliveredAt DateTime?     @map("delivered_at")
+  readAt      DateTime?     @map("read_at")
+
+  // Performance tracking (GAP 27)
+  sentAt            DateTime @default(now()) @map("sent_at")
+  deliveryLatencyMs Int?     @map("delivery_latency_ms")
+
+  // Edit/Delete tracking (GAP 7 - Enhanced)
+  editedAt     DateTime?     @map("edited_at")
+  deletedAt    DateTime?     @map("deleted_at")
+  deletedBy    String?       @map("deleted_by")
+  isDeleted    Boolean       @default(false) @map("is_deleted")
+  deletionType DeletionType? @map("deletion_type")
+
+  // Full-text search support (GAP 6)
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  conversation     Conversation             @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender           User                     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  lastMessageFor   Conversation?            @relation("LastMessage")
+  readReceipts     MessageReadReceipt[]
+  deliveryReceipts MessageDeliveryReceipt[] // GAP 3
+  reactions        MessageReaction[] // GAP 4
+  editHistory      MessageEditHistory[] // GAP 8
+  mentions         MessageMention[] // GAP 14
+  bookmarks        MessageBookmark[] // GAP 15
+  reports          MessageReport[] // GAP 25
+  replyTo          Message?                 @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies          Message[]                @relation("MessageReplies")
+  forwardedFrom    Message?                 @relation("MessageForwards", fields: [forwardedFromId], references: [id], onDelete: SetNull)
+  forwards         Message[]                @relation("MessageForwards")
+
+  @@index([conversationId, createdAt])
+  @@index([conversationId, createdAt(sort: Desc), id]) // GAP 2 - Cursor pagination
+  @@index([senderId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([replyToId])
+  @@index([forwardedFromId])
+  @@index([conversationId, isPinned, createdAt])
+  @@index([scheduledFor])
+  @@index([isScheduled, scheduledFor])
+  @@index([isDeleted, conversationId, createdAt])
+  @@index([sentAt])
+  @@index([searchVector], type: Gin) // GAP 6 - Full-text search
+  @@map("messages")
+}
+
+model MessageReadReceipt {
+  id        String   @id @default(uuid())
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  readAt    DateTime @default(now()) @map("read_at")
+
+  // Relations
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+  @@map("message_read_receipts")
+}
+
+// GAP 3: Message Delivery Tracking
+model MessageDeliveryReceipt {
+  id          String   @id @default(uuid())
+  messageId   String   @map("message_id")
+  userId      String   @map("user_id")
+  deliveredAt DateTime @default(now()) @map("delivered_at")
+
+  // Relations
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+  @@index([deliveredAt])
+  @@map("message_delivery_receipts")
+}
+
+// GAP 4: Message Reactions
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  emoji     String   @db.VarChar(10) // Unicode emoji
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@index([userId])
+  @@map("message_reactions")
+}
+
+// GAP 8: Message Edit History
+model MessageEditHistory {
+  id              String   @id @default(uuid())
+  messageId       String   @map("message_id")
+  previousContent String   @db.Text
+  editedBy        String   @map("edited_by")
+  editedAt        DateTime @default(now()) @map("edited_at")
+  editReason      String?  @db.Text
+
+  // Relations
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  editor  User    @relation("MessageEditor", fields: [editedBy], references: [id])
+
+  @@index([messageId, editedAt])
+  @@map("message_edit_history")
+}
+
+// GAP 14: Message Mentions
+model MessageMention {
+  id        String   @id @default(uuid())
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId, createdAt])
+  @@map("message_mentions")
+}
+
+// GAP 15: Message Bookmarks
+model MessageBookmark {
+  id        String   @id @default(uuid())
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  note      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId, createdAt])
+  @@map("message_bookmarks")
+}
+
+// GAP 25: Abuse Reporting
+model MessageReport {
+  id          String       @id @default(uuid())
+  messageId   String       @map("message_id")
+  reportedBy  String       @map("reported_by")
+  reason      ReportReason
+  description String?      @db.Text
+  status      ReportStatus @default(PENDING)
+  reviewedBy  String?      @map("reviewed_by")
+  reviewedAt  DateTime?    @map("reviewed_at")
+  resolution  String?      @db.Text
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  // Relations
+  message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  reporter User    @relation("ReportedMessages", fields: [reportedBy], references: [id])
+  reviewer User?   @relation("ReviewedReports", fields: [reviewedBy], references: [id])
+
+  @@index([messageId])
+  @@index([reportedBy])
+  @@index([status])
+  @@map("message_reports")
+}
+
+model MessageAttachment {
+  id        String @id @default(uuid())
+  messageId String @map("message_id")
+
+  // File metadata
+  fileName String   @map("file_name")
+  fileSize Int      @map("file_size") // bytes
+  mimeType String   @map("mime_type")
+  fileType FileType @map("file_type")
+
+  // Storage
+  storageUrl   String  @map("storage_url") // Azure Blob Storage URL
+  cdnUrl       String? @map("cdn_url") // CDN URL for fast delivery
+  thumbnailUrl String? @map("thumbnail_url") // For images/videos
+
+  // Metadata
+  uploadedBy String   @map("uploaded_by")
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+
+  // Relations
+  uploader User @relation(fields: [uploadedBy], references: [id])
+
+  @@index([messageId])
+  @@index([uploadedBy])
+  @@map("message_attachments")
+}
+
+model TypingIndicator {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  userId         String   @map("user_id")
+  startedAt      DateTime @default(now()) @map("started_at")
+  expiresAt      DateTime @map("expires_at")
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([expiresAt])
+  @@map("typing_indicators")
+}
+
+model UserPresence {
+  userId     String         @id @map("user_id")
+  status     PresenceStatus
+  lastSeenAt DateTime       @default(now()) @map("last_seen_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([lastSeenAt])
+  @@map("user_presence")
+}
+
+// GAP 10: Conversation Labels
+model ConversationLabel {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(50)
+  color     String?  @db.VarChar(7) // Hex color code
+  icon      String?  @db.VarChar(10) // Emoji
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  creator       User                          @relation(fields: [createdBy], references: [id])
+  conversations ConversationLabelAssignment[]
+
+  @@unique([name])
+  @@map("conversation_labels")
+}
+
+model ConversationLabelAssignment {
+  conversationId String   @map("conversation_id")
+  labelId        String   @map("label_id")
+  assignedBy     String   @map("assigned_by")
+  assignedAt     DateTime @default(now()) @map("assigned_at")
+
+  // Relations
+  conversation Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  label        ConversationLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+  assigner     User              @relation(fields: [assignedBy], references: [id])
+
+  @@id([conversationId, labelId])
+  @@index([conversationId])
+  @@index([labelId])
+  @@map("conversation_label_assignments")
+}
+
+// ============================================
+// Messaging System Enums
+// ============================================
+
+enum ConversationType {
+  USER_PROVIDER // Parent/User ↔ Camp Provider
+  USER_SUPERADMIN // Parent/User ↔ Platform Support
+  PROVIDER_SUPERADMIN // Provider ↔ Platform Support (future)
+}
+
+enum SenderType {
+  USER
+  PROVIDER
+  SUPERADMIN
+  CHATBOT
+  SYSTEM
+}
+
+enum ContentType {
+  TEXT
+  IMAGE
+  FILE
+  VIDEO
+  AUDIO
+}
+
+enum MessageType {
+  REGULAR
+  TRANSFER_REQUEST
+  TRANSFER_SUMMARY
+  SYSTEM_NOTIFICATION
+  CHATBOT_RESPONSE
+}
+
+enum MessageStatus {
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum FileType {
+  IMAGE
+  DOCUMENT
+  VIDEO
+  AUDIO
+  OTHER
+}
+
+enum PresenceStatus {
+  ONLINE
+  AWAY
+  OFFLINE
+}
+
+// GAP 5: Context Type
+enum ContextType {
+  BOOKING
+  CAMP
+  PROVIDER
+  GENERAL
+}
+
+// GAP 7: Deletion Type
+enum DeletionType {
+  USER_DELETED // User deleted their own message
+  ADMIN_DELETED // Admin/moderator deleted
+  AUTO_DELETED // Auto-deleted (retention policy)
+  GDPR_DELETED // GDPR right to be forgotten
+}
+
+// GAP 11: Message Priority
+enum MessagePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// GAP 13: Conversation Status
+enum ConversationStatus {
+  OPEN // Active conversation
+  PENDING // Waiting for user response
+  RESOLVED // Issue resolved, awaiting confirmation
+  CLOSED // Conversation closed
+  ARCHIVED // Archived for reference
+}
+
+// GAP 25: Report Reason
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  INAPPROPRIATE_CONTENT
+  SCAM
+  IMPERSONATION
+  OTHER
+}
+
+// GAP 25: Report Status
+enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
 }

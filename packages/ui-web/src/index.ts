@@ -6,3 +6,14 @@ export * from './hooks'
 
 // Export utilities
 export { cn } from './utils/cn'
+export {
+  formatRelativeTime,
+  formatShortRelativeTime,
+  formatMessageTimestamp,
+  isUserOnline,
+  formatLastSeen,
+} from './utils/time-format'
+
+// Export types
+export type { Message, Conversation, FilterType, ReportReason } from './types/messages'
+export { DEFAULT_REPORT_REASONS } from './types/messages'

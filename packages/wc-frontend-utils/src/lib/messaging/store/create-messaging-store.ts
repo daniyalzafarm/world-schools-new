@@ -1,0 +1,1020 @@
+/**
+ * Messaging Store Factory for World Camps Applications
+ *
+ * This factory creates a configured Zustand store for messaging state management.
+ * It handles conversations, messages, WebSocket integration, optimistic updates,
+ * and real-time features (typing indicators, presence, receipts).
+ *
+ * @example
+ * ```typescript
+ * import { createApiClient } from '@world-schools/wc-utils'
+ * import { createConversationsService, createMessagesService, createMessagingStore, createMessagingWebSocketAdapter, createGlobalWebSocketService } from '@world-schools/wc-frontend-utils'
+ *
+ * const apiClient = createApiClient({
+ *   baseURL: 'http://localhost:3000/',
+ *   usingRequest: false,
+ *   storageKeyPrefix: 'wc_booking',
+ *   refreshEndpoint: '/auth/refresh'
+ * })
+ *
+ * const conversationsService = createConversationsService({ apiClient })
+ * const messagesService = createMessagesService({ apiClient })
+ * const globalWsService = createGlobalWebSocketService({ url: 'http://localhost:3000', ... })
+ * const messagingWebSocket = createMessagingWebSocketAdapter(globalWsService)
+ *
+ * const { useMessagingStore } = createMessagingStore({
+ *   apiClient,
+ *   conversationsService,
+ *   messagesService,
+ *   messagingWebSocket,
+ *   storageKeyPrefix: 'wc_booking',
+ * })
+ *
+ * // Use in components
+ * function MessagesPage() {
+ *   const { conversations, sendMessage, isConnected } = useMessagingStore()
+ *   // ...
+ * }
+ * ```
+ */
+
+import { create } from 'zustand'
+import { immer } from 'zustand/middleware/immer'
+import type { ApiClient } from '@world-schools/wc-utils'
+import type {
+  SendMessageDto,
+  MessageResponseDto,
+  OptimisticMessage,
+  FailedMessage,
+  ConversationResponseDto,
+} from '../types'
+import { MessageStatus, PresenceStatus } from '../types'
+import type { ConversationsService } from '../services/create-conversations-service'
+import type { MessagesService } from '../services/create-messages-service'
+import type { MessagingWebSocketAdapter } from '../adapters/messaging-websocket-adapter'
+import type { FeatureFlags } from '../../config/feature-flags'
+import { messageQueue } from '../message-queue'
+import type { MessagingStore } from './types'
+
+/**
+ * Configuration options for creating a messaging store instance
+ */
+export interface MessagingStoreConfig {
+  /**
+   * Configured API client instance
+   */
+  apiClient: ApiClient
+
+  /**
+   * Configured conversations service instance
+   */
+  conversationsService: ConversationsService
+
+  /**
+   * Configured messages service instance
+   */
+  messagesService: MessagesService
+
+  /**
+   * Messaging WebSocket adapter (global WebSocket, root namespace)
+   * Handles real-time message sending, typing indicators, presence, and receipts.
+   */
+  messagingWebSocket: MessagingWebSocketAdapter
+
+  /**
+   * Optional feature flags configuration
+   * Controls WebSocket message sending behavior.
+   * Defaults: WEBSOCKET_MESSAGES=false, WEBSOCKET_FALLBACK_TO_HTTP=true
+   */
+  featureFlags?: Partial<FeatureFlags>
+
+  /**
+   * Prefix for storage keys (e.g., 'wc_booking', 'wc_provider')
+   * @example 'wc_booking' -> 'wc_booking_messaging'
+   */
+  storageKeyPrefix: string
+
+  /**
+   * Whether to enable debug logging
+   * @default false
+   */
+  debug?: boolean
+}
+
+/**
+ * Creates a configured messaging store instance
+ *
+ * @param config - Configuration options for the messaging store
+ * @returns Object containing the useMessagingStore hook
+ */
+export function createMessagingStore(config: MessagingStoreConfig) {
+  const {
+    conversationsService,
+    messagesService,
+    messagingWebSocket,
+    featureFlags: flagsOverride,
+    debug = false,
+  } = config
+
+  // Resolve feature flags with defaults
+  const featureFlags: FeatureFlags = {
+    WEBSOCKET_MESSAGES: flagsOverride?.WEBSOCKET_MESSAGES ?? false,
+    WEBSOCKET_FALLBACK_TO_HTTP: flagsOverride?.WEBSOCKET_FALLBACK_TO_HTTP ?? true,
+  }
+
+  const log = (...args: any[]) => {
+    if (debug) {
+      console.log('[MessagingStore]', ...args)
+    }
+  }
+
+  const logError = (...args: any[]) => {
+    console.error('[MessagingStore]', ...args)
+  }
+
+  const useMessagingStore = create<MessagingStore>()(
+    immer((set, get) => ({
+      // Initial state
+      conversations: [],
+      activeConversationId: null,
+      messages: {},
+      isConnected: false,
+      typingUsers: {},
+      userPresence: {},
+      pendingMessages: [],
+      failedMessages: [],
+      isLoadingConversations: false,
+      isLoadingMessages: {},
+      conversationsError: null,
+      messagesError: {},
+      isInitialized: false,
+      draftConversation: null,
+
+      // Initialization
+      initialize: async () => {
+        const state = get()
+        if (state.isInitialized) {
+          log('Already initialized, skipping')
+          return
+        }
+
+        log('Initializing messaging store...')
+
+        try {
+          // Set up global WebSocket adapter connection tracking
+          messagingWebSocket.onConnected(() => {
+            log('WebSocket connected - updating isConnected state')
+            set(draft => {
+              draft.isConnected = true
+            })
+
+            // Rejoin active conversation if there is one
+            const currentState = get()
+            if (currentState.activeConversationId) {
+              log(
+                'Rejoining active conversation after reconnection:',
+                currentState.activeConversationId
+              )
+              messagingWebSocket.joinConversation(currentState.activeConversationId)
+            }
+          })
+
+          messagingWebSocket.onDisconnected(() => {
+            log('WebSocket disconnected - updating isConnected state')
+            set(draft => {
+              draft.isConnected = false
+            })
+          })
+
+          // Set initial connection state
+          set(draft => {
+            draft.isConnected = messagingWebSocket.isConnected()
+          })
+
+          // Set up global WebSocket adapter event listeners for message sending
+          if (featureFlags.WEBSOCKET_MESSAGES) {
+            log('Setting up global WebSocket adapter event listeners (WebSocket messages enabled)')
+
+            // Handle message confirmation from server (sender only)
+            // Replaces optimistic message with real server-confirmed message
+            messagingWebSocket.onMessageCreated(
+              (data: { message: MessageResponseDto; tempId: string }) => {
+                log('Received message:created confirmation:', data.tempId, '->', data.message.id)
+
+                set(draft => {
+                  const conversationId = data.message.conversationId
+                  const messages = draft.messages[conversationId]
+                  if (messages) {
+                    const optimisticIndex = messages.findIndex(m => m.id === data.tempId)
+                    const realMessageIndex = messages.findIndex(m => m.id === data.message.id)
+
+                    // If real message already exists (from message:new broadcast), remove optimistic
+                    if (realMessageIndex !== -1) {
+                      if (optimisticIndex !== -1) {
+                        messages.splice(optimisticIndex, 1)
+                      }
+                    } else if (optimisticIndex !== -1) {
+                      // Replace optimistic message with real message
+                      messages[optimisticIndex] = data.message
+                    } else {
+                      // Edge case: optimistic not found, add the real message
+                      messages.push(data.message)
+                    }
+                  }
+
+                  // Remove from pending messages
+                  draft.pendingMessages = draft.pendingMessages.filter(m => m.id !== data.tempId)
+                })
+              }
+            )
+
+            // Handle message errors from server
+            // Marks optimistic message as FAILED and moves to failedMessages
+            messagingWebSocket.onMessageError((data: { tempId: string; error: string }) => {
+              log('Received message:error for:', data.tempId, 'Error:', data.error)
+
+              set(draft => {
+                // Find the optimistic message across all conversations
+                for (const conversationId in draft.messages) {
+                  const messages = draft.messages[conversationId]
+                  const optimisticIndex = messages.findIndex(m => m.id === data.tempId)
+                  if (optimisticIndex !== -1) {
+                    const optimistic = messages[optimisticIndex]
+                    const failedMessage: FailedMessage = {
+                      id: data.tempId,
+                      conversationId,
+                      senderId: (optimistic as any).senderId || '',
+                      senderType: (optimistic as any).senderType || 'USER',
+                      content: (optimistic as any).content || '',
+                      status: 'FAILED',
+                      sentAt: (optimistic as any).sentAt || new Date(),
+                      isOptimistic: true,
+                      idempotencyKey: (optimistic as any).idempotencyKey || data.tempId,
+                      error: data.error,
+                      retryCount: 0,
+                      lastRetryAt: null,
+                    }
+                    messages[optimisticIndex] = failedMessage as unknown as MessageResponseDto
+                    draft.failedMessages.push(failedMessage)
+                    break
+                  }
+                }
+
+                // Remove from pending messages
+                draft.pendingMessages = draft.pendingMessages.filter(m => m.id !== data.tempId)
+              })
+            })
+
+            // Handle new messages from other users via global WebSocket
+            // (Deduplication is already handled in addMessage)
+            messagingWebSocket.onMessageNew((data: { message: MessageResponseDto }) => {
+              log('Received message:new via global WebSocket:', data.message.id)
+              get().addMessage(data.message)
+            })
+          }
+
+          // Phase D: Set up global WebSocket adapter event listeners for typing/presence/receipts
+          if (featureFlags.WEBSOCKET_MESSAGES) {
+            log('Setting up global WebSocket adapter typing/presence/receipt listeners')
+
+            messagingWebSocket.onTypingStart(data => {
+              log('Received typing:start via global WebSocket:', data)
+              set(draft => {
+                if (!draft.typingUsers[data.conversationId]) {
+                  draft.typingUsers[data.conversationId] = []
+                }
+                if (!draft.typingUsers[data.conversationId].includes(data.userId)) {
+                  draft.typingUsers[data.conversationId].push(data.userId)
+                }
+              })
+            })
+
+            messagingWebSocket.onTypingStop(data => {
+              log('Received typing:stop via global WebSocket:', data)
+              set(draft => {
+                if (draft.typingUsers[data.conversationId]) {
+                  draft.typingUsers[data.conversationId] = draft.typingUsers[
+                    data.conversationId
+                  ].filter(id => id !== data.userId)
+                }
+              })
+            })
+
+            messagingWebSocket.onPresenceUpdate(data => {
+              log('Received presence:update via global WebSocket:', data)
+              set(draft => {
+                const statusMap: Record<string, PresenceStatus> = {
+                  online: PresenceStatus.ONLINE,
+                  away: PresenceStatus.AWAY,
+                  offline: PresenceStatus.OFFLINE,
+                  ONLINE: PresenceStatus.ONLINE,
+                  AWAY: PresenceStatus.AWAY,
+                  OFFLINE: PresenceStatus.OFFLINE,
+                }
+                draft.userPresence[data.userId] = statusMap[data.status] || PresenceStatus.OFFLINE
+              })
+            })
+
+            messagingWebSocket.onReadReceipt(data => {
+              log('Received receipt:read via global WebSocket:', data)
+              set(draft => {
+                if (data.conversationId && draft.messages[data.conversationId]) {
+                  const message = draft.messages[data.conversationId].find(
+                    m => m.id === data.messageId
+                  )
+                  if (message) {
+                    message.status = MessageStatus.READ
+                  }
+                } else {
+                  // Fallback: search all conversations
+                  for (const conversationId in draft.messages) {
+                    const message = draft.messages[conversationId].find(
+                      m => m.id === data.messageId
+                    )
+                    if (message) {
+                      message.status = MessageStatus.READ
+                      break
+                    }
+                  }
+                }
+              })
+            })
+
+            messagingWebSocket.onDeliveredReceipt(data => {
+              log('Received receipt:delivered via global WebSocket:', data)
+              set(draft => {
+                if (data.conversationId && draft.messages[data.conversationId]) {
+                  const message = draft.messages[data.conversationId].find(
+                    m => m.id === data.messageId
+                  )
+                  if (message && message.status === MessageStatus.SENT) {
+                    message.status = MessageStatus.DELIVERED
+                  }
+                } else {
+                  // Fallback: search all conversations
+                  for (const conversationId in draft.messages) {
+                    const message = draft.messages[conversationId].find(
+                      m => m.id === data.messageId
+                    )
+                    if (message && message.status === MessageStatus.SENT) {
+                      message.status = MessageStatus.DELIVERED
+                      break
+                    }
+                  }
+                }
+              })
+            })
+          }
+
+          // ── NEW CONVERSATION notifications (always active) ─────────────
+          // When another user creates a conversation that involves us (e.g. a
+          // booking user messages our provider organisation), the backend
+          // broadcasts a `conversation:new` event to our user room.
+          // This listener adds the conversation to our list in real-time so the
+          // user does not need to refresh the page.
+          messagingWebSocket.onConversationNew(
+            (data: { conversation: ConversationResponseDto }) => {
+              log('Received conversation:new via global WebSocket:', data.conversation?.id)
+              if (!data.conversation?.id) return
+
+              set(draft => {
+                // Deduplicate: only add if not already in the list
+                const exists = draft.conversations.some(c => c.id === data.conversation.id)
+                if (!exists) {
+                  // Prepend so the new conversation appears at the top
+                  draft.conversations.unshift(data.conversation)
+                  log('Added new conversation to list:', data.conversation.id)
+                }
+              })
+            }
+          )
+
+          // Phase 3.2: Initialize message queue for offline support
+          if (featureFlags.WEBSOCKET_MESSAGES) {
+            log('Initializing message queue for offline support')
+            messageQueue.load()
+
+            // Listen for connection restoration to process queue
+            messagingWebSocket.onConnected(() => {
+              if (messagingWebSocket.isConnected() && messageQueue.size > 0) {
+                log(`Processing ${messageQueue.size} queued messages after reconnection`)
+                void messageQueue.processQueue((conversationId, content, tempId) => {
+                  messagingWebSocket.sendMessage(conversationId, content, tempId)
+
+                  // Update queued message status back to SENDING
+                  set(draft => {
+                    for (const convId in draft.messages) {
+                      const msg = draft.messages[convId].find(m => m.id === tempId)
+                      if (msg) {
+                        ;(msg as any).status = 'SENDING'
+                        break
+                      }
+                    }
+                  })
+                })
+              }
+            })
+          }
+
+          // Mark as initialized
+          set(draft => {
+            draft.isInitialized = true
+          })
+
+          // Fetch initial conversations
+          await get().fetchConversations()
+
+          log('Messaging store initialized successfully')
+        } catch (error: any) {
+          logError('Failed to initialize messaging store:', error)
+          set(draft => {
+            draft.isInitialized = true
+            draft.conversationsError = error.message || 'Failed to initialize messaging'
+          })
+        }
+      },
+
+      cleanup: () => {
+        log('Cleaning up messaging store...')
+
+        // Reset state
+        set(draft => {
+          draft.conversations = []
+          draft.activeConversationId = null
+          draft.messages = {}
+          draft.isConnected = false
+          draft.typingUsers = {}
+          draft.userPresence = {}
+          draft.pendingMessages = []
+          draft.failedMessages = []
+          draft.isLoadingConversations = false
+          draft.isLoadingMessages = {}
+          draft.conversationsError = null
+          draft.messagesError = {}
+          draft.isInitialized = false
+        })
+
+        log('Messaging store cleaned up')
+      },
+
+      // Conversations
+      fetchConversations: async () => {
+        log('Fetching conversations...')
+
+        set(draft => {
+          draft.isLoadingConversations = true
+          draft.conversationsError = null
+        })
+
+        try {
+          // Note: userId is automatically extracted from JWT token on the backend
+          // via @CurrentUser decorator, so we don't need to send it
+          const response = await conversationsService.getConversations({
+            limit: 100,
+          })
+
+          if (!response.success) {
+            const errorMessage =
+              typeof response.data === 'object' && response.data && 'message' in response.data
+                ? (response.data as any).message
+                : 'Failed to fetch conversations'
+            throw new Error(errorMessage)
+          }
+
+          // Handle both response formats:
+          // 1. Plain array: [ConversationResponseDto, ...]
+          // 2. Backend format: { success, message, data: [...], pagination: {...} } (already unwrapped by apiClient)
+          let conversations: any[] = []
+
+          if (Array.isArray(response.data)) {
+            // Format 1: Plain array (backend returns data directly)
+            conversations = response.data
+          } else if (
+            response.data &&
+            typeof response.data === 'object' &&
+            'data' in response.data
+          ) {
+            // Format 2: Paginated format with nested data property
+            conversations = Array.isArray(response.data.data) ? response.data.data : []
+          } else {
+            logError('Unexpected response format:', response.data)
+            throw new Error('Invalid response format from server')
+          }
+
+          set(draft => {
+            draft.conversations = conversations
+            draft.isLoadingConversations = false
+          })
+
+          log('Fetched conversations successfully:', {
+            count: conversations.length,
+            ids: conversations.map(c => c.id),
+            conversations: conversations.map(c => ({
+              id: c.id,
+              type: c.type,
+              participantsCount: c.participants?.length,
+            })),
+          })
+        } catch (error: any) {
+          logError('Failed to fetch conversations:', error)
+          set(draft => {
+            draft.isLoadingConversations = false
+            draft.conversationsError = error.message || 'Failed to fetch conversations'
+          })
+        }
+      },
+
+      createConversationWithMessage: async params => {
+        log('Creating conversation with initial message:', params)
+
+        try {
+          // Import ContextType enum for type conversion
+          const { ContextType } = await import('../types')
+
+          // Convert string contextType to enum if provided
+          let contextTypeEnum: (typeof ContextType)[keyof typeof ContextType] | undefined
+          if (params.contextType) {
+            contextTypeEnum = ContextType[params.contextType as keyof typeof ContextType]
+          }
+
+          const response = await conversationsService.createConversation({
+            userId: params.userId,
+            participantId: params.participantId,
+            participantType: params.participantType,
+            contextType: contextTypeEnum,
+            contextId: params.contextId,
+            initialMessage: params.initialMessage, // ✅ Required
+          })
+
+          if (!response.success) {
+            const errorMessage =
+              typeof response.data === 'object' && response.data && 'message' in response.data
+                ? (response.data as any).message
+                : 'Failed to create conversation'
+            throw new Error(errorMessage)
+          }
+
+          const conversation = response.data
+
+          // Add to store
+          set(draft => {
+            const exists = draft.conversations.some(c => c.id === conversation.id)
+            if (!exists) {
+              draft.conversations.unshift(conversation)
+            }
+            // Clear draft conversation after creation
+            draft.draftConversation = null
+          })
+
+          log('Conversation created successfully:', conversation.id)
+
+          // ✅ Use setActiveConversation to properly activate the conversation
+          // This will fetch messages, join WebSocket room, etc.
+          get().setActiveConversation(conversation.id)
+
+          return conversation
+        } catch (error: any) {
+          logError('Failed to create conversation:', error)
+          throw error
+        }
+      },
+
+      setActiveConversation: conversationId => {
+        const state = get()
+
+        // Skip if this conversation is already active (prevents unnecessary re-fetching)
+        if (state.activeConversationId === conversationId) {
+          log('Conversation already active, skipping:', conversationId)
+          return
+        }
+
+        log('Setting active conversation:', conversationId)
+
+        // Leave previous conversation room
+        if (state.activeConversationId) {
+          messagingWebSocket.leaveConversation(state.activeConversationId)
+        }
+
+        // Set the active conversation ID immediately
+        set(draft => {
+          draft.activeConversationId = conversationId
+        })
+
+        // Join new conversation room via global WebSocket adapter
+        if (conversationId) {
+          if (messagingWebSocket.isConnected()) {
+            log('WebSocket connected, joining conversation:', conversationId)
+            messagingWebSocket.joinConversation(conversationId)
+          } else {
+            log(
+              'WebSocket not connected yet, waiting for connection to join conversation:',
+              conversationId
+            )
+
+            // Wait for connection with timeout
+            const maxWaitTime = 5000 // 5 seconds
+            const startTime = Date.now()
+
+            const checkConnection = () => {
+              if (messagingWebSocket.isConnected()) {
+                log('WebSocket connected, joining conversation:', conversationId)
+                messagingWebSocket.joinConversation(conversationId)
+              } else if (Date.now() - startTime < maxWaitTime) {
+                setTimeout(checkConnection, 100)
+              } else {
+                logError(
+                  'WebSocket connection timeout - could not join conversation:',
+                  conversationId
+                )
+              }
+            }
+
+            checkConnection()
+          }
+        }
+
+        // Fetch messages for the new conversation (only when actually switching)
+        if (conversationId) {
+          get().fetchMessages(conversationId)
+        }
+      },
+
+      updateConversation: (conversationId, updates) => {
+        log('Updating conversation:', conversationId, updates)
+
+        set(draft => {
+          const conversation = draft.conversations.find(c => c.id === conversationId)
+          if (conversation) {
+            Object.assign(conversation, updates)
+          }
+        })
+      },
+
+      setDraftConversation: metadata => {
+        log('Setting draft conversation:', metadata)
+        set(draft => {
+          draft.draftConversation = metadata
+          // Clear active conversation when setting draft (WhatsApp Web pattern)
+          draft.activeConversationId = null
+        })
+      },
+
+      clearDraftConversation: () => {
+        log('Clearing draft conversation')
+        set(draft => {
+          draft.draftConversation = null
+        })
+      },
+
+      // Messages
+      fetchMessages: async conversationId => {
+        log('Fetching messages for conversation:', conversationId)
+
+        set(draft => {
+          draft.isLoadingMessages[conversationId] = true
+          draft.messagesError[conversationId] = null
+        })
+
+        try {
+          const response = await messagesService.getMessages({
+            conversationId,
+            limit: 50,
+          })
+
+          if (!response.success) {
+            const errorMessage =
+              typeof response.data === 'object' && response.data && 'message' in response.data
+                ? (response.data as any).message
+                : 'Failed to fetch messages'
+            throw new Error(errorMessage)
+          }
+
+          // Validate response structure
+          if (!response.data) {
+            throw new Error('Invalid API response: missing data')
+          }
+
+          // Backend returns PaginatedMessagesResponseDto: { data: messages[], nextCursor, hasMore }
+          const paginatedResponse = response.data
+          const messages = Array.isArray(paginatedResponse.data) ? paginatedResponse.data : []
+
+          set(draft => {
+            draft.messages[conversationId] = messages
+            draft.isLoadingMessages[conversationId] = false
+          })
+
+          log('Fetched messages successfully:', {
+            count: messages.length,
+            hasMore: paginatedResponse.hasMore,
+            nextCursor: paginatedResponse.nextCursor,
+          })
+        } catch (error: any) {
+          logError('Failed to fetch messages:', error)
+          set(draft => {
+            draft.isLoadingMessages[conversationId] = false
+            draft.messagesError[conversationId] = error.message || 'Failed to fetch messages'
+          })
+        }
+      },
+
+      sendMessage: async dto => {
+        log('Sending message:', dto)
+
+        // Create optimistic message
+        const optimisticMessage: OptimisticMessage = {
+          id: `temp-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+          conversationId: dto.conversationId,
+          senderId: dto.senderId,
+          senderType: dto.senderType,
+          content: dto.content,
+          status: 'SENDING',
+          sentAt: new Date(),
+          isOptimistic: true,
+          idempotencyKey: dto.idempotencyKey || `${dto.senderId}-${Date.now()}`,
+        }
+
+        // Add optimistic message to store (cast to unknown first to avoid type error)
+        set(draft => {
+          if (!draft.messages[dto.conversationId]) {
+            draft.messages[dto.conversationId] = []
+          }
+          draft.messages[dto.conversationId].push(
+            optimisticMessage as unknown as MessageResponseDto
+          )
+          draft.pendingMessages.push(optimisticMessage)
+        })
+
+        try {
+          // ✅ Phase 3: Route message via WebSocket when feature flag enabled and connected
+          const useWebSocket =
+            featureFlags.WEBSOCKET_MESSAGES &&
+            messagingWebSocket &&
+            messagingWebSocket.isConnected()
+
+          if (useWebSocket) {
+            // ✅ Send via WebSocket (fire-and-forget)
+            // Server will confirm via message:created event or report via message:error event
+            log('Sending message via WebSocket:', optimisticMessage.id)
+            messagingWebSocket.sendMessage(dto.conversationId, dto.content, optimisticMessage.id)
+            // Note: Optimistic message replacement is handled by the message:created event listener
+            // set up in initialize(). No need to await here.
+          } else if (
+            featureFlags.WEBSOCKET_MESSAGES &&
+            messagingWebSocket &&
+            !messagingWebSocket.isConnected()
+          ) {
+            // WebSocket enabled but disconnected
+            if (featureFlags.WEBSOCKET_FALLBACK_TO_HTTP) {
+              // ✅ Fallback to HTTP
+              log('WebSocket disconnected, falling back to HTTP for:', optimisticMessage.id)
+              await get().sendMessageViaHttp(dto, optimisticMessage)
+            } else {
+              // ❌ No fallback - queue the message for later delivery
+              log('WebSocket disconnected, queueing message:', optimisticMessage.id)
+              messageQueue.enqueue(dto.conversationId, dto.content, optimisticMessage.id)
+              set(draft => {
+                const messages = draft.messages[dto.conversationId]
+                if (messages) {
+                  const msg = messages.find(m => m.id === optimisticMessage.id)
+                  if (msg) {
+                    ;(msg as any).status = 'QUEUED'
+                  }
+                }
+              })
+            }
+          } else {
+            // ✅ Feature flag disabled - use HTTP (existing behavior)
+            await get().sendMessageViaHttp(dto, optimisticMessage)
+          }
+        } catch (error: any) {
+          logError('Failed to send message:', error)
+
+          // Mark message as failed
+          const failedMessage: FailedMessage = {
+            ...optimisticMessage,
+            status: 'FAILED',
+            error: error.message || 'Failed to send message',
+            retryCount: 0,
+            lastRetryAt: null,
+          }
+
+          set(draft => {
+            const messages = draft.messages[dto.conversationId]
+            if (messages) {
+              const index = messages.findIndex(m => m.id === optimisticMessage.id)
+              if (index !== -1) {
+                messages[index] = failedMessage as unknown as MessageResponseDto
+              }
+            }
+            draft.pendingMessages = draft.pendingMessages.filter(m => m.id !== optimisticMessage.id)
+            draft.failedMessages.push(failedMessage)
+          })
+        }
+      },
+
+      /**
+       * Send a message via HTTP (fallback or default behavior)
+       * Extracted to allow reuse from sendMessage and message queue processing
+       */
+      sendMessageViaHttp: async (dto: SendMessageDto, optimisticMessage: OptimisticMessage) => {
+        log('Sending message via HTTP:', optimisticMessage.id)
+
+        const response = await messagesService.sendMessage(dto)
+
+        if (!response.success) {
+          const errorMessage =
+            typeof response.data === 'object' && response.data && 'message' in response.data
+              ? (response.data as any).message
+              : 'Failed to send message'
+          throw new Error(errorMessage)
+        }
+
+        const sentMessage = response.data
+
+        // Replace optimistic message with real message
+        set(draft => {
+          const messages = draft.messages[dto.conversationId]
+          if (messages) {
+            const optimisticIndex = messages.findIndex(m => m.id === optimisticMessage.id)
+            const realMessageIndex = messages.findIndex(m => m.id === sentMessage.id)
+
+            // If the real message already exists (from WebSocket), just remove the optimistic one
+            if (realMessageIndex !== -1) {
+              if (optimisticIndex !== -1) {
+                messages.splice(optimisticIndex, 1)
+              }
+            } else if (optimisticIndex !== -1) {
+              // Otherwise, replace the optimistic message with the real one
+              messages[optimisticIndex] = sentMessage
+            } else {
+              // Edge case: optimistic message not found, add the real message
+              messages.push(sentMessage)
+            }
+          }
+          draft.pendingMessages = draft.pendingMessages.filter(m => m.id !== optimisticMessage.id)
+        })
+
+        log('Message sent via HTTP successfully:', sentMessage.id)
+      },
+
+      addMessage: message => {
+        log('Adding message to store:', message.id)
+
+        set(draft => {
+          if (!draft.messages[message.conversationId]) {
+            draft.messages[message.conversationId] = []
+          }
+
+          // Check if message already exists (avoid duplicates)
+          const exists = draft.messages[message.conversationId].some(m => m.id === message.id)
+          if (!exists) {
+            draft.messages[message.conversationId].push(message)
+          }
+
+          // Update conversation's last message (ConversationResponseDto has lastMessage, not lastMessageAt)
+          const conversation = draft.conversations.find(c => c.id === message.conversationId)
+          if (conversation) {
+            conversation.lastMessageId = message.id
+            conversation.messageCount = (conversation.messageCount || 0) + 1
+          }
+        })
+      },
+
+      updateMessage: (messageId, updates) => {
+        log('Updating message:', messageId, updates)
+
+        set(draft => {
+          // Find the message in all conversations
+          for (const conversationId in draft.messages) {
+            const messages = draft.messages[conversationId]
+            const message = messages.find(m => m.id === messageId)
+            if (message) {
+              Object.assign(message, updates)
+              break
+            }
+          }
+        })
+      },
+
+      deleteMessage: (conversationId, messageId) => {
+        log('Deleting message:', messageId)
+
+        set(draft => {
+          if (draft.messages[conversationId]) {
+            draft.messages[conversationId] = draft.messages[conversationId].filter(
+              m => m.id !== messageId
+            )
+          }
+        })
+      },
+
+      // Real-time features
+      markAsRead: async (conversationId, messageId) => {
+        log('Marking message as read:', messageId)
+
+        try {
+          // Send read receipt via global WebSocket adapter
+          if (featureFlags.WEBSOCKET_MESSAGES && messagingWebSocket.isConnected()) {
+            messagingWebSocket.markAsRead(messageId, conversationId)
+          }
+
+          // Also call API endpoint (markAsRead expects id and dto)
+          // TODO: Get userId from auth context
+          await messagesService.markAsRead(messageId, { messageId, userId: '' })
+
+          log('Message marked as read successfully')
+        } catch (error: any) {
+          logError('Failed to mark message as read:', error)
+        }
+      },
+
+      startTyping: conversationId => {
+        log('Starting typing indicator:', conversationId)
+
+        // Send typing indicator via global WebSocket adapter
+        if (featureFlags.WEBSOCKET_MESSAGES && messagingWebSocket.isConnected()) {
+          messagingWebSocket.startTyping(conversationId)
+        }
+      },
+
+      stopTyping: conversationId => {
+        log('Stopping typing indicator:', conversationId)
+
+        // Stop typing indicator via global WebSocket adapter
+        if (featureFlags.WEBSOCKET_MESSAGES && messagingWebSocket.isConnected()) {
+          messagingWebSocket.stopTyping(conversationId)
+        }
+      },
+
+      // Offline support
+      retryFailedMessages: async () => {
+        log('Retrying all failed messages...')
+
+        const state = get()
+        const failedMessages = [...state.failedMessages]
+
+        for (const failedMessage of failedMessages) {
+          await get().retryFailedMessage(failedMessage.id)
+        }
+      },
+
+      retryFailedMessage: async messageId => {
+        log('Retrying failed message:', messageId)
+
+        const state = get()
+        const failedMessage = state.failedMessages.find(m => m.id === messageId)
+
+        if (!failedMessage) {
+          logError('Failed message not found:', messageId)
+          return
+        }
+
+        // Remove from failed messages
+        set(draft => {
+          draft.failedMessages = draft.failedMessages.filter(m => m.id !== messageId)
+        })
+
+        // Retry sending (FailedMessage only has basic fields from OptimisticMessage)
+        const dto: SendMessageDto = {
+          conversationId: failedMessage.conversationId,
+          senderId: failedMessage.senderId,
+          senderType: failedMessage.senderType,
+          content: failedMessage.content,
+          idempotencyKey: failedMessage.idempotencyKey,
+        }
+
+        await get().sendMessage(dto)
+      },
+
+      removeFailedMessage: messageId => {
+        log('Removing failed message:', messageId)
+
+        set(draft => {
+          draft.failedMessages = draft.failedMessages.filter(m => m.id !== messageId)
+
+          // Also remove from messages
+          for (const conversationId in draft.messages) {
+            draft.messages[conversationId] = draft.messages[conversationId].filter(
+              m => m.id !== messageId
+            )
+          }
+        })
+      },
+
+      // Error handling
+      clearConversationsError: () => {
+        set(draft => {
+          draft.conversationsError = null
+        })
+      },
+
+      clearMessagesError: conversationId => {
+        set(draft => {
+          draft.messagesError[conversationId] = null
+        })
+      },
+    }))
+  )
+
+  return { useMessagingStore }
+}

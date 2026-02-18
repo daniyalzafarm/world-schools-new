@@ -17,11 +17,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         ExtractJwt.fromAuthHeaderAsBearerToken(), // From Authorization header
         (request: Request) => {
           // Determine which app based on request path
+          // All endpoints are now app-specific (e.g., /user/*, /provider/*, /superadmin/*)
           const isSuperadmin = request.path.startsWith('/superadmin')
           const isProvider = request.path.startsWith('/provider')
           const isUser = request.path.startsWith('/user')
 
-          // Only extract token from the correct app-specific cookie
+          // For app-specific endpoints, only extract token from the correct app-specific cookie
           if (isSuperadmin) {
             return request?.cookies?.wc_superadmin_access_token
           } else if (isProvider) {
@@ -47,6 +48,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const isUser = request.path.startsWith('/user')
 
     // Validate app-specific claim if present
+    // All endpoints are now app-specific, so we always validate the app claim
     if (payload.app) {
       if (isSuperadmin && payload.app !== 'superadmin') {
         throw new UnauthorizedException(

@@ -17,14 +17,29 @@ export interface CampPhotoUploadResult {
 @Injectable()
 export class PhotoUploadService {
   private readonly logger = new Logger(PhotoUploadService.name)
-  private readonly azureStorage: AzureStorageService
+  private azureStorage: AzureStorageService | null = null
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService
   ) {
-    // Initialize Azure Storage Service
-    this.azureStorage = new AzureStorageService(this.configService.azureStorageConfig)
+    // Azure Storage Service will be initialized lazily when needed
+  }
+
+  /**
+   * Get or initialize Azure Storage Service
+   */
+  private getAzureStorage(): AzureStorageService {
+    if (!this.azureStorage) {
+      const config = this.configService.azureStorageConfig
+      if (!config.accountName || !config.accountKey || !config.containerName) {
+        throw new BadRequestException(
+          'Azure Storage is not configured. Please contact the administrator to enable photo uploads.'
+        )
+      }
+      this.azureStorage = new AzureStorageService(config)
+    }
+    return this.azureStorage
   }
 
   /**
@@ -41,8 +56,11 @@ export class PhotoUploadService {
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
 
+      // Get Azure Storage service
+      const azureStorage = this.getAzureStorage()
+
       // Validate file
-      const validation = this.azureStorage.validateFile(
+      const validation = azureStorage.validateFile(
         { size: file.size, mimetype: file.mimetype },
         {
           maxSizeBytes: 5 * 1024 * 1024, // 5MB
@@ -59,7 +77,7 @@ export class PhotoUploadService {
         const photoId = uuidv4()
 
         // Upload file to Azure Blob Storage
-        const uploadResult = await this.azureStorage.uploadFile({
+        const uploadResult = await azureStorage.uploadFile({
           buffer: file.buffer,
           fileName: file.originalname,
           mimeType: file.mimetype,
@@ -103,7 +121,8 @@ export class PhotoUploadService {
    */
   async deletePhoto(blobName: string): Promise<void> {
     try {
-      await this.azureStorage.deleteFile(blobName)
+      const azureStorage = this.getAzureStorage()
+      await azureStorage.deleteFile(blobName)
       this.logger.log(`Deleted photo from storage: ${blobName}`)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -161,11 +180,12 @@ export class PhotoUploadService {
    * Note: Expects photo.url to be a blob name, not a full URL
    */
   async generatePhotoUrls(photos: any[]): Promise<any[]> {
+    const azureStorage = this.getAzureStorage()
     return Promise.all(
       photos.map(async photo => {
         try {
           // Generate SAS URL for secure access (24 hours expiry)
-          const sasUrl = await this.azureStorage.generateSasUrl(photo.url, 24)
+          const sasUrl = await azureStorage.generateSasUrl(photo.url, 24)
           return {
             ...photo,
             url: sasUrl,

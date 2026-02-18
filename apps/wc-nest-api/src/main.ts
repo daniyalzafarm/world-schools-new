@@ -34,7 +34,10 @@ async function bootstrap() {
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
             fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-            imgSrc: ["'self'", 'data:', 'https:', 'http://localhost:3000'],
+            // Only allow localhost in development
+            imgSrc: configService.isProduction
+              ? ["'self'", 'data:', 'https:']
+              : ["'self'", 'data:', 'https:', 'http://localhost:3000'],
             scriptSrc: ["'self'"],
             objectSrc: ["'none'"],
             upgradeInsecureRequests: [],
@@ -55,9 +58,9 @@ async function bootstrap() {
     })
   )
 
-  // Enable CORS
+  // Enable CORS with environment-based origin whitelist
   app.enableCors({
-    origin: true, // Allow all origins in development
+    origin: configService.corsOrigins, // Use environment-based origin whitelist
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
@@ -74,15 +77,114 @@ async function bootstrap() {
   app.useGlobalInterceptors(new ResponseInterceptor())
   app.useGlobalFilters(new HttpExceptionFilter())
 
+  // Configure Swagger/OpenAPI documentation
   const config = new DocumentBuilder()
     .setTitle('World Schools API')
-    .setDescription('The World Schools API documentation')
-    .setVersion('1.0')
-    .addBearerAuth()
+    .setDescription(
+      `
+# World Schools API Documentation
+
+Complete API documentation for the World Schools platform, including:
+
+## Features
+- **Authentication & Authorization**: JWT-based authentication with role and permission-based access control
+- **Real-time Messaging**: Comprehensive messaging system with conversations, messages, attachments, and search
+- **Provider Management**: Camp management, bookings, and provider operations
+- **User Management**: User profiles, roles, and permissions
+- **Superadmin**: Administrative operations and system management
+
+## Authentication
+All endpoints (except those marked as public) require JWT authentication via Bearer token.
+
+**How to authenticate:**
+1. Click the "Authorize" button (🔓) at the top right
+2. Enter your JWT token in the format: \`Bearer <your-token>\`
+3. Click "Authorize"
+
+Alternatively, include the token in the Authorization header:
+\`\`\`
+Authorization: Bearer <your-token>
+\`\`\`
+
+## Rate Limiting
+Message sending endpoints are rate-limited to prevent spam:
+- **Limit**: 60 messages per minute per user
+- **Response**: HTTP 429 (Too Many Requests) when exceeded
+
+## Response Format
+All API responses follow a consistent format:
+
+**Success Response:**
+\`\`\`json
+{
+  "success": true,
+  "message": "Operation successful",
+  "data": { ... }
+}
+\`\`\`
+
+**Error Response:**
+\`\`\`json
+{
+  "success": false,
+  "message": "Error description",
+  "error": "ErrorType",
+  "statusCode": 400
+}
+\`\`\`
+
+## Support
+For API support, contact the development team.
+      `
+    )
+    .setVersion('1.0.0')
+    .addBearerAuth({
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat: 'JWT',
+      name: 'Authorization',
+      description: 'Enter your JWT token (without "Bearer" prefix)',
+      in: 'header',
+    })
+    .addTag('Authentication', 'User authentication and authorization endpoints')
+    .addTag(
+      'Conversations',
+      'Conversation management - create, list, update, and manage conversations'
+    )
+    .addTag(
+      'Messages',
+      'Message operations - send, edit, delete, reactions, bookmarks, pins, and more'
+    )
+    .addTag('Attachments', 'File upload and management for message attachments')
+    .addTag('Search', 'Full-text search for messages and conversations')
+    .addTag('Provider', 'Provider-specific operations and camp management')
+    .addTag('Superadmin', 'Administrative operations and system management')
+    .addTag('Users', 'User management and profile operations')
     .build()
 
-  const document = SwaggerModule.createDocument(app, config)
-  SwaggerModule.setup('docs', app, document)
+  const document = SwaggerModule.createDocument(app, config, {
+    operationIdFactory: (controllerKey: string, methodKey: string) => methodKey,
+  })
+
+  SwaggerModule.setup('docs', app, document, {
+    customSiteTitle: 'World Schools API Documentation',
+    customfavIcon: 'https://worldschools.com/favicon.ico',
+    customCss: `
+      .swagger-ui .topbar { display: none }
+      .swagger-ui .info { margin: 50px 0 }
+      .swagger-ui .info .title { font-size: 36px }
+    `,
+    swaggerOptions: {
+      persistAuthorization: true,
+      displayRequestDuration: true,
+      filter: true,
+      showExtensions: true,
+      showCommonExtensions: true,
+      docExpansion: 'none',
+      defaultModelsExpandDepth: 3,
+      defaultModelExpandDepth: 3,
+    },
+  })
 
   await app.listen(configService.port)
 

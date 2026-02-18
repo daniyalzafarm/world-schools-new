@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { EventEmitterModule } from '@nestjs/event-emitter'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 
@@ -10,6 +11,10 @@ import { CommonModule } from '../common/common.module'
 // Feature modules
 import { AuthModule } from '../modules/core/auth/auth.module'
 import { HealthModule } from '../modules/health/health.module'
+import { MessagingModule } from '../modules/messaging/messaging.module'
+
+// Global WebSocket module
+import { WebSocketModule } from '../modules/websocket/websocket.module'
 
 // Domain modules
 import { SuperAdminModule } from '../modules/superadmin/superadmin.module'
@@ -22,10 +27,15 @@ import { UserModule } from '../modules/user/user.module'
     ConfigModule,
     PrismaModule,
     CommonModule,
+    EventEmitterModule.forRoot(),
 
     // Feature modules
     AuthModule,
     HealthModule,
+    MessagingModule,
+
+    // Global WebSocket
+    WebSocketModule,
 
     // Domain modules
     SuperAdminModule,

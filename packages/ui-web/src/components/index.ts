@@ -28,3 +28,8 @@ export { DayOfWeekSelector } from './day-of-week-selector'
 export { DocumentDropzone } from './document-dropzone'
 export { TagSelectField } from './tag-select-field'
 export { IconTagSelectField, type IconTagItem } from './icon-tag-select-field'
+
+// Messages components
+export { ChatInput } from './messages/chat-input'
+export { MessageBubble } from './messages/message-bubble'
+export { ConversationItem } from './messages/conversation-item'
