@@ -56,4 +56,3 @@ export const MEAL_STYLE = [
     description: 'Choose from multiple stations',
   },
 ]
-

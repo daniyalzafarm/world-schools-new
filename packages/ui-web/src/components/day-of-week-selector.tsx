@@ -76,10 +76,7 @@ export const DayOfWeekSelector: React.FC<DayOfWeekSelectorProps> = ({
           </button>
         ))}
       </div>
-      {isInvalid && errorMessage && (
-        <p className="mt-1.5 text-sm text-danger">{errorMessage}</p>
-      )}
+      {isInvalid && errorMessage && <p className="mt-1.5 text-sm text-danger">{errorMessage}</p>}
     </div>
   )
 }
-

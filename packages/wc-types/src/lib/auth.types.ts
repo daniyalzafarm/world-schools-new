@@ -146,4 +146,3 @@ export type ApiResult<T> = ApiResponse<T> | ApiErrorResponse
 export interface AuthConfig {
   usingRequest: boolean // true = use Authorization header, false = use HTTP-only cookies
 }
-

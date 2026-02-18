@@ -1,18 +1,18 @@
-'use client';
+'use client'
 
-import React, { useEffect, useRef, useState } from 'react';
-import { Card, CardBody } from '@heroui/react';
-import { Input } from './input';
-import { Search } from 'lucide-react';
-import { cn } from '../utils/cn';
+import React, { useEffect, useRef, useState } from 'react'
+import { Card, CardBody } from '@heroui/react'
+import { Input } from './input'
+import { Search } from 'lucide-react'
+import { cn } from '../utils/cn'
 
 interface AutocompleteProps {
-  value: string;
-  onChangeText: (text: string) => void;
-  onSelect: (item: string) => void;
-  suggestions: string[];
-  placeholder?: string;
-  className?: string;
+  value: string
+  onChangeText: (text: string) => void
+  onSelect: (item: string) => void
+  suggestions: string[]
+  placeholder?: string
+  className?: string
 }
 
 export function Autocomplete({
@@ -23,63 +23,59 @@ export function Autocomplete({
   placeholder = 'Search...',
   className,
 }: AutocompleteProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false)
+  const [focusedIndex, setFocusedIndex] = useState(-1)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
-  const filteredSuggestions = suggestions.filter((suggestion) =>
-    suggestion.toLowerCase().includes(value.toLowerCase()),
-  );
+  const filteredSuggestions = suggestions.filter(suggestion =>
+    suggestion.toLowerCase().includes(value.toLowerCase())
+  )
 
   useEffect(() => {
     setTimeout(() => {
-      setIsOpen(value.length > 0 && filteredSuggestions.length > 0);
-      setFocusedIndex(-1);
-    }, 0);
-  }, [value, filteredSuggestions.length]);
+      setIsOpen(value.length > 0 && filteredSuggestions.length > 0)
+      setFocusedIndex(-1)
+    }, 0)
+  }, [value, filteredSuggestions.length])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!isOpen) return;
+    if (!isOpen) return
 
     switch (e.key) {
       case 'ArrowDown':
-        e.preventDefault();
-        setFocusedIndex((prev) =>
-          prev < filteredSuggestions.length - 1 ? prev + 1 : 0,
-        );
-        break;
+        e.preventDefault()
+        setFocusedIndex(prev => (prev < filteredSuggestions.length - 1 ? prev + 1 : 0))
+        break
       case 'ArrowUp':
-        e.preventDefault();
-        setFocusedIndex((prev) =>
-          prev > 0 ? prev - 1 : filteredSuggestions.length - 1,
-        );
-        break;
+        e.preventDefault()
+        setFocusedIndex(prev => (prev > 0 ? prev - 1 : filteredSuggestions.length - 1))
+        break
       case 'Enter':
-        e.preventDefault();
+        e.preventDefault()
         if (focusedIndex >= 0) {
-          handleSelect(filteredSuggestions[focusedIndex]);
+          handleSelect(filteredSuggestions[focusedIndex])
         } else if (value.trim()) {
-          handleSelect(value.trim());
+          handleSelect(value.trim())
         }
-        break;
+        break
       case 'Escape':
-        setIsOpen(false);
-        setFocusedIndex(-1);
-        inputRef.current?.blur();
-        break;
+        setIsOpen(false)
+        setFocusedIndex(-1)
+        inputRef.current?.blur()
+        break
     }
-  };
+  }
 
   const handleSelect = (item: string) => {
-    onSelect(item);
-    setIsOpen(false);
-    setFocusedIndex(-1);
-  };
+    onSelect(item)
+    setIsOpen(false)
+    setFocusedIndex(-1)
+  }
 
   const handleInputChange = (newValue: string) => {
-    onChangeText(newValue);
-  };
+    onChangeText(newValue)
+  }
 
   return (
     <div className={cn('relative', className)}>
@@ -109,7 +105,7 @@ export function Autocomplete({
                   className={cn(
                     'w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
                     'focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-700',
-                    index === focusedIndex && 'bg-gray-100 dark:bg-gray-700',
+                    index === focusedIndex && 'bg-gray-100 dark:bg-gray-700'
                   )}
                 >
                   {suggestion}
@@ -120,5 +116,5 @@ export function Autocomplete({
         </Card>
       )}
     </div>
-  );
+  )
 }

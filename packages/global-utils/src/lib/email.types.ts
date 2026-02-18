@@ -13,4 +13,3 @@ export interface EmailConfig {
   pass: string
   from: string
 }
-

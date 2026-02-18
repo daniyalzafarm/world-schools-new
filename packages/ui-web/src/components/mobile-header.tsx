@@ -106,4 +106,3 @@ export function MobileHeader({
     </header>
   )
 }
-

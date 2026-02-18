@@ -133,13 +133,9 @@ function ToolbarButton({
       type="button"
       onClick={onClick}
       title={title}
-      className={cn(
-        'rounded p-1.5 hover:bg-gray-200',
-        isActive && 'bg-gray-300 text-primary-600'
-      )}
+      className={cn('rounded p-1.5 hover:bg-gray-200', isActive && 'bg-gray-300 text-primary-600')}
     >
       {icon}
     </button>
   )
 }
-

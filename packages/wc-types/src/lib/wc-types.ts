@@ -1,3 +1,3 @@
 export function wcTypes(): string {
-  return 'wc-types';
+  return 'wc-types'
 }

@@ -1,1 +1,1 @@
-export * from './lib/schoolable-types';
+export * from './lib/schoolable-types'

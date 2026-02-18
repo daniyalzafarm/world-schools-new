@@ -169,4 +169,3 @@ export const wcThemeConfig = heroui({
 })
 
 export default wcThemeConfig
-

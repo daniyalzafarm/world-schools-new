@@ -33,10 +33,7 @@ export class AzureStorageService {
     this.sasTokenExpiryHours = config.sasTokenExpiryHours || 24
 
     // Create shared key credential
-    this.sharedKeyCredential = new StorageSharedKeyCredential(
-      config.accountName,
-      config.accountKey
-    )
+    this.sharedKeyCredential = new StorageSharedKeyCredential(config.accountName, config.accountKey)
 
     // Create blob service client
     this.blobServiceClient = new BlobServiceClient(
@@ -47,9 +44,7 @@ export class AzureStorageService {
     // Get container client
     this.containerClient = this.blobServiceClient.getContainerClient(config.containerName)
 
-    this.logger.log(
-      `Azure Storage Service initialized for container: ${config.containerName}`
-    )
+    this.logger.log(`Azure Storage Service initialized for container: ${config.containerName}`)
   }
 
   /**
@@ -260,4 +255,3 @@ export class AzureStorageService {
     return `${year}${month}${day}-${hours}${minutes}${seconds}`
   }
 }
-

@@ -187,11 +187,8 @@ export function EmojiPicker({
       </div>
 
       {description && (
-        <p className={cn('text-[13px] text-default-400', classNames?.description)}>
-          {description}
-        </p>
+        <p className={cn('text-[13px] text-default-400', classNames?.description)}>{description}</p>
       )}
     </div>
   )
 }
-

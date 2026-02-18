@@ -386,4 +386,3 @@ export function createAuthStore(config: AuthStoreConfig) {
 }
 
 export type { AuthStore, AuthActions, PendingUser }
-

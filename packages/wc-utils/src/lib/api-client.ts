@@ -11,7 +11,13 @@
  */
 
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios'
-import type { ApiClient, ApiClientConfig, ApiErrorResponse, ApiResponse, ApiResult } from './api-client.types'
+import type {
+  ApiClient,
+  ApiClientConfig,
+  ApiErrorResponse,
+  ApiResponse,
+  ApiResult,
+} from './api-client.types'
 
 /**
  * Creates a configured API client instance
@@ -434,4 +440,3 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     hasValidTokens,
   }
 }
-

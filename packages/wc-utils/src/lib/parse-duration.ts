@@ -30,4 +30,3 @@ export function parseDuration(duration: string): number {
 
   return value * multipliers[unit]
 }
-

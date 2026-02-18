@@ -15,11 +15,11 @@ export interface PasswordRequirement {
  * Following modern security best practices
  */
 export const passwordRequirements: PasswordRequirement[] = [
-  { label: 'At least 8 characters', test: (pwd) => pwd.length >= 8 },
-  { label: 'At least one uppercase letter', test: (pwd) => /[A-Z]/.test(pwd) },
-  { label: 'At least one lowercase letter', test: (pwd) => /[a-z]/.test(pwd) },
-  { label: 'At least one number', test: (pwd) => /\d/.test(pwd) },
-  { label: 'At least one special character', test: (pwd) => /[!@#$%^&*(),.?":{}|<>]/.test(pwd) },
+  { label: 'At least 8 characters', test: pwd => pwd.length >= 8 },
+  { label: 'At least one uppercase letter', test: pwd => /[A-Z]/.test(pwd) },
+  { label: 'At least one lowercase letter', test: pwd => /[a-z]/.test(pwd) },
+  { label: 'At least one number', test: pwd => /\d/.test(pwd) },
+  { label: 'At least one special character', test: pwd => /[!@#$%^&*(),.?":{}|<>]/.test(pwd) },
 ]
 
 /**
@@ -33,8 +33,8 @@ export function validatePassword(password: string): {
   metRequirements: PasswordRequirement[]
   strength: number // 0-100
 } {
-  const metRequirements = passwordRequirements.filter((req) => req.test(password))
-  const unmetRequirements = passwordRequirements.filter((req) => !req.test(password))
+  const metRequirements = passwordRequirements.filter(req => req.test(password))
+  const unmetRequirements = passwordRequirements.filter(req => !req.test(password))
   const strength = (metRequirements.length / passwordRequirements.length) * 100
 
   return {
@@ -85,4 +85,3 @@ export function getPasswordStrengthHeroColor(
   if (strength < 80) return 'primary' // Good - blue
   return 'success' // Strong - green
 }
-

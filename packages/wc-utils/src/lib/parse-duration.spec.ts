@@ -28,4 +28,3 @@ describe('parseDuration', () => {
     expect(parseDuration('m15')).toBe(900000)
   })
 })
-

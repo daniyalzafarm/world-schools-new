@@ -1,8 +1,8 @@
 // Export all UI components
-export * from './components';
+export * from './components'
 
 // Export hooks
-export * from './hooks';
+export * from './hooks'
 
 // Export utilities
-export { cn } from './utils/cn';
+export { cn } from './utils/cn'

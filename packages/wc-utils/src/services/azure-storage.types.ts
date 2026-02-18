@@ -107,4 +107,3 @@ export interface FileValidationResult {
    */
   error?: string
 }
-

@@ -77,4 +77,3 @@ export const EMOJI = {
 } as const
 
 export type EmojiKey = keyof typeof EMOJI
-

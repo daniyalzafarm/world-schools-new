@@ -60,12 +60,27 @@ export interface ApiClientConfig {
 export interface ApiClient {
   // HTTP Methods
   get: <T>(url: string, config?: any, attachResponseHeaders?: boolean) => Promise<ApiResult<T>>
-  post: <T>(url: string, data: any, config?: any, attachResponseHeaders?: boolean) => Promise<ApiResult<T>>
+  post: <T>(
+    url: string,
+    data: any,
+    config?: any,
+    attachResponseHeaders?: boolean
+  ) => Promise<ApiResult<T>>
   put: <T>(url: string, data: any, config?: any) => Promise<ApiResult<T>>
   patch: <T>(url: string, data: any, config?: any) => Promise<ApiResult<T>>
   del: <T>(url: string, config?: any) => Promise<ApiResult<T>>
-  postFile: <T>(url: string, file: File | Blob, additionalData?: Record<string, any>, config?: any) => Promise<ApiResult<T>>
-  postFormData: <T>(url: string, formData: FormData, method?: 'POST' | 'PUT', config?: any) => Promise<ApiResult<T>>
+  postFile: <T>(
+    url: string,
+    file: File | Blob,
+    additionalData?: Record<string, any>,
+    config?: any
+  ) => Promise<ApiResult<T>>
+  postFormData: <T>(
+    url: string,
+    formData: FormData,
+    method?: 'POST' | 'PUT',
+    config?: any
+  ) => Promise<ApiResult<T>>
 
   // Token Management
   setTokens: (access: string | null, refresh: string | null) => void
@@ -73,4 +88,3 @@ export interface ApiClient {
   clearTokens: () => void
   hasValidTokens: () => boolean
 }
-

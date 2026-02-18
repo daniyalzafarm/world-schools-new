@@ -126,10 +126,7 @@ export function RichTextEditor({
         <HistoryPlugin />
         <OnChangePlugin onChange={handleChange} />
       </LexicalComposer>
-      {isInvalid && errorMessage && (
-        <p className="mt-1.5 text-sm text-danger">{errorMessage}</p>
-      )}
+      {isInvalid && errorMessage && <p className="mt-1.5 text-sm text-danger">{errorMessage}</p>}
     </div>
   )
 }
-

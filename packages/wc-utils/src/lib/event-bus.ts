@@ -67,4 +67,3 @@ const eventBus: EventBusType = {
 
 export { eventBus, type EventCallback, type EventBusType }
 export default eventBus
-

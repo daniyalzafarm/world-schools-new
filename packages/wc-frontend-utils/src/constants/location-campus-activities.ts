@@ -67,4 +67,3 @@ export const CAMPUS_SETTING = [
     description: 'Near the coast',
   },
 ]
-

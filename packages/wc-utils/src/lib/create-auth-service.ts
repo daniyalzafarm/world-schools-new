@@ -126,4 +126,3 @@ export function createAuthService(config: AuthServiceConfig): AuthService {
     logout,
   }
 }
-

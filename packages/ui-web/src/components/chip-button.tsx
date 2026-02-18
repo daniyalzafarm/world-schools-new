@@ -1,15 +1,15 @@
-'use client';
+'use client'
 
-import { Button } from '@heroui/react';
-import { X } from 'lucide-react';
-import { cn } from '../utils/cn';
+import { Button } from '@heroui/react'
+import { X } from 'lucide-react'
+import { cn } from '../utils/cn'
 
 interface ChipButtonProps {
-  label: string;
-  selected?: boolean;
-  onPress?: () => void;
-  canClose?: boolean;
-  className?: string;
+  label: string
+  selected?: boolean
+  onPress?: () => void
+  canClose?: boolean
+  className?: string
 }
 
 export function ChipButton({
@@ -30,7 +30,7 @@ export function ChipButton({
         selected
           ? 'bg-primary-100 border-primary-100 hover:bg-primary-100'
           : 'bg-transparent border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700',
-        className,
+        className
       )}
       startContent={
         canClose ? (
@@ -42,5 +42,5 @@ export function ChipButton({
     >
       {label}
     </Button>
-  );
+  )
 }

@@ -3,7 +3,7 @@ export function UiWeb() {
     <div className={styles['container']}>
       <h1>Welcome to UiWeb!</h1>
     </div>
-  );
+  )
 }
 
-export default UiWeb;
+export default UiWeb

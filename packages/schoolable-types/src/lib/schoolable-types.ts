@@ -1,3 +1,3 @@
 export function schoolableTypes(): string {
-  return 'schoolable-types';
+  return 'schoolable-types'
 }

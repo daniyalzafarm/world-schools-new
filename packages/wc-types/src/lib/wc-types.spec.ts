@@ -1,7 +1,7 @@
-import { wcTypes } from './wc-types';
+import { wcTypes } from './wc-types'
 
 describe('wcTypes', () => {
   it('should work', () => {
-    expect(wcTypes()).toEqual('wc-types');
-  });
-});
+    expect(wcTypes()).toEqual('wc-types')
+  })
+})

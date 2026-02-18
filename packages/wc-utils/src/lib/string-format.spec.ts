@@ -23,4 +23,3 @@ describe('formatSnakeCaseToTitleCase', () => {
     expect(formatSnakeCaseToTitleCase('this_is_a_test')).toBe('This Is A Test')
   })
 })
-

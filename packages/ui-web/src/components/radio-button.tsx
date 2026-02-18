@@ -88,9 +88,7 @@ export function RadioButton({
         htmlFor={id}
         className={cn(
           'flex cursor-pointer items-center gap-2.5 rounded-full border-2 bg-background px-4 py-2 transition-all duration-200',
-          checked
-            ? 'border-primary bg-primary-50'
-            : 'border-default-200 hover:border-primary',
+          checked ? 'border-primary bg-primary-50' : 'border-default-200 hover:border-primary',
           disabled && 'cursor-not-allowed opacity-50'
         )}
       >
@@ -105,4 +103,3 @@ export function RadioButton({
     </div>
   )
 }
-

@@ -195,9 +195,7 @@ export const DocumentDropzone: React.FC<DocumentDropzoneProps> = ({
     }
     ${isDisabled || isUploading ? 'cursor-not-allowed opacity-50' : ''}
   `
-  const layoutClasses = isCompact
-    ? 'flex items-center justify-center'
-    : 'rounded-xl px-6 py-12'
+  const layoutClasses = isCompact ? 'flex items-center justify-center' : 'rounded-xl px-6 py-12'
 
   return (
     <>
@@ -245,4 +243,3 @@ export const DocumentDropzone: React.FC<DocumentDropzoneProps> = ({
     </>
   )
 }
-

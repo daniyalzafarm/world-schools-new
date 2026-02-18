@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useRef } from 'react'
 import { Input } from './input'
 import type { CustomInputProps } from './input'
 
-export interface CurrencyInputProps extends Omit<CustomInputProps, 'value' | 'onValueChange' | 'type'> {
+export interface CurrencyInputProps
+  extends Omit<CustomInputProps, 'value' | 'onValueChange' | 'type'> {
   value?: number | null
   onValueChange?: (value: number | null) => void
   currency?: string
@@ -20,46 +21,50 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   max,
   ...props
 }) => {
-  const [displayValue, setDisplayValue] = useState('')
+  const [displayValue, setDisplayValue] = useState(() =>
+    value !== null && value !== undefined ? value.toString() : ''
+  )
+  const lastValueRef = useRef(value)
 
-  useEffect(() => {
-    if (value !== null && value !== undefined) {
-      setDisplayValue(value.toString())
-    } else {
-      setDisplayValue('')
+  // Sync displayValue with external value changes (not from user input)
+  if (lastValueRef.current !== value) {
+    lastValueRef.current = value
+    const newDisplayValue = value !== null && value !== undefined ? value.toString() : ''
+    if (displayValue !== newDisplayValue) {
+      setDisplayValue(newDisplayValue)
     }
-  }, [value])
+  }
 
   const formatCurrency = (val: string): string => {
     // Remove non-numeric characters except decimal point
     const cleaned = val.replace(/[^\d.]/g, '')
-    
+
     // Ensure only one decimal point
     const parts = cleaned.split('.')
     if (parts.length > 2) {
       return parts[0] + '.' + parts.slice(1).join('')
     }
-    
+
     // Limit to 2 decimal places
     if (parts[1] && parts[1].length > 2) {
       return parts[0] + '.' + parts[1].slice(0, 2)
     }
-    
+
     return cleaned
   }
 
   const handleChange = (val: string) => {
     const formatted = formatCurrency(val)
     setDisplayValue(formatted)
-    
+
     const numValue = formatted === '' ? null : parseFloat(formatted)
-    
+
     // Validate min/max
     if (numValue !== null) {
       if (min !== undefined && numValue < min) return
       if (max !== undefined && numValue > max) return
     }
-    
+
     onValueChange?.(numValue)
   }
 
@@ -82,10 +87,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
       inputMode="decimal"
       value={displayValue}
       onValueChange={handleChange}
-      startContent={
-        <span className="text-sm text-default-500">{getCurrencySymbol(currency)}</span>
-      }
+      startContent={<span className="text-sm text-default-500">{getCurrencySymbol(currency)}</span>}
     />
   )
 }
-
