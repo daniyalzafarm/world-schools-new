@@ -193,7 +193,7 @@ export interface OptimisticMessage {
 /**
  * Failed message for retry queue
  */
-export interface FailedMessage extends OptimisticMessage {
+export interface FailedMessage extends Omit<OptimisticMessage, 'status'> {
   status: 'FAILED'
   error: string
   retryCount: number
