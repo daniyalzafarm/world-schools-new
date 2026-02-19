@@ -79,6 +79,68 @@ const STORAGE_KEY = 'wc_booking_notification_preferences'
 const DEFAULT_ICON = '/assets/world-camps-icon-rounded.png'
 const NOTIFICATION_SOUND = '/sounds/notification.mp3'
 
+// ─── Web Audio API singleton (module-level) ────────────────────────────
+// AudioContext is unlocked once during any user gesture and stays active
+// for the page's lifetime, allowing programmatic playback from async
+// contexts like WebSocket event handlers.
+// ────────────────────────────────────────────────────────────────────────
+let audioContext: AudioContext | null = null
+let notificationBuffer: AudioBuffer | null = null
+let isAudioUnlocked = false
+
+/**
+ * Unlock the Web Audio API context. Must be called from a user gesture
+ * handler (click, keypress, touchstart). Idempotent — safe to call
+ * multiple times.
+ */
+async function unlockAudioContext(): Promise<void> {
+  if (isAudioUnlocked) return
+
+  try {
+    if (!audioContext) {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      audioContext = new AudioCtx()
+    }
+
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume()
+    }
+
+    isAudioUnlocked = true
+
+    // Pre-load and decode the notification sound
+    if (!notificationBuffer) {
+      const response = await fetch(NOTIFICATION_SOUND)
+      const arrayBuffer = await response.arrayBuffer()
+      notificationBuffer = await audioContext.decodeAudioData(arrayBuffer)
+    }
+  } catch (error) {
+    console.warn('[useNotifications] Failed to unlock audio context:', error)
+  }
+}
+
+/**
+ * Play the notification sound through the Web Audio API.
+ * Silently no-ops if the context hasn't been unlocked yet.
+ */
+function playNotificationSound(volume = 0.5): void {
+  if (!audioContext || !notificationBuffer || audioContext.state !== 'running') return
+
+  try {
+    const source = audioContext.createBufferSource()
+    source.buffer = notificationBuffer
+    const gainNode = audioContext.createGain()
+    gainNode.gain.value = volume
+    source.connect(gainNode)
+    gainNode.connect(audioContext.destination)
+    source.start(0)
+  } catch (error) {
+    console.warn('[useNotifications] Failed to play notification sound:', error)
+  }
+}
+
 /**
  * Hook for managing browser notifications and sound alerts
  */
@@ -115,6 +177,31 @@ export function useNotifications() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences))
   }, [preferences])
 
+  // Unlock Web Audio API on first user interaction (click, keypress, or touch).
+  // Once unlocked, the AudioContext stays in "running" state for the page's
+  // lifetime, allowing playSound() to work from async WebSocket handlers.
+  useEffect(() => {
+    if (typeof window === 'undefined' || isAudioUnlocked) return
+
+    const unlock = () => {
+      void unlockAudioContext()
+      // Clean up all listeners after any one fires
+      document.removeEventListener('click', unlock)
+      document.removeEventListener('keydown', unlock)
+      document.removeEventListener('touchstart', unlock)
+    }
+
+    document.addEventListener('click', unlock)
+    document.addEventListener('keydown', unlock)
+    document.addEventListener('touchstart', unlock)
+
+    return () => {
+      document.removeEventListener('click', unlock)
+      document.removeEventListener('keydown', unlock)
+      document.removeEventListener('touchstart', unlock)
+    }
+  }, [])
+
   /**
    * Request notification permission from the user
    */
@@ -145,20 +232,12 @@ export function useNotifications() {
   }, [])
 
   /**
-   * Play notification sound
+   * Play notification sound via Web Audio API.
+   * Requires the audio context to have been unlocked by a prior user gesture.
    */
   const playSound = useCallback(() => {
     if (typeof window === 'undefined' || !preferences.soundEnabled) return
-
-    try {
-      const audio = new Audio(NOTIFICATION_SOUND)
-      audio.volume = 0.5
-      audio.play().catch(error => {
-        console.error('[useNotifications] Failed to play sound:', error)
-      })
-    } catch (error) {
-      console.error('[useNotifications] Failed to create audio:', error)
-    }
+    playNotificationSound(0.5)
   }, [preferences.soundEnabled])
 
   /**

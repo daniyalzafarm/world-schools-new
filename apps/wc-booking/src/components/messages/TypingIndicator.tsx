@@ -97,7 +97,7 @@ export function TypingIndicator({
         className
       )}
     >
-      <div className={cn('rounded-2xl bg-gray-100 dark:bg-gray-800', 'shadow-sm', sizes.container)}>
+      <div className={cn(sizes.container)}>
         <div className="flex items-center gap-2">
           {/* Animated dots */}
           <div className="flex gap-1">
