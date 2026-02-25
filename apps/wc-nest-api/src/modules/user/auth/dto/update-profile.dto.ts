@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsOptional, IsString } from 'class-validator'
+import { IsArray, IsOptional, IsString } from 'class-validator'
 
 export class UpdateProfileDto {
   @ApiProperty({
@@ -73,4 +73,41 @@ export class UpdateProfileDto {
   @IsString()
   @IsOptional()
   country?: string
+
+  @ApiProperty({
+    description: 'Primary nationality',
+    example: 'American',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  primaryNationality?: string
+
+  @ApiProperty({
+    description: 'Secondary nationality',
+    example: 'British',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  secondaryNationality?: string
+
+  @ApiProperty({
+    description: 'Languages spoken',
+    example: ['English', 'French', 'Spanish'],
+    required: false,
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  languages?: string[]
+
+  @ApiProperty({
+    description: 'Profile photo URL',
+    example: 'https://example.com/photos/user-123.jpg',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  profilePhotoUrl?: string
 }

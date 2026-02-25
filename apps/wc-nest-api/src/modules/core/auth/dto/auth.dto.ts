@@ -95,6 +95,7 @@ export class JwtPayload {
   sub: string // user id
   email: string
   app?: 'superadmin' | 'provider' | 'user' // app-specific claim for token isolation
+  sessionId?: string // session ID for session management
   iat?: number
   exp?: number
 }

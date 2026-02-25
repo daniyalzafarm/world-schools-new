@@ -28,7 +28,7 @@ export function MessageBubble({
   if (isLeftAligned) {
     return (
       <div className="flex items-end gap-3 mb-4 animate-in slide-in-from-left-2 duration-300">
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <Avatar
             src={
               message.isTransferSummary

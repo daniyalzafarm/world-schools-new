@@ -24,6 +24,7 @@ export interface User {
   lastName?: string
   roles: Role[]
   permissions: string[]
+  passwordChangedAt?: Date | string
 }
 
 // ============================================================================
@@ -138,6 +139,29 @@ export interface ApiErrorResponse {
 }
 
 export type ApiResult<T> = ApiResponse<T> | ApiErrorResponse
+
+// ============================================================================
+// Security & 2FA Types
+// ============================================================================
+
+export interface TwoFactorStatus {
+  enabled: boolean
+  method: string | null
+  enabledAt: Date | string | null
+}
+
+export interface Session {
+  id: string
+  deviceType: string
+  deviceName: string
+  browser: string
+  os: string
+  ipAddress: string
+  location: string
+  lastActiveAt: string
+  createdAt: string
+  isCurrent?: boolean
+}
 
 // ============================================================================
 // Configuration Types

@@ -197,7 +197,26 @@ export function createAuthStore(config: AuthStoreConfig) {
             return response as any
           }
 
+          // Check if 2FA is required
+          if (response.data.requiresTwoFactor) {
+            // Don't set authentication state - user hasn't completed 2FA yet
+            set(draft => {
+              draft.user = null
+              draft.isAuthenticated = false // Keep as false until 2FA is completed
+              draft.isLoading = false
+              draft.error = null
+            })
+
+            // Return the full response so caller can check requiresTwoFactor flag
+            return response as any
+          }
+
+          // Only set authenticated state if user object exists
           const user = response.data.user
+
+          if (!user) {
+            throw new Error('Invalid response: user data missing')
+          }
 
           // Handle tokens based on auth mode
           if (usingRequest && response.headers) {
@@ -360,10 +379,20 @@ export function createAuthStore(config: AuthStoreConfig) {
             return false
           }
 
-          // Clear any previous errors on success
-          set(draft => {
-            draft.error = null
-          })
+          // Update user's passwordChangedAt in the store
+          if (response.data?.passwordChangedAt) {
+            set(draft => {
+              if (draft.user) {
+                draft.user.passwordChangedAt = response.data.passwordChangedAt
+              }
+              draft.error = null
+            })
+          } else {
+            // Clear any previous errors on success
+            set(draft => {
+              draft.error = null
+            })
+          }
 
           return true
         } catch (error: any) {

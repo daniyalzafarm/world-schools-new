@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
   const { isAuthenticated, isInitialized } = useAuthStore()
   const [isChecking, setIsChecking] = useState(true)
 
@@ -15,14 +16,17 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       return
     }
 
-    if (isAuthenticated) {
+    // Allow access to 2FA verification page even if authenticated
+    const is2FAPage = pathname === '/auth/verify-2fa'
+
+    if (isAuthenticated && !is2FAPage) {
       // User is authenticated, redirect to dashboard
       router.replace('/dashboard')
     } else {
-      // User is not authenticated, safe to show auth pages
+      // User is not authenticated OR on 2FA page, safe to show auth pages
       setIsChecking(false)
     }
-  }, [isAuthenticated, isInitialized, router])
+  }, [isAuthenticated, isInitialized, pathname, router])
 
   // Show loading state while checking authentication
   if (!isInitialized || isChecking) {
@@ -36,6 +40,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     )
   }
 
-  // Only render children if user is NOT authenticated
+  // Only render children if user is NOT authenticated OR on 2FA page
   return <>{children}</>
 }

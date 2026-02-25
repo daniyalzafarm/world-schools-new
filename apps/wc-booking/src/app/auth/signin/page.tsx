@@ -56,6 +56,27 @@ export default function SignInPage() {
     // Use auth store's login method - single API call
     const result = await login(formData)
 
+    // Check if result is a success response with requiresTwoFactor flag
+    if (
+      typeof result === 'object' &&
+      result !== null &&
+      'success' in result &&
+      result.success &&
+      'data' in result &&
+      result.data &&
+      typeof result.data === 'object' &&
+      'requiresTwoFactor' in result.data &&
+      result.data.requiresTwoFactor === true &&
+      'userId' in result.data &&
+      'email' in result.data
+    ) {
+      // Redirect to 2FA verification page with userId and email in query params
+      router.push(
+        `/auth/verify-2fa?userId=${encodeURIComponent(result.data.userId as string)}&email=${encodeURIComponent(result.data.email as string)}`
+      )
+      return
+    }
+
     // Check if result is an error response with emailNotVerified flag
     if (
       typeof result === 'object' &&

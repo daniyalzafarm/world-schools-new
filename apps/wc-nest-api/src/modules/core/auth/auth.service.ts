@@ -186,7 +186,10 @@ export class AuthService {
     }
   }
 
-  async changePassword(userId: string, changePasswordDto: ChangePasswordDto): Promise<void> {
+  async changePassword(
+    userId: string,
+    changePasswordDto: ChangePasswordDto
+  ): Promise<{ passwordChangedAt: Date }> {
     const { oldPassword, newPassword } = changePasswordDto
 
     const user = await this.prisma.user.findUnique({
@@ -214,11 +217,17 @@ export class AuthService {
       this.configService.jwtConfig.bcryptSaltRounds
     )
 
-    // Update password
+    // Update password AND passwordChangedAt
+    const passwordChangedAt = new Date()
     await this.prisma.user.update({
       where: { id: userId },
-      data: { passwordHash: hashedNewPassword },
+      data: {
+        passwordHash: hashedNewPassword,
+        passwordChangedAt,
+      },
     })
+
+    return { passwordChangedAt }
   }
 
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string }> {
@@ -307,6 +316,7 @@ export class AuthService {
       email: user.email,
       firstName: user.firstName ?? undefined,
       lastName: user.lastName ?? undefined,
+      profilePhotoUrl: user.profilePhotoUrl ?? null,
       roles,
       permissions,
     }
@@ -316,7 +326,7 @@ export class AuthService {
       response.providerId = user.ownedProvider.id
     }
 
-    // Include parent profile if it exists
+    // Include parent profile if it exists (map parentProfile to parent for frontend)
     if (user.parentProfile) {
       response.parent = {
         id: user.parentProfile.id,
@@ -326,6 +336,9 @@ export class AuthService {
         state: user.parentProfile.state ?? null,
         postalCode: user.parentProfile.postalCode ?? null,
         country: user.parentProfile.country ?? null,
+        primaryNationality: user.parentProfile.primaryNationality ?? null,
+        secondaryNationality: user.parentProfile.secondaryNationality ?? null,
+        languages: user.parentProfile.languages ?? [],
       }
     }
 
@@ -390,9 +403,10 @@ export class AuthService {
     }
   }
 
-  private generateTokensFromUser(
+  generateTokensFromUser(
     user: any,
-    app?: 'superadmin' | 'provider' | 'user'
+    app?: 'superadmin' | 'provider' | 'user',
+    sessionId?: string
   ): {
     accessToken: string
     refreshToken: string
@@ -402,6 +416,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       app, // Include app-specific claim for token isolation
+      sessionId, // Include sessionId for session management
     }
 
     const tokens = this.generateTokens(payload)
@@ -411,21 +426,5 @@ export class AuthService {
       refreshToken: tokens.refresh_token,
       expiresIn: tokens.expiresIn,
     }
-  }
-
-  /**
-   * Generate app-specific tokens for a user
-   * This method should be used by app-specific controllers (superadmin, provider)
-   * to ensure tokens are scoped to the correct app
-   */
-  generateAppSpecificTokens(
-    user: any,
-    app: 'superadmin' | 'provider' | 'user'
-  ): {
-    accessToken: string
-    refreshToken: string
-    expiresIn: number
-  } {
-    return this.generateTokensFromUser(user, app)
   }
 }

@@ -16,7 +16,7 @@ export const MessageSkeleton: React.FC<MessageSkeletonProps> = ({ isUser = false
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div className={`flex gap-2 max-w-[70%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
         {/* Avatar skeleton (only for non-user messages) */}
-        {!isUser && <Skeleton className="flex-shrink-0 w-8 h-8 rounded-full" />}
+        {!isUser && <Skeleton className="shrink-0 w-8 h-8 rounded-full" />}
 
         {/* Message bubble skeleton */}
         <div className="flex flex-col gap-1">

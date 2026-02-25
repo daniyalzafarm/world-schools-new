@@ -11,7 +11,7 @@ export const ConversationSkeleton: React.FC = () => {
   return (
     <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
       {/* Avatar skeleton */}
-      <Skeleton className="flex-shrink-0 w-12 h-12 rounded-full" />
+      <Skeleton className="shrink-0 w-12 h-12 rounded-full" />
 
       {/* Content skeleton */}
       <div className="flex-1 min-w-0">

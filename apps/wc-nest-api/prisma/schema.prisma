@@ -15,15 +15,17 @@ datasource db {
 // ============================================
 
 model User {
-  id              String    @id @default(uuid())
-  email           String    @unique
-  passwordHash    String?   @map("password_hash")
-  firstName       String?   @map("first_name")
-  lastName        String?   @map("last_name")
-  emailVerified   Boolean   @default(false) @map("email_verified")
-  emailVerifiedAt DateTime? @map("email_verified_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id                String    @id @default(uuid())
+  email             String    @unique
+  passwordHash      String?   @map("password_hash")
+  passwordChangedAt DateTime? @map("password_changed_at")
+  firstName         String?   @map("first_name")
+  lastName          String?   @map("last_name")
+  emailVerified     Boolean   @default(false) @map("email_verified")
+  emailVerifiedAt   DateTime? @map("email_verified_at")
+  profilePhotoUrl   String?   @map("profile_photo_url")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   // Relations
   userAccounts         UserAccount[]
@@ -35,6 +37,8 @@ model User {
   emailVerifications   EmailVerification[]
   passwordResets       PasswordReset[]
   reviewedDocuments    VerificationDocument[] @relation("ReviewedDocuments")
+  twoFactorAuth        TwoFactorAuth?
+  sessions             UserSession[]
 
   // Messaging Relations
   conversationParticipants   ConversationParticipant[]
@@ -223,16 +227,20 @@ model Provider {
 // ============================================
 
 model Parent {
-  id         String   @id @default(uuid())
-  userId     String   @unique @map("user_id")
-  phone      String?
-  address    String?
-  city       String?
-  state      String?
-  postalCode String?  @map("postal_code")
-  country    String?
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(uuid())
+  userId               String   @unique @map("user_id")
+  phone                String?
+  phoneVerified        Boolean  @default(false) @map("phone_verified")
+  address              String?
+  city                 String?
+  state                String?
+  postalCode           String?  @map("postal_code")
+  country              String?
+  primaryNationality   String?  @map("primary_nationality")
+  secondaryNationality String?  @map("secondary_nationality")
+  languages            String[] @default([])
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   // Relations
   user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -299,8 +307,11 @@ model EmailVerification {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
   code      String
+  type      String   @default("signup") // 'signup' or 'login_2fa'
   expiresAt DateTime @map("expires_at")
   verified  Boolean  @default(false)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -309,6 +320,8 @@ model EmailVerification {
 
   @@index([userId])
   @@index([code])
+  @@index([type])
+  @@index([expiresAt])
   @@map("email_verifications")
 }
 
@@ -331,6 +344,57 @@ model PasswordReset {
   @@index([userId])
   @@index([token])
   @@map("password_resets")
+}
+
+// ============================================
+// Two-Factor Authentication
+// ============================================
+
+model TwoFactorAuth {
+  id        String    @id @default(uuid())
+  userId    String    @unique @map("user_id")
+  method    String // 'email' (only email for now)
+  enabled   Boolean   @default(false)
+  enabledAt DateTime? @map("enabled_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([enabled])
+  @@map("two_factor_auth")
+}
+
+// ============================================
+// User Sessions
+// ============================================
+
+model UserSession {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  sessionId    String   @unique @map("session_id")
+  deviceType   String?  @map("device_type")
+  deviceName   String?  @map("device_name")
+  browser      String?
+  os           String?
+  ipAddress    String?  @map("ip_address")
+  location     String?
+  isRevoked    Boolean  @default(false) @map("is_revoked")
+  lastActiveAt DateTime @default(now()) @map("last_active_at")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([expiresAt])
+  @@index([isRevoked])
+  @@map("user_sessions")
 }
 
 // ============================================

@@ -53,8 +53,31 @@ export default function SignInPage() {
     // Clear any previous errors before attempting login
     clearError()
 
-    const success = await login(formData)
-    if (success) {
+    const result = await login(formData)
+
+    // Check if result is a success response with requiresTwoFactor flag
+    if (
+      typeof result === 'object' &&
+      result !== null &&
+      'success' in result &&
+      result.success &&
+      'data' in result &&
+      result.data &&
+      typeof result.data === 'object' &&
+      'requiresTwoFactor' in result.data &&
+      result.data.requiresTwoFactor === true &&
+      'userId' in result.data &&
+      'email' in result.data
+    ) {
+      // Redirect to 2FA verification page with userId and email in query params
+      router.push(
+        `/auth/verify-2fa?userId=${encodeURIComponent(result.data.userId as string)}&email=${encodeURIComponent(result.data.email as string)}`
+      )
+      return
+    }
+
+    // If result is true, login was successful
+    if (result === true) {
       router.replace('/analytics-dashboard')
     }
   }

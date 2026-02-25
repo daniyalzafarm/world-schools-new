@@ -474,4 +474,39 @@ export class EmailTemplateService {
     `
     return this.getBaseTemplate(content)
   }
+
+  /**
+   * Get login verification template for 2FA
+   */
+  getLoginVerificationTemplate(code: string, expiryMinutes: number, userName: string): string {
+    const content = `
+      <div class="email-header">
+        <div class="logo">World-Camps</div>
+        <h1>Login Verification</h1>
+      </div>
+      <div class="email-body">
+        <p>Hi ${userName},</p>
+
+        <p>We received a login attempt to your World-Camps account. Please use the verification code below to complete your login:</p>
+
+        <div style="background-color: ${this.colors.backgroundGray}; padding: 24px; border-radius: 8px; text-align: center; margin: 24px 0;">
+          <div style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: ${this.colors.primary};">${code}</div>
+        </div>
+
+        <p>This code will expire in <strong>${expiryMinutes} minutes</strong>.</p>
+
+        <div class="warning-box">
+          <p style="margin: 0;"><strong>Security Notice</strong></p>
+          <p style="margin: 8px 0 0 0;">If you didn't attempt to log in, please ignore this email or contact support if you're concerned about your account security.</p>
+        </div>
+
+        <div class="divider"></div>
+        <p class="text-secondary" style="font-size: 14px;">Best regards,<br>The World-Camps Team</p>
+      </div>
+      <div class="email-footer">
+        <p>&copy; ${new Date().getFullYear()} World-Camps. All rights reserved.</p>
+      </div>
+    `
+    return this.getBaseTemplate(content)
+  }
 }

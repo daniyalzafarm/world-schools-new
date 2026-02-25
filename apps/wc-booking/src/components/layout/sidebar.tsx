@@ -482,8 +482,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                 <DropdownMenu
                   aria-label="User menu"
                   onAction={key => {
-                    if (key === 'settings') {
-                      router.push('/settings/profile')
+                    if (key === 'account') {
+                      router.push('/account/profile/personal-info')
                     } else if (key === 'logout') {
                       logout().catch(e => console.error(e))
                       router.push('/auth/signin')
@@ -491,11 +491,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                   }}
                 >
                   <DropdownItem
-                    key="settings"
+                    key="account"
                     className="text-gray-700 dark:text-gray-300"
                     startContent={<Settings size={16} />}
                   >
-                    Settings
+                    Account
                   </DropdownItem>
                   <DropdownItem
                     key="logout"

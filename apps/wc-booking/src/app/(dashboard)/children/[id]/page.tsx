@@ -268,76 +268,72 @@ export default function ChildDetailsPage() {
       </div>
 
       {/* Quick Access */}
-      <section className="mb-8">
+      <section className="mb-6">
         <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">
           Quick access
         </h2>
-        <div className="flex flex-col">
+        <div className="space-y-1">
           {/* Personal information */}
           <button
             onClick={() => router.push(`/children/${childId}/profile`)}
-            className="cursor-pointer flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="cursor-pointer flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors w-full"
           >
-            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
               <User size={20} className="text-blue-600 dark:text-blue-400" />
             </div>
-            <div className="flex-1 text-left">
-              <div className="text-sm font-medium text-slate-900 dark:text-white">
+            <div className="flex-1 text-left min-w-0">
+              <div className="text-base font-medium text-slate-900 dark:text-white mb-0.5">
                 Personal information
               </div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">
+              <div className="text-sm text-slate-500 dark:text-slate-400">
                 Name, birthday, school year
               </div>
             </div>
-            <ChevronRight size={20} className="text-slate-400" />
+            <ChevronRight size={20} className="text-slate-400 shrink-0" />
           </button>
 
           {/* Medical information */}
           <button
             onClick={() => router.push(`/children/${childId}/medical`)}
-            className="cursor-pointer flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="cursor-pointer flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors w-full"
           >
-            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <Activity size={20} className="text-slate-600 dark:text-slate-400" />
+            <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0 text-slate-900 dark:text-white">
+              <Activity size={20} />
             </div>
-            <div className="flex-1 text-left">
-              <div className="text-sm font-medium text-slate-900 dark:text-white">
+            <div className="flex-1 text-left min-w-0">
+              <div className="text-base font-medium text-slate-900 dark:text-white mb-0.5">
                 Medical information
               </div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">
+              <div className="text-sm text-slate-500 dark:text-slate-400">
                 Allergies, medications, special needs
               </div>
             </div>
-            <ChevronRight size={20} className="text-slate-400" />
+            <ChevronRight size={20} className="text-slate-400 shrink-0" />
           </button>
 
           {/* Emergency contacts */}
           <button
             onClick={() => router.push(`/children/${childId}/emergency`)}
-            className="cursor-pointer flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="cursor-pointer flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors w-full"
           >
             <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+              className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
                 hasEmergencyContacts
-                  ? 'bg-slate-100 dark:bg-slate-800'
+                  ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white'
                   : 'bg-danger-100 dark:bg-danger-900/30'
               }`}
             >
               <Phone
                 size={20}
-                className={
-                  hasEmergencyContacts
-                    ? 'text-slate-600 dark:text-slate-400'
-                    : 'text-danger-600 dark:text-danger-400'
-                }
+                className={hasEmergencyContacts ? '' : 'text-danger-600 dark:text-danger-400'}
               />
             </div>
-            <div className="flex-1 text-left">
-              <div className="text-sm font-medium text-slate-900 dark:text-white">
+            <div className="flex-1 text-left min-w-0">
+              <div className="text-base font-medium text-slate-900 dark:text-white mb-0.5">
                 Emergency contacts
               </div>
               <div
-                className={`text-xs ${
+                className={`text-sm ${
                   hasEmergencyContacts
                     ? 'text-slate-500 dark:text-slate-400'
                     : 'text-danger-600 dark:text-danger-400 font-semibold'
@@ -348,26 +344,26 @@ export default function ChildDetailsPage() {
                   : 'At least 1 contact required'}
               </div>
             </div>
-            <ChevronRight size={20} className="text-slate-400" />
+            <ChevronRight size={20} className="text-slate-400 shrink-0" />
           </button>
 
           {/* Camp preferences */}
           <button
             onClick={() => router.push(`/children/${childId}/preferences`)}
-            className="cursor-pointer flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="cursor-pointer flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors w-full"
           >
-            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <Star size={20} className="text-slate-600 dark:text-slate-400" />
+            <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0 text-slate-900 dark:text-white">
+              <Star size={20} />
             </div>
-            <div className="flex-1 text-left">
-              <div className="text-sm font-medium text-slate-900 dark:text-white">
+            <div className="flex-1 text-left min-w-0">
+              <div className="text-base font-medium text-slate-900 dark:text-white mb-0.5">
                 Camp preferences
               </div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">
+              <div className="text-sm text-slate-500 dark:text-slate-400">
                 Location, budget, camp type
               </div>
             </div>
-            <ChevronRight size={20} className="text-slate-400" />
+            <ChevronRight size={20} className="text-slate-400 shrink-0" />
           </button>
         </div>
       </section>

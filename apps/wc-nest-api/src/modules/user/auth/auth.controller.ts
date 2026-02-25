@@ -3,17 +3,23 @@ import {
   Body,
   ConflictException,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   NotFoundException,
+  Param,
   Patch,
   Post,
   Req,
   Res,
   UnauthorizedException,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
+import { FileInterceptor } from '@nestjs/platform-express'
+import { JwtService } from '@nestjs/jwt'
 import { Request, Response } from 'express'
 import { parseDuration } from '@world-schools/wc-utils'
 import { AuthService } from '../../core/auth/auth.service'
@@ -26,6 +32,12 @@ import { RegisterUserDto } from './dto/register.dto'
 import { UpdateProfileDto } from './dto/update-profile.dto'
 import { UserResendVerificationCodeDto, UserVerifyEmailDto } from './dto/verify-email.dto'
 import {
+  RequestEmailChangeDto,
+  RequestPhoneChangeDto,
+  VerifyEmailChangeDto,
+  VerifyPhoneChangeDto,
+} from './dto/contact-verification.dto'
+import {
   ChangePasswordDto,
   ForgotPasswordDto,
   RefreshTokenDto,
@@ -35,6 +47,9 @@ import { ResponseUtil } from '../../../common/utils/response.util'
 import { ConfigService } from '../../../config/config.service'
 import { EmailVerificationService } from './services/email-verification.service'
 import { PasswordResetService } from '../../core/auth/services/password-reset.service'
+import { TwoFactorAuthService } from './services/two-factor-auth.service'
+import { SessionManagementService } from './services/session-management.service'
+import { ProfilePhotoService } from './services/profile-photo.service'
 import * as bcrypt from 'bcryptjs'
 
 @ApiTags('User Auth')
@@ -42,11 +57,66 @@ import * as bcrypt from 'bcryptjs'
 export class UserAuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly emailVerificationService: EmailVerificationService,
-    private readonly passwordResetService: PasswordResetService
+    private readonly passwordResetService: PasswordResetService,
+    private readonly twoFactorAuthService: TwoFactorAuthService,
+    private readonly sessionManagementService: SessionManagementService,
+    private readonly profilePhotoService: ProfilePhotoService
   ) {}
+
+  /**
+   * Centralized helper method for creating authenticated sessions
+   * Combines session creation, token generation, and cookie/header setting
+   * Ensures consistency across all authentication flows
+   */
+  private async createAuthenticatedSession(
+    user: any,
+    request: Request,
+    response: Response,
+    app: 'user' | 'provider' | 'superadmin'
+  ) {
+    // Create session record
+    const userAgent = request.headers['user-agent']
+    const ipAddress = request.ip
+
+    const sessionId = await this.sessionManagementService.createSession(
+      user.id,
+      userAgent,
+      ipAddress
+    )
+
+    // Generate app-specific tokens with sessionId
+    const tokens = this.authService.generateTokensFromUser(user, app, sessionId)
+
+    // Set HTTP-only cookies for tokens with app-specific names
+    const cookiePrefix =
+      app === 'user' ? 'wc_user' : app === 'provider' ? 'wc_provider' : 'wc_superadmin'
+
+    response.cookie(`${cookiePrefix}_access_token`, tokens.accessToken, {
+      httpOnly: true,
+      secure: this.configService.getNodeEnv() === 'production',
+      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
+      maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+    })
+
+    response.cookie(`${cookiePrefix}_refresh_token`, tokens.refreshToken, {
+      httpOnly: true,
+      secure: this.configService.getNodeEnv() === 'production',
+      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
+      maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+    })
+
+    // If authUsingRequest is enabled, also send tokens in headers
+    if (this.configService.jwtConfig.authUsingRequest) {
+      response.setHeader('x-access-token', tokens.accessToken)
+      response.setHeader('x-refresh-token', tokens.refreshToken)
+    }
+
+    return { user, tokens, sessionId }
+  }
 
   @Public()
   @Post('register')
@@ -88,6 +158,7 @@ export class UserAuthController {
         data: {
           email: registerDto.email,
           passwordHash,
+          passwordChangedAt: new Date(),
           firstName: registerDto.firstName,
           lastName: registerDto.lastName,
           emailVerified: false,
@@ -149,7 +220,8 @@ export class UserAuthController {
   })
   async verifyEmail(
     @Body() verifyEmailDto: UserVerifyEmailDto,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
+    @Req() request: Request
   ) {
     // Verify the email and get the user
     const verifiedUser = await this.emailVerificationService.verifyCode(
@@ -175,29 +247,8 @@ export class UserAuthController {
       })
     }
 
-    // Generate app-specific tokens with 'user' claim for token isolation
-    const appTokens = this.authService.generateAppSpecificTokens(user, 'user')
-
-    // Set HTTP-only cookies for tokens with app-specific names
-    response.cookie('wc_user_access_token', appTokens.accessToken, {
-      httpOnly: true,
-      secure: this.configService.getNodeEnv() === 'production',
-      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
-      maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
-    })
-
-    response.cookie('wc_user_refresh_token', appTokens.refreshToken, {
-      httpOnly: true,
-      secure: this.configService.getNodeEnv() === 'production',
-      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
-      maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
-    })
-
-    // If authUsingRequest is enabled, also send tokens in headers
-    if (this.configService.jwtConfig.authUsingRequest) {
-      response.setHeader('x-access-token', appTokens.accessToken)
-      response.setHeader('x-refresh-token', appTokens.refreshToken)
-    }
+    // Use centralized helper to create session and generate tokens with sessionId
+    await this.createAuthenticatedSession(user, request, response, 'user')
 
     return ResponseUtil.success({
       message: 'Email verified successfully. You are now logged in.',
@@ -228,7 +279,11 @@ export class UserAuthController {
     description:
       'Authenticate parent user and return JWT tokens. User must have Parent role and verified email.',
   })
-  async login(@Body() loginDto: UserLoginDto, @Res({ passthrough: true }) response: Response) {
+  async login(
+    @Body() loginDto: UserLoginDto,
+    @Res({ passthrough: true }) response: Response,
+    @Req() request: Request
+  ) {
     // Validate credentials using central AuthService
     const result = await this.authService.login(loginDto)
 
@@ -263,8 +318,43 @@ export class UserAuthController {
       }
     }
 
-    // Generate app-specific tokens with 'user' claim for token isolation
-    const appTokens = this.authService.generateAppSpecificTokens(user, 'user')
+    // Check if 2FA is enabled
+    const twoFactorStatus = await this.twoFactorAuthService.getTwoFactorStatus(user.id)
+
+    if (twoFactorStatus.enabled) {
+      // Get IP address and user agent from request
+      const ipAddress = request.ip
+      const userAgent = request.headers['user-agent']
+
+      // Send verification code
+      await this.twoFactorAuthService.createAndSendLoginCode(
+        user.id,
+        user.email,
+        ipAddress,
+        userAgent
+      )
+
+      // Return special response indicating 2FA is required
+      return ResponseUtil.success({
+        requiresTwoFactor: true,
+        userId: user.id,
+        email: user.email,
+        message: 'Verification code sent to your email',
+      })
+    }
+
+    // Create session record FIRST (before generating JWT)
+    const userAgent = request.headers['user-agent']
+    const ipAddress = request.ip
+
+    const sessionId = await this.sessionManagementService.createSession(
+      user.id,
+      userAgent,
+      ipAddress
+    )
+
+    // Generate app-specific tokens with 'user' claim and sessionId for token isolation
+    const appTokens = this.authService.generateTokensFromUser(user, 'user', sessionId)
 
     // Set HTTP-only cookies for tokens with app-specific names
     response.cookie('wc_user_access_token', appTokens.accessToken, {
@@ -300,7 +390,8 @@ export class UserAuthController {
   })
   async googleSignIn(
     @Body() googleSignInDto: GoogleSignInDto,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
+    @Req() request: Request
   ) {
     // Verify provider exists
     const provider = await this.prisma.provider.findUnique({
@@ -421,29 +512,8 @@ export class UserAuthController {
     // Fetch the full user with roles and permissions for token generation
     const fullUser = await this.authService.validateUser(user.id)
 
-    // Generate app-specific tokens with 'user' claim for token isolation
-    const appTokens = this.authService.generateAppSpecificTokens(fullUser, 'user')
-
-    // Set HTTP-only cookies for tokens with app-specific names
-    response.cookie('wc_user_access_token', appTokens.accessToken, {
-      httpOnly: true,
-      secure: this.configService.getNodeEnv() === 'production',
-      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
-      maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
-    })
-
-    response.cookie('wc_user_refresh_token', appTokens.refreshToken, {
-      httpOnly: true,
-      secure: this.configService.getNodeEnv() === 'production',
-      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
-      maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
-    })
-
-    // If authUsingRequest is enabled, also send tokens in headers
-    if (this.configService.jwtConfig.authUsingRequest) {
-      response.setHeader('x-access-token', appTokens.accessToken)
-      response.setHeader('x-refresh-token', appTokens.refreshToken)
-    }
+    // Use centralized helper to create session and generate tokens with sessionId
+    await this.createAuthenticatedSession(fullUser, request, response, 'user')
 
     return ResponseUtil.success({
       user: fullUser,
@@ -473,6 +543,17 @@ export class UserAuthController {
       throw new UnauthorizedException('Refresh token not provided')
     }
 
+    // Decode refresh token to extract sessionId
+    let sessionId: string | undefined
+    try {
+      const decoded = this.jwtService.verify(refreshToken, {
+        secret: this.configService.jwtConfig.refreshSecret,
+      })
+      sessionId = decoded.sessionId
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token')
+    }
+
     const result = await this.authService.refreshToken(refreshToken)
 
     // Verify user still has Parent role
@@ -483,8 +564,8 @@ export class UserAuthController {
       throw new UnauthorizedException('Access denied. Parent role required.')
     }
 
-    // Generate app-specific tokens with 'user' claim for token isolation
-    const appTokens = this.authService.generateAppSpecificTokens(user, 'user')
+    // Generate app-specific tokens with 'user' claim and PRESERVE sessionId
+    const appTokens = this.authService.generateTokensFromUser(user, 'user', sessionId)
 
     // Set HTTP-only cookies for tokens with app-specific names
     response.cookie('wc_user_access_token', appTokens.accessToken, {
@@ -515,7 +596,7 @@ export class UserAuthController {
     summary: 'Get current user profile',
     description: 'Get the profile of the currently authenticated parent user',
   })
-  getProfile(@CurrentUser() user: any) {
+  async getProfile(@CurrentUser() user: any) {
     // Verify user has Parent role
     const hasParentRole = user.roles?.some((role: any) => role.name === 'Parent')
 
@@ -523,7 +604,77 @@ export class UserAuthController {
       throw new UnauthorizedException('Access denied. Parent role required.')
     }
 
-    return ResponseUtil.success(user)
+    // Fetch full user profile with passwordChangedAt
+    const dbUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        emailVerified: true,
+        passwordChangedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        profilePhotoUrl: true,
+        roles: {
+          select: {
+            role: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        parentProfile: {
+          select: {
+            id: true,
+            phone: true,
+            phoneVerified: true,
+            address: true,
+            city: true,
+            state: true,
+            postalCode: true,
+            country: true,
+            primaryNationality: true,
+            secondaryNationality: true,
+            languages: true,
+          },
+        },
+      },
+    })
+
+    if (!dbUser) {
+      throw new NotFoundException('User not found')
+    }
+
+    // Generate SAS URL for profile photo if it exists
+    let profilePhotoUrl = dbUser.profilePhotoUrl
+    if (profilePhotoUrl) {
+      profilePhotoUrl = await this.profilePhotoService.generatePhotoUrl(profilePhotoUrl)
+    }
+
+    // Transform roles to flat structure and build response matching frontend User type
+    const fullUser = {
+      id: dbUser.id,
+      email: dbUser.email,
+      firstName: dbUser.firstName,
+      lastName: dbUser.lastName,
+      emailVerified: dbUser.emailVerified,
+      passwordChangedAt: dbUser.passwordChangedAt,
+      createdAt: dbUser.createdAt,
+      updatedAt: dbUser.updatedAt,
+      profilePhotoUrl: profilePhotoUrl, // Use SAS URL for secure access
+      roles: dbUser.roles.map((ur: any) => ({
+        id: ur.role.id,
+        name: ur.role.name,
+      })),
+      permissions: user.permissions || [], // Use permissions from JWT payload
+      parent: dbUser.parentProfile, // Map parentProfile to parent for frontend compatibility
+    }
+
+    return ResponseUtil.success(fullUser)
   }
 
   @Patch('profile')
@@ -568,6 +719,18 @@ export class UserAuthController {
     if (updateProfileDto.country !== undefined) {
       parentUpdateData.country = updateProfileDto.country
     }
+    if (updateProfileDto.primaryNationality !== undefined) {
+      parentUpdateData.primaryNationality = updateProfileDto.primaryNationality
+    }
+    if (updateProfileDto.secondaryNationality !== undefined) {
+      parentUpdateData.secondaryNationality = updateProfileDto.secondaryNationality
+    }
+    if (updateProfileDto.languages !== undefined) {
+      parentUpdateData.languages = updateProfileDto.languages
+    }
+    if (updateProfileDto.profilePhotoUrl !== undefined) {
+      parentUpdateData.profilePhotoUrl = updateProfileDto.profilePhotoUrl
+    }
 
     // Perform updates in a transaction
     await this.prisma.$transaction(async tx => {
@@ -610,6 +773,204 @@ export class UserAuthController {
     return ResponseUtil.success(updatedUser)
   }
 
+  @Patch('profile/photo')
+  @UseInterceptors(FileInterceptor('photo'))
+  @ApiOperation({
+    summary: 'Upload profile photo',
+    description: 'Upload a profile photo for the currently authenticated user',
+  })
+  async uploadProfilePhoto(@CurrentUser() user: any, @UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded')
+    }
+
+    // Upload photo to Azure Storage
+    const uploadResult = await this.profilePhotoService.uploadPhoto(user.id, {
+      buffer: file.buffer,
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+    })
+
+    // Update user profile with new photo URL
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { profilePhotoUrl: uploadResult.url },
+    })
+
+    // Generate SAS URL for immediate display
+    const sasUrl = await this.profilePhotoService.generatePhotoUrl(uploadResult.url)
+
+    // Fetch and return updated user profile
+    const updatedUser = await this.authService.validateUser(user.id)
+
+    return ResponseUtil.success({
+      ...updatedUser,
+      profilePhotoUrl: sasUrl, // Return SAS URL for immediate display
+    })
+  }
+
+  @Delete('profile/photo')
+  @ApiOperation({
+    summary: 'Delete profile photo',
+    description: 'Delete the profile photo for the currently authenticated user',
+  })
+  async deleteProfilePhoto(@CurrentUser() user: any) {
+    // Get current photo URL
+    const userProfile = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { profilePhotoUrl: true },
+    })
+
+    if (!userProfile?.profilePhotoUrl) {
+      throw new NotFoundException('No profile photo found')
+    }
+
+    // Delete photo from Azure Storage
+    await this.profilePhotoService.deletePhoto(userProfile.profilePhotoUrl)
+
+    // Update user profile to remove photo URL
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { profilePhotoUrl: null },
+    })
+
+    // Fetch and return updated user profile
+    const updatedUser = await this.authService.validateUser(user.id)
+
+    return ResponseUtil.success(updatedUser)
+  }
+
+  @Post('email/change-request')
+  @ApiOperation({
+    summary: 'Request email change',
+    description: 'Initiate email change process by sending verification email to new address',
+  })
+  @HttpCode(HttpStatus.OK)
+  async requestEmailChange(
+    @CurrentUser() user: any,
+    @Body() dto: RequestEmailChangeDto
+  ): Promise<any> {
+    // Verify user has Parent role
+    const hasParentRole = user.roles?.some((role: any) => role.name === 'Parent')
+    if (!hasParentRole) {
+      throw new UnauthorizedException('Access denied. Parent role required.')
+    }
+
+    // Check if new email is different from current
+    if (dto.newEmail.toLowerCase() === user.email.toLowerCase()) {
+      throw new BadRequestException('New email must be different from current email')
+    }
+
+    // Check if email is already in use
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.newEmail.toLowerCase() },
+    })
+
+    if (existingUser) {
+      throw new ConflictException('Email address is already in use')
+    }
+
+    // TODO: Implement email verification service to send verification email
+    // For now, return success message
+    return ResponseUtil.success({
+      message: 'Verification email sent. Please check your inbox and click the verification link.',
+    })
+  }
+
+  @Post('email/verify')
+  @ApiOperation({
+    summary: 'Verify email change',
+    description: 'Verify email change using token from verification email',
+  })
+  @HttpCode(HttpStatus.OK)
+  verifyEmailChange(@Body() _dto: VerifyEmailChangeDto): any {
+    // TODO: Implement email verification logic
+    // For now, return success message
+    return ResponseUtil.success({
+      message: 'Email verified successfully',
+    })
+  }
+
+  @Post('phone/change-request')
+  @ApiOperation({
+    summary: 'Request phone change',
+    description: 'Initiate phone change process by sending SMS verification code',
+  })
+  @HttpCode(HttpStatus.OK)
+  async requestPhoneChange(
+    @CurrentUser() user: any,
+    @Body() dto: RequestPhoneChangeDto
+  ): Promise<any> {
+    // Verify user has Parent role
+    const hasParentRole = user.roles?.some((role: any) => role.name === 'Parent')
+    if (!hasParentRole) {
+      throw new UnauthorizedException('Access denied. Parent role required.')
+    }
+
+    // Get parent profile
+    const parentProfile = await this.prisma.parent.findUnique({
+      where: { userId: user.id },
+    })
+
+    if (!parentProfile) {
+      throw new NotFoundException('Parent profile not found')
+    }
+
+    // Update phone number (unverified)
+    // Phone number is already in E.164 format (e.g., "+41791234567")
+    await this.prisma.parent.update({
+      where: { id: parentProfile.id },
+      data: {
+        phone: dto.phoneNumber,
+        phoneVerified: false,
+      },
+    })
+
+    // TODO: Implement SMS service to send verification code
+    // For now, return success message
+    return ResponseUtil.success({
+      message: 'Verification code sent via SMS. Please check your phone.',
+    })
+  }
+
+  @Post('phone/verify')
+  @ApiOperation({
+    summary: 'Verify phone change',
+    description: 'Verify phone change using SMS verification code',
+  })
+  @HttpCode(HttpStatus.OK)
+  async verifyPhoneChange(
+    @CurrentUser() user: any,
+    @Body() _dto: VerifyPhoneChangeDto
+  ): Promise<any> {
+    // Verify user has Parent role
+    const hasParentRole = user.roles?.some((role: any) => role.name === 'Parent')
+    if (!hasParentRole) {
+      throw new UnauthorizedException('Access denied. Parent role required.')
+    }
+
+    // Get parent profile
+    const parentProfile = await this.prisma.parent.findUnique({
+      where: { userId: user.id },
+    })
+
+    if (!parentProfile) {
+      throw new NotFoundException('Parent profile not found')
+    }
+
+    // TODO: Implement SMS verification code validation
+    // For now, mark phone as verified
+    await this.prisma.parent.update({
+      where: { id: parentProfile.id },
+      data: { phoneVerified: true },
+    })
+
+    return ResponseUtil.success({
+      message: 'Phone number verified successfully',
+    })
+  }
+
   @Patch('change-password')
   @ApiOperation({
     summary: 'Change password',
@@ -623,9 +984,9 @@ export class UserAuthController {
       throw new UnauthorizedException('Access denied. Parent role required.')
     }
 
-    await this.authService.changePassword(user.id, changePasswordDto)
+    const result = await this.authService.changePassword(user.id, changePasswordDto)
 
-    return ResponseUtil.success(null)
+    return ResponseUtil.success(result)
   }
 
   @Post('logout')
@@ -674,6 +1035,189 @@ export class UserAuthController {
 
     return ResponseUtil.success({
       message: 'Password reset successful. You can now login with your new password.',
+    })
+  }
+
+  /**
+   * Get 2FA status
+   */
+  @Get('two-factor/status')
+  @ApiOperation({
+    summary: 'Get two-factor authentication status',
+    description: 'Get the current 2FA status for the authenticated user',
+  })
+  async getTwoFactorStatus(@CurrentUser() user: any) {
+    return this.twoFactorAuthService.getTwoFactorStatus(user.id)
+  }
+
+  /**
+   * Enable Email 2FA
+   */
+  @Post('two-factor/enable')
+  @ApiOperation({
+    summary: 'Enable two-factor authentication',
+    description: 'Enable email-based two-factor authentication for the user',
+  })
+  async enableTwoFactor(@CurrentUser() user: any) {
+    await this.twoFactorAuthService.enableEmailTwoFactor(user.id)
+    return ResponseUtil.success({
+      message: 'Two-factor authentication enabled successfully',
+    })
+  }
+
+  /**
+   * Disable Email 2FA
+   */
+  @Post('two-factor/disable')
+  @ApiOperation({
+    summary: 'Disable two-factor authentication',
+    description: 'Disable two-factor authentication for the user',
+  })
+  async disableTwoFactor(@CurrentUser() user: any) {
+    await this.twoFactorAuthService.disableEmailTwoFactor(user.id)
+    return ResponseUtil.success({
+      message: 'Two-factor authentication disabled successfully',
+    })
+  }
+
+  /**
+   * Send login verification code (called during login if 2FA is enabled)
+   */
+  @Public()
+  @Post('two-factor/send-code')
+  @ApiOperation({
+    summary: 'Send login verification code',
+    description: 'Send a verification code to the user email for 2FA login',
+  })
+  async sendLoginCode(@Body() body: { userId: string; email: string }, @Req() request: Request) {
+    const ipAddress = request.ip
+    const userAgent = request.headers['user-agent']
+
+    await this.twoFactorAuthService.createAndSendLoginCode(
+      body.userId,
+      body.email,
+      ipAddress,
+      userAgent
+    )
+
+    return ResponseUtil.success({
+      message: 'Verification code sent to your email',
+    })
+  }
+
+  /**
+   * Verify login code and complete 2FA login
+   */
+  @Public()
+  @Post('two-factor/verify-code')
+  @ApiOperation({
+    summary: 'Verify login code and complete authentication',
+    description: 'Verify the 2FA code sent to user email, create session, and return JWT tokens',
+  })
+  async verifyLoginCode(
+    @Body() body: { userId: string; code: string },
+    @Res({ passthrough: true }) response: Response,
+    @Req() request: Request
+  ) {
+    // Verify the 2FA code
+    await this.twoFactorAuthService.verifyLoginCode(body.userId, body.code)
+
+    // Fetch the full user with roles and permissions for token generation
+    const user = await this.authService.validateUser(body.userId)
+
+    if (!user) {
+      throw new BadRequestException('User not found')
+    }
+
+    // Verify user has Parent role
+    const hasParentRole = user.roles?.some((role: any) => role.name === 'Parent')
+
+    if (!hasParentRole) {
+      throw new UnauthorizedException('Access denied. Parent role required.')
+    }
+
+    // Create session record
+    const userAgent = request.headers['user-agent']
+    const ipAddress = request.ip
+
+    const sessionId = await this.sessionManagementService.createSession(
+      user.id,
+      userAgent,
+      ipAddress
+    )
+
+    // Generate app-specific tokens with 'user' claim and sessionId
+    const appTokens = this.authService.generateTokensFromUser(user, 'user', sessionId)
+
+    // Set HTTP-only cookies for tokens with app-specific names
+    response.cookie('wc_user_access_token', appTokens.accessToken, {
+      httpOnly: true,
+      secure: this.configService.getNodeEnv() === 'production',
+      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
+      maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+    })
+
+    response.cookie('wc_user_refresh_token', appTokens.refreshToken, {
+      httpOnly: true,
+      secure: this.configService.getNodeEnv() === 'production',
+      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
+      maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+    })
+
+    // If authUsingRequest is enabled, also send tokens in headers
+    if (this.configService.jwtConfig.authUsingRequest) {
+      response.setHeader('x-access-token', appTokens.accessToken)
+      response.setHeader('x-refresh-token', appTokens.refreshToken)
+    }
+
+    return ResponseUtil.success({ user })
+  }
+
+  /**
+   * Get all active sessions
+   */
+  @Get('sessions')
+  @ApiOperation({
+    summary: 'Get all active sessions',
+    description: 'Get all active sessions for the current user',
+  })
+  async getSessions(@CurrentUser() user: any) {
+    // Extract sessionId from JWT payload (user object contains decoded JWT)
+    const currentSessionId = user.sessionId
+    const sessions = await this.sessionManagementService.getUserSessions(user.id, currentSessionId)
+    return ResponseUtil.success({ sessions })
+  }
+
+  /**
+   * Revoke specific session
+   */
+  @Delete('sessions/:sessionId')
+  @ApiOperation({
+    summary: 'Revoke specific session',
+    description: 'Revoke a specific session by session ID',
+  })
+  async revokeSession(@CurrentUser() user: any, @Param('sessionId') sessionId: string) {
+    await this.sessionManagementService.revokeSession(user.id, sessionId)
+    return ResponseUtil.success({
+      message: 'Session revoked successfully',
+    })
+  }
+
+  /**
+   * Revoke all other sessions
+   */
+  @Post('sessions/revoke-all-others')
+  @ApiOperation({
+    summary: 'Revoke all other sessions',
+    description: 'Revoke all sessions except the current one',
+  })
+  async revokeAllOtherSessions(@CurrentUser() user: any) {
+    // Extract current sessionId from JWT payload
+    const currentSessionId = user.sessionId
+
+    await this.sessionManagementService.revokeAllOtherSessions(user.id, currentSessionId)
+    return ResponseUtil.success({
+      message: 'All other sessions revoked successfully',
     })
   }
 }

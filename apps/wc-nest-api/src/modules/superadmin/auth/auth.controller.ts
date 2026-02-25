@@ -2,9 +2,12 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
+  Param,
   Patch,
   Post,
   Req,
@@ -15,6 +18,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Request, Response } from 'express'
 import { parseDuration } from '@world-schools/wc-utils'
 import { AuthService } from '../../core/auth/auth.service'
+import { PrismaService } from '../../../prisma/prisma.service'
 import { Public } from '../../core/auth/decorators/public.decorator'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 import { SuperAdminLoginDto } from './dto/login.dto'
@@ -27,14 +31,19 @@ import {
   ResetPasswordDto,
 } from '../../core/auth/dto/auth.dto'
 import { PasswordResetService } from '../../core/auth/services/password-reset.service'
+import { TwoFactorAuthService } from './services/two-factor-auth.service'
+import { SessionManagementService } from './services/session-management.service'
 
 @ApiTags('SuperAdmin Auth')
 @Controller('superadmin/auth')
 export class SuperAdminAuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-    private readonly passwordResetService: PasswordResetService
+    private readonly passwordResetService: PasswordResetService,
+    private readonly twoFactorAuthService: TwoFactorAuthService,
+    private readonly sessionManagementService: SessionManagementService
   ) {}
 
   /**
@@ -56,7 +65,8 @@ export class SuperAdminAuthController {
   })
   async login(
     @Body() loginDto: SuperAdminLoginDto,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
+    @Req() request: Request
   ) {
     // Validate credentials using central AuthService
     const authResult = await this.authService.login(loginDto)
@@ -68,8 +78,43 @@ export class SuperAdminAuthController {
       throw new BadRequestException('Invalid credentials')
     }
 
-    // Generate app-specific tokens with 'superadmin' claim for token isolation
-    const appTokens = this.authService.generateAppSpecificTokens(user, 'superadmin')
+    // Check if 2FA is enabled
+    const twoFactorStatus = await this.twoFactorAuthService.getTwoFactorStatus(user.id)
+
+    if (twoFactorStatus.enabled) {
+      // Get IP address and user agent from request
+      const ipAddress = request.ip
+      const userAgent = request.headers['user-agent']
+
+      // Send verification code
+      await this.twoFactorAuthService.createAndSendLoginCode(
+        user.id,
+        user.email,
+        ipAddress,
+        userAgent
+      )
+
+      // Return special response indicating 2FA is required
+      return ResponseUtil.success({
+        requiresTwoFactor: true,
+        userId: user.id,
+        email: user.email,
+        message: 'Verification code sent to your email',
+      })
+    }
+
+    // Create session record FIRST (before generating JWT)
+    const userAgent = request.headers['user-agent']
+    const ipAddress = request.ip
+
+    const sessionId = await this.sessionManagementService.createSession(
+      user.id,
+      userAgent,
+      ipAddress
+    )
+
+    // Generate app-specific tokens with 'superadmin' claim and sessionId for token isolation
+    const appTokens = this.authService.generateTokensFromUser(user, 'superadmin', sessionId)
 
     // Set HTTP-only cookies for tokens with app-specific names
     const accessTokenExpiry = this.configService.getJwtExpiresIn()
@@ -127,7 +172,7 @@ export class SuperAdminAuthController {
     }
 
     // Generate app-specific tokens with 'superadmin' claim for token isolation
-    const appTokens = this.authService.generateAppSpecificTokens(user, 'superadmin')
+    const appTokens = this.authService.generateTokensFromUser(user, 'superadmin')
 
     // Set new HTTP-only cookies with app-specific names
     const accessTokenExpiry = this.configService.getJwtExpiresIn()
@@ -161,13 +206,63 @@ export class SuperAdminAuthController {
     summary: 'Get current user profile',
     description: 'Get the profile of the currently authenticated super admin user',
   })
-  getProfile(@CurrentUser() user: any) {
+  async getProfile(@CurrentUser() user: any) {
     // Verify user has at least one superadmin-context role (providerId = null)
     if (!this.hasSuperAdminRole(user)) {
       throw new UnauthorizedException('Access denied. Superadmin role required.')
     }
 
-    return ResponseUtil.success(user)
+    // Fetch full user profile with passwordChangedAt
+    const dbUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        emailVerified: true,
+        passwordChangedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        roles: {
+          select: {
+            role: {
+              select: {
+                id: true,
+                name: true,
+                providerId: true,
+                isSystemRole: true,
+              },
+            },
+          },
+        },
+      },
+    })
+
+    if (!dbUser) {
+      throw new NotFoundException('User not found')
+    }
+
+    // Transform roles to flat structure and build response matching frontend User type
+    const fullUser = {
+      id: dbUser.id,
+      email: dbUser.email,
+      firstName: dbUser.firstName,
+      lastName: dbUser.lastName,
+      emailVerified: dbUser.emailVerified,
+      passwordChangedAt: dbUser.passwordChangedAt,
+      createdAt: dbUser.createdAt,
+      updatedAt: dbUser.updatedAt,
+      roles: dbUser.roles.map((ur: any) => ({
+        id: ur.role.id,
+        name: ur.role.name,
+        providerId: ur.role.providerId,
+        isSystemRole: ur.role.isSystemRole,
+      })),
+      permissions: user.permissions || [], // Use permissions from JWT payload
+    }
+
+    return ResponseUtil.success(fullUser)
   }
 
   @Patch('change-password')
@@ -232,6 +327,188 @@ export class SuperAdminAuthController {
 
     return ResponseUtil.success({
       message: 'Password reset successful. You can now login with your new password.',
+    })
+  }
+
+  /**
+   * Get 2FA status
+   */
+  @Get('two-factor/status')
+  @ApiOperation({
+    summary: 'Get two-factor authentication status',
+    description: 'Get the current 2FA status for the authenticated superadmin',
+  })
+  async getTwoFactorStatus(@CurrentUser() user: any) {
+    return this.twoFactorAuthService.getTwoFactorStatus(user.id)
+  }
+
+  /**
+   * Enable Email 2FA
+   */
+  @Post('two-factor/enable')
+  @ApiOperation({
+    summary: 'Enable two-factor authentication',
+    description: 'Enable email-based two-factor authentication for the superadmin',
+  })
+  async enableTwoFactor(@CurrentUser() user: any) {
+    await this.twoFactorAuthService.enableEmailTwoFactor(user.id)
+    return ResponseUtil.success({
+      message: 'Two-factor authentication enabled successfully',
+    })
+  }
+
+  /**
+   * Disable Email 2FA
+   */
+  @Post('two-factor/disable')
+  @ApiOperation({
+    summary: 'Disable two-factor authentication',
+    description: 'Disable two-factor authentication for the superadmin',
+  })
+  async disableTwoFactor(@CurrentUser() user: any) {
+    await this.twoFactorAuthService.disableEmailTwoFactor(user.id)
+    return ResponseUtil.success({
+      message: 'Two-factor authentication disabled successfully',
+    })
+  }
+
+  /**
+   * Send login verification code (called during login if 2FA is enabled)
+   */
+  @Public()
+  @Post('two-factor/send-code')
+  @ApiOperation({
+    summary: 'Send login verification code',
+    description: 'Send a verification code to the superadmin email for 2FA login',
+  })
+  async sendLoginCode(@Body() body: { userId: string; email: string }, @Req() request: Request) {
+    const ipAddress = request.ip
+    const userAgent = request.headers['user-agent']
+
+    await this.twoFactorAuthService.createAndSendLoginCode(
+      body.userId,
+      body.email,
+      ipAddress,
+      userAgent
+    )
+
+    return ResponseUtil.success({
+      message: 'Verification code sent to your email',
+    })
+  }
+
+  /**
+   * Verify login code and complete 2FA login
+   */
+  @Public()
+  @Post('two-factor/verify-code')
+  @ApiOperation({
+    summary: 'Verify login code and complete authentication',
+    description:
+      'Verify the 2FA code sent to superadmin email, create session, and return JWT tokens',
+  })
+  async verifyLoginCode(
+    @Body() body: { userId: string; code: string },
+    @Res({ passthrough: true }) response: Response,
+    @Req() request: Request
+  ) {
+    // Verify the 2FA code
+    await this.twoFactorAuthService.verifyLoginCode(body.userId, body.code)
+
+    // Fetch the full user with roles and permissions for token generation
+    const user = await this.authService.validateUser(body.userId)
+
+    if (!user) {
+      throw new BadRequestException('User not found')
+    }
+
+    // Verify user has at least one superadmin-context role (providerId = null)
+    if (!this.hasSuperAdminRole(user)) {
+      throw new UnauthorizedException('Access denied. Superadmin role required.')
+    }
+
+    // Create session record
+    const userAgent = request.headers['user-agent']
+    const ipAddress = request.ip
+
+    const sessionId = await this.sessionManagementService.createSession(
+      user.id,
+      userAgent,
+      ipAddress
+    )
+
+    // Generate app-specific tokens with 'superadmin' claim and sessionId
+    const appTokens = this.authService.generateTokensFromUser(user, 'superadmin', sessionId)
+
+    // Set HTTP-only cookies for tokens with app-specific names
+    response.cookie('wc_superadmin_access_token', appTokens.accessToken, {
+      httpOnly: true,
+      secure: this.configService.getNodeEnv() === 'production',
+      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
+      maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+    })
+
+    response.cookie('wc_superadmin_refresh_token', appTokens.refreshToken, {
+      httpOnly: true,
+      secure: this.configService.getNodeEnv() === 'production',
+      sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
+      maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+    })
+
+    // If authUsingRequest is enabled, also send tokens in headers
+    if (this.configService.jwtConfig.authUsingRequest) {
+      response.setHeader('x-access-token', appTokens.accessToken)
+      response.setHeader('x-refresh-token', appTokens.refreshToken)
+    }
+
+    return ResponseUtil.success({ user })
+  }
+
+  /**
+   * Get all active sessions
+   */
+  @Get('sessions')
+  @ApiOperation({
+    summary: 'Get all active sessions',
+    description: 'Get all active sessions for the current superadmin',
+  })
+  async getSessions(@CurrentUser() user: any) {
+    // Extract sessionId from JWT payload (user object contains decoded JWT)
+    const currentSessionId = user.sessionId
+    const sessions = await this.sessionManagementService.getUserSessions(user.id, currentSessionId)
+    return ResponseUtil.success({ sessions })
+  }
+
+  /**
+   * Revoke specific session
+   */
+  @Delete('sessions/:sessionId')
+  @ApiOperation({
+    summary: 'Revoke specific session',
+    description: 'Revoke a specific session by session ID',
+  })
+  async revokeSession(@CurrentUser() user: any, @Param('sessionId') sessionId: string) {
+    await this.sessionManagementService.revokeSession(user.id, sessionId)
+    return ResponseUtil.success({
+      message: 'Session revoked successfully',
+    })
+  }
+
+  /**
+   * Revoke all other sessions
+   */
+  @Post('sessions/revoke-all-others')
+  @ApiOperation({
+    summary: 'Revoke all other sessions',
+    description: 'Revoke all sessions except the current one',
+  })
+  async revokeAllOtherSessions(@CurrentUser() user: any) {
+    // Extract current sessionId from JWT payload
+    const currentSessionId = user.sessionId
+
+    await this.sessionManagementService.revokeAllOtherSessions(user.id, currentSessionId)
+    return ResponseUtil.success({
+      message: 'All other sessions revoked successfully',
     })
   }
 }

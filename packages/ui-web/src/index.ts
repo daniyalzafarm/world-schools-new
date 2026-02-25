@@ -4,6 +4,10 @@ export * from './components'
 // Export hooks
 export * from './hooks'
 
+// Export constants
+export { COUNTRIES, COUNTRIES_DATA, getCountryByName, getCountryFlag } from './constants/countries'
+export type { Country } from './constants/countries'
+
 // Export utilities
 export { cn } from './utils/cn'
 export {
