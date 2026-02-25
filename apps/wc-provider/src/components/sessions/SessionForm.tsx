@@ -10,6 +10,8 @@ import {
   parseTime,
   Time,
   toCalendarDate,
+  getLocalTimeZone,
+  today,
 } from '@internationalized/date'
 import type { DateValue, TimeValue } from '@react-types/datepicker'
 import type { RangeValue } from '@react-types/shared'
@@ -23,6 +25,7 @@ import type {
   SessionStatus,
 } from '@/types/sessions'
 import type { AgeGroup, Camp, CampType } from '@/types/camps'
+import type { GlobalDiscount, SessionSpecificDiscount } from '@/types/discounts'
 import { formatDateForInput } from '@/utils/sessionFormatters'
 import {
   validateDateRange,
@@ -30,6 +33,7 @@ import {
   validateSessionName,
   validateTotalSpots,
 } from '@/utils/sessionValidators'
+import { SessionDiscountsCreationSection } from './SessionDiscountsCreationSection'
 
 // Base interface with all shared properties between internal and API types
 interface BaseSessionFormData {
@@ -64,6 +68,13 @@ interface SessionFormProps {
   onSubmitRef?: { current?: () => void }
   campType: CampType | null
   camp?: Camp | null
+  globalDiscounts?: GlobalDiscount[]
+  // For creation mode
+  selectedDiscountIds?: string[]
+  onToggleDiscount?: (discountId: string) => void
+  sessionSpecificDiscounts?: Omit<SessionSpecificDiscount, 'id'>[]
+  onAddSessionDiscount?: (discount: Omit<SessionSpecificDiscount, 'id'>) => void
+  onRemoveSessionDiscount?: (index: number) => void
 }
 
 // Helper functions to convert between string dates and CalendarDate
@@ -90,7 +101,19 @@ const toCalDate = (date: DateValue): CalendarDate => {
  * Session Form Component
  * Form for creating/editing sessions
  */
-export function SessionForm({ session, onSubmit, onSubmitRef, campType, camp }: SessionFormProps) {
+export function SessionForm({
+  session,
+  onSubmit,
+  onSubmitRef,
+  campType,
+  camp,
+  globalDiscounts = [],
+  selectedDiscountIds = [],
+  onToggleDiscount,
+  sessionSpecificDiscounts = [],
+  onAddSessionDiscount,
+  onRemoveSessionDiscount,
+}: SessionFormProps) {
   // Form state
   const [formData, setFormData] = useState<InternalFormData>({
     name: session?.name || '',
@@ -487,6 +510,7 @@ export function SessionForm({ session, onSubmit, onSubmitRef, campType, camp }: 
                   }
                 }}
                 isInvalid={!!errors.dates}
+                minValue={today(getLocalTimeZone()).add({ days: 1 })}
               />
             </div>
           </div>
@@ -710,6 +734,28 @@ export function SessionForm({ session, onSubmit, onSubmitRef, campType, camp }: 
           )}
         </div>
       </div>
+
+      {/* Section 4: Discounts */}
+      {camp && onToggleDiscount && onAddSessionDiscount && onRemoveSessionDiscount && (
+        <div className="bg-background py-10 border-b border-default-200 last:border-b-0">
+          <div className="mb-6">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary text-secondary text-base font-semibold mr-3">
+              4
+            </span>
+            <h2 className="inline text-lg font-semibold text-default-900">Discounts</h2>
+          </div>
+          <SessionDiscountsCreationSection
+            pricingType={formData.pricingType}
+            camp={camp}
+            globalDiscounts={globalDiscounts}
+            selectedGlobalDiscountIds={selectedDiscountIds}
+            onToggleGlobalDiscount={onToggleDiscount}
+            sessionSpecificDiscounts={sessionSpecificDiscounts}
+            onAddSessionDiscount={onAddSessionDiscount}
+            onRemoveSessionDiscount={onRemoveSessionDiscount}
+          />
+        </div>
+      )}
     </div>
   )
 }

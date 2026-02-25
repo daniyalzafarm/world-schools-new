@@ -559,14 +559,44 @@ model Camp {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  provider   Provider    @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  campAddOns CampAddOn[]
-  sessions   Session[]
+  provider        Provider          @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  campAddOns      CampAddOn[]
+  sessions        Session[]
+  globalDiscounts GlobalDiscount[]
 
   @@index([providerId])
   @@index([status])
   @@index([slug])
   @@map("camps")
+}
+
+// ============================================
+// Global Discounts
+// ============================================
+
+model GlobalDiscount {
+  id       String           @id @default(uuid())
+  campId   String           @map("camp_id")
+  category DiscountCategory
+
+  // Entries Array - stores multiple discount configurations per category
+  entries Json @default("[]") // Array of discount entries
+
+  // Status
+  isEnabled Boolean @default(false) @map("is_enabled") // Whether discount category is active
+  sortOrder Int     @default(0) @map("sort_order")
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  camp Camp @relation(fields: [campId], references: [id], onDelete: Cascade)
+
+  @@unique([campId, category]) // One discount record per category per camp
+  @@index([campId])
+  @@index([isEnabled])
+  @@map("global_discounts")
 }
 
 // ============================================
@@ -631,6 +661,20 @@ enum SessionStatus {
   published
 }
 
+enum DiscountCategory {
+  early_bird
+  sibling
+  returning_camper
+  multi_week
+  group_booking
+  promo_code
+}
+
+enum CalculationType {
+  percent
+  fixed
+}
+
 // ============================================
 // Sessions & Bookings
 // ============================================
@@ -658,6 +702,9 @@ model Session {
   availabilityType AvailabilityType @default(single) @map("availability_type") // 'single' | 'age_group'
   totalSpots       Int?             @map("total_spots") // For single availability
   ageGroupSpots    Json?            @map("age_group_spots") // [{age_group_id: string, spots: number}]
+
+  // Discounts
+  discounts Json? // Array of applied discounts (global + session-specific)
 
   // Status
   status SessionStatus @default(draft) // 'draft' | 'published'

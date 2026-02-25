@@ -51,3 +51,6 @@ export {
 
 // Feature flags (shared across apps)
 export * from './lib/config/feature-flags'
+
+// Discount types configuration (static metadata for all discount categories)
+export * from './lib/discount-types'

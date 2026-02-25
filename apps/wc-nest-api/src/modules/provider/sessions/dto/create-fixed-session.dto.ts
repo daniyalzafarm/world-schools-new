@@ -56,6 +56,29 @@ export class AgeGroupSpotDto {
   spots: number
 }
 
+export class SessionSpecificDiscountDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(30)
+  name: string
+
+  @IsEnum(['percent', 'fixed'])
+  type: 'percent' | 'fixed'
+
+  @IsNumber()
+  @Min(0.01)
+  value: number
+
+  @IsOptional()
+  @IsDateString()
+  validUntil?: string | null
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  ageGroups?: string[]
+}
+
 export class CreateFixedSessionDto {
   // Basic Fields
   @IsString()
@@ -127,4 +150,22 @@ export class CreateFixedSessionDto {
   // Status
   @IsEnum(SessionStatus)
   status: SessionStatus
+
+  // Discounts (optional - for applying global discounts during creation)
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  globalAppliedDiscountIds?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  globalRemovedDiscountIds?: string[]
+
+  // Session-specific discounts (optional - for adding manual discounts during creation)
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SessionSpecificDiscountDto)
+  sessionSpecificDiscounts?: SessionSpecificDiscountDto[]
 }

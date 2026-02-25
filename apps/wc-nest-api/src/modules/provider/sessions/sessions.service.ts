@@ -12,6 +12,8 @@ import {
   SessionDayType,
 } from './dto/create-fixed-session.dto'
 import { UpdateFixedSessionDto } from './dto/update-fixed-session.dto'
+import { AddSessionDiscountDto } from './dto/session-discount.dto'
+import { v4 as uuidv4 } from 'uuid'
 
 @Injectable()
 export class SessionsService {
@@ -261,6 +263,32 @@ export class SessionsService {
 
     const sortOrder = lastSession ? lastSession.sortOrder + 1 : 0
 
+    // Validate discounts if provided
+    if (
+      dto.globalAppliedDiscountIds ||
+      dto.globalRemovedDiscountIds ||
+      dto.sessionSpecificDiscounts
+    ) {
+      await this.validateDiscounts(campId, camp, dto)
+    }
+
+    // Prepare discounts JSON structure
+    const sessionSpecificDiscounts =
+      dto.sessionSpecificDiscounts?.map(discount => ({
+        id: uuidv4(),
+        name: discount.name,
+        type: discount.type,
+        value: discount.value,
+        validUntil: discount.validUntil ?? null,
+        ageGroups: discount.ageGroups ?? [],
+      })) ?? []
+
+    const discounts = {
+      globalApplied: dto.globalAppliedDiscountIds ?? [],
+      globalRemoved: dto.globalRemovedDiscountIds ?? [],
+      sessionSpecific: sessionSpecificDiscounts,
+    }
+
     // Create session
     const session = await this.prisma.session.create({
       data: {
@@ -277,6 +305,7 @@ export class SessionsService {
         availabilityType: dto.availabilityType,
         totalSpots: dto.totalSpots ?? null,
         ageGroupSpots: dto.ageGroupSpots ? (dto.ageGroupSpots as any) : null,
+        discounts: discounts as any,
         status: dto.status,
         sortOrder,
       },
@@ -407,6 +436,15 @@ export class SessionsService {
       }
     }
 
+    // Validate and process discounts if provided
+    if (
+      dto.globalAppliedDiscountIds ||
+      dto.globalRemovedDiscountIds ||
+      dto.sessionSpecificDiscounts
+    ) {
+      await this.validateDiscounts(campId, camp, dto)
+    }
+
     // Build update data
     const updateData: any = {}
     if (dto.name !== undefined) updateData.name = dto.name
@@ -423,6 +461,29 @@ export class SessionsService {
     if (dto.ageGroupSpots !== undefined) updateData.ageGroupSpots = dto.ageGroupSpots as any
     if (dto.status !== undefined) updateData.status = dto.status
 
+    // Handle discounts update
+    if (
+      dto.globalAppliedDiscountIds ||
+      dto.globalRemovedDiscountIds ||
+      dto.sessionSpecificDiscounts
+    ) {
+      const sessionSpecificDiscounts =
+        dto.sessionSpecificDiscounts?.map(discount => ({
+          id: uuidv4(),
+          name: discount.name,
+          type: discount.type,
+          value: discount.value,
+          validUntil: discount.validUntil ?? null,
+          ageGroups: discount.ageGroups ?? [],
+        })) ?? []
+
+      updateData.discounts = {
+        globalApplied: dto.globalAppliedDiscountIds ?? [],
+        globalRemoved: dto.globalRemovedDiscountIds ?? [],
+        sessionSpecific: sessionSpecificDiscounts,
+      } as any
+    }
+
     const updatedSession = await this.prisma.session.update({
       where: { id: sessionId },
       data: updateData,
@@ -431,6 +492,44 @@ export class SessionsService {
     return {
       session: this.transformSessionForResponse(updatedSession),
       message: 'Session updated successfully',
+    }
+  }
+
+  /**
+   * Validate discounts (DRY helper for create and update)
+   */
+  private async validateDiscounts(campId: string, camp: any, dto: any) {
+    // Validate global discount IDs if provided
+    if (dto.globalAppliedDiscountIds && dto.globalAppliedDiscountIds.length > 0) {
+      const validDiscounts = await this.prisma.globalDiscount.findMany({
+        where: {
+          id: { in: dto.globalAppliedDiscountIds },
+          campId,
+        },
+      })
+
+      if (validDiscounts.length !== dto.globalAppliedDiscountIds.length) {
+        throw new BadRequestException('One or more global discount IDs are invalid')
+      }
+    }
+
+    // Validate age groups in session-specific discounts if provided
+    if (dto.sessionSpecificDiscounts && dto.sessionSpecificDiscounts.length > 0) {
+      const campAgeGroups = camp.ageGroups as any[]
+      const validAgeGroupIds = campAgeGroups.map((ag: any) => `${ag.min}-${ag.max}`)
+
+      for (const discount of dto.sessionSpecificDiscounts) {
+        if (discount.ageGroups && discount.ageGroups.length > 0) {
+          const invalidAgeGroups = discount.ageGroups.filter(
+            (id: string) => !validAgeGroupIds.includes(id)
+          )
+          if (invalidAgeGroups.length > 0) {
+            throw new BadRequestException(
+              `Invalid age group IDs in discount "${discount.name}": ${invalidAgeGroups.join(', ')}`
+            )
+          }
+        }
+      }
     }
   }
 
@@ -518,6 +617,228 @@ export class SessionsService {
     return {
       session: this.transformSessionForResponse(duplicatedSession),
       message: 'Session duplicated successfully',
+    }
+  }
+
+  /**
+   * Add a session-specific discount
+   */
+  async addSessionDiscount(
+    sessionId: string,
+    campId: string,
+    providerId: string,
+    dto: AddSessionDiscountDto
+  ) {
+    await this.validateSessionOwnership(sessionId, campId, providerId)
+
+    // Validate discount value
+    if (dto.type === 'percent' && dto.value > 100) {
+      throw new BadRequestException('Percentage discount cannot exceed 100%')
+    }
+
+    if (dto.value <= 0) {
+      throw new BadRequestException('Discount value must be greater than 0')
+    }
+
+    // Get session and camp to validate age groups
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { camp: true },
+    })
+
+    if (!session) {
+      throw new NotFoundException('Session not found')
+    }
+
+    // Validate age groups if provided
+    if (dto.ageGroups && dto.ageGroups.length > 0) {
+      const campAgeGroups = session.camp.ageGroups as any[]
+      const validAgeGroupIds = campAgeGroups.map((ag: any) => `${ag.min}-${ag.max}`)
+
+      const invalidAgeGroups = dto.ageGroups.filter(id => !validAgeGroupIds.includes(id))
+      if (invalidAgeGroups.length > 0) {
+        throw new BadRequestException(`Invalid age group IDs: ${invalidAgeGroups.join(', ')}`)
+      }
+    }
+
+    // Get current discounts
+    const discounts = (session.discounts as any) || {
+      globalApplied: [],
+      globalRemoved: [],
+      sessionSpecific: [],
+    }
+
+    // Create new discount object
+    const newDiscount = {
+      id: uuidv4(),
+      name: dto.name,
+      type: dto.type,
+      value: dto.value,
+      validUntil: dto.validUntil ?? null,
+      ageGroups: dto.ageGroups ?? [],
+    }
+
+    // Add to session-specific discounts
+    discounts.sessionSpecific.push(newDiscount)
+
+    // Update session
+    const updatedSession = await this.prisma.session.update({
+      where: { id: sessionId },
+      data: { discounts },
+    })
+
+    return {
+      session: this.transformSessionForResponse(updatedSession),
+      message: 'Session discount added successfully',
+    }
+  }
+
+  /**
+   * Remove a session-specific discount
+   */
+  async removeSessionDiscount(
+    sessionId: string,
+    campId: string,
+    providerId: string,
+    discountId: string
+  ) {
+    await this.validateSessionOwnership(sessionId, campId, providerId)
+
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    })
+
+    if (!session) {
+      throw new NotFoundException('Session not found')
+    }
+
+    const discounts = (session.discounts as any) || {
+      globalApplied: [],
+      globalRemoved: [],
+      sessionSpecific: [],
+    }
+
+    // Remove the discount
+    discounts.sessionSpecific = discounts.sessionSpecific.filter((d: any) => d.id !== discountId)
+
+    const updatedSession = await this.prisma.session.update({
+      where: { id: sessionId },
+      data: { discounts },
+    })
+
+    return {
+      session: this.transformSessionForResponse(updatedSession),
+      message: 'Session discount removed successfully',
+    }
+  }
+
+  /**
+   * Remove a global discount from this session only
+   */
+  async removeGlobalDiscountFromSession(
+    sessionId: string,
+    campId: string,
+    providerId: string,
+    globalDiscountId: string
+  ) {
+    await this.validateSessionOwnership(sessionId, campId, providerId)
+
+    // Verify the global discount exists and belongs to this camp
+    const globalDiscount = await this.prisma.globalDiscount.findUnique({
+      where: { id: globalDiscountId },
+    })
+
+    if (globalDiscount?.campId !== campId) {
+      throw new NotFoundException('Global discount not found')
+    }
+
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    })
+
+    if (!session) {
+      throw new NotFoundException('Session not found')
+    }
+
+    const discounts = (session.discounts as any) || {
+      globalApplied: [],
+      globalRemoved: [],
+      sessionSpecific: [],
+    }
+
+    // Remove from globalApplied
+    discounts.globalApplied = discounts.globalApplied.filter(
+      (id: string) => id !== globalDiscountId
+    )
+
+    // Add to globalRemoved if not already there
+    if (!discounts.globalRemoved.includes(globalDiscountId)) {
+      discounts.globalRemoved.push(globalDiscountId)
+    }
+
+    const updatedSession = await this.prisma.session.update({
+      where: { id: sessionId },
+      data: { discounts },
+    })
+
+    return {
+      session: this.transformSessionForResponse(updatedSession),
+      message: 'Global discount removed from session successfully',
+    }
+  }
+
+  /**
+   * Re-apply a previously removed global discount to this session
+   */
+  async applyGlobalDiscountToSession(
+    sessionId: string,
+    campId: string,
+    providerId: string,
+    globalDiscountId: string
+  ) {
+    await this.validateSessionOwnership(sessionId, campId, providerId)
+
+    // Verify the global discount exists and belongs to this camp
+    const globalDiscount = await this.prisma.globalDiscount.findUnique({
+      where: { id: globalDiscountId },
+    })
+
+    if (globalDiscount?.campId !== campId) {
+      throw new NotFoundException('Global discount not found')
+    }
+
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    })
+
+    if (!session) {
+      throw new NotFoundException('Session not found')
+    }
+
+    const discounts = (session.discounts as any) || {
+      globalApplied: [],
+      globalRemoved: [],
+      sessionSpecific: [],
+    }
+
+    // Remove from globalRemoved
+    discounts.globalRemoved = discounts.globalRemoved.filter(
+      (id: string) => id !== globalDiscountId
+    )
+
+    // Add to globalApplied if not already there
+    if (!discounts.globalApplied.includes(globalDiscountId)) {
+      discounts.globalApplied.push(globalDiscountId)
+    }
+
+    const updatedSession = await this.prisma.session.update({
+      where: { id: sessionId },
+      data: { discounts },
+    })
+
+    return {
+      session: this.transformSessionForResponse(updatedSession),
+      message: 'Global discount applied to session successfully',
     }
   }
 }

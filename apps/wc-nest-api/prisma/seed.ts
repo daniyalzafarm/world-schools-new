@@ -287,6 +287,14 @@ async function main() {
     console.log('✅ Created 10 provider test accounts')
   }
 
+  // ============================================
+  // Global Discounts - Lazy Creation
+  // ============================================
+  // NOTE: Global discounts are no longer seeded during initialization.
+  // They are created lazily when a camp director enables a discount type for the first time.
+  // This prevents premature database entries and duplications.
+  // See: world-schools/packages/wc-frontend-utils/src/lib/discount-types.ts for static configuration
+
   console.log('')
   console.log('🎉 Seeding completed successfully!')
   console.log('')

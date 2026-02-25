@@ -113,6 +113,7 @@ export interface Camp {
   gettingThere?: GettingThere
   campFocus?: CampFocus
   sessionType?: 'flexible' | 'fixed' | null
+  currency?: string // Currency code (e.g., 'USD', 'EUR', 'GBP')
   status: CampStatus
   publishedAt?: string
   createdAt: string

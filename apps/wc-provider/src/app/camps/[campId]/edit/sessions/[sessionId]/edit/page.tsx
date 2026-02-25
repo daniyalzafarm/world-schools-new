@@ -6,11 +6,12 @@ import { Spinner } from '@heroui/react'
 import { SessionBreadcrumb } from '@/components/sessions/SessionBreadcrumb'
 import { SessionForm, type SessionFormData } from '@/components/sessions/SessionForm'
 import { SessionFormFooter } from '@/components/sessions/SessionFormFooter'
-import { useSessionsData } from '@/hooks/useSessionsData'
+import { useSessionsStore } from '@/stores/sessions-store'
 import { useSessionMutations } from '@/hooks/useSessionMutations'
 import { useCampsStore } from '@/stores/camps-store'
-import type { Session } from '@/types/sessions'
+import { getGlobalDiscounts } from '@/services/discounts.service'
 import type { CampType } from '@/types/camps'
+import type { GlobalDiscount, SessionSpecificDiscount } from '@/types/discounts'
 
 /**
  * Edit Session Page
@@ -23,12 +24,27 @@ export default function EditSessionPage() {
   const sessionId = params.sessionId as string
   const submitRef = useRef<(() => void) | undefined>(undefined)
 
-  const { sessions, isLoading } = useSessionsData(campId)
+  // Zustand stores
+  const isLoading = useSessionsStore(state => state.isLoading)
+  const loadSessions = useSessionsStore(state => state.loadSessions)
+  const getSessionById = useSessionsStore(state => state.getSessionById)
+
   const { updateSession, isUpdating } = useSessionMutations(campId)
   const { fetchCamp, currentCamp } = useCampsStore()
 
-  const [session, setSession] = useState<Session | null>(null)
   const [campType, setCampType] = useState<CampType | null>(null)
+  const [globalDiscounts, setGlobalDiscounts] = useState<GlobalDiscount[]>([])
+  const [selectedDiscountIds, setSelectedDiscountIds] = useState<string[]>([])
+  const [initialAppliedDiscountIds, setInitialAppliedDiscountIds] = useState<string[]>([])
+  const [removedDiscountIds, setRemovedDiscountIds] = useState<string[]>([])
+  const [sessionSpecificDiscounts, setSessionSpecificDiscounts] = useState<
+    Omit<SessionSpecificDiscount, 'id'>[]
+  >([])
+
+  // Load sessions when component mounts
+  useEffect(() => {
+    void loadSessions(campId)
+  }, [campId, loadSessions])
 
   // Fetch camp data to get camp type
   useEffect(() => {
@@ -46,23 +62,83 @@ export default function EditSessionPage() {
     }
   }, [campId, fetchCamp])
 
-  // Find the session to edit
+  // Get the session from the store
+  const session = getSessionById(sessionId)
+
+  // Load global discounts when campId changes
   useEffect(() => {
-    if (!isLoading && sessions) {
-      const foundSession = sessions.find(s => s.id === sessionId)
-      if (foundSession) {
-        setSession(foundSession)
+    const loadDiscounts = async () => {
+      try {
+        const discounts = await getGlobalDiscounts(campId)
+        setGlobalDiscounts(discounts)
+      } catch (error) {
+        console.error('Failed to load global discounts:', error)
       }
     }
-  }, [isLoading, sessions, sessionId])
+    void loadDiscounts()
+  }, [campId])
+
+  // Initialize discount state from session when session loads
+  useEffect(() => {
+    if (session?.discounts) {
+      const appliedIds = session.discounts.globalApplied || []
+      setSelectedDiscountIds(appliedIds)
+      setInitialAppliedDiscountIds(appliedIds)
+      setSessionSpecificDiscounts(
+        (session.discounts.sessionSpecific || []).map(({ id: _id, ...rest }) => rest)
+      )
+    }
+  }, [session])
+
+  // Handle discount toggle
+  const handleToggleDiscount = (discountId: string) => {
+    setSelectedDiscountIds(prev => {
+      const isCurrentlySelected = prev.includes(discountId)
+
+      if (isCurrentlySelected) {
+        // Removing the discount
+        // If it was initially applied to the session, track it as removed
+        if (initialAppliedDiscountIds.includes(discountId)) {
+          setRemovedDiscountIds(prevRemoved =>
+            prevRemoved.includes(discountId) ? prevRemoved : [...prevRemoved, discountId]
+          )
+        }
+        return prev.filter(id => id !== discountId)
+      } else {
+        // Adding the discount
+        // If it was previously removed, remove it from the removed list
+        setRemovedDiscountIds(prevRemoved => prevRemoved.filter(id => id !== discountId))
+        return [...prev, discountId]
+      }
+    })
+  }
+
+  // Handle add session-specific discount
+  const handleAddSessionDiscount = (discount: Omit<SessionSpecificDiscount, 'id'>) => {
+    setSessionSpecificDiscounts(prev => [...prev, discount])
+  }
+
+  // Handle remove session-specific discount
+  const handleRemoveSessionDiscount = (index: number) => {
+    setSessionSpecificDiscounts(prev => prev.filter((_, i) => i !== index))
+  }
 
   // Handle form submit
   const handleSubmit = async (data: SessionFormData) => {
-    await updateSession(sessionId, data, {
-      onSuccess: () => {
-        router.push(`/camps/${campId}/edit/sessions`)
+    await updateSession(
+      sessionId,
+      {
+        ...data,
+        globalAppliedDiscountIds: selectedDiscountIds,
+        globalRemovedDiscountIds: removedDiscountIds,
+        sessionSpecificDiscounts: sessionSpecificDiscounts,
       },
-    })
+      {
+        onSuccess: () => {
+          router.push(`/camps/${campId}/edit/sessions`)
+        },
+      }
+    )
   }
 
   // Handle cancel
@@ -112,6 +188,12 @@ export default function EditSessionPage() {
           onSubmitRef={submitRef}
           campType={campType}
           camp={currentCamp}
+          globalDiscounts={globalDiscounts}
+          selectedDiscountIds={selectedDiscountIds}
+          onToggleDiscount={handleToggleDiscount}
+          sessionSpecificDiscounts={sessionSpecificDiscounts}
+          onAddSessionDiscount={handleAddSessionDiscount}
+          onRemoveSessionDiscount={handleRemoveSessionDiscount}
         />
       </div>
 

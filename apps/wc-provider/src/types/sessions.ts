@@ -4,6 +4,9 @@ export type PricingType = 'single' | 'age_group'
 export type AvailabilityType = 'single' | 'age_group'
 export type SessionStatus = 'draft' | 'published'
 
+// Import discount types
+import type { SessionDiscounts, SessionSpecificDiscount } from './discounts'
+
 // Age Group Pricing
 export interface AgeGroupPrice {
   ageGroupId: string
@@ -44,6 +47,9 @@ export interface Session {
   // Status
   status: SessionStatus
 
+  // Discounts
+  discounts?: SessionDiscounts
+
   // Metadata
   sortOrder: number
   createdAt: string
@@ -76,6 +82,13 @@ export interface CreateSessionDto {
 
   // Status
   status: SessionStatus
+
+  // Discounts (optional - for applying global discounts during creation)
+  globalAppliedDiscountIds?: string[]
+  globalRemovedDiscountIds?: string[]
+
+  // Session-specific discounts (optional - for adding manual discounts during creation)
+  sessionSpecificDiscounts?: Omit<SessionSpecificDiscount, 'id'>[]
 }
 
 // DTOs for updating sessions
@@ -101,6 +114,11 @@ export interface UpdateSessionDto {
 
   // Status
   status?: SessionStatus
+
+  // Discounts (updated to match create DTO structure)
+  globalAppliedDiscountIds?: string[]
+  globalRemovedDiscountIds?: string[]
+  sessionSpecificDiscounts?: Omit<SessionSpecificDiscount, 'id'>[]
 }
 
 // API Response types

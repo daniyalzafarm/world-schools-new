@@ -4,11 +4,14 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SessionsList } from './SessionsList'
 import { SessionDetailPanel } from './SessionDetailPanel'
+import { ManageDiscountsPanel } from './ManageDiscountsPanel'
 import { useCampsStore } from '@/stores/camps-store'
+import { useSessionsStore } from '@/stores/sessions-store'
 import { useCampEditorLayoutOptional } from '@/components/camps/CampEditorLayoutContext'
 import { useSessionMutations } from '@/hooks/useSessionMutations'
-import { useSessionsData } from '@/hooks/useSessionsData'
+import { getGlobalDiscounts } from '@/services/discounts.service'
 import type { Session } from '@/types/sessions'
+import type { GlobalDiscount } from '@/types/discounts'
 
 interface SessionsPageProps {
   campId: string
@@ -23,15 +26,39 @@ interface SessionsPageProps {
 export function SessionsPage({ campId }: SessionsPageProps) {
   const router = useRouter()
   const [selectedSession, setSelectedSession] = useState<Session | null>(null)
+  const [showManageDiscounts, setShowManageDiscounts] = useState(false)
   const [sortBy, setSortBy] = useState<string | undefined>(undefined)
+  const [globalDiscounts, setGlobalDiscounts] = useState<GlobalDiscount[]>([])
   const currentCamp = useCampsStore(state => state.currentCamp)
   const layoutContext = useCampEditorLayoutOptional()
   const setRightSidebar = layoutContext?.setRightSidebar
 
-  // Data hooks - single source of truth
-  const { sessions, isLoading, reload } = useSessionsData(campId, sortBy)
+  // Data from Zustand store - single source of truth
+  const sessions = useSessionsStore(state => state.sessions)
+  const isLoading = useSessionsStore(state => state.isLoading)
+  const loadSessions = useSessionsStore(state => state.loadSessions)
+  const reload = useSessionsStore(state => state.reload)
+
   const { duplicateSession, deleteSession, toggleSessionStatus, updateSessionSpots } =
     useSessionMutations(campId)
+
+  // Load sessions when campId or sortBy changes
+  useEffect(() => {
+    void loadSessions(campId, sortBy)
+  }, [campId, sortBy, loadSessions])
+
+  // Load global discounts when campId changes
+  useEffect(() => {
+    const loadDiscounts = async () => {
+      try {
+        const discounts = await getGlobalDiscounts(campId)
+        setGlobalDiscounts(discounts)
+      } catch (error) {
+        console.error('Failed to load global discounts:', error)
+      }
+    }
+    void loadDiscounts()
+  }, [campId])
 
   // Navigation handlers
   const handleCreate = () => {
@@ -74,16 +101,49 @@ export function SessionsPage({ campId }: SessionsPageProps) {
     }
   }
 
-  // Sync right sidebar with selected session (only if layout context is available)
+  // Handler for opening manage discounts panel
+  const handleManageDiscounts = () => {
+    setSelectedSession(null) // Close session detail if open
+    setShowManageDiscounts(!showManageDiscounts)
+  }
+
+  // Handler for closing manage discounts panel
+  const handleCloseManageDiscounts = () => {
+    setShowManageDiscounts(false)
+  }
+
+  // Reload discounts after changes in ManageDiscountsPanel
+  const handleDiscountsUpdate = async () => {
+    try {
+      const discounts = await getGlobalDiscounts(campId)
+      setGlobalDiscounts(discounts)
+    } catch (error) {
+      console.error('Failed to reload global discounts:', error)
+    }
+  }
+
+  // Sync right sidebar with selected session or manage discounts panel (only if layout context is available)
   useEffect(() => {
     // Skip sidebar management if not in camp editor context (e.g., in wizard)
-    if (!setRightSidebar) return
+    if (!setRightSidebar || !currentCamp) return
 
-    if (selectedSession) {
+    if (showManageDiscounts) {
+      setRightSidebar(
+        <ManageDiscountsPanel
+          campId={campId}
+          onClose={() => {
+            handleCloseManageDiscounts()
+            void handleDiscountsUpdate()
+          }}
+        />
+      )
+    } else if (selectedSession) {
       setRightSidebar(
         <SessionDetailPanel
           session={selectedSession}
+          camp={currentCamp}
           ageGroups={currentCamp?.ageGroups}
+          globalDiscounts={globalDiscounts}
           onClose={() => setSelectedSession(null)}
           onEdit={handleEdit}
           onDuplicate={handleDuplicate}
@@ -97,7 +157,15 @@ export function SessionsPage({ campId }: SessionsPageProps) {
     }
 
     return () => setRightSidebar(null)
-  }, [selectedSession, currentCamp?.ageGroups, setRightSidebar])
+  }, [
+    selectedSession,
+    showManageDiscounts,
+    currentCamp,
+    globalDiscounts,
+    setRightSidebar,
+    reload,
+    campId,
+  ])
 
   return (
     <SessionsList
@@ -106,6 +174,7 @@ export function SessionsPage({ campId }: SessionsPageProps) {
       selectedSession={selectedSession}
       onSelectSession={setSelectedSession}
       onCreateSession={handleCreate}
+      onManageDiscounts={handleManageDiscounts}
       sortBy={sortBy}
       onSortChange={setSortBy}
     />

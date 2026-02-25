@@ -11,7 +11,7 @@ import {
   DropdownTrigger,
   Spinner,
 } from '@heroui/react'
-import { MoreVertical, Plus } from 'lucide-react'
+import { MoreVertical, Percent, Plus } from 'lucide-react'
 import type { Session } from '@/types/sessions'
 import { SessionsEmptyState } from './SessionsEmptyState'
 import { formatDateRange } from '@/utils/sessionFormatters'
@@ -24,6 +24,7 @@ interface SessionsListProps {
   selectedSession: Session | null
   onSelectSession: (session: Session | null) => void
   onCreateSession: () => void
+  onManageDiscounts: () => void
   sortBy?: string
   onSortChange: (sortBy: string | undefined) => void
 }
@@ -39,6 +40,7 @@ export function SessionsList({
   selectedSession,
   onSelectSession,
   onCreateSession,
+  onManageDiscounts,
   sortBy,
   onSortChange,
 }: SessionsListProps) {
@@ -137,11 +139,6 @@ export function SessionsList({
     )
   }
 
-  // Empty state
-  if (sessions.length === 0) {
-    return <SessionsEmptyState onCreateSession={onCreateSession} />
-  }
-
   // Sessions list (left column only - right sidebar handled by layout)
   return (
     <div>
@@ -154,6 +151,17 @@ export function SessionsList({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Manage Discounts Button */}
+          <Button
+            radius="full"
+            isIconOnly
+            variant="bordered"
+            onPress={onManageDiscounts}
+            className="w-10 h-10 border-1"
+          >
+            <Percent className="w-5 h-5 text-gray-500" />
+          </Button>
+
           {/* Sort Dropdown Menu */}
           <Dropdown>
             <DropdownTrigger>
@@ -187,87 +195,96 @@ export function SessionsList({
         </div>
       </div>
 
-      {/* Filter Chips */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {/* Sort Chip (if active) */}
-        {sortBy && (
-          <Chip
-            variant="flat"
-            color="secondary"
-            onClose={handleClearSort}
-            className="cursor-pointer"
-          >
-            Sort: {getSortLabel(sortBy)}
-          </Chip>
-        )}
-
-        {/* Filter Chips */}
-        {(['all', 'available', 'almost-full', 'full', 'draft'] as FilterType[]).map(filter => (
-          <Chip
-            key={filter}
-            variant={activeFilter === filter ? 'solid' : 'flat'}
-            color={activeFilter === filter ? 'secondary' : 'default'}
-            onClick={() => setActiveFilter(filter)}
-            className="cursor-pointer"
-          >
-            {filterLabels[filter]} ({filterCounts[filter]})
-          </Chip>
-        ))}
-      </div>
-
       {/* Sessions List */}
-      <div className="space-y-3">
-        {filteredSessions.map(session => {
-          const spotsLeft = calculateSpotsLeft(session)
-          const isSelected = selectedSession?.id === session.id
+      {sessions.length === 0 ? (
+        <SessionsEmptyState onCreateSession={onCreateSession} />
+      ) : (
+        <>
+          {/* Filter Chips */}
+          <div className="flex gap-2 mb-6 flex-wrap">
+            {/* Sort Chip (if active) */}
+            {sortBy && (
+              <Chip
+                variant="flat"
+                color="secondary"
+                onClose={handleClearSort}
+                className="cursor-pointer"
+              >
+                Sort: {getSortLabel(sortBy)}
+              </Chip>
+            )}
 
-          return (
-            <div
-              key={session.id}
-              className={`border rounded-xl p-5 cursor-pointer transition-all ${
-                isSelected
-                  ? 'border-default-900 bg-default-50'
-                  : 'border-default-200 hover:border-default-400'
-              }`}
-              style={isSelected ? { boxShadow: '0 2px 12px rgba(69, 240, 181, 0.2)' } : undefined}
-              onClick={() => onSelectSession(isSelected ? null : session)}
-            >
-              <div className="flex items-center gap-5">
-                {/* Capacity Dot */}
-                <div className={`w-3 h-3 rounded-full shrink-0 ${getCapacityDotColor(session)}`} />
+            {/* Filter Chips */}
+            {(['all', 'available', 'almost-full', 'full', 'draft'] as FilterType[]).map(filter => (
+              <Chip
+                key={filter}
+                variant={activeFilter === filter ? 'solid' : 'flat'}
+                color={activeFilter === filter ? 'secondary' : 'default'}
+                onClick={() => setActiveFilter(filter)}
+                className="cursor-pointer"
+              >
+                {filterLabels[filter]} ({filterCounts[filter]})
+              </Chip>
+            ))}
+          </div>
+          <div className="space-y-3">
+            {filteredSessions.map(session => {
+              const spotsLeft = calculateSpotsLeft(session)
+              const isSelected = selectedSession?.id === session.id
 
-                {/* Session Content */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-lg text-default-900 truncate">
-                    {session.name}
-                  </h3>
-                  <p className="text-sm text-default-600">
-                    {formatDateRange(session.startDate, session.endDate)}
-                  </p>
-                </div>
+              return (
+                <div
+                  key={session.id}
+                  className={`border rounded-xl p-5 cursor-pointer transition-all ${
+                    isSelected
+                      ? 'border-default-900 bg-default-50'
+                      : 'border-default-200 hover:border-default-400'
+                  }`}
+                  style={
+                    isSelected ? { boxShadow: '0 2px 12px rgba(69, 240, 181, 0.2)' } : undefined
+                  }
+                  onClick={() => onSelectSession(isSelected ? null : session)}
+                >
+                  <div className="flex items-center gap-5">
+                    {/* Capacity Dot */}
+                    <div
+                      className={`w-3 h-3 rounded-full shrink-0 ${getCapacityDotColor(session)}`}
+                    />
 
-                {/* Summary */}
-                <div className="text-right shrink-0">
-                  <div className="font-semibold text-default-900">
-                    {session.status === 'draft' ? (
-                      <span className="text-default-500">Draft</span>
-                    ) : (
-                      <span>{spotsLeft} spots left</span>
-                    )}
-                  </div>
-                  {session.status !== 'draft' && (
-                    <div className="text-sm text-default-600">
-                      {session.bookedCount === 0
-                        ? 'No bookings yet'
-                        : `${session.bookedCount} booking${session.bookedCount! > 1 ? 's' : ''}`}
+                    {/* Session Content */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-lg text-default-900 truncate">
+                        {session.name}
+                      </h3>
+                      <p className="text-sm text-default-600">
+                        {formatDateRange(session.startDate, session.endDate)}
+                      </p>
                     </div>
-                  )}
+
+                    {/* Summary */}
+                    <div className="text-right shrink-0">
+                      <div className="font-semibold text-default-900">
+                        {session.status === 'draft' ? (
+                          <span className="text-default-500">Draft</span>
+                        ) : (
+                          <span>{spotsLeft} spots left</span>
+                        )}
+                      </div>
+                      {session.status !== 'draft' && (
+                        <div className="text-sm text-default-600">
+                          {session.bookedCount === 0
+                            ? 'No bookings yet'
+                            : `${session.bookedCount} booking${session.bookedCount! > 1 ? 's' : ''}`}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+              )
+            })}
+          </div>
+        </>
+      )}
     </div>
   )
 }

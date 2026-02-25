@@ -5,12 +5,16 @@ import { Button } from '@heroui/react'
 import { Input, useConfirmDialog } from '@world-schools/ui-web'
 import { CheckCircle, Copy, Edit, Trash2, X } from 'lucide-react'
 import type { Session } from '@/types/sessions'
-import type { AgeGroup } from '@/types/camps'
+import type { AgeGroup, Camp } from '@/types/camps'
+import type { GlobalDiscount } from '@/types/discounts'
 import { formatDateRange } from '@/utils/sessionFormatters'
+import { SessionDiscountsSection } from './SessionDiscountsSection'
 
 interface SessionDetailPanelProps {
   session: Session | null
+  camp: Camp
   ageGroups?: AgeGroup[]
+  globalDiscounts: GlobalDiscount[]
   onClose: () => void
   onEdit: (session: Session) => void
   onDuplicate: (session: Session) => void
@@ -25,7 +29,9 @@ interface SessionDetailPanelProps {
  */
 export function SessionDetailPanel({
   session,
+  camp,
   ageGroups = [],
+  globalDiscounts,
   onClose,
   onEdit,
   onDuplicate,
@@ -314,6 +320,13 @@ export function SessionDetailPanel({
           </div>
         </div>
 
+        {/* Discounts Section */}
+        <SessionDiscountsSection
+          sessionId={session.id}
+          camp={camp}
+          globalDiscounts={globalDiscounts}
+        />
+
         {/* Actions Section */}
         <h4 className="text-sm mb-2 font-semibold text-default-600 uppercase tracking-wide">
           Actions
@@ -329,7 +342,7 @@ export function SessionDetailPanel({
               Publish Session
             </Button>
           )}
-          <Button
+          {/* <Button
             variant="bordered"
             color="success"
             startContent={<Edit className="w-4 h-4" />}
@@ -337,7 +350,7 @@ export function SessionDetailPanel({
             className="w-full justify-start py-5"
           >
             Edit Session
-          </Button>
+          </Button> */}
           <Button
             variant="bordered"
             color="default"
