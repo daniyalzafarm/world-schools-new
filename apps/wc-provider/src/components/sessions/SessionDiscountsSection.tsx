@@ -54,27 +54,26 @@ export function SessionDiscountsSection({
   }
 
   // Filter only enabled global discounts
-  const enabledGlobalDiscounts = globalDiscounts.filter(gd => gd.isEnabled)
+  const enabledGlobalDiscounts = globalDiscounts.filter(gd => gd.isEnabled && gd.entries.length)
 
   // Determine which global discounts are applied
   // A discount is applied if it's in globalApplied OR (enabled and NOT in globalRemoved)
   const appliedGlobalDiscounts = enabledGlobalDiscounts.filter(gd => {
+    if (!discounts.globalApplied || discounts.globalRemoved.includes(gd.id)) return false
     // If explicitly applied, it's applied
     if (discounts.globalApplied.includes(gd.id)) return true
-    // If explicitly removed, it's not applied
-    if (discounts.globalRemoved.includes(gd.id)) return false
-    // Otherwise, enabled discounts are applied by default
-    return true
+
+    return false
   })
 
   // Check if a discount is currently applied (for checkbox state)
   const isDiscountApplied = (discountId: string) => {
     // If explicitly removed, it's not applied
-    if (discounts.globalRemoved.includes(discountId)) return false
+    if (!discounts.globalApplied || discounts.globalRemoved.includes(discountId)) return false
     // If explicitly applied, it's applied
     if (discounts.globalApplied.includes(discountId)) return true
     // Otherwise, enabled discounts are applied by default
-    return true
+    return false
   }
 
   // Check if age group selector should be shown
@@ -294,7 +293,7 @@ export function SessionDiscountsSection({
   return (
     <div className="space-y-6">
       {/* Global Discount Rules Applied */}
-      {appliedGlobalDiscounts.length > 0 && (
+      {!!enabledGlobalDiscounts.length && (
         <div>
           <div className="flex items-center gap-2 mb-4">
             <label className="text-sm font-medium text-default-900">
@@ -308,7 +307,6 @@ export function SessionDiscountsSection({
           <div className="flex gap-3 my-4">
             {enabledGlobalDiscounts.map(gd => {
               const firstEntry = gd.entries[0]
-              if (!firstEntry) return null
 
               const isChecked = isDiscountApplied(gd.id)
 
@@ -328,7 +326,6 @@ export function SessionDiscountsSection({
           <div className="border border-default-200 rounded-lg">
             {appliedGlobalDiscounts.map((gd, index) => {
               const firstEntry = gd.entries[0]
-              if (!firstEntry) return null
 
               return (
                 <div

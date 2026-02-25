@@ -61,7 +61,6 @@ export function ManageDiscountsPanel({ campId, onClose }: ManageDiscountsPanelPr
     try {
       setIsLoading(true)
       const discounts = await getGlobalDiscounts(campId)
-      console.log('Loaded discounts:', discounts)
       setGlobalDiscounts(discounts || [])
     } catch (error) {
       console.error('Failed to load discounts:', error)
