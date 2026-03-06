@@ -20,11 +20,13 @@
  */
 
 import React from 'react'
+import { cn } from '../utils/cn'
 
 interface PageSlotProps {
   children: React.ReactNode
+  className?: string
 }
 
-export function PageSlot({ children }: PageSlotProps) {
-  return <div className="mx-auto max-w-7xl p-6 lg:p-8">{children}</div>
+export function PageSlot({ children, className }: PageSlotProps) {
+  return <div className={cn('mx-auto max-w-7xl p-6 lg:p-8', className)}>{children}</div>
 }
