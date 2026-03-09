@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
+  HelpCircle,
   House,
   Inbox,
   LogOut,
@@ -156,6 +157,12 @@ const NAV_ITEMS: NavItem[] = [
     badge: 2,
     type: 'regular',
     // No permission required - available to all authenticated users
+  },
+  {
+    name: 'Help',
+    href: '/help',
+    icon: <HelpCircle size={20} />,
+    type: 'regular',
   },
 ]
 

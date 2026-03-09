@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
 import { Input } from './input'
 import type { CustomInputProps } from './input'
 
@@ -24,15 +24,12 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   const [displayValue, setDisplayValue] = useState(() =>
     value !== null && value !== undefined ? value.toString() : ''
   )
-  const lastValueRef = useRef(value)
+  const [prevValue, setPrevValue] = useState(value)
 
-  // Sync displayValue with external value changes (not from user input)
-  if (lastValueRef.current !== value) {
-    lastValueRef.current = value
-    const newDisplayValue = value !== null && value !== undefined ? value.toString() : ''
-    if (displayValue !== newDisplayValue) {
-      setDisplayValue(newDisplayValue)
-    }
+  // Sync displayValue when value prop changes (e.g. form reset) — React "adjusting state when a prop changes" pattern
+  if (value !== prevValue) {
+    setPrevValue(value)
+    setDisplayValue(value !== null && value !== undefined ? value.toString() : '')
   }
 
   const formatCurrency = (val: string): string => {

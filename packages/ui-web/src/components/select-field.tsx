@@ -8,12 +8,19 @@ export interface SelectFieldSection {
   items: readonly string[] | string[]
 }
 
+export interface SelectFieldOptionObject {
+  value: string
+  label: string
+}
+
+export type SelectFieldOption = string | SelectFieldOptionObject
+
 export interface SelectFieldProps
   extends Omit<SelectProps, 'children' | 'selectedKeys' | 'onSelectionChange' | 'onChange'> {
   value?: string
   onChange: (value: string) => void
   /** Flat array of options (for backward compatibility) */
-  options?: readonly string[] | string[]
+  options?: readonly SelectFieldOption[] | SelectFieldOption[]
   /** Grouped sections of options */
   sections?: readonly SelectFieldSection[] | SelectFieldSection[]
 }
@@ -46,7 +53,7 @@ export function SelectField({
       labelPlacement="outside"
       classNames={{
         trigger: cn(
-          'rounded-lg bg-white',
+          'rounded-lg bg-white capitalize',
           'border border-gray-200',
           'hover:border-gray-300',
           'aria-expanded:border-primary!',
@@ -56,12 +63,27 @@ export function SelectField({
           'dark:border-gray-600',
           className
         ),
+        base: cn('w-auto'),
       }}
       {...props}
     >
       {options
-        ? // Render flat options (backward compatible)
-          options.map(option => <SelectItem key={option}>{option}</SelectItem>)
+        ? // Render flat options (supports strings and { value, label } objects)
+          options.map(option => {
+            if (typeof option === 'string') {
+              return (
+                <SelectItem key={option} className="capitalize">
+                  {option}
+                </SelectItem>
+              )
+            }
+
+            return (
+              <SelectItem key={option.value} className="capitalize">
+                {option.label}
+              </SelectItem>
+            )
+          })
         : // Render grouped sections
           sections!.map(section => (
             <SelectSection key={section.title} title={section.title} showDivider>

@@ -54,3 +54,9 @@ export * from './lib/config/feature-flags'
 
 // Discount types configuration (static metadata for all discount categories)
 export * from './lib/discount-types'
+
+// Knowledge Base types (categories and articles)
+export * from './lib/kb/types'
+
+// Help (KB) shared module – service, context, components, page content
+export * from './lib/kb/help'

@@ -56,3 +56,5 @@ vitest.config.*.timestamp*
 .next
 out
 next-env.d.ts
+static/
+graph.html

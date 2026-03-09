@@ -20,6 +20,7 @@ import { WebSocketModule } from '../modules/websocket/websocket.module'
 import { SuperAdminModule } from '../modules/superadmin/superadmin.module'
 import { ProviderModule } from '../modules/provider/provider.module'
 import { UserModule } from '../modules/user/user.module'
+import { KbModule } from '../modules/kb/kb.module'
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { UserModule } from '../modules/user/user.module'
     SuperAdminModule,
     ProviderModule,
     UserModule,
+    KbModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -31,7 +31,9 @@ function Verify2FAContent() {
   // Auto-submit when code is complete
   useEffect(() => {
     if (code.length === 6 && /^\d{6}$/.test(code) && !isLoading) {
-      handleSubmit(new Event('submit') as any)
+      handleSubmit(new Event('submit') as any).catch(error => {
+        console.error('Auto-submit error:', error)
+      })
     }
   }, [code])
 

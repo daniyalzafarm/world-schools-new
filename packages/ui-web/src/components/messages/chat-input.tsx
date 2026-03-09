@@ -103,7 +103,7 @@ export function ChatInput({
             )}
             aria-label="Send message"
           >
-            <ArrowUp className='text-white' size={16} />
+            <ArrowUp className="text-white" size={16} />
           </Button>
         </div>
 
@@ -117,4 +117,3 @@ export function ChatInput({
     </div>
   )
 }
-

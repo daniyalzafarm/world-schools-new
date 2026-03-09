@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronRight,
   Heart,
+  HelpCircle,
   Home,
   LogOut,
   MessageCircle,
@@ -119,6 +120,12 @@ const NAV_ITEMS: NavItem[] = [
     href: '/notifications',
     icon: <Bell size={20} />,
     badge: 2,
+    type: 'regular',
+  },
+  {
+    name: 'Help',
+    href: '/help',
+    icon: <HelpCircle size={20} />,
     type: 'regular',
   },
 ]

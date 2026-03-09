@@ -188,4 +188,3 @@ export function formatMessageTimestamp(date: Date | string | number): string {
   })
   return `${fullDate} ${timeStr}`
 }
-

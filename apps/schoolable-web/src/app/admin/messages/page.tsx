@@ -387,7 +387,7 @@ Transfer Request: User requested to speak with a human representative.`,
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-gray-900 dark:text-gray-100">
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-gray-900 dark:text-gray-100">
                                   {m.text}
                                 </p>
                               </div>
@@ -410,7 +410,7 @@ Transfer Request: User requested to speak with a human representative.`,
                                     {m.isChatbot ? 'AI Assistant' : 'You'}
                                   </span>
                                 </div>
-                                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-gray-900 dark:text-gray-100">
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-gray-900 dark:text-gray-100">
                                   {m.text}
                                 </p>
                               </div>

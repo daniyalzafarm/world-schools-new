@@ -21,9 +21,7 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   // In admin view, user messages are on the left, admin/chatbot on the right
   // In user view, user messages are on the right, chatbot/admin on the left
-  const isLeftAligned = isAdminView
-    ? message.isUser || message.isTransferSummary
-    : !message.isUser
+  const isLeftAligned = isAdminView ? message.isUser || message.isTransferSummary : !message.isUser
 
   if (isLeftAligned) {
     return (
@@ -83,7 +81,7 @@ export function MessageBubble({
                 </span>
               )}
             </div>
-            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-gray-900 dark:text-gray-100">
+            <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-gray-900 dark:text-gray-100">
               {message.text}
             </p>
           </div>
@@ -121,7 +119,7 @@ export function MessageBubble({
               </span>
             </div>
           )}
-          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">
             {message.text}
           </p>
         </div>
@@ -129,4 +127,3 @@ export function MessageBubble({
     </div>
   )
 }
-

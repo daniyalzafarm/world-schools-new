@@ -24,7 +24,7 @@
 
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@heroui/react'
 import { Smile } from 'lucide-react'
 import { cn } from '../utils/cn'
@@ -136,9 +136,15 @@ export function EmojiPicker({
   }
 
   return (
-    <div className={cn('flex flex-col gap-1.5', className, classNames?.container)}>
+    <div className={cn('flex flex-col gap-1', className, classNames?.container)}>
       {label && (
-        <label className={cn('text-[14px] font-semibold text-default-900', classNames?.label)}>
+        <label
+          className={cn(
+            'text-[14px] font-bold text-foreground',
+            'pb-0 will-change-auto origin-top-left transition-all duration-200! ease-out! motion-reduce:transition-none',
+            classNames?.label
+          )}
+        >
           {label}
         </label>
       )}
@@ -149,16 +155,18 @@ export function EmojiPicker({
           onPress={handleToggle}
           disabled={disabled}
           className={cn(
-            'h-auto min-h-[56px] px-4 py-3 rounded-lg border-2 transition-all',
-            'bg-white dark:bg-gray-800',
-            isOpen
-              ? 'border-primary bg-primary-50 dark:bg-primary-900/20'
-              : 'border-default-200 hover:border-primary',
-            disabled && 'opacity-50 cursor-not-allowed',
+            'h-auto min-h-10 px-3 py-2',
+            'rounded-lg bg-white',
+            'border border-gray-200',
+            'hover:border-gray-300',
+            'transition-colors duration-200',
+            'dark:bg-gray-800 dark:border-gray-600',
+            isOpen && 'border-primary! bg-white!',
+            disabled && 'opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-900',
             classNames?.button
           )}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 justify-start w-full">
             <span className={cn(emojiSizeClasses[emojiSize], classNames?.emoji)}>{value}</span>
             <Smile size={18} className="text-gray-400" />
           </div>
@@ -187,7 +195,9 @@ export function EmojiPicker({
       </div>
 
       {description && (
-        <p className={cn('text-[13px] text-default-400', classNames?.description)}>{description}</p>
+        <p className={cn('text-[13px] text-default-400', 'pt-1 px-1', classNames?.description)}>
+          {description}
+        </p>
       )}
     </div>
   )

@@ -98,6 +98,28 @@ const addonsPermissions: PermissionGroup = {
   ],
 }
 
+const kbCategoriesPermissions: PermissionGroup = {
+  name: 'Knowledge Base Categories',
+  permissions: [
+    { id: 'kb.categories.create', name: 'Create KB categories' },
+    { id: 'kb.categories.read', name: 'Read KB categories' },
+    { id: 'kb.categories.update', name: 'Update KB categories' },
+    { id: 'kb.categories.delete', name: 'Delete KB categories' },
+  ],
+}
+
+const kbArticlesPermissions: PermissionGroup = {
+  name: 'Knowledge Base Articles',
+  permissions: [
+    { id: 'kb.articles.create', name: 'Create KB articles' },
+    { id: 'kb.articles.read', name: 'Read KB articles' },
+    { id: 'kb.articles.update', name: 'Update KB articles' },
+    { id: 'kb.articles.delete', name: 'Delete KB articles' },
+    { id: 'kb.articles.publish', name: 'Publish KB articles' },
+    { id: 'kb.articles.duplicate', name: 'Duplicate KB articles' },
+  ],
+}
+
 // Context-based main groups
 export const superadminContext: PermissionContext = {
   name: 'SuperAdmin',
@@ -109,6 +131,8 @@ export const superadminContext: PermissionContext = {
     providerDocumentsPermissions,
     campsPermissions,
     addonsPermissions,
+    kbCategoriesPermissions,
+    kbArticlesPermissions,
   ],
 }
 

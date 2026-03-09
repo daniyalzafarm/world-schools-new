@@ -2,9 +2,11 @@
 @import 'tailwindcss';
 @import 'react-phone-number-input/style.css';
 @import '../../../../packages/ui-web/src/styles/phone-input.css';
+@import '../../../../packages/wc-frontend-utils/src/styles/kb-classes.css';
 @plugin '../../../../packages/wc-frontend-utils/src/lib/theme-config.ts';
 @source '../../../../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}';
 @source '../../../../packages/ui-web/src/**/*.{js,ts,jsx,tsx}';
+@source '../../../../packages/wc-frontend-utils/src/**/*.{js,ts,jsx,tsx}';
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -203,13 +205,14 @@
   }
 
   /* Hide the main CampEditorFooter on session form pages */
-  body.session-form-page main > .sticky.bottom-0.z-40 {
+  body.session-form-page main>.sticky.bottom-0.z-40 {
     display: none;
   }
 }
 
 /* Google Places Autocomplete Custom Styling */
 @layer components {
+
   /* Main autocomplete container */
   .pac-container {
     background-color: white;
@@ -279,7 +282,7 @@
   }
 
   /* Unmatched text in address */
-  .pac-item-query + span {
+  .pac-item-query+span {
     font-size: 13px;
     color: #717171;
   }
@@ -313,7 +316,7 @@
     color: #f9fafb;
   }
 
-  .dark .pac-item-query + span {
+  .dark .pac-item-query+span {
     color: #9ca3af;
   }
 }

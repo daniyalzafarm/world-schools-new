@@ -1,8 +1,10 @@
 @import './fonts.css';
 @import 'tailwindcss';
+@import '../../../../packages/wc-frontend-utils/src/styles/kb-classes.css';
 @plugin '../../../../packages/wc-frontend-utils/src/lib/theme-config.ts';
 @source '../../../../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}';
 @source '../../../../packages/ui-web/src/**/*.{js,ts,jsx,tsx}';
+@source '../../../../packages/wc-frontend-utils/src/**/*.{js,ts,jsx,tsx}';
 @custom-variant dark (&:is(.dark *));
 
 :root {

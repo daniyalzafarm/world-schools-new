@@ -19,12 +19,16 @@ import {
   Building,
   ChevronDown,
   ChevronRight,
+  HelpCircle,
   House,
   Inbox,
+  LayoutGrid,
+  List,
   ListPlus,
   LogOut,
   MessageCircle,
   MessageCircleWarning,
+  Notebook,
   Settings,
   ShieldCheck,
   User,
@@ -179,6 +183,34 @@ const NAV_ITEMS: NavItem[] = [
     badge: 2,
     type: 'regular',
     // No permission required - available to all authenticated users
+  },
+  {
+    name: 'Knowledge Base',
+    icon: <Notebook size={20} />,
+    type: 'collapsible',
+    permission: 'kb.articles.read',
+    children: [
+      {
+        name: 'Articles',
+        href: '/kb/articles',
+        icon: <List size={20} />,
+        type: 'regular',
+        permission: 'kb.articles.read',
+      },
+      {
+        name: 'Categories',
+        href: '/kb/categories',
+        icon: <LayoutGrid size={20} />,
+        type: 'regular',
+        permission: 'kb.categories.read',
+      },
+    ],
+  },
+  {
+    name: 'Help',
+    href: '/help',
+    icon: <HelpCircle size={20} />,
+    type: 'regular',
   },
 ]
 

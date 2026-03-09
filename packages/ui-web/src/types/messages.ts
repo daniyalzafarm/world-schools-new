@@ -48,4 +48,3 @@ export const DEFAULT_REPORT_REASONS: ReportReason[] = [
   { id: 'scam', label: 'Scam or fraud' },
   { id: 'other', label: 'Other' },
 ]
-

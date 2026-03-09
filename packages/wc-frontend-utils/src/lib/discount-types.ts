@@ -107,4 +107,3 @@ export function getDiscountTypeConfig(category: string): DiscountTypeConfig | un
 export function getAllDiscountCategories(): string[] {
   return DISCOUNT_TYPES.map(dt => dt.category)
 }
-
