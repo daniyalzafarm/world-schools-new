@@ -66,6 +66,8 @@ export interface EmojiPickerProps {
     emoji?: string
     description?: string
   }
+  /** Whether the picker is required */
+  isRequired?: boolean
 }
 
 const emojiSizeClasses = {
@@ -91,6 +93,7 @@ export function EmojiPicker({
   emojiSize = 'md',
   pickerPosition = 'bottom',
   classNames,
+  isRequired = false,
 }: EmojiPickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isPickerLoaded, setIsPickerLoaded] = useState(false)
@@ -145,7 +148,8 @@ export function EmojiPicker({
             classNames?.label
           )}
         >
-          {label}
+          {label} 
+          {isRequired && <span className="ml-1 text-danger">*</span>}
         </label>
       )}
 

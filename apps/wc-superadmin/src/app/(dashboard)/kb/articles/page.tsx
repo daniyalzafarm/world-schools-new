@@ -171,6 +171,7 @@ export default function KbArticlesPage() {
       message: `Are you sure you want to ${action} "${article.title}"?`,
       confirmText: isPublished ? 'Unpublish' : 'Publish',
       cancelText: 'Cancel',
+      variant: isPublished ? 'danger' : 'info',
     })
 
     if (confirmed) {
@@ -339,7 +340,7 @@ export default function KbArticlesPage() {
           : `Are you sure you want to unpublish ${targetArticles.length} selected article(s)?`,
       confirmText: bulkPublishMode === 'publish' ? 'Publish' : 'Unpublish',
       cancelText: 'Cancel',
-      variant: bulkPublishMode === 'unpublish' ? 'warning' : undefined,
+      variant: bulkPublishMode === 'unpublish' ? 'danger' : 'info',
     })
 
     if (!confirmed) return
@@ -605,7 +606,11 @@ export default function KbArticlesPage() {
                     {selectedArticleIds.length} selected:
                   </span>
                   {canPublish && bulkPublishMode && (
-                    <Button size="sm" color="primary" onPress={handleBulkPublish}>
+                    <Button
+                      size="sm"
+                      color={bulkPublishMode === 'publish' ? 'primary' : 'danger'}
+                      onPress={handleBulkPublish}
+                    >
                       {bulkPublishMode === 'publish' ? 'Publish' : 'Unpublish'}
                     </Button>
                   )}
@@ -826,6 +831,7 @@ export default function KbArticlesPage() {
                                         <SquareCheck className="h-3.5 w-3.5" />
                                       )
                                     }
+                                    color={article.status === 'published' ? 'danger' : 'primary'}
                                     variant="light"
                                     className="justify-start"
                                   >

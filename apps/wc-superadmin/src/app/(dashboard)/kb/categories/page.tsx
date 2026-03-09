@@ -188,10 +188,9 @@ export default function KbCategoriesPage() {
             }}
           >
             <TableHeader>
+              <TableColumn>ICON</TableColumn>
               <TableColumn>NAME</TableColumn>
               <TableColumn>SLUG</TableColumn>
-              <TableColumn>ICON</TableColumn>
-              <TableColumn>SORT ORDER</TableColumn>
               <TableColumn>STATUS</TableColumn>
               <TableColumn>ARTICLES</TableColumn>
               <TableColumn>CREATED</TableColumn>
@@ -219,6 +218,9 @@ export default function KbCategoriesPage() {
               {category => (
                 <TableRow key={category.id}>
                   <TableCell>
+                    <span className="text-2xl">{category.icon || 'N/A'}</span>
+                  </TableCell>
+                  <TableCell>
                     <div className="flex flex-col">
                       <span className="font-medium">{category.name}</span>
                       {category.description && (
@@ -230,13 +232,9 @@ export default function KbCategoriesPage() {
                   </TableCell>
                   <TableCell>
                     <code className="text-xs bg-default-100 px-2 py-1 rounded">
-                      {category.slug}
+                      /{category.slug}
                     </code>
                   </TableCell>
-                  <TableCell>
-                    <span className="text-2xl">{category.icon || '📚'}</span>
-                  </TableCell>
-                  <TableCell>{category.sortOrder}</TableCell>
                   <TableCell>
                     <Chip color={category.isActive ? 'success' : 'default'} size="sm">
                       {category.isActive ? 'Active' : 'Inactive'}

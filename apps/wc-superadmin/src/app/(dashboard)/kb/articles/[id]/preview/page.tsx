@@ -56,6 +56,7 @@ export default function KbArticlePreviewPage() {
       message: `Are you sure you want to ${action} "${article.title}"?`,
       confirmText: isPublished ? 'Unpublish' : 'Publish',
       cancelText: 'Cancel',
+      variant: isPublished ? 'danger' : 'info',
     })
     if (confirmed) {
       const success = isPublished
@@ -140,8 +141,7 @@ export default function KbArticlePreviewPage() {
             </Chip>
             {canPublish && (
               <Button
-                color={article.status === 'published' ? 'warning' : 'primary'}
-                variant={article.status === 'published' ? 'flat' : 'solid'}
+                color={article.status === 'published' ? 'danger' : 'primary'}
                 onPress={() => void handleTogglePublish()}
               >
                 {article.status === 'published' ? 'Unpublish' : 'Publish'}

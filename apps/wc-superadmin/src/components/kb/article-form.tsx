@@ -15,7 +15,7 @@ import {
   Progress,
 } from '@heroui/react'
 import { Input, SelectField, Textarea, useConfirmDialog, useDebounce } from '@world-schools/ui-web'
-import { CheckCircle, CircleAlert, Code2, Eye, Loader2, X } from 'lucide-react'
+import { CheckCircle, CircleAlert, Code2, Eye, Loader2, Wand2, X } from 'lucide-react'
 import { useKbCategoriesStore } from '@/stores/kb-categories-store'
 import { useKbArticlesStore } from '@/stores/kb-articles-store'
 import { checkArticleSlugAvailability, getArticles } from '@/services/kb-articles.service'
@@ -32,6 +32,7 @@ import type {
 } from '@world-schools/wc-frontend-utils'
 import { KB_ALLOWED_ATTRIBUTES, KB_ALLOWED_CLASSES, KB_ALLOWED_TAGS } from '@world-schools/wc-utils'
 import Editor from '@monaco-editor/react'
+import type { editor as MonacoEditor } from 'monaco-editor'
 
 const ARTICLE_TYPES: { value: ArticleType; label: string }[] = [
   { value: 'how_to' as ArticleType, label: 'How-to' },
@@ -335,6 +336,7 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
       : null
   )
   const [showAllowedHtml, setShowAllowedHtml] = useState(false)
+  const monacoEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null)
 
   useEffect(() => {
     if (!article) return
@@ -498,6 +500,7 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
       message: `Are you sure you want to ${action} "${article.title}"?`,
       confirmText: isPublished ? 'Unpublish' : 'Publish',
       cancelText: 'Cancel',
+      variant: isPublished ? 'danger' : 'info',
     })
     if (confirmed) {
       await (isPublished ? storeUnpublishArticle(article.id) : storePublishArticle(article.id))
@@ -550,7 +553,11 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
           >
             Save
           </Button>
-          <Button color="primary" isDisabled={isDirty} onPress={() => void handleTogglePublish()}>
+          <Button
+            color={article.status === 'published' ? 'danger' : 'primary'}
+            isDisabled={isDirty}
+            onPress={() => void handleTogglePublish()}
+          >
             {article.status === 'published' ? 'Unpublish' : 'Publish'}
           </Button>
         </>
@@ -626,6 +633,12 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
     })
   }, [])
 
+  const formatEditorContent = useCallback(async () => {
+    const editor = monacoEditorRef.current
+    if (!editor) return
+    await editor.getAction('editor.action.formatDocument')?.run()
+  }, [])
+
   const handleTopbarSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const nativeEvent = event.nativeEvent as SubmitEvent
@@ -684,16 +697,17 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
         <Divider />
 
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <SelectField
-              label="Category"
-              value={categoryId}
-              onChange={setCategoryId}
-              options={categories.map(c => ({ value: c.id, label: c.name }))}
-              placeholder="Select category..."
-            />
-            {errors.categoryId && <p className="mt-1 text-xs text-danger">{errors.categoryId}</p>}
-          </div>
+          <SelectField
+            label="Category"
+            isRequired
+            value={categoryId}
+            onChange={setCategoryId}
+            options={categories.map(c => ({ value: c.id, label: c.name }))}
+            placeholder="Select category..."
+            errorMessage={errors.categoryId}
+            isInvalid={!!errors.categoryId}
+            classNames={{ base: 'data-[invalid=true]:mt-0' }}
+          />
 
           <Input
             label="URL Slug"
@@ -818,7 +832,7 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
           />
         </div>
 
-        <Divider />
+        {article && <Divider />}
 
         {article && (
           <div className="flex flex-col gap-2">
@@ -957,7 +971,7 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
                     <button
                       type="button"
                       onClick={() => setActiveEditorTab('code')}
-                      className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
+                      className={`cursor-pointer inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
                         activeEditorTab === 'code'
                           ? 'bg-default-100 font-semibold text-foreground'
                           : 'text-default-500 hover:text-foreground'
@@ -969,7 +983,7 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
                     <button
                       type="button"
                       onClick={() => setActiveEditorTab('preview')}
-                      className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
+                      className={`cursor-pointer inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
                         activeEditorTab === 'preview'
                           ? 'bg-default-100 font-semibold text-foreground'
                           : 'text-default-500 hover:text-foreground'
@@ -1056,6 +1070,15 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
                 <div className="flex flex-wrap gap-2 border-b border-default-200 bg-default-50 px-4 py-3">
                   <button
                     type="button"
+                    onClick={() => void formatEditorContent()}
+                    className="cursor-pointer rounded-md border border-default-200 bg-background px-2.5 py-1 text-xs font-medium text-default-600 hover:text-foreground"
+                    aria-label="Format HTML"
+                    title="Format"
+                  >
+                    <Wand2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => insertSnippet('<h2 class="kb-section-title">Section title</h2>')}
                     className="cursor-pointer rounded-md border border-default-200 bg-background px-2.5 py-1 text-xs font-medium text-default-600 hover:text-foreground"
                   >
@@ -1117,6 +1140,9 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
                           theme="vs-dark"
                           value={contentHtml}
                           onChange={value => setContentHtml(value || '')}
+                          onMount={editor => {
+                            monacoEditorRef.current = editor
+                          }}
                           options={{
                             minimap: { enabled: false },
                             fontSize: 13,

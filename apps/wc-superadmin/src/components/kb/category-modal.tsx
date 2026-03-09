@@ -57,6 +57,10 @@ export function CategoryModal() {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
 
+    if (!formData.icon?.trim()) {
+      newErrors.icon = 'Icon is required'
+    }
+
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required'
     }
@@ -137,6 +141,7 @@ export function CategoryModal() {
           <div className="flex gap-4">
             <EmojiPicker
               label="Icon"
+              isRequired
               value={formData.icon || '📚'}
               onChange={emoji => setFormData(prev => ({ ...prev, icon: emoji }))}
             />
@@ -182,7 +187,7 @@ export function CategoryModal() {
             }}
           />
 
-          <Input
+          {/* <Input
             label="Sort Order"
             labelPlacement="outside"
             type="number"
@@ -206,7 +211,7 @@ export function CategoryModal() {
               isSelected={formData.isActive}
               onValueChange={value => setFormData(prev => ({ ...prev, isActive: value }))}
             />
-          </div>
+          </div> */}
         </ModalBody>
         <ModalFooter>
           <Button variant="flat" onPress={closeModal} isDisabled={isSubmitting}>
