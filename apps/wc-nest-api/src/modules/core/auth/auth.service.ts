@@ -317,6 +317,13 @@ export class AuthService {
       firstName: user.firstName ?? undefined,
       lastName: user.lastName ?? undefined,
       profilePhotoUrl: user.profilePhotoUrl ?? null,
+      phone: user.phone ?? null,
+      phoneVerified: user.phoneVerified ?? false,
+      address: user.address ?? null,
+      city: user.city ?? null,
+      state: user.state ?? null,
+      postalCode: user.postalCode ?? null,
+      country: user.country ?? null,
       roles,
       permissions,
     }
@@ -326,16 +333,10 @@ export class AuthService {
       response.providerId = user.ownedProvider.id
     }
 
-    // Include parent profile if it exists (map parentProfile to parent for frontend)
+    // Include parent profile (nationality, languages only - Parent-specific)
     if (user.parentProfile) {
       response.parent = {
         id: user.parentProfile.id,
-        phone: user.parentProfile.phone ?? null,
-        address: user.parentProfile.address ?? null,
-        city: user.parentProfile.city ?? null,
-        state: user.parentProfile.state ?? null,
-        postalCode: user.parentProfile.postalCode ?? null,
-        country: user.parentProfile.country ?? null,
         primaryNationality: user.parentProfile.primaryNationality ?? null,
         secondaryNationality: user.parentProfile.secondaryNationality ?? null,
         languages: user.parentProfile.languages ?? [],

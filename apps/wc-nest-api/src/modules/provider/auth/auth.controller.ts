@@ -14,7 +14,10 @@ import {
   Req,
   Res,
   UnauthorizedException,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common'
+import { FileInterceptor } from '@nestjs/platform-express'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Request, Response } from 'express'
 import { parseDuration } from '@world-schools/wc-utils'
@@ -31,7 +34,9 @@ import {
   RefreshTokenDto,
   ResetPasswordDto,
 } from '../../core/auth/dto/auth.dto'
+import { UpdateProfileDto } from '../../user/auth/dto/update-profile.dto'
 import { ResponseUtil } from '../../../common/utils/response.util'
+import { ProfilePhotoService } from '../../user/auth/services/profile-photo.service'
 import { ConfigService } from '../../../config/config.service'
 import { EmailVerificationService } from './services/email-verification.service'
 import { TwoFactorAuthService } from './services/two-factor-auth.service'
@@ -49,7 +54,8 @@ export class ProviderAuthController {
     private readonly emailVerificationService: EmailVerificationService,
     private readonly passwordResetService: PasswordResetService,
     private readonly twoFactorAuthService: TwoFactorAuthService,
-    private readonly sessionManagementService: SessionManagementService
+    private readonly sessionManagementService: SessionManagementService,
+    private readonly profilePhotoService: ProfilePhotoService
   ) {}
 
   @Public()
@@ -420,7 +426,7 @@ export class ProviderAuthController {
       )
     }
 
-    // Fetch full user profile with passwordChangedAt
+    // Fetch full user profile with contact fields and passwordChangedAt
     const dbUser = await this.prisma.user.findUnique({
       where: { id: user.id },
       select: {
@@ -432,6 +438,14 @@ export class ProviderAuthController {
         passwordChangedAt: true,
         createdAt: true,
         updatedAt: true,
+        profilePhotoUrl: true,
+        phone: true,
+        phoneVerified: true,
+        address: true,
+        city: true,
+        state: true,
+        postalCode: true,
+        country: true,
         roles: {
           select: {
             role: {
@@ -459,6 +473,12 @@ export class ProviderAuthController {
       throw new NotFoundException('User not found')
     }
 
+    // Generate SAS URL for profile photo if it exists
+    let profilePhotoUrl = dbUser.profilePhotoUrl
+    if (profilePhotoUrl) {
+      profilePhotoUrl = await this.profilePhotoService.generatePhotoUrl(profilePhotoUrl)
+    }
+
     // Transform roles to flat structure and build response matching frontend User type
     const fullUser = {
       id: dbUser.id,
@@ -469,6 +489,14 @@ export class ProviderAuthController {
       passwordChangedAt: dbUser.passwordChangedAt,
       createdAt: dbUser.createdAt,
       updatedAt: dbUser.updatedAt,
+      profilePhotoUrl: profilePhotoUrl ?? null,
+      phone: dbUser.phone ?? null,
+      phoneVerified: dbUser.phoneVerified ?? false,
+      address: dbUser.address ?? null,
+      city: dbUser.city ?? null,
+      state: dbUser.state ?? null,
+      postalCode: dbUser.postalCode ?? null,
+      country: dbUser.country ?? null,
       roles: dbUser.roles.map((ur: any) => ({
         id: ur.role.id,
         name: ur.role.name,
@@ -479,6 +507,122 @@ export class ProviderAuthController {
     }
 
     return ResponseUtil.success(fullUser)
+  }
+
+  @Patch('profile')
+  @ApiOperation({
+    summary: 'Update current user profile',
+    description: 'Update the profile of the currently authenticated provider user',
+  })
+  async updateProfile(@CurrentUser() user: any, @Body() updateProfileDto: UpdateProfileDto) {
+    const hasProviderRole = user.roles?.some(
+      (role: any) => role.name === 'Provider Admin' || role.providerId !== null
+    )
+
+    if (!hasProviderRole) {
+      throw new UnauthorizedException(
+        'Access denied. Provider Admin role or provider-specific role required.'
+      )
+    }
+
+    const userUpdateData: any = {}
+    if (updateProfileDto.firstName !== undefined) userUpdateData.firstName = updateProfileDto.firstName
+    if (updateProfileDto.lastName !== undefined) userUpdateData.lastName = updateProfileDto.lastName
+    if (updateProfileDto.phone !== undefined) userUpdateData.phone = updateProfileDto.phone
+    if (updateProfileDto.address !== undefined) userUpdateData.address = updateProfileDto.address
+    if (updateProfileDto.city !== undefined) userUpdateData.city = updateProfileDto.city
+    if (updateProfileDto.state !== undefined) userUpdateData.state = updateProfileDto.state
+    if (updateProfileDto.postalCode !== undefined)
+      userUpdateData.postalCode = updateProfileDto.postalCode
+    if (updateProfileDto.country !== undefined) userUpdateData.country = updateProfileDto.country
+
+    if (Object.keys(userUpdateData).length > 0) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: userUpdateData,
+      })
+    }
+
+    const updatedUser = await this.authService.validateUser(user.id)
+    return ResponseUtil.success(updatedUser)
+  }
+
+  @Patch('profile/photo')
+  @UseInterceptors(FileInterceptor('photo'))
+  @ApiOperation({
+    summary: 'Upload profile photo',
+    description: 'Upload a profile photo for the currently authenticated provider user',
+  })
+  async uploadProfilePhoto(@CurrentUser() user: any, @UploadedFile() file: Express.Multer.File) {
+    const hasProviderRole = user.roles?.some(
+      (role: any) => role.name === 'Provider Admin' || role.providerId !== null
+    )
+
+    if (!hasProviderRole) {
+      throw new UnauthorizedException(
+        'Access denied. Provider Admin role or provider-specific role required.'
+      )
+    }
+
+    if (!file) {
+      throw new BadRequestException('No file uploaded')
+    }
+
+    const uploadResult = await this.profilePhotoService.uploadPhoto(user.id, {
+      buffer: file.buffer,
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+    })
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { profilePhotoUrl: uploadResult.url },
+    })
+
+    const sasUrl = await this.profilePhotoService.generatePhotoUrl(uploadResult.url)
+    const updatedUser = await this.authService.validateUser(user.id)
+
+    return ResponseUtil.success({
+      ...updatedUser,
+      profilePhotoUrl: sasUrl,
+    })
+  }
+
+  @Delete('profile/photo')
+  @ApiOperation({
+    summary: 'Delete profile photo',
+    description: 'Delete the profile photo for the currently authenticated provider user',
+  })
+  async deleteProfilePhoto(@CurrentUser() user: any) {
+    const hasProviderRole = user.roles?.some(
+      (role: any) => role.name === 'Provider Admin' || role.providerId !== null
+    )
+
+    if (!hasProviderRole) {
+      throw new UnauthorizedException(
+        'Access denied. Provider Admin role or provider-specific role required.'
+      )
+    }
+
+    const userProfile = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { profilePhotoUrl: true },
+    })
+
+    if (!userProfile?.profilePhotoUrl) {
+      throw new NotFoundException('No profile photo found')
+    }
+
+    await this.profilePhotoService.deletePhoto(userProfile.profilePhotoUrl)
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { profilePhotoUrl: null },
+    })
+
+    const updatedUser = await this.authService.validateUser(user.id)
+    return ResponseUtil.success(updatedUser)
   }
 
   @Patch('change-password')

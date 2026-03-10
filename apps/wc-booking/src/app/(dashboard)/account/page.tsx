@@ -10,6 +10,7 @@ import {
   ChevronRight,
   CreditCard,
   Heart,
+  MapPin,
   MessageSquare,
   Shield,
   User,
@@ -143,8 +144,8 @@ const AccountHub = () => {
   }
 
   const getLocation = () => {
-    const city = profileData?.parent?.city
-    const country = profileData?.parent?.country
+    const city = profileData?.city
+    const country = profileData?.country
     if (!city && !country) return 'Location not set'
     if (city && country) return `${city}, ${country}`
     return city || country || 'Location not set'
@@ -203,7 +204,9 @@ const AccountHub = () => {
               <div className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
                 {getFullName()}
               </div>
-              <div className="text-sm text-slate-500 dark:text-slate-400 mb-3">{getLocation()}</div>
+              <div className="flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 mb-3">
+                <MapPin size={16} /> {getLocation()}
+              </div>
               <div className="flex gap-6">
                 <div className="text-start">
                   <div className="text-lg font-semibold text-slate-900 dark:text-white">0</div>

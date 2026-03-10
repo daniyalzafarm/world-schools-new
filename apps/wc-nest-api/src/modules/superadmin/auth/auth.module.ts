@@ -5,6 +5,7 @@ import { ConfigModule } from '../../../config/config.module'
 import { PrismaModule } from '../../../prisma/prisma.module'
 import { ConfigService } from '../../../config/config.service'
 import { PasswordResetService } from '../../core/auth/services/password-reset.service'
+import { ProfilePhotoService } from '../../user/auth/services/profile-photo.service'
 import { TwoFactorAuthService } from './services/two-factor-auth.service'
 import { SessionManagementService } from './services/session-management.service'
 import { EmailService } from '@world-schools/global-utils'
@@ -17,6 +18,7 @@ import { EmailTemplatesModule } from '../../common/email-templates/email-templat
     TwoFactorAuthService,
     SessionManagementService,
     PasswordResetService,
+    ProfilePhotoService,
     {
       provide: EmailService,
       useFactory: (configService: ConfigService) => {

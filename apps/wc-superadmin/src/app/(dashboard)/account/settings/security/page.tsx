@@ -12,12 +12,11 @@ import {
   Progress,
   Switch,
 } from '@heroui/react'
-import { Eye, EyeOff, Monitor, Smartphone, Tablet, X } from 'lucide-react'
+import { Eye, EyeOff, Monitor, Smartphone, Tablet } from 'lucide-react'
 import Link from 'next/link'
 
 import { useAuthStore } from '@/stores/auth-store'
 import { Input } from '@world-schools/ui-web'
-import { ProtectedRoute } from '@/components/auth/protected-route'
 import {
   getPasswordStrengthHeroColor,
   getPasswordStrengthLabel,
@@ -27,10 +26,9 @@ import {
 import * as securityService from '@/services/security.services'
 import type { Session, TwoFactorStatus } from '@world-schools/wc-types'
 
-const SecuritySettingsPage = () => {
+export default function SecuritySettingsPage() {
   const { user, changePassword, clearError } = useAuthStore()
 
-  // Password state
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -43,15 +41,12 @@ const SecuritySettingsPage = () => {
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [isPasswordSaving, setIsPasswordSaving] = useState(false)
 
-  // 2FA state
   const [twoFactorStatus, setTwoFactorStatus] = useState<TwoFactorStatus | null>(null)
   const [is2FALoading, setIs2FALoading] = useState(false)
 
-  // Sessions state
   const [sessions, setSessions] = useState<Session[]>([])
   const [isSessionsLoading, setIsSessionsLoading] = useState(false)
 
-  // Load data on mount
   useEffect(() => {
     void loadTwoFactorStatus()
     void loadSessions()
@@ -76,18 +71,15 @@ const SecuritySettingsPage = () => {
   }
 
   const handlePasswordChange = async () => {
-    // Clear previous messages
     setPasswordError(null)
     clearError()
 
-    // Validate password strength
     const passwordValidation = validatePassword(passwordData.newPassword)
     if (!passwordValidation.isValid) {
       setPasswordError('Password does not meet all requirements')
       return
     }
 
-    // Validate passwords match
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setPasswordError("Passwords don't match")
       return
@@ -235,152 +227,161 @@ const SecuritySettingsPage = () => {
     : 'Never'
 
   return (
-    <ProtectedRoute requireAuth={true}>
-      <div className="min-h-full w-full flex flex-col bg-white dark:bg-gray-900">
-        {/* Page Header */}
-        <div className="sticky top-0 z-30 bg-white shadow-[0_24px_16px_-2px_rgba(255,255,255,0.8)] dark:bg-gray-900 dark:shadow-[0_24px_16px_-2px_rgba(17,24,39,0.8)] mb-6">
-          <div className="h-20 px-10 mb-2 flex items-center border-b border-gray-200 dark:border-gray-700/50">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              Login & security
-            </h1>
+    <div className="min-h-full w-full flex flex-col bg-white dark:bg-slate-900">
+      <div className="mb-10">
+        <h1 className="text-[32px] font-semibold text-slate-900 dark:text-white mb-2">
+          Login & security
+        </h1>
+        <p className="text-base text-slate-500 dark:text-slate-400">
+          Manage your password and keep your account secure.
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        <div className="flex items-start justify-between gap-4 py-5 pr-4">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-white mb-1">
+              Password
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Last changed {passwordChangedAt}
+            </p>
           </div>
+          <Button onPress={() => setPasswordModalOpen(true)} variant="light" className="underline">
+            Edit
+          </Button>
         </div>
 
-        {/* Main Content */}
-        <div className="w-full px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto space-y-6">
-          {/* Password Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Password</h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Last changed: {passwordChangedAt}
-                </p>
-              </div>
-              <Button color="secondary" variant="flat" onPress={() => setPasswordModalOpen(true)}>
-                Change password
-              </Button>
-            </div>
-          </div>
-
-          {/* 2FA Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Two-factor authentication
-                </h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Add an extra layer of security to your account
-                </p>
-              </div>
-              <Switch
-                isSelected={twoFactorStatus?.enabled ?? false}
-                onValueChange={handleToggle2FA}
-                isDisabled={is2FALoading}
-                color="secondary"
-              />
-            </div>
-          </div>
-
-          {/* Active Sessions Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Active sessions
-                </h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Manage devices where you're currently logged in
-                </p>
-              </div>
-              {sessions.filter(s => !s.isCurrent).length > 0 && (
-                <Button
-                  color="danger"
-                  variant="flat"
-                  size="sm"
-                  onPress={handleRevokeAllOtherSessions}
-                >
-                  Revoke all others
-                </Button>
+        <section className="flex items-start justify-between gap-4 py-5 pr-4">
+          <div>
+            <div className="flex items-center gap-2 font-medium text-slate-900 dark:text-white mb-1">
+              Two-factor authentication
+              {twoFactorStatus?.enabled ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[13px] font-medium bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300">
+                  Enabled
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[13px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                  Not enabled
+                </span>
               )}
             </div>
+            <div className="text-sm text-slate-500 dark:text-slate-400 leading-[1.4] mb-2">
+              Use email verification codes to secure your account
+            </div>
+          </div>
+          <Switch
+            isSelected={twoFactorStatus?.enabled ?? false}
+            onValueChange={handleToggle2FA}
+            isDisabled={is2FALoading}
+            color="secondary"
+            className="px-4 mt-2"
+          />
+        </section>
 
-            {isSessionsLoading ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">Loading sessions...</p>
-              </div>
-            ) : sessions.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No active sessions</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
+        <section>
+          <div className="mb-2">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-white mb-1">
+              Active sessions
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Devices where you&apos;re currently signed in
+            </p>
+          </div>
+
+          {isSessionsLoading ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-slate-500 dark:text-slate-400">Loading sessions...</p>
+            </div>
+          ) : sessions.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-slate-500 dark:text-slate-400">No active sessions</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col gap-px bg-slate-200 dark:bg-slate-700 rounded-xl overflow-hidden">
                 {sessions.map(session => (
                   <div
                     key={session.id}
-                    className="flex items-start gap-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
+                    className="flex items-start gap-4 p-4 bg-white dark:bg-slate-900"
                   >
-                    <div className="text-gray-600 dark:text-gray-400 mt-1">
+                    <div
+                      className={`w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0 ${
+                        session.isCurrent
+                          ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
                       {getDeviceIcon(session.deviceType)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-gray-900 dark:text-gray-100">
-                          {session.deviceName}
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <p className="font-medium text-slate-900 dark:text-white">
+                          {session.browser} on {session.os}
                         </p>
                         {session.isCurrent && (
-                          <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded">
+                          <span className="px-2 py-0.5 text-[11px] font-semibold bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-full">
                             Current
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {session.browser} on {session.os}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                        {session.location} • Last active {formatDate(session.lastActiveAt)}
+                      <p className="text-[13px] text-slate-500 dark:text-slate-400">
+                        {session.location} · Last active {formatDate(session.lastActiveAt)}
                       </p>
                     </div>
                     {!session.isCurrent && (
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="light"
-                        color="danger"
-                        onPress={() => handleRevokeSession(session.id)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
+                      <div className="shrink-0">
+                        <Button
+                          variant="light"
+                          onPress={() => handleRevokeSession(session.id)}
+                          color="danger"
+                        >
+                          Sign out
+                        </Button>
+                      </div>
                     )}
                   </div>
                 ))}
               </div>
-            )}
-          </div>
 
-          {/* Account & Privacy Link */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Account & privacy
-                </h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Manage your account settings and privacy preferences
-                </p>
+              {sessions.filter(s => !s.isCurrent).length > 0 && (
+                <div className="mt-4">
+                  <Button
+                    variant="light"
+                    onPress={handleRevokeAllOtherSessions}
+                    className="underline"
+                    color="danger"
+                  >
+                    Sign out of all other sessions
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
+        <section className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-700">
+          <div className="flex items-center justify-between gap-4 py-0 pr-4">
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-slate-900 dark:text-white mb-1">
+                Account & Privacy
               </div>
-              <Link href="/settings/profile">
-                <Button color="secondary" variant="flat">
-                  View settings
-                </Button>
+              <div className="text-sm text-slate-500 dark:text-slate-400">
+                Export your data, deactivate or delete your account
+              </div>
+            </div>
+            <div className="shrink-0">
+              <Link
+                href="/account/settings/privacy"
+                className="text-sm px-4 font-medium text-slate-900 dark:text-white underline hover:text-slate-600 dark:hover:text-slate-400 transition-colors"
+              >
+                Manage
               </Link>
             </div>
           </div>
-        </div>
+        </section>
       </div>
 
-      {/* Change Password Modal */}
       <Modal
         isOpen={passwordModalOpen}
         onClose={() => {
@@ -392,7 +393,7 @@ const SecuritySettingsPage = () => {
           })
           setPasswordError(null)
         }}
-        size="2xl"
+        size="md"
         placement="center"
       >
         <ModalContent>
@@ -418,7 +419,7 @@ const SecuritySettingsPage = () => {
                 <button
                   type="button"
                   onClick={() => setShowCurrentPassword(prev => !prev)}
-                  className="text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                  className="text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
                   tabIndex={-1}
                 >
                   {showCurrentPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -441,7 +442,7 @@ const SecuritySettingsPage = () => {
                 <button
                   type="button"
                   onClick={() => setShowNewPassword(prev => !prev)}
-                  className="text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                  className="text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
                   tabIndex={-1}
                 >
                   {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -454,8 +455,8 @@ const SecuritySettingsPage = () => {
               <div className="space-y-3">
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Password strength:</span>
-                    <span className="font-medium text-gray-700">
+                    <span className="text-slate-600">Password strength:</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">
                       {getPasswordStrengthLabel(
                         validatePassword(passwordData.newPassword).strength
                       )}
@@ -488,7 +489,7 @@ const SecuritySettingsPage = () => {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(prev => !prev)}
-                  className="text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                  className="text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
                   tabIndex={-1}
                 >
                   {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -528,8 +529,6 @@ const SecuritySettingsPage = () => {
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </ProtectedRoute>
+    </div>
   )
 }
-
-export default SecuritySettingsPage

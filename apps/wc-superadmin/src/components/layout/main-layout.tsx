@@ -59,7 +59,7 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
         <div className="flex-1 flex flex-col overflow-hidden">
           <MobileHeader menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
           <main className="flex-1 overflow-auto bg-white dark:bg-slate-900">
-            <div className="h-full pt-14 lg:pt-0">{children}</div>
+            <div className="relative h-full pt-14 lg:pt-0">{children}</div>
           </main>
         </div>
       </div>
@@ -83,7 +83,7 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
 
             {/* Main content */}
             <main className="flex-1 overflow-auto">
-              <div className="h-full pt-14 lg:pt-0">{children}</div>
+              <div className="relative h-full pt-14 lg:pt-0">{children}</div>
             </main>
           </div>
         </div>

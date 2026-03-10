@@ -421,7 +421,7 @@ const SecuritySettingsPage = () => {
             </div>
             <div className="shrink-0">
               <Link
-                href="/account/settings/account-settings"
+                href="/account/settings/privacy"
                 className="text-sm px-4 font-medium text-gray-900 dark:text-gray-100 underline hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
               >
                 Manage

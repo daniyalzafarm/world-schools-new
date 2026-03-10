@@ -50,24 +50,23 @@ const ContactDetailsPage = () => {
     void loadProfile()
   }
 
-  // Format phone display
+  // Format phone display (contact fields now on User)
   const getPhoneDisplay = () => {
-    const phone = profileData?.parent?.phone
+    const phone = profileData?.phone
     return phone || 'Not specified'
   }
 
-  // Format address display
+  // Format address display (contact fields now on User)
   const getAddressDisplay = () => {
-    const parent = profileData?.parent
-    if (!parent?.address && !parent?.city && !parent?.country) {
+    if (!profileData?.address && !profileData?.city && !profileData?.country) {
       return 'Not specified'
     }
 
     const parts: string[] = []
-    if (parent?.address) parts.push(parent.address)
-    if (parent?.city) parts.push(parent.city)
-    if (parent?.postalCode) parts.push(parent.postalCode)
-    if (parent?.country) parts.push(parent.country)
+    if (profileData?.address) parts.push(profileData.address)
+    if (profileData?.city) parts.push(profileData.city)
+    if (profileData?.postalCode) parts.push(profileData.postalCode)
+    if (profileData?.country) parts.push(profileData.country)
 
     return parts.join(', ')
   }
@@ -164,17 +163,17 @@ const ContactDetailsPage = () => {
       <PhoneModal
         isOpen={modals.phone}
         onClose={() => closeModal('phone')}
-        currentPhone={profileData?.parent?.phone}
+        currentPhone={profileData?.phone}
         onSuccess={handleModalSuccess}
       />
       <AddressModal
         isOpen={modals.address}
         onClose={() => closeModal('address')}
         currentAddress={{
-          address: profileData?.parent?.address,
-          city: profileData?.parent?.city,
-          postalCode: profileData?.parent?.postalCode,
-          country: profileData?.parent?.country,
+          address: profileData?.address,
+          city: profileData?.city,
+          postalCode: profileData?.postalCode,
+          country: profileData?.country,
         }}
         onSuccess={handleModalSuccess}
       />

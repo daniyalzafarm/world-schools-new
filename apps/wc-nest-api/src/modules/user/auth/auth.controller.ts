@@ -151,9 +151,9 @@ export class UserAuthController {
       throw new Error('Parent role not found in system')
     }
 
-    // Create user, parent profile, and assign role in a transaction
+    // Create user (with contact fields), parent profile (nationality/languages only), and assign role in a transaction
     const result = await this.prisma.$transaction(async tx => {
-      // Create user
+      // Create user with contact fields on User model
       const user = await tx.user.create({
         data: {
           email: registerDto.email,
@@ -162,19 +162,19 @@ export class UserAuthController {
           firstName: registerDto.firstName,
           lastName: registerDto.lastName,
           emailVerified: false,
-        },
-      })
-
-      // Create parent profile
-      const parent = await tx.parent.create({
-        data: {
-          userId: user.id,
           phone: registerDto.phone,
           address: registerDto.address,
           city: registerDto.city,
           state: registerDto.state,
           postalCode: registerDto.postalCode,
           country: registerDto.country,
+        },
+      })
+
+      // Create parent profile (nationality/languages only - contact fields are on User)
+      const parent = await tx.parent.create({
+        data: {
+          userId: user.id,
         },
       })
 
@@ -444,30 +444,52 @@ export class UserAuthController {
       user = account.user
       parent = user.parentProfile
 
-      // If parent profile doesn't exist, create it
+      // If parent profile doesn't exist, create it (contact fields are on User)
       if (!parent) {
         parent = await this.prisma.parent.create({
           data: {
             userId: user.id,
-            phone: googleSignInDto.phone,
-            address: googleSignInDto.address,
-            city: googleSignInDto.city,
-            state: googleSignInDto.state,
-            postalCode: googleSignInDto.postalCode,
-            country: googleSignInDto.country,
+          },
+        })
+      }
+
+      // Update user with contact fields if provided (e.g. from Google profile)
+      if (
+        googleSignInDto.phone ||
+        googleSignInDto.address ||
+        googleSignInDto.city ||
+        googleSignInDto.state ||
+        googleSignInDto.postalCode ||
+        googleSignInDto.country
+      ) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            ...(googleSignInDto.phone && { phone: googleSignInDto.phone }),
+            ...(googleSignInDto.address && { address: googleSignInDto.address }),
+            ...(googleSignInDto.city && { city: googleSignInDto.city }),
+            ...(googleSignInDto.state && { state: googleSignInDto.state }),
+            ...(googleSignInDto.postalCode && { postalCode: googleSignInDto.postalCode }),
+            ...(googleSignInDto.country && { country: googleSignInDto.country }),
           },
         })
       }
     } else {
-      // New user - create user, account, parent profile, and assign role
+      // New user - create user (with contact fields), account, parent profile, and assign role
       const result = await this.prisma.$transaction(async tx => {
-        // Create user
+        // Create user with contact fields on User model
         const newUser = await tx.user.create({
           data: {
             email: googleSignInDto.email,
             firstName: googleSignInDto.firstName,
             lastName: googleSignInDto.lastName,
             passwordHash: null, // OAuth users don't have password
+            phone: googleSignInDto.phone,
+            address: googleSignInDto.address,
+            city: googleSignInDto.city,
+            state: googleSignInDto.state,
+            postalCode: googleSignInDto.postalCode,
+            country: googleSignInDto.country,
           },
         })
 
@@ -481,16 +503,10 @@ export class UserAuthController {
           },
         })
 
-        // Create parent profile
+        // Create parent profile (nationality/languages only - contact fields are on User)
         const newParent = await tx.parent.create({
           data: {
             userId: newUser.id,
-            phone: googleSignInDto.phone,
-            address: googleSignInDto.address,
-            city: googleSignInDto.city,
-            state: googleSignInDto.state,
-            postalCode: googleSignInDto.postalCode,
-            country: googleSignInDto.country,
           },
         })
 
@@ -617,6 +633,13 @@ export class UserAuthController {
         createdAt: true,
         updatedAt: true,
         profilePhotoUrl: true,
+        phone: true,
+        phoneVerified: true,
+        address: true,
+        city: true,
+        state: true,
+        postalCode: true,
+        country: true,
         roles: {
           select: {
             role: {
@@ -630,13 +653,6 @@ export class UserAuthController {
         parentProfile: {
           select: {
             id: true,
-            phone: true,
-            phoneVerified: true,
-            address: true,
-            city: true,
-            state: true,
-            postalCode: true,
-            country: true,
             primaryNationality: true,
             secondaryNationality: true,
             languages: true,
@@ -656,6 +672,7 @@ export class UserAuthController {
     }
 
     // Transform roles to flat structure and build response matching frontend User type
+    // Contact fields (phone, address, etc.) are now on User; parent only has nationality/languages
     const fullUser = {
       id: dbUser.id,
       email: dbUser.email,
@@ -666,12 +683,19 @@ export class UserAuthController {
       createdAt: dbUser.createdAt,
       updatedAt: dbUser.updatedAt,
       profilePhotoUrl: profilePhotoUrl, // Use SAS URL for secure access
+      phone: dbUser.phone ?? null,
+      phoneVerified: dbUser.phoneVerified ?? false,
+      address: dbUser.address ?? null,
+      city: dbUser.city ?? null,
+      state: dbUser.state ?? null,
+      postalCode: dbUser.postalCode ?? null,
+      country: dbUser.country ?? null,
       roles: dbUser.roles.map((ur: any) => ({
         id: ur.role.id,
         name: ur.role.name,
       })),
       permissions: user.permissions || [], // Use permissions from JWT payload
-      parent: dbUser.parentProfile, // Map parentProfile to parent for frontend compatibility
+      parent: dbUser.parentProfile, // Only nationality and languages for Parent users
     }
 
     return ResponseUtil.success(fullUser)
@@ -690,7 +714,7 @@ export class UserAuthController {
       throw new UnauthorizedException('Access denied. Parent role required.')
     }
 
-    // Update user basic information if provided
+    // Update user basic information and contact fields (now on User model)
     const userUpdateData: any = {}
     if (updateProfileDto.firstName !== undefined) {
       userUpdateData.firstName = updateProfileDto.firstName
@@ -698,27 +722,27 @@ export class UserAuthController {
     if (updateProfileDto.lastName !== undefined) {
       userUpdateData.lastName = updateProfileDto.lastName
     }
-
-    // Update parent profile information if provided
-    const parentUpdateData: any = {}
     if (updateProfileDto.phone !== undefined) {
-      parentUpdateData.phone = updateProfileDto.phone
+      userUpdateData.phone = updateProfileDto.phone
     }
     if (updateProfileDto.address !== undefined) {
-      parentUpdateData.address = updateProfileDto.address
+      userUpdateData.address = updateProfileDto.address
     }
     if (updateProfileDto.city !== undefined) {
-      parentUpdateData.city = updateProfileDto.city
+      userUpdateData.city = updateProfileDto.city
     }
     if (updateProfileDto.state !== undefined) {
-      parentUpdateData.state = updateProfileDto.state
+      userUpdateData.state = updateProfileDto.state
     }
     if (updateProfileDto.postalCode !== undefined) {
-      parentUpdateData.postalCode = updateProfileDto.postalCode
+      userUpdateData.postalCode = updateProfileDto.postalCode
     }
     if (updateProfileDto.country !== undefined) {
-      parentUpdateData.country = updateProfileDto.country
+      userUpdateData.country = updateProfileDto.country
     }
+
+    // Update parent profile (nationality, languages only - Parent-specific)
+    const parentUpdateData: any = {}
     if (updateProfileDto.primaryNationality !== undefined) {
       parentUpdateData.primaryNationality = updateProfileDto.primaryNationality
     }
@@ -727,9 +751,6 @@ export class UserAuthController {
     }
     if (updateProfileDto.languages !== undefined) {
       parentUpdateData.languages = updateProfileDto.languages
-    }
-    if (updateProfileDto.profilePhotoUrl !== undefined) {
-      parentUpdateData.profilePhotoUrl = updateProfileDto.profilePhotoUrl
     }
 
     // Perform updates in a transaction
@@ -742,21 +763,18 @@ export class UserAuthController {
         })
       }
 
-      // Update or create parent profile if there are changes
+      // Update or create parent profile if there are changes (nationality/languages only)
       if (Object.keys(parentUpdateData).length > 0) {
-        // Check if parent profile exists
         const existingParent = await tx.parent.findUnique({
           where: { userId: user.id },
         })
 
         if (existingParent) {
-          // Update existing parent profile
           await tx.parent.update({
             where: { userId: user.id },
             data: parentUpdateData,
           })
         } else {
-          // Create new parent profile
           await tx.parent.create({
             data: {
               userId: user.id,
@@ -908,19 +926,10 @@ export class UserAuthController {
       throw new UnauthorizedException('Access denied. Parent role required.')
     }
 
-    // Get parent profile
-    const parentProfile = await this.prisma.parent.findUnique({
-      where: { userId: user.id },
-    })
-
-    if (!parentProfile) {
-      throw new NotFoundException('Parent profile not found')
-    }
-
-    // Update phone number (unverified)
+    // Update phone number on User (unverified)
     // Phone number is already in E.164 format (e.g., "+41791234567")
-    await this.prisma.parent.update({
-      where: { id: parentProfile.id },
+    await this.prisma.user.update({
+      where: { id: user.id },
       data: {
         phone: dto.phoneNumber,
         phoneVerified: false,
@@ -950,19 +959,10 @@ export class UserAuthController {
       throw new UnauthorizedException('Access denied. Parent role required.')
     }
 
-    // Get parent profile
-    const parentProfile = await this.prisma.parent.findUnique({
-      where: { userId: user.id },
-    })
-
-    if (!parentProfile) {
-      throw new NotFoundException('Parent profile not found')
-    }
-
     // TODO: Implement SMS verification code validation
-    // For now, mark phone as verified
-    await this.prisma.parent.update({
-      where: { id: parentProfile.id },
+    // For now, mark phone as verified on User
+    await this.prisma.user.update({
+      where: { id: user.id },
       data: { phoneVerified: true },
     })
 

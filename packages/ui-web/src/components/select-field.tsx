@@ -63,7 +63,7 @@ export function SelectField({
           'dark:border-gray-600',
           className
         ),
-        base: cn('w-auto'),
+        base: cn('w-auto data-[invalid=true]:mt-0'),
       }}
       {...props}
     >

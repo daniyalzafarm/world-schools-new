@@ -21,7 +21,7 @@ export class UpdateProfileDto {
   lastName?: string
 
   @ApiProperty({
-    description: 'Parent phone number',
+    description: 'Phone number',
     example: '+1-555-123-4567',
     required: false,
   })
@@ -30,7 +30,7 @@ export class UpdateProfileDto {
   phone?: string
 
   @ApiProperty({
-    description: 'Parent address',
+    description: 'Address',
     example: '123 Main Street',
     required: false,
   })

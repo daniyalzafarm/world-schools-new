@@ -24,6 +24,13 @@ model User {
   emailVerified     Boolean   @default(false) @map("email_verified")
   emailVerifiedAt   DateTime? @map("email_verified_at")
   profilePhotoUrl   String?   @map("profile_photo_url")
+  phone             String?
+  phoneVerified     Boolean   @default(false) @map("phone_verified")
+  address           String?
+  city              String?
+  state             String?
+  postalCode        String?   @map("postal_code")
+  country           String?
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
@@ -232,13 +239,6 @@ model Provider {
 model Parent {
   id                   String   @id @default(uuid())
   userId               String   @unique @map("user_id")
-  phone                String?
-  phoneVerified        Boolean  @default(false) @map("phone_verified")
-  address              String?
-  city                 String?
-  state                String?
-  postalCode           String?  @map("postal_code")
-  country              String?
   primaryNationality   String?  @map("primary_nationality")
   secondaryNationality String?  @map("secondary_nationality")
   languages            String[] @default([])

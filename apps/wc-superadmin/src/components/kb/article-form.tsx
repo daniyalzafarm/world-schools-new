@@ -706,7 +706,6 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
             placeholder="Select category..."
             errorMessage={errors.categoryId}
             isInvalid={!!errors.categoryId}
-            classNames={{ base: 'data-[invalid=true]:mt-0' }}
           />
 
           <Input

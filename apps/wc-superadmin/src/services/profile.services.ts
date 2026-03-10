@@ -1,12 +1,5 @@
 import apiClient from '@/utils/api-client'
 
-export interface ParentProfile {
-  id: string
-  primaryNationality?: string | null
-  secondaryNationality?: string | null
-  languages?: string[] | null
-}
-
 export interface UserProfile {
   id: string
   email: string
@@ -21,14 +14,12 @@ export interface UserProfile {
   state?: string | null
   postalCode?: string | null
   country?: string | null
-  roles: Array<{
+  roles?: Array<{
     id: string
     name: string
     providerId?: string | null
-    isSystemRole?: boolean
   }>
-  permissions: string[]
-  parent?: ParentProfile
+  permissions?: string[]
 }
 
 export interface UpdateProfileDto {
@@ -40,38 +31,34 @@ export interface UpdateProfileDto {
   state?: string
   postalCode?: string
   country?: string
-  primaryNationality?: string
-  secondaryNationality?: string
-  languages?: string[]
-  profilePhotoUrl?: string
 }
 
 export const profileService = {
   async getProfile(): Promise<UserProfile> {
-    const response = await apiClient.get('/user/auth/profile')
+    const response = await apiClient.get('/superadmin/auth/profile')
 
     if (!response.success) {
       throw new Error('Failed to fetch profile')
     }
 
-    return response.data as any
+    return response.data as UserProfile
   },
 
   async updateProfile(data: UpdateProfileDto): Promise<UserProfile> {
-    const response = await apiClient.patch('/user/auth/profile', data)
+    const response = await apiClient.patch('/superadmin/auth/profile', data)
 
     if (!response.success) {
       throw new Error('Failed to update profile')
     }
 
-    return response.data as any
+    return response.data as UserProfile
   },
 
   async uploadProfilePhoto(file: File): Promise<UserProfile> {
     const formData = new FormData()
     formData.append('photo', file)
 
-    const response = await apiClient.patch('/user/auth/profile/photo', formData, {
+    const response = await apiClient.patch('/superadmin/auth/profile/photo', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -81,16 +68,16 @@ export const profileService = {
       throw new Error('Failed to upload profile photo')
     }
 
-    return response.data as any
+    return response.data as UserProfile
   },
 
   async deleteProfilePhoto(): Promise<UserProfile> {
-    const response = await apiClient.del('/user/auth/profile/photo')
+    const response = await apiClient.del('/superadmin/auth/profile/photo')
 
     if (!response.success) {
       throw new Error('Failed to delete profile photo')
     }
 
-    return response.data as any
+    return response.data as UserProfile
   },
 }
