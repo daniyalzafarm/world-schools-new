@@ -125,6 +125,8 @@ export class ProviderConversationsController {
 
     // ALWAYS override userId with authenticated user (ignore any userId from query params)
     query.userId = currentUserId
+    // Exclude support-ticket-backed conversations from the regular provider inbox
+    query.excludeSupportTicketContext = true
 
     this.logger.log(`Getting conversations for user ${currentUserId}`)
 

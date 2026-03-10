@@ -19,7 +19,7 @@ export interface HelpContactCtaProps {
  * Used on help home, category, and article pages.
  */
 export function HelpContactCta({
-  supportHref = '/',
+  supportHref = '/support/tickets',
   className,
   previewMode = false,
 }: HelpContactCtaProps) {

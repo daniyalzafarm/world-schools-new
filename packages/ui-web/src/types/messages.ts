@@ -12,6 +12,11 @@ export interface Message {
   isTransferSummary?: boolean
   isChatbot?: boolean
   isAdmin?: boolean
+
+  // Optional delivery/read indicators (used by support tickets and messaging UIs)
+  status?: string
+  deliveredAt?: Date | null
+  readAt?: Date | null
 }
 
 export interface Conversation {

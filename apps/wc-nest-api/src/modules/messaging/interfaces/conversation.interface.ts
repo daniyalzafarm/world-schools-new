@@ -16,6 +16,14 @@ export interface GetConversationsDto {
   type?: any
   limit?: number
   offset?: number
+  /**
+   * When true, exclude conversations that are backed by a support ticket
+   * (i.e. conversations where contextType === SUPPORT_TICKET).
+   *
+   * This is intended to be set by app-specific controllers (e.g. user/provider)
+   * and should not be exposed as a public query parameter.
+   */
+  excludeSupportTicketContext?: boolean
 }
 
 export interface UpdateConversationSettingsDto {

@@ -33,3 +33,8 @@ export { IconTagSelectField, type IconTagItem } from './icon-tag-select-field'
 export { ChatInput } from './messages/chat-input'
 export { MessageBubble } from './messages/message-bubble'
 export { ConversationItem } from './messages/conversation-item'
+export {
+  MessageThread,
+  type MessageThreadMessage,
+  type MessageThreadProps,
+} from './messages/message-thread'

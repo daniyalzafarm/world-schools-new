@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Avatar } from '@heroui/react'
-import { Users } from 'lucide-react'
+import { AlertCircle, Check, CheckCheck, Clock, Users } from 'lucide-react'
 import { cn } from '../../utils/cn'
 import type { Message } from '../../types/messages'
 
@@ -15,7 +15,7 @@ interface MessageBubbleProps {
 
 export function MessageBubble({
   message,
-  avatarSrc = '/assets/avatar.png',
+  avatarSrc,
   senderName = 'User',
   isAdminView = false,
 }: MessageBubbleProps) {
@@ -23,19 +23,75 @@ export function MessageBubble({
   // In user view, user messages are on the right, chatbot/admin on the left
   const isLeftAligned = isAdminView ? message.isUser || message.isTransferSummary : !message.isUser
 
+  const renderStatusIndicator = () => {
+    // Show indicators for outgoing (right-aligned) messages only.
+    // In user view: outgoing => message.isUser === true
+    // In admin view: outgoing => message.isUser === false
+    if (isLeftAligned || !message.status) return null
+
+    const status = String(message.status).toUpperCase()
+    const isFailed = status === 'FAILED'
+    const isRead = status === 'READ' || !!message.readAt
+    const isDelivered = status === 'DELIVERED' || !!message.deliveredAt
+    const isSent = status === 'SENT'
+    const isSending = status === 'SENDING'
+
+    return (
+      <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+        {isFailed && (
+          <>
+            <AlertCircle size={12} className="text-red-500" />
+            <span className="text-red-500">Failed</span>
+          </>
+        )}
+        {isSending && (
+          <>
+            <Clock size={12} className="animate-pulse" />
+            <span>Sending...</span>
+          </>
+        )}
+        {isSent && !isDelivered && !isRead && (
+          <>
+            <Check size={12} />
+            <span>Sent</span>
+          </>
+        )}
+        {isDelivered && !isRead && (
+          <>
+            <Check size={12} />
+            <span>Delivered</span>
+          </>
+        )}
+        {isRead && (
+          <>
+            <CheckCheck size={12} className="text-blue-500" />
+            <span className="text-blue-500">Read</span>
+          </>
+        )}
+      </div>
+    )
+  }
+
   if (isLeftAligned) {
+    const avatarName = message.isTransferSummary
+      ? 'System'
+      : message.isChatbot
+        ? senderName
+        : message.isUser
+          ? senderName
+          : isAdminView
+            ? 'You'
+            : senderName
+
     return (
       <div className="flex items-end gap-3 mb-4 animate-in slide-in-from-left-2 duration-300">
         <div className="shrink-0">
           <Avatar
-            src={
-              message.isTransferSummary
-                ? '/assets/avatar.png'
-                : message.isChatbot
-                  ? avatarSrc
-                  : '/assets/avatar.png'
-            }
-            alt={message.isTransferSummary ? 'System' : message.isChatbot ? senderName : 'Admin'}
+            // Only use src when an actual profile photo is available.
+            // If src is undefined, HeroUI Avatar will fall back to initials from `name`.
+            src={avatarSrc}
+            name={avatarName}
+            alt={avatarName}
             size="sm"
             className="w-8 h-8"
           />
@@ -65,7 +121,7 @@ export function MessageBubble({
                       ? senderName
                       : isAdminView
                         ? 'You'
-                        : 'Representative'}
+                        : senderName}
               </span>
               {message.isTransferRequest && (
                 <div className="flex gap-1 items-center">
@@ -85,6 +141,14 @@ export function MessageBubble({
               {message.text}
             </p>
           </div>
+          {!!message.timestamp && (
+            <div className="mt-1 flex items-center gap-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+              {/* Show status for right-side (sender) messages only; left side is sender=other party */}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -115,13 +179,21 @@ export function MessageBubble({
           {!message.isUser && (
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                {message.isChatbot ? 'AI Assistant' : isAdminView ? 'You' : 'Representative'}
+                {message.isChatbot ? 'AI Assistant' : isAdminView ? 'You' : senderName}
               </span>
             </div>
           )}
           <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">
             {message.text}
           </p>
+        </div>
+        <div className="mt-1 flex items-center justify-end gap-2">
+          {message.timestamp && (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
+          {renderStatusIndicator()}
         </div>
       </div>
     </div>

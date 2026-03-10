@@ -99,6 +99,14 @@ export interface MessagingStoreConfig {
    * @default false
    */
   debug?: boolean
+
+  /**
+   * Returns the currently authenticated user id (UUID).
+   * Used for HTTP receipt endpoints that require userId in the body.
+   *
+   * Note: WebSocket receipts derive userId from the socket session.
+   */
+  getCurrentUserId?: () => string | null | undefined
 }
 
 /**
@@ -114,12 +122,37 @@ export function createMessagingStore(config: MessagingStoreConfig) {
     messagingWebSocket,
     featureFlags: flagsOverride,
     debug = false,
+    getCurrentUserId,
   } = config
 
   // Resolve feature flags with defaults
   const featureFlags: FeatureFlags = {
     WEBSOCKET_MESSAGES: flagsOverride?.WEBSOCKET_MESSAGES ?? false,
     WEBSOCKET_FALLBACK_TO_HTTP: flagsOverride?.WEBSOCKET_FALLBACK_TO_HTTP ?? true,
+  }
+
+  // Track which conversation rooms we have joined for this store instance.
+  // To get world-class delivery semantics, we join conversation rooms while the user is
+  // "in the app" (connected), not only when they open a specific thread.
+  const joinedConversations = new Set<string>()
+
+  const ensureJoined = (conversationId: string) => {
+    if (!conversationId) return
+    if (!featureFlags.WEBSOCKET_MESSAGES) return
+    if (!messagingWebSocket.isConnected()) return
+    if (joinedConversations.has(conversationId)) return
+    messagingWebSocket.joinConversation(conversationId)
+    joinedConversations.add(conversationId)
+  }
+
+  const joinAllKnownConversations = () => {
+    const state = useMessagingStore.getState()
+    for (const c of state.conversations) {
+      ensureJoined(c.id)
+    }
+    if (state.activeConversationId) {
+      ensureJoined(state.activeConversationId)
+    }
   }
 
   const log = (...args: any[]) => {
@@ -168,15 +201,9 @@ export function createMessagingStore(config: MessagingStoreConfig) {
               draft.isConnected = true
             })
 
-            // Rejoin active conversation if there is one
-            const currentState = get()
-            if (currentState.activeConversationId) {
-              log(
-                'Rejoining active conversation after reconnection:',
-                currentState.activeConversationId
-              )
-              messagingWebSocket.joinConversation(currentState.activeConversationId)
-            }
+            // Join rooms for all known conversations so messages can be delivered
+            // while the user is simply online in the app.
+            joinAllKnownConversations()
           })
 
           messagingWebSocket.onDisconnected(() => {
@@ -270,6 +297,13 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             messagingWebSocket.onMessageNew((data: { message: MessageResponseDto }) => {
               log('Received message:new via global WebSocket:', data.message.id)
               get().addMessage(data.message)
+
+              // Immediately mark incoming message as delivered (best-practice messaging UX)
+              // Only for messages not sent by us.
+              const currentUserId = getCurrentUserId?.() ?? null
+              if (currentUserId && data.message.senderId !== currentUserId) {
+                void get().markAsDelivered(data.message.conversationId, data.message.id)
+              }
             })
           }
 
@@ -347,8 +381,11 @@ export function createMessagingStore(config: MessagingStoreConfig) {
                   const message = draft.messages[data.conversationId].find(
                     m => m.id === data.messageId
                   )
-                  if (message && message.status === MessageStatus.SENT) {
+                  if (message && message.status !== MessageStatus.READ) {
                     message.status = MessageStatus.DELIVERED
+                    if ('deliveredAt' in data && data.deliveredAt) {
+                      ;(message as any).deliveredAt = new Date(data.deliveredAt)
+                    }
                   }
                 } else {
                   // Fallback: search all conversations
@@ -356,8 +393,11 @@ export function createMessagingStore(config: MessagingStoreConfig) {
                     const message = draft.messages[conversationId].find(
                       m => m.id === data.messageId
                     )
-                    if (message && message.status === MessageStatus.SENT) {
+                    if (message && message.status !== MessageStatus.READ) {
                       message.status = MessageStatus.DELIVERED
+                      if ('deliveredAt' in data && data.deliveredAt) {
+                        ;(message as any).deliveredAt = new Date(data.deliveredAt)
+                      }
                       break
                     }
                   }
@@ -437,6 +477,14 @@ export function createMessagingStore(config: MessagingStoreConfig) {
       cleanup: () => {
         log('Cleaning up messaging store...')
 
+        // Leave any rooms we joined
+        if (featureFlags.WEBSOCKET_MESSAGES && messagingWebSocket.isConnected()) {
+          for (const conversationId of joinedConversations) {
+            messagingWebSocket.leaveConversation(conversationId)
+          }
+        }
+        joinedConversations.clear()
+
         // Reset state
         set(draft => {
           draft.conversations = []
@@ -505,6 +553,10 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             draft.conversations = conversations
             draft.isLoadingConversations = false
           })
+
+          // Join rooms for all conversations so delivery receipts can happen
+          // as soon as the user is online in the app (not only on open thread).
+          joinAllKnownConversations()
 
           log('Fetched conversations successfully:', {
             count: conversations.length,
@@ -590,11 +642,6 @@ export function createMessagingStore(config: MessagingStoreConfig) {
 
         log('Setting active conversation:', conversationId)
 
-        // Leave previous conversation room
-        if (state.activeConversationId) {
-          messagingWebSocket.leaveConversation(state.activeConversationId)
-        }
-
         // Set the active conversation ID immediately
         set(draft => {
           draft.activeConversationId = conversationId
@@ -603,33 +650,8 @@ export function createMessagingStore(config: MessagingStoreConfig) {
         // Join new conversation room via global WebSocket adapter
         if (conversationId) {
           if (messagingWebSocket.isConnected()) {
-            log('WebSocket connected, joining conversation:', conversationId)
-            messagingWebSocket.joinConversation(conversationId)
-          } else {
-            log(
-              'WebSocket not connected yet, waiting for connection to join conversation:',
-              conversationId
-            )
-
-            // Wait for connection with timeout
-            const maxWaitTime = 5000 // 5 seconds
-            const startTime = Date.now()
-
-            const checkConnection = () => {
-              if (messagingWebSocket.isConnected()) {
-                log('WebSocket connected, joining conversation:', conversationId)
-                messagingWebSocket.joinConversation(conversationId)
-              } else if (Date.now() - startTime < maxWaitTime) {
-                setTimeout(checkConnection, 100)
-              } else {
-                logError(
-                  'WebSocket connection timeout - could not join conversation:',
-                  conversationId
-                )
-              }
-            }
-
-            checkConnection()
+            log('WebSocket connected, ensuring joined conversation:', conversationId)
+            ensureJoined(conversationId)
           }
         }
 
@@ -919,12 +941,39 @@ export function createMessagingStore(config: MessagingStoreConfig) {
           }
 
           // Also call API endpoint (markAsRead expects id and dto)
-          // TODO: Get userId from auth context
-          await messagesService.markAsRead(messageId, { messageId, userId: '' })
+          const userId = getCurrentUserId?.() ?? null
+          if (userId) {
+            await messagesService.markAsRead(messageId, { messageId, userId })
+          } else {
+            log('Skipping HTTP markAsRead because userId is missing')
+          }
 
           log('Message marked as read successfully')
         } catch (error: any) {
           logError('Failed to mark message as read:', error)
+        }
+      },
+
+      markAsDelivered: async (conversationId, messageId, deliveryLatencyMs) => {
+        log('Marking message as delivered:', messageId)
+
+        try {
+          // Send delivery receipt via global WebSocket adapter
+          if (featureFlags.WEBSOCKET_MESSAGES && messagingWebSocket.isConnected()) {
+            messagingWebSocket.markAsDelivered(messageId, conversationId, deliveryLatencyMs)
+          }
+
+          // Also call API endpoint (markAsDelivered expects id and dto)
+          const userId = getCurrentUserId?.() ?? null
+          if (userId) {
+            await messagesService.markAsDelivered(messageId, { messageId, userId })
+          } else {
+            log('Skipping HTTP markAsDelivered because userId is missing')
+          }
+
+          log('Message marked as delivered successfully')
+        } catch (error: any) {
+          logError('Failed to mark message as delivered:', error)
         }
       },
 

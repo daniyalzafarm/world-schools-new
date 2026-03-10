@@ -27,6 +27,7 @@ import apiClient from '@/utils/api-client'
 import { globalWsService } from '@/lib/websocket-instance'
 import config from '@/config/config'
 import { FEATURE_FLAGS } from '@/config/feature-flags'
+import { useAuthStore } from '@/stores/auth-store'
 
 // Create conversations service
 const conversationsService = createConversationsService({
@@ -52,6 +53,7 @@ const { useMessagingStore } = createMessagingStore({
   featureFlags: FEATURE_FLAGS,
   storageKeyPrefix: 'wc_provider',
   debug: config.app.version === 'dev',
+  getCurrentUserId: () => useAuthStore.getState().user?.id ?? null,
 })
 
 export { useMessagingStore }

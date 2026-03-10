@@ -148,7 +148,7 @@ export function EmojiPicker({
             classNames?.label
           )}
         >
-          {label} 
+          {label}
           {isRequired && <span className="ml-1 text-danger">*</span>}
         </label>
       )}

@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
+  Headphones,
   HelpCircle,
   House,
   LogOut,
@@ -161,6 +162,13 @@ const NAV_ITEMS: NavItem[] = [
     href: '/help',
     icon: <HelpCircle size={20} />,
     type: 'regular',
+  },
+  {
+    name: 'Support',
+    href: '/support/tickets',
+    icon: <Headphones size={20} />,
+    type: 'regular',
+    // No permission required - available to all authenticated users
   },
 ]
 

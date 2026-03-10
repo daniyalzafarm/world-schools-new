@@ -19,6 +19,7 @@ import {
   Building,
   ChevronDown,
   ChevronRight,
+  Headphones,
   HelpCircle,
   House,
   Inbox,
@@ -41,6 +42,7 @@ import { useApplicationReviewStore } from '@/stores/application-review-store'
 import { eventBus } from '@world-schools/wc-utils'
 import config from '@/config/config'
 import { usePermissions } from '@/hooks/use-permissions'
+import { supportTicketsService } from '@/services/support-tickets.services'
 
 // Custom hook for sidebar expansion state management
 const useSidebarExpansion = (onToggleCollapse: () => void) => {
@@ -117,45 +119,6 @@ const NAV_ITEMS: NavItem[] = [
     permission: 'provider_applications.read',
   },
   {
-    name: 'Provider Messages',
-    href: '',
-    icon: <MessageCircle size={20} />,
-    type: 'collapsible',
-    badge: 4,
-    permission: 'providers.read',
-    children: [
-      {
-        name: 'My Inbox',
-        href: '/provider-messages/my-inbox',
-        badge: 2,
-        icon: <MessageCircle size={18} />,
-      },
-      {
-        name: 'Unassigned',
-        href: '/provider-messages/unassigned',
-        badge: 2,
-        icon: <MessageCircleWarning size={18} />,
-      },
-      { name: 'Team Inbox', href: '/provider-messages/team-inbox', icon: <Inbox size={18} /> },
-    ],
-  },
-  {
-    name: 'User Messages',
-    href: '',
-    icon: <MessageCircle size={20} />,
-    type: 'collapsible',
-    // No permission required - available to all authenticated users
-    children: [
-      { name: 'My Inbox', href: '/user-messages/my-inbox', icon: <MessageCircle size={18} /> },
-      {
-        name: 'Unassigned',
-        href: '/user-messages/unassigned',
-        icon: <MessageCircleWarning size={18} />,
-      },
-      { name: 'Team Inbox', href: '/user-messages/team-inbox', icon: <Inbox size={18} /> },
-    ],
-  },
-  {
     name: 'All Providers',
     href: '/all-providers',
     icon: <Building size={20} />,
@@ -212,6 +175,13 @@ const NAV_ITEMS: NavItem[] = [
     icon: <HelpCircle size={20} />,
     type: 'regular',
   },
+  {
+    name: 'Support',
+    href: '/support',
+    icon: <Headphones size={20} />,
+    type: 'regular',
+    permission: 'support_tickets.read',
+  },
 ]
 
 export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen }) => {
@@ -220,6 +190,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   const { user, logout } = useAuthStore()
   const { hasPermission } = usePermissions()
   const { underReviewCount, fetchUnderReviewCount } = useApplicationReviewStore()
+  const [openTicketCount, setOpenTicketCount] = React.useState<number>(0)
 
   // Collapsed state is managed locally within the sidebar
   const [isCollapsed, setIsCollapsed] = React.useState(false) // Start expanded
@@ -229,19 +200,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
 
   // Fetch badge count on mount and periodically
   React.useEffect(() => {
-    // Initial fetch
     void fetchUnderReviewCount()
+    const interval = setInterval(() => void fetchUnderReviewCount(), 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [fetchUnderReviewCount])
 
-    // Refresh every 5 minutes
+  // Support tickets open count (for badge) when user has permission
+  React.useEffect(() => {
+    if (!hasPermission('support_tickets.read')) return
+    supportTicketsService
+      .getTicketStats()
+      .then(result => (result.success ? setOpenTicketCount(result.data.open) : undefined))
+      .catch(() => {})
     const interval = setInterval(
       () => {
-        void fetchUnderReviewCount()
+        supportTicketsService
+          .getTicketStats()
+          .then(result => (result.success ? setOpenTicketCount(result.data.open) : undefined))
+          .catch(() => {})
       },
       5 * 60 * 1000
     )
-
     return () => clearInterval(interval)
-  }, [fetchUnderReviewCount])
+  }, [hasPermission])
 
   // Custom hook for state management
   const {
@@ -470,11 +451,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
               const isExpanded = isCollapsible ? expandedSections[item.name] : false
               const hasChildren = item.children && item.children.length > 0
 
-              // Get dynamic badge count for Provider Requests
+              // Get dynamic badge count for Provider Requests / Support Tickets
               const badgeCount =
                 item.name === 'Provider Requests' && underReviewCount > 0
                   ? underReviewCount
-                  : item.badge
+                  : item.name === 'Support Tickets' && openTicketCount > 0
+                    ? openTicketCount
+                    : item.badge
 
               const NavigationItem = (
                 <div key={item.name} className="w-full">

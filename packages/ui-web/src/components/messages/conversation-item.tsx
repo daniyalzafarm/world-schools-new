@@ -59,11 +59,11 @@ export function ConversationItem({
   const [isPressed, setIsPressed] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
 
-  // Map avatar string key to actual image path - matching Messages page logic
+  // Use avatar URL/path if provided; otherwise allow Avatar to fall back to initials.
   const avatarSrc =
     conversation.avatar && avatarMap[String(conversation.avatar)]
       ? avatarMap[String(conversation.avatar)]
-      : '/assets/school-1.jpg'
+      : conversation.avatar || undefined
 
   // Handle click
   const handleClick = () => {
@@ -91,7 +91,12 @@ export function ConversationItem({
     >
       <div className="flex items-center">
         {/* Avatar */}
-        <Avatar src={avatarSrc} alt={conversation.name} className="w-10 h-10 mr-3" />
+        <Avatar
+          src={avatarSrc}
+          name={conversation.name}
+          alt={conversation.name}
+          className="w-10 h-10 mr-3"
+        />
 
         {/* Content */}
         <div className="flex-1 min-w-0">

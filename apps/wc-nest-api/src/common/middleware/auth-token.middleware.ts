@@ -17,28 +17,25 @@ export class AuthTokenMiddleware implements NestMiddleware {
 
       if (req.headers['x-access-token']) {
         if (!req.cookies) req.cookies = {}
-        // Set app-specific cookie name based on endpoint
+        const token = req.headers['x-access-token'] as string
+        // Set app-specific cookie name based on endpoint path only
         if (isSuperadmin) {
-          req.cookies['wc_superadmin_access_token'] = req.headers['x-access-token'] as string
+          req.cookies['wc_superadmin_access_token'] = token
         } else if (isProvider) {
-          req.cookies['wc_provider_access_token'] = req.headers['x-access-token'] as string
+          req.cookies['wc_provider_access_token'] = token
         } else if (isUser) {
-          req.cookies['wc_user_access_token'] = req.headers['x-access-token'] as string
-        } else {
-          req.cookies['access_token'] = req.headers['x-access-token'] as string
+          req.cookies['wc_user_access_token'] = token
         }
       }
       if (req.headers['x-refresh-token']) {
         if (!req.cookies) req.cookies = {}
-        // Set app-specific cookie name based on endpoint
+        const token = req.headers['x-refresh-token'] as string
         if (isSuperadmin) {
-          req.cookies['wc_superadmin_refresh_token'] = req.headers['x-refresh-token'] as string
+          req.cookies['wc_superadmin_refresh_token'] = token
         } else if (isProvider) {
-          req.cookies['wc_provider_refresh_token'] = req.headers['x-refresh-token'] as string
+          req.cookies['wc_provider_refresh_token'] = token
         } else if (isUser) {
-          req.cookies['wc_user_refresh_token'] = req.headers['x-refresh-token'] as string
-        } else {
-          req.cookies['refresh_token'] = req.headers['x-refresh-token'] as string
+          req.cookies['wc_user_refresh_token'] = token
         }
       }
     }

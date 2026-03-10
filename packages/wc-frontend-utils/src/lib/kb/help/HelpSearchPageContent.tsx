@@ -28,12 +28,6 @@ export function HelpSearchPageContent() {
       .finally(() => setLoading(false))
   }, [q, service, audience])
 
-  // const supportHrefWithSearch = q
-  //   ? `${supportHref}${supportHref.includes('?') ? '&' : '?'}search=${encodeURIComponent(q)}`
-  //   : supportHref
-
-  const supportHrefWithSearch = '/'
-
   return (
     <>
       <nav
@@ -90,7 +84,7 @@ export function HelpSearchPageContent() {
               </ul>
             </div>
             <Link
-              href={supportHrefWithSearch}
+              href={supportHref}
               className="contact-cta-btn inline-flex items-center gap-2 rounded-lg bg-secondary px-5 py-3 text-sm font-medium text-white no-underline transition-colors hover:bg-secondary/90"
             >
               <MessageCircle size={18} strokeWidth={2} />
@@ -134,7 +128,7 @@ export function HelpSearchPageContent() {
                 Didn&apos;t find what you were looking for?
               </p>
               <Link
-                href={supportHrefWithSearch}
+                href={supportHref}
                 className="contact-cta-btn inline-flex items-center gap-2 rounded-lg bg-secondary px-5 py-3 text-sm font-medium text-white no-underline transition-colors hover:bg-secondary/90"
               >
                 <MessageCircle size={18} strokeWidth={2} />

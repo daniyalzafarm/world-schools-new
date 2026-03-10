@@ -120,6 +120,16 @@ const kbArticlesPermissions: PermissionGroup = {
   ],
 }
 
+const supportTicketsPermissions: PermissionGroup = {
+  name: 'Support Tickets',
+  permissions: [
+    { id: 'support_tickets.read', name: 'Read support tickets' },
+    { id: 'support_tickets.update', name: 'Update support tickets' },
+    { id: 'support_tickets.assign', name: 'Assign support tickets' },
+    { id: 'support_tickets.delete', name: 'Delete support tickets' },
+  ],
+}
+
 // Context-based main groups
 export const superadminContext: PermissionContext = {
   name: 'SuperAdmin',
@@ -133,6 +143,7 @@ export const superadminContext: PermissionContext = {
     addonsPermissions,
     kbCategoriesPermissions,
     kbArticlesPermissions,
+    supportTicketsPermissions,
   ],
 }
 

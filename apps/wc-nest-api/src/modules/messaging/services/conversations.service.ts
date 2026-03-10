@@ -29,6 +29,8 @@ import {
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name)
   private readonly CACHE_TTL = 300 // 5 minutes
+  private readonly recentCacheInvalidations = new Map<string, number>()
+  private readonly CACHE_INVALIDATION_DEBOUNCE_MS = 1000
 
   constructor(
     private prisma: PrismaService,
@@ -245,7 +247,7 @@ export class ConversationsService {
    * The providerId parameter should be passed when querying for provider users.
    */
   private buildConversationWhereClause(dto: GetConversationsDto & { providerId?: string }) {
-    const { userId, filter = 'all', providerId } = dto
+    const { userId, filter = 'all', providerId, excludeSupportTicketContext } = dto
 
     // Base condition: Find conversations where user is a participant
     const participantCondition: any = {
@@ -283,6 +285,17 @@ export class ConversationsService {
         ],
       }
 
+      if (excludeSupportTicketContext) {
+        where.AND = [
+          ...(where.AND ?? []),
+          {
+            NOT: {
+              contextType: ContextType.SUPPORT_TICKET,
+            },
+          },
+        ]
+      }
+
       return where
     }
 
@@ -293,6 +306,17 @@ export class ConversationsService {
       },
     }
 
+    if (excludeSupportTicketContext) {
+      where.AND = [
+        ...(where.AND ?? []),
+        {
+          NOT: {
+            contextType: ContextType.SUPPORT_TICKET,
+          },
+        },
+      ]
+    }
+
     return where
   }
 
@@ -300,13 +324,15 @@ export class ConversationsService {
    * Get total count of conversations for a user with filters
    */
   async getConversationsCount(dto: GetConversationsDto): Promise<number> {
-    const { userId, filter = 'all' } = dto
+    const { userId, filter = 'all', excludeSupportTicketContext } = dto
 
     // Check if user is a provider user and get their provider ID
     const providerId = await this.getProviderIdForUser(userId!)
 
     // Try to get from cache
-    const cacheKey = `conversations:count:${userId}:${filter}:${providerId || 'none'}`
+    const cacheKey = `conversations:count:${userId}:${filter}:${providerId || 'none'}:${
+      excludeSupportTicketContext ? 'no-support' : 'all-contexts'
+    }`
     const cached = await this.redis.get(cacheKey)
     if (cached) {
       this.logger.debug(`Cache hit for conversations count: ${cacheKey}`)
@@ -330,13 +356,15 @@ export class ConversationsService {
    * Get conversations for a user with filters
    */
   async getConversations(dto: GetConversationsDto) {
-    const { userId, filter = 'all', limit = 50, offset = 0 } = dto
+    const { userId, filter = 'all', limit = 50, offset = 0, excludeSupportTicketContext } = dto
 
     // Check if user is a provider user and get their provider ID
     const providerId = await this.getProviderIdForUser(userId!)
 
     // Try to get from cache
-    const cacheKey = `conversations:${userId}:${filter}:${limit}:${offset}:${providerId || 'none'}`
+    const cacheKey = `conversations:${userId}:${filter}:${limit}:${offset}:${providerId || 'none'}:${
+      excludeSupportTicketContext ? 'no-support' : 'all-contexts'
+    }`
     const cached = await this.redis.get(cacheKey)
     if (cached) {
       // ✅ PHASE 5 FIX: Track cache hit
@@ -893,17 +921,25 @@ export class ConversationsService {
    * ✅ PUBLIC: Called from RedisPubSubService for cross-replica cache invalidation
    */
   async invalidateConversationCache(userId: string): Promise<void> {
+    const now = Date.now()
+    const last = this.recentCacheInvalidations.get(userId) ?? 0
+    if (now - last < this.CACHE_INVALIDATION_DEBOUNCE_MS) {
+      return
+    }
+    this.recentCacheInvalidations.set(userId, now)
+
     const providerId = await this.getProviderIdForUser(userId)
 
-    // Invalidate conversation list cache (all filter/limit/offset combinations)
-    const pattern = `conversations:${userId}:*:${providerId || 'none'}`
+    // Invalidate conversation list cache (all filter/limit/offset/context combinations)
+    const pattern = `conversations:${userId}:*`
     await this.deleteKeysByPattern(pattern)
 
-    // Invalidate conversation count cache (all filter combinations)
-    const countPattern = `conversations:count:${userId}:*:${providerId || 'none'}`
+    // Invalidate conversation count cache (all filter/context combinations)
+    const countPattern = `conversations:count:${userId}:*`
     await this.deleteKeysByPattern(countPattern)
 
-    this.logger.debug(`Invalidated conversation cache for user ${userId}`)
+    // Keep this as verbose to avoid log spam on high-volume conversations (receipts can trigger bursts).
+    this.logger.verbose(`Invalidated conversation cache for user ${userId}`)
   }
 
   /**
@@ -961,9 +997,6 @@ export class ConversationsService {
       )
 
       if (providerRole?.role?.providerId) {
-        this.logger.debug(
-          `User ${userId} has provider role with providerId: ${providerRole.role.providerId}`
-        )
         return providerRole.role.providerId
       }
 
@@ -974,7 +1007,6 @@ export class ConversationsService {
       })
 
       if (ownedProvider) {
-        this.logger.debug(`User ${userId} owns provider: ${ownedProvider.id}`)
         return ownedProvider.id
       }
 

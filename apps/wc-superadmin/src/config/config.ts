@@ -1,6 +1,7 @@
 const config = {
   app: {
     apiUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000/',
+    wsUrl: process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3000',
     version: process.env.NEXT_PUBLIC_APP_VERSION ?? 'dev',
   },
   auth: {

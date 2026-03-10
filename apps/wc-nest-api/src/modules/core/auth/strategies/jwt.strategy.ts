@@ -31,8 +31,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             return request?.cookies?.wc_user_access_token
           }
 
-          // Fall back to generic cookie for backward compatibility
-          return request?.cookies?.access_token
+          // No cookie for non-app-prefixed paths; rely on Authorization: Bearer if used
+          return false
         },
       ]),
       ignoreExpiration: false,

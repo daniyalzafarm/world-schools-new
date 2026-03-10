@@ -205,6 +205,15 @@ export interface MessagingActions {
   markAsRead: (conversationId: string, messageId: string) => Promise<void>
 
   /**
+   * Mark a message as delivered
+   */
+  markAsDelivered: (
+    conversationId: string,
+    messageId: string,
+    deliveryLatencyMs?: number
+  ) => Promise<void>
+
+  /**
    * Start typing indicator
    */
   startTyping: (conversationId: string) => void

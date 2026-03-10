@@ -95,6 +95,12 @@ export class GetConversationsDto {
   @Min(0)
   @IsOptional()
   offset?: number
+
+  // Internal-only flag set by app-specific controllers (not a public query param).
+  // Used to hide support-ticket-backed conversations from regular inbox listings.
+  @IsBoolean()
+  @IsOptional()
+  excludeSupportTicketContext?: boolean
 }
 
 /**

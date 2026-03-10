@@ -12,6 +12,7 @@ import { CommonModule } from '../common/common.module'
 import { AuthModule } from '../modules/core/auth/auth.module'
 import { HealthModule } from '../modules/health/health.module'
 import { MessagingModule } from '../modules/messaging/messaging.module'
+import { SupportTicketsModule } from '../modules/support-tickets/support-tickets.module'
 
 // Global WebSocket module
 import { WebSocketModule } from '../modules/websocket/websocket.module'
@@ -34,6 +35,7 @@ import { KbModule } from '../modules/kb/kb.module'
     AuthModule,
     HealthModule,
     MessagingModule,
+    SupportTicketsModule,
 
     // Global WebSocket
     WebSocketModule,

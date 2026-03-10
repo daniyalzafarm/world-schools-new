@@ -378,6 +378,13 @@ export default function KbArticlesPage() {
     void loadGlobalStats()
   }
 
+  const audienceTabs: { key: string; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: pagination.total },
+    { key: 'parents', label: 'For Parents', count: parentCount },
+    { key: 'providers', label: 'For Providers', count: providerCount },
+    { key: 'staff', label: 'For Staff', count: staffCount },
+  ]
+
   return (
     <PageSlot className="max-w-400 space-y-6">
       {/* Page Header */}
@@ -445,62 +452,27 @@ export default function KbArticlesPage() {
         <CardBody className="p-0">
           {/* Audience Tabs */}
           <div className="flex gap-2 border-b border-default-200 px-4 pt-3">
-            <button
-              type="button"
-              onClick={() => setAudienceFilter('all')}
-              className={`cursor-pointer flex items-center gap-2 rounded-t-md px-3 pb-2 text-sm font-medium ${
-                audienceFilter === 'all'
-                  ? 'border-b-2 border-primary text-primary-600'
-                  : 'text-default-500 hover:text-foreground'
-              }`}
-            >
-              <span>All</span>
-              <span className="rounded-full bg-default-100 px-2 py-0.5 text-[10px] font-semibold">
-                {pagination.total}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setAudienceFilter('parents')}
-              className={`cursor-pointer flex items-center gap-2 rounded-t-md px-3 pb-2 text-sm font-medium ${
-                audienceFilter === 'parents'
-                  ? 'border-b-2 border-primary text-primary-600'
-                  : 'text-default-500 hover:text-foreground'
-              }`}
-            >
-              <span>For Parents</span>
-              <span className="rounded-full bg-default-100 px-2 py-0.5 text-[10px] font-semibold">
-                {parentCount}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setAudienceFilter('providers')}
-              className={`cursor-pointer flex items-center gap-2 rounded-t-md px-3 pb-2 text-sm font-medium ${
-                audienceFilter === 'providers'
-                  ? 'border-b-2 border-primary text-primary-600'
-                  : 'text-default-500 hover:text-foreground'
-              }`}
-            >
-              <span>For Providers</span>
-              <span className="rounded-full bg-default-100 px-2 py-0.5 text-[10px] font-semibold">
-                {providerCount}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setAudienceFilter('staff')}
-              className={`cursor-pointer flex items-center gap-2 rounded-t-md px-3 pb-2 text-sm font-medium ${
-                audienceFilter === 'staff'
-                  ? 'border-b-2 border-primary text-primary-600'
-                  : 'text-default-500 hover:text-foreground'
-              }`}
-            >
-              <span>For Staff</span>
-              <span className="rounded-full bg-default-100 px-2 py-0.5 text-[10px] font-semibold">
-                {staffCount}
-              </span>
-            </button>
+            {audienceTabs.map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setAudienceFilter(tab.key)}
+                className={`cursor-pointer flex items-center gap-2 rounded-t-md px-3 pb-2 text-sm font-medium ${
+                  audienceFilter === tab.key
+                    ? 'border-b-2 border-primary text-primary-600'
+                    : 'text-default-500 hover:text-foreground'
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                    audienceFilter === tab.key ? 'bg-primary-100 text-secondary' : 'bg-default-100'
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            ))}
           </div>
 
           {/* Filter Controls */}

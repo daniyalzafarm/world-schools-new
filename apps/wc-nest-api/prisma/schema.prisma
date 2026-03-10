@@ -69,6 +69,20 @@ model User {
   // Knowledge Base Relations
   articleFeedback ArticleFeedback[]
 
+  // Support Ticketing Relations
+  supportTicketsCreated          SupportTicket[]                  @relation("SupportTicketCreatedBy")
+  supportTicketsRequested        SupportTicket[]                  @relation("SupportTicketRequesterUser")
+  supportTicketsAssigned         SupportTicket[]                  @relation("SupportTicketAssignedTo")
+  supportTicketsAssignedBy       SupportTicket[]                  @relation("SupportTicketAssignedBy")
+  supportTicketsResolved         SupportTicket[]                  @relation("SupportTicketResolvedBy")
+  supportTicketsClosed           SupportTicket[]                  @relation("SupportTicketClosedBy")
+  supportTicketsReopened         SupportTicket[]                  @relation("SupportTicketLastReopenedBy")
+  supportTicketStatusChanges     SupportTicketStatusHistory[]     @relation("SupportTicketStatusChangedBy")
+  supportTicketAssignmentChanges SupportTicketAssignmentHistory[] @relation("SupportTicketAssignmentChangedBy")
+  supportTicketAssignmentFrom    SupportTicketAssignmentHistory[] @relation("SupportTicketAssignmentFromUser")
+  supportTicketAssignmentTo      SupportTicketAssignmentHistory[] @relation("SupportTicketAssignmentToUser")
+  supportTicketSatisfactionBy    SupportTicket[]                  @relation("SupportTicketSatisfactionBy")
+
   @@map("users")
 }
 
@@ -224,6 +238,7 @@ model Provider {
 
   // Messaging Relations
   conversationParticipants ConversationParticipant[]
+  supportTicketsRequested  SupportTicket[]           @relation("SupportTicketRequesterProvider")
 
   @@index([ownerId])
   @@index([approvalStatus])
@@ -566,6 +581,7 @@ model Camp {
   campAddOns      CampAddOn[]
   sessions        Session[]
   globalDiscounts GlobalDiscount[]
+  supportTickets  SupportTicket[]
 
   @@index([providerId])
   @@index([status])
@@ -718,8 +734,9 @@ model Session {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  camp     Camp      @relation(fields: [campId], references: [id], onDelete: Cascade)
-  bookings Booking[]
+  camp           Camp            @relation(fields: [campId], references: [id], onDelete: Cascade)
+  bookings       Booking[]
+  supportTickets SupportTicket[]
 
   @@index([campId])
   @@index([status])
@@ -756,9 +773,10 @@ model Booking {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  session Session  @relation(fields: [sessionId], references: [id], onDelete: Restrict)
-  parent  Parent   @relation(fields: [parentId], references: [id], onDelete: Restrict)
-  child   Children @relation(fields: [childId], references: [id], onDelete: Restrict)
+  session        Session         @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  parent         Parent          @relation(fields: [parentId], references: [id], onDelete: Restrict)
+  child          Children        @relation(fields: [childId], references: [id], onDelete: Restrict)
+  supportTickets SupportTicket[]
 
   @@index([sessionId])
   @@index([campId])
@@ -906,6 +924,7 @@ model Conversation {
   assignedTo         User?                         @relation("AssignedConversations", fields: [assignedToId], references: [id], onDelete: SetNull)
   assigner           User?                         @relation("AssignedByUser", fields: [assignedBy], references: [id])
   statusChangedByRel User?                         @relation("StatusChangedByUser", fields: [statusChangedByUser], references: [id])
+  supportTicket      SupportTicket?
 
   @@index([type])
   @@index([updatedAt])
@@ -1269,6 +1288,254 @@ model ConversationLabelAssignment {
 }
 
 // ============================================
+// Support Ticketing System Models
+// ============================================
+
+model SupportTicket {
+  id           String  @id @default(uuid())
+  ticketNumber String  @unique @map("ticket_number") @db.VarChar(30)
+  subject      String  @db.VarChar(255)
+  description  String? @db.Text // Optional original description from ticket creation form
+
+  // Requester identity
+  requesterType       SupportTicketRequesterType @map("requester_type")
+  requesterUserId     String?                    @map("requester_user_id") // Parent/user ticket owner
+  requesterProviderId String?                    @map("requester_provider_id") // Provider ticket owner
+  createdByUserId     String                     @map("created_by_user_id") // Actor that created ticket
+  sourceApp           SupportTicketSourceApp     @default(WC_BOOKING) @map("source_app")
+
+  // Classification
+  categoryId String?               @map("category_id")
+  priority   SupportTicketPriority @default(NORMAL)
+  status     SupportTicketStatus   @default(OPEN)
+  tags       String[]              @default([])
+
+  // Conversation integration
+  conversationId String @unique @map("conversation_id")
+  // App-level contract: conversations.context_type should be SUPPORT_TICKET and
+  // conversations.context_id should equal this ticket's id.
+
+  // Assignment
+  assignedToUserId String?   @map("assigned_to_user_id")
+  assignedByUserId String?   @map("assigned_by_user_id")
+  assignedAt       DateTime? @map("assigned_at")
+
+  // SLA + lifecycle milestones
+  slaPolicyId                String?   @map("sla_policy_id")
+  firstResponseDueAt         DateTime? @map("first_response_due_at")
+  firstRespondedAt           DateTime? @map("first_responded_at")
+  resolutionDueAt            DateTime? @map("resolution_due_at")
+  resolvedAt                 DateTime? @map("resolved_at")
+  closedAt                   DateTime? @map("closed_at")
+  slaFirstResponseBreachedAt DateTime? @map("sla_first_response_breached_at")
+  slaResolutionBreachedAt    DateTime? @map("sla_resolution_breached_at")
+
+  // Resolution + closure
+  resolvedByUserId     String?                      @map("resolved_by_user_id")
+  resolutionCode       SupportTicketResolutionCode? @map("resolution_code")
+  resolutionSummary    String?                      @map("resolution_summary") @db.Text
+  closedByUserId       String?                      @map("closed_by_user_id")
+  closureReason        String?                      @map("closure_reason") @db.Text
+  reopenedCount        Int                          @default(0) @map("reopened_count")
+  lastReopenedAt       DateTime?                    @map("last_reopened_at")
+  lastReopenedByUserId String?                      @map("last_reopened_by_user_id")
+
+  // Conversation reply cache for inbox ordering / filters
+  lastRequesterReplyAt DateTime? @map("last_requester_reply_at")
+  lastSupportReplyAt   DateTime? @map("last_support_reply_at")
+
+  // Optional entity links seen in support UI
+  bookingId String? @map("booking_id")
+  campId    String? @map("camp_id")
+  sessionId String? @map("session_id")
+
+  // CSAT
+  satisfactionScore             Int?      @map("satisfaction_score") // 1..5
+  satisfactionComment           String?   @map("satisfaction_comment") @db.Text
+  satisfactionSubmittedAt       DateTime? @map("satisfaction_submitted_at")
+  satisfactionSubmittedByUserId String?   @map("satisfaction_submitted_by_user_id")
+
+  metadata Json?
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  archivedAt DateTime? @map("archived_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  // Relations
+  requesterUser           User?                            @relation("SupportTicketRequesterUser", fields: [requesterUserId], references: [id], onDelete: SetNull)
+  requesterProvider       Provider?                        @relation("SupportTicketRequesterProvider", fields: [requesterProviderId], references: [id], onDelete: SetNull)
+  createdByUser           User                             @relation("SupportTicketCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  category                SupportTicketCategory?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  conversation            Conversation                     @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  assignedTo              User?                            @relation("SupportTicketAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  assignedBy              User?                            @relation("SupportTicketAssignedBy", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+  slaPolicy               SupportTicketSlaPolicy?          @relation(fields: [slaPolicyId], references: [id], onDelete: SetNull)
+  resolvedBy              User?                            @relation("SupportTicketResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  closedBy                User?                            @relation("SupportTicketClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
+  lastReopenedBy          User?                            @relation("SupportTicketLastReopenedBy", fields: [lastReopenedByUserId], references: [id], onDelete: SetNull)
+  booking                 Booking?                         @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  camp                    Camp?                            @relation(fields: [campId], references: [id], onDelete: SetNull)
+  session                 Session?                         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  satisfactionSubmittedBy User?                            @relation("SupportTicketSatisfactionBy", fields: [satisfactionSubmittedByUserId], references: [id], onDelete: SetNull)
+  statusHistory           SupportTicketStatusHistory[]
+  assignmentHistory       SupportTicketAssignmentHistory[]
+
+  @@index([status, priority, createdAt(sort: Desc)])
+  @@index([requesterType, status, createdAt(sort: Desc)])
+  @@index([assignedToUserId, status, updatedAt(sort: Desc)])
+  @@index([categoryId])
+  @@index([slaPolicyId])
+  @@index([requesterUserId])
+  @@index([requesterProviderId])
+  @@index([bookingId])
+  @@index([campId])
+  @@index([sessionId])
+  @@index([resolvedAt])
+  @@index([closedAt])
+  @@index([lastRequesterReplyAt])
+  @@index([lastSupportReplyAt])
+  @@index([deletedAt])
+  @@map("support_tickets")
+}
+
+model SupportTicketCategory {
+  id                 String                 @id @default(uuid())
+  key                String                 @unique @db.VarChar(60)
+  name               String                 @db.VarChar(120)
+  description        String?                @db.Text
+  audience           SupportTicketAudience  @default(BOTH)
+  isActive           Boolean                @default(true) @map("is_active")
+  sortOrder          Int                    @default(0) @map("sort_order")
+  defaultPriority    SupportTicketPriority? @map("default_priority")
+  defaultSlaPolicyId String?                @map("default_sla_policy_id")
+  metadata           Json?
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
+
+  // Relations
+  tickets          SupportTicket[]
+  defaultSlaPolicy SupportTicketSlaPolicy? @relation(fields: [defaultSlaPolicyId], references: [id], onDelete: SetNull)
+
+  @@index([audience, isActive])
+  @@index([sortOrder])
+  @@index([defaultSlaPolicyId])
+  @@map("support_ticket_categories")
+}
+
+model SupportTicketSlaPolicy {
+  id                         String   @id @default(uuid())
+  name                       String   @unique @db.VarChar(120)
+  description                String?  @db.Text
+  firstResponseTargetMinutes Int      @map("first_response_target_minutes")
+  resolutionTargetMinutes    Int      @map("resolution_target_minutes")
+  businessHoursOnly          Boolean  @default(true) @map("business_hours_only")
+  businessTimeZone           String?  @map("business_time_zone") @db.VarChar(64)
+  pauseOnPendingRequester    Boolean  @default(true) @map("pause_on_pending_requester")
+  isActive                   Boolean  @default(true) @map("is_active")
+  createdAt                  DateTime @default(now()) @map("created_at")
+  updatedAt                  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tickets    SupportTicket[]
+  categories SupportTicketCategory[]
+
+  @@index([isActive])
+  @@map("support_ticket_sla_policies")
+}
+
+model SupportTicketStatusHistory {
+  id              String               @id @default(uuid())
+  ticketId        String               @map("ticket_id")
+  fromStatus      SupportTicketStatus? @map("from_status")
+  toStatus        SupportTicketStatus  @map("to_status")
+  changedByUserId String?              @map("changed_by_user_id")
+  changeReason    String?              @map("change_reason") @db.Text
+  metadata        Json?
+  changedAt       DateTime             @default(now()) @map("changed_at")
+
+  // Relations
+  ticket        SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  changedByUser User?         @relation("SupportTicketStatusChangedBy", fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, changedAt(sort: Desc)])
+  @@index([toStatus, changedAt(sort: Desc)])
+  @@index([changedByUserId])
+  @@map("support_ticket_status_history")
+}
+
+model SupportTicketAssignmentHistory {
+  id                 String   @id @default(uuid())
+  ticketId           String   @map("ticket_id")
+  fromAssigneeUserId String?  @map("from_assignee_user_id")
+  toAssigneeUserId   String?  @map("to_assignee_user_id")
+  changedByUserId    String?  @map("changed_by_user_id")
+  assignmentReason   String?  @map("assignment_reason") @db.Text
+  assignedAt         DateTime @default(now()) @map("assigned_at")
+
+  // Relations
+  ticket        SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fromAssignee  User?         @relation("SupportTicketAssignmentFromUser", fields: [fromAssigneeUserId], references: [id], onDelete: SetNull)
+  toAssignee    User?         @relation("SupportTicketAssignmentToUser", fields: [toAssigneeUserId], references: [id], onDelete: SetNull)
+  changedByUser User?         @relation("SupportTicketAssignmentChangedBy", fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, assignedAt(sort: Desc)])
+  @@index([toAssigneeUserId, assignedAt(sort: Desc)])
+  @@index([changedByUserId])
+  @@map("support_ticket_assignment_history")
+}
+
+// ============================================
+// Support Ticketing System Enums
+// ============================================
+
+enum SupportTicketRequesterType {
+  PARENT
+  PROVIDER
+}
+
+enum SupportTicketSourceApp {
+  WC_BOOKING
+  WC_PROVIDER
+  WC_SUPERADMIN
+  API
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  PENDING_REQUESTER // Waiting on parent/provider response
+  PENDING_SUPPORT // Waiting on support/internal dependency
+  RESOLVED // Marked fixed/answered; can still be reopened
+  CLOSED // Final terminal state
+}
+
+enum SupportTicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SupportTicketAudience {
+  PARENT
+  PROVIDER
+  BOTH
+}
+
+enum SupportTicketResolutionCode {
+  FIXED
+  ANSWERED
+  WORKAROUND_PROVIDED
+  DUPLICATE
+  REFUNDED
+  POLICY_APPLIED
+  CANNOT_REPRODUCE
+  USER_NO_RESPONSE
+  OTHER
+}
+
+// ============================================
 // Messaging System Enums
 // ============================================
 
@@ -1329,6 +1596,7 @@ enum ContextType {
   BOOKING
   CAMP
   PROVIDER
+  SUPPORT_TICKET
   GENERAL
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 import { Button, Textarea } from '@heroui/react'
 import { ArrowUp } from 'lucide-react'
 import { cn } from '../../utils/cn'
@@ -28,12 +28,32 @@ export function ChatInput({
   fullWidth = false,
   className,
 }: ChatInputProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const shouldRefocusAfterSendRef = useRef(false)
+
+  const setTextareaNode = useCallback((node: unknown) => {
+    // HeroUI's Textarea may forward refs to a wrapper; ensure we capture the real <textarea>.
+    const el = node as HTMLElement | HTMLTextAreaElement | null
+    if (!el) {
+      textareaRef.current = null
+      return
+    }
+    const inner =
+      el instanceof HTMLTextAreaElement
+        ? el
+        : (el.querySelector?.('textarea') as HTMLTextAreaElement | null)
+    textareaRef.current = inner ?? null
+  }, [])
+
+  const focusTextarea = useCallback(() => {
+    requestAnimationFrame(() => textareaRef.current?.focus())
+  }, [])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       if (value.trim() && !disabled) {
+        shouldRefocusAfterSendRef.current = true
         onSend()
       }
     }
@@ -41,6 +61,7 @@ export function ChatInput({
 
   const handleSend = () => {
     if (value.trim() && !disabled) {
+      shouldRefocusAfterSendRef.current = true
       onSend()
     }
   }
@@ -51,6 +72,16 @@ export function ChatInput({
       textareaRef.current.focus()
     }
   }, [])
+
+  // After a successful "send" initiated from this input, the parent clears `value`.
+  // Refocus once the cleared value has been rendered to avoid losing focus during rerenders.
+  useEffect(() => {
+    if (disabled) return
+    if (!shouldRefocusAfterSendRef.current) return
+    if (value !== '') return
+    shouldRefocusAfterSendRef.current = false
+    focusTextarea()
+  }, [value, disabled, focusTextarea])
 
   const canSend = value.trim().length > 0 && !disabled
 
@@ -67,7 +98,7 @@ export function ChatInput({
       >
         <div className="relative max-h-40 flex items-end gap-3 bg-white shadow dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-2">
           <Textarea
-            ref={textareaRef}
+            ref={setTextareaNode as any}
             value={value}
             onValueChange={onChange}
             onKeyDown={handleKeyDown}
@@ -93,6 +124,10 @@ export function ChatInput({
           <Button
             isIconOnly
             size="sm"
+            onMouseDown={e => {
+              // Prevent the button from taking focus away from the textarea on click
+              e.preventDefault()
+            }}
             onPress={handleSend}
             disabled={!canSend}
             className={cn(

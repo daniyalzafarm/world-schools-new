@@ -151,6 +151,9 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
       'receipts:read',
       'receipts:delivered',
       'conversation:assigned',
+      // Support ticket events
+      'ticket:statusUpdated',
+      'ticket:assigned',
       'conversations:new', // ✅ NEW: Real-time conversation creation events
       // ✅ NEW: Cache invalidation channels
       'cache:invalidate:conversations',
@@ -217,6 +220,15 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
                 this.server.to(`user:${user.id}`).emit('message:new', messagePayload)
               }
             }
+          }
+
+          // For support tickets (USER_SUPERADMIN/PROVIDER_SUPERADMIN), only the requester is in
+          // participants, so superadmin users never receive via user rooms. Broadcast to the
+          // conversation room so admins who joined when viewing the ticket receive the message.
+          if (data.conversationId) {
+            this.server
+              .to(`conversation:${data.conversationId}`)
+              .emit('message:new', messagePayload)
           }
 
           break
@@ -292,6 +304,16 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
         case 'conversation:assigned':
           // Broadcast conversation assignment to all participants in the conversation
           this.server.to(`conversation:${data.conversationId}`).emit('conversation:assigned', data)
+          break
+
+        case 'ticket:statusUpdated':
+          // Broadcast ticket status updates to all connected clients interested in tickets
+          this.server.emit('ticket:statusUpdated', data)
+          break
+
+        case 'ticket:assigned':
+          // Broadcast ticket assignment updates to all connected clients interested in tickets
+          this.server.emit('ticket:assigned', data)
           break
 
         case 'conversations:new':

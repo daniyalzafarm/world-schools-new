@@ -5,7 +5,12 @@ import apiClient from '@/utils/api-client'
 
 export default function HelpLayout({ children }: { children: React.ReactNode }) {
   return (
-    <HelpKbProvider apiClient={apiClient} basePath="/help" audience={['parents']} supportHref="/">
+    <HelpKbProvider
+      apiClient={apiClient}
+      basePath="/help"
+      audience={['parents']}
+      supportHref="/support/tickets"
+    >
       <div className="min-h-full">{children}</div>
     </HelpKbProvider>
   )

@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import React, { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import {
   Avatar,
   Button,
@@ -20,11 +20,11 @@ import {
   ChatInput,
   type Conversation,
   DEFAULT_REPORT_REASONS,
-  type Message,
+  MessageThread,
   type ReportReason,
   Textarea,
 } from '@world-schools/ui-web'
-import { Circle, MessageSquare, MoreVertical, Users } from 'lucide-react'
+import { MessageSquare, MoreVertical, Users } from 'lucide-react'
 import { useMessagingStore } from '@/stores/messaging-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { MessageListSkeleton } from '@/components/messages/message-skeleton'
@@ -34,33 +34,17 @@ import {
 } from '@/components/messages/enhanced-message-bubble'
 import { TypingDots } from '@/components/messages/TypingIndicator'
 import { PresenceIndicator } from '@/components/messages/PresenceIndicator'
-import { NotificationBadge } from '@/components/messages/NotificationBadge'
 
 import { useTypingIndicator } from '@/hooks/useTypingIndicator'
 import type {
-  ConversationResponseDto,
   MessageResponseDto,
   MessageStatus,
   PresenceStatus,
   SenderType,
 } from '@world-schools/wc-frontend-utils'
 
-// Extended message type for our use case
-type Msg = Message & {
-  isTransferRequest?: boolean
-  isTransferSummary?: boolean
-  isChatbot?: boolean
-}
-
-const avatarMap: Record<string, string> = {
-  'school-1': '/assets/school-1.jpg',
-  'school-2': '/assets/school-2.jpg',
-  'school-3': '/assets/school-3.jpg',
-}
-
 export default function MessagesPage() {
   const pathname = usePathname()
-  const router = useRouter()
 
   // Detect if we're on the archived route (includes both /messages/archived and /messages/archived/[id])
   const isArchivedPage = pathname.startsWith('/messages/archived')
@@ -76,32 +60,23 @@ export default function MessagesPage() {
     isConnected,
     typingUsers,
     userPresence,
-    pendingMessages,
-    failedMessages,
-    isLoadingConversations,
     isLoadingMessages,
-    conversationsError,
     messagesError,
     draftConversation,
-    fetchConversations,
     setActiveConversation,
     fetchMessages,
     sendMessage,
-    startTyping,
-    stopTyping,
     markAsRead,
+    stopTyping,
     retryFailedMessage,
-    removeFailedMessage,
     createConversationWithMessage,
-    clearDraftConversation,
   } = useMessagingStore()
 
   // Initialize typing indicator hook
   const { handleTyping, handleStopTyping } = useTypingIndicator(activeConversationId)
 
-  // Local UI state
+  // Local UI state (input only for draft conversation; active conversation uses MessageThread)
   const [input, setInput] = useState('')
-  const scrollRef = useRef<HTMLDivElement>(null)
 
   // Report modal state
   const [showReportModal, setShowReportModal] = useState(false)
@@ -111,6 +86,21 @@ export default function MessagesPage() {
 
   // Get active conversation messages
   const activeMessages = activeConversationId ? storeMessages[activeConversationId] || [] : []
+
+  // Mark latest incoming message as read when viewing the conversation
+  useEffect(() => {
+    if (!activeConversationId || !user?.id) return
+    if (!isConnected) return
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+
+    const latestIncomingUnread = [...activeMessages]
+      .reverse()
+      .find(m => m.senderId !== user.id && !m.readAt)
+
+    if (latestIncomingUnread?.id) {
+      void markAsRead(activeConversationId, latestIncomingUnread.id)
+    }
+  }, [activeConversationId, activeMessages, user?.id, isConnected, markAsRead])
 
   // Get active conversation object
   const activeConversation = conversations.find(c => c.id === activeConversationId) ?? null
@@ -155,48 +145,22 @@ export default function MessagesPage() {
     // TODO: Implement transfer functionality with backend API
   }
 
-  const handleSend = async () => {
-    const text = input.trim()
-    // ✅ Only check for text and user - allow sending without activeConversationId for draft conversations
-    if (!text || !user) {
-      return
-    }
-
-    // Clear input immediately for better UX
-    setInput('')
-
-    // ✅ WhatsApp Web pattern: If draft conversation exists, create conversation with first message
+  const sendMessageContent = async (text: string) => {
+    if (!text || !user) return
     if (draftConversation && !activeConversationId) {
-      try {
-        const conversation = await createConversationWithMessage({
-          userId: user.id,
-          participantId: draftConversation.providerId,
-          participantType: draftConversation.participantType,
-          contextType: draftConversation.contextType,
-          contextId: draftConversation.contextId,
-          initialMessage: text,
-        })
-
-        // Conversation is now created and set as active by the store
-        // Draft is automatically cleared by createConversationWithMessage
-        console.log('Conversation created with first message:', conversation.id)
-      } catch (error) {
-        console.error('Failed to create conversation:', error)
-        // Restore input on error
-        setInput(text)
-      }
+      const conversation = await createConversationWithMessage({
+        userId: user.id,
+        participantId: draftConversation.providerId,
+        participantType: draftConversation.participantType,
+        contextType: draftConversation.contextType,
+        contextId: draftConversation.contextId,
+        initialMessage: text,
+      })
+      console.log('Conversation created with first message:', conversation.id)
       return
     }
-
-    // Normal message send for existing conversation
-    if (!activeConversationId) {
-      return
-    }
-
-    // Stop typing indicator
+    if (!activeConversationId) return
     stopTyping(activeConversationId)
-
-    // Send message via store (with optimistic update)
     await sendMessage({
       conversationId: activeConversationId,
       senderId: user.id,
@@ -204,6 +168,23 @@ export default function MessagesPage() {
       content: text,
       idempotencyKey: `${user.id}-${Date.now()}`,
     })
+  }
+
+  const handleSend = async () => {
+    const text = input.trim()
+    if (!text || !user) return
+    setInput('')
+    try {
+      if (draftConversation && !activeConversationId) {
+        await sendMessageContent(text)
+      } else {
+        if (!activeConversationId) return
+        await sendMessageContent(text)
+      }
+    } catch (error) {
+      console.error('Failed to send:', error)
+      setInput(text)
+    }
   }
 
   // Handle input change with typing indicator
@@ -280,11 +261,6 @@ export default function MessagesPage() {
       window.removeEventListener('selectConversation', handleConversationSelect as EventListener)
     }
   }, [isArchivedPage, handleSelectConversation])
-
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
-  }, [enhancedMessages])
 
   // Get conversation details for display
   const getConversationName = () => {
@@ -432,83 +408,58 @@ export default function MessagesPage() {
           </Dropdown>
         </div>
 
-        {/* Messages Container */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4">
-          {isLoadingMessages[activeConversationId || ''] ? (
-            <MessageListSkeleton count={5} />
-          ) : messagesError[activeConversationId || ''] ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <p className="text-sm text-red-500 mb-2">
-                  {messagesError[activeConversationId || '']}
-                </p>
-                <Button
-                  size="sm"
-                  color="primary"
-                  onPress={() => activeConversationId && fetchMessages(activeConversationId)}
-                >
-                  Retry
-                </Button>
-              </div>
-            </div>
-          ) : enhancedMessages.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <MessageSquare size={48} className="mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  No messages yet
-                </h3>
-                <p className="text-gray-500 dark:text-gray-400">
-                  Start the conversation by sending a message
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {enhancedMessages.map(msg => (
-                <EnhancedMessageBubble
-                  key={msg.id}
-                  message={msg}
-                  avatarSrc={avatarSrc}
-                  senderName={name}
-                  isAdminView={false}
-                  onRetry={messageId => retryFailedMessage(messageId)}
-                />
-              ))}
-
-              {/* Show typing indicator if someone else is typing (not current user) */}
-              {activeConversationId &&
-                user &&
-                (() => {
-                  const otherUsersTyping =
-                    typingUsers[activeConversationId]?.filter(userId => userId !== user.id) || []
-                  return (
-                    otherUsersTyping.length > 0 && (
-                      <div className="flex justify-start">
-                        <div className="rounded-2xl bg-gray-100 dark:bg-gray-800 shadow-sm px-4 py-3">
-                          <TypingDots show={true} />
-                        </div>
-                      </div>
-                    )
-                  )
-                })()}
-            </div>
-          )}
-        </div>
-
-        {/* Chat Input */}
-        <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+        {/* Messages + Input (shared MessageThread) */}
+        <div className="flex-1 flex flex-col min-h-0">
           {!isConnected && (
             <div className="mb-2 text-center">
               <span className="text-xs text-orange-500">Reconnecting...</span>
             </div>
           )}
-          <ChatInput
-            value={input}
-            onChange={handleInputChange}
-            onSend={handleSend}
+          <MessageThread
+            messages={enhancedMessages}
+            renderMessage={msg => (
+              <EnhancedMessageBubble
+                message={msg}
+                avatarSrc={avatarSrc}
+                senderName={name}
+                isAdminView={false}
+                onRetry={messageId => retryFailedMessage(messageId)}
+              />
+            )}
+            onSend={sendMessageContent}
+            isLoading={isLoadingMessages[activeConversationId || '']}
+            error={messagesError[activeConversationId || '']}
+            onRetry={() => activeConversationId && fetchMessages(activeConversationId)}
             placeholder="Type a message..."
             disabled={!isConnected || !user}
+            emptyMessage={
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <MessageSquare size={48} className="mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    No messages yet
+                  </h3>
+                  <p className="text-gray-500 dark:text-gray-400">
+                    Start the conversation by sending a message
+                  </p>
+                </div>
+              </div>
+            }
+            renderLoading={() => <MessageListSkeleton count={5} />}
+            renderAfterMessages={() => {
+              const otherUsersTyping =
+                activeConversationId && user
+                  ? typingUsers[activeConversationId]?.filter(id => id !== user.id) || []
+                  : []
+              return otherUsersTyping.length > 0 ? (
+                <div className="flex justify-start">
+                  <div className="rounded-2xl bg-gray-100 dark:bg-gray-800 shadow-sm px-4 py-3">
+                    <TypingDots show={true} />
+                  </div>
+                </div>
+              ) : null
+            }}
+            scrollAreaClassName="flex-1 min-h-0"
           />
         </div>
 

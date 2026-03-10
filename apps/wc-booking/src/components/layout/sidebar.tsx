@@ -18,6 +18,7 @@ import {
   Calendar,
   ChevronDown,
   ChevronRight,
+  Headphones,
   Heart,
   HelpCircle,
   Home,
@@ -126,6 +127,12 @@ const NAV_ITEMS: NavItem[] = [
     name: 'Help',
     href: '/help',
     icon: <HelpCircle size={20} />,
+    type: 'regular',
+  },
+  {
+    name: 'Support',
+    href: '/support/tickets',
+    icon: <Headphones size={20} />,
     type: 'regular',
   },
 ]

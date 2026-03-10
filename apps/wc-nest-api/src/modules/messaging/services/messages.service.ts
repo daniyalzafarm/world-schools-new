@@ -745,24 +745,7 @@ export class MessagesService {
 
     // Use transaction to ensure atomicity
     const result = await this.prisma.$transaction(async tx => {
-      // Create read receipt (upsert to handle duplicates)
-      const receipt = await tx.messageReadReceipt.upsert({
-        where: {
-          messageId_userId: {
-            messageId,
-            userId,
-          },
-        },
-        create: {
-          messageId,
-          userId,
-        },
-        update: {
-          readAt: new Date(), // Update timestamp if already exists
-        },
-      })
-
-      // Get message details
+      // Fetch message first (needed for ownership + participant update)
       const message = await tx.message.findUnique({
         where: { id: messageId },
         select: { conversationId: true, senderId: true },
@@ -772,8 +755,21 @@ export class MessagesService {
         throw new NotFoundException(`Message ${messageId} not found`)
       }
 
+      // Avoid rewriting read receipts (and spamming cache invalidation) when already read.
+      const existingReceipt = await tx.messageReadReceipt.findUnique({
+        where: { messageId_userId: { messageId, userId } },
+        select: { readAt: true },
+      })
+
+      const receipt = existingReceipt
+        ? { readAt: existingReceipt.readAt, created: false }
+        : {
+            readAt: (await tx.messageReadReceipt.create({ data: { messageId, userId } })).readAt,
+            created: true,
+          }
+
       // Decrement unread count and update lastReadAt for participant
-      await tx.conversationParticipant.updateMany({
+      const participantUpdate = await tx.conversationParticipant.updateMany({
         where: {
           conversationId: message.conversationId,
           userId,
@@ -785,8 +781,13 @@ export class MessagesService {
         },
       })
 
-      return { receipt, message }
+      return { receipt, message, unreadChanged: participantUpdate.count > 0 }
     })
+
+    // If nothing changed, bail early (prevents log/redis spam on large conversations)
+    if (!result.receipt.created && !result.unreadChanged) {
+      return { readAt: result.receipt.readAt }
+    }
 
     // PHASE 5: Broadcast read receipt via Redis pub/sub
     await this.redisPubSub.publishMessage('receipts:read', {
@@ -813,7 +814,7 @@ export class MessagesService {
     })
 
     this.logger.debug(`Message ${messageId} marked as read by user ${userId}`)
-    return result.receipt
+    return { readAt: result.receipt.readAt }
   }
 
   /**
@@ -827,23 +828,6 @@ export class MessagesService {
 
     // Use transaction to ensure atomicity
     const result = await this.prisma.$transaction(async tx => {
-      // Create delivery receipt (upsert to handle duplicates)
-      const receipt = await tx.messageDeliveryReceipt.upsert({
-        where: {
-          messageId_userId: {
-            messageId,
-            userId,
-          },
-        },
-        create: {
-          messageId,
-          userId,
-        },
-        update: {
-          deliveredAt: new Date(), // Update timestamp if already exists
-        },
-      })
-
       // Get message details
       const message = await tx.message.findUnique({
         where: { id: messageId },
@@ -854,8 +838,22 @@ export class MessagesService {
         throw new NotFoundException(`Message ${messageId} not found`)
       }
 
+      // Avoid rewriting delivery receipts when already delivered.
+      const existingReceipt = await tx.messageDeliveryReceipt.findUnique({
+        where: { messageId_userId: { messageId, userId } },
+        select: { deliveredAt: true },
+      })
+
+      const receipt = existingReceipt
+        ? { deliveredAt: existingReceipt.deliveredAt, created: false }
+        : {
+            deliveredAt: (await tx.messageDeliveryReceipt.create({ data: { messageId, userId } }))
+              .deliveredAt,
+            created: true,
+          }
+
       // Update message status to DELIVERED if not already READ
-      await tx.message.updateMany({
+      const statusUpdate = await tx.message.updateMany({
         where: {
           id: messageId,
           status: MessageStatus.SENT,
@@ -865,8 +863,13 @@ export class MessagesService {
         },
       })
 
-      return { receipt, message }
+      return { receipt, message, statusChanged: statusUpdate.count > 0 }
     })
+
+    // If nothing changed, bail early (prevents log/redis spam on large conversations)
+    if (!result.receipt.created && !result.statusChanged) {
+      return { deliveredAt: result.receipt.deliveredAt }
+    }
 
     // Calculate total delivery latency (from sent to delivered)
     const totalLatencyMs =
