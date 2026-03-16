@@ -8,6 +8,7 @@ import { type Message, MessageBubble, MessageThread } from '@world-schools/ui-we
 import { ArrowLeft, Calendar } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { supportTicketsService } from '@/services/support-tickets.services'
+import { messagingAttachmentsService } from '@/services/messaging-attachments.services'
 import { useSupportTicketConversation } from '@/hooks/useSupportTicketConversation'
 import type {
   SupportTicket,
@@ -27,6 +28,7 @@ function messageToUiMessage(msg: SupportTicketMessageResponse, currentUserId: st
     status: msg.status,
     deliveredAt: msg.deliveredAt ? new Date(msg.deliveredAt) : null,
     readAt: msg.readAt ? new Date(msg.readAt) : null,
+    attachments: Array.isArray((msg as any).attachments) ? ((msg as any).attachments as any) : null,
   }
 }
 
@@ -97,11 +99,37 @@ export default function ParentSupportTicketDetailPage() {
     [messages, user?.id]
   )
 
-  const handleSendReply = async (content: string) => {
+  const handleSendReply = async ({
+    content,
+    attachments,
+  }: {
+    content: string
+    attachments: File[]
+  }) => {
+    const trimmed = content.trim()
     if (!id || !user?.id || sendingReply) return
+    if (!trimmed && attachments.length === 0) return
     setSendingReply(true)
     try {
-      await sendReply(content)
+      let attachmentIds: string[] | undefined
+
+      if (attachments.length > 0) {
+        const uploadResults = await Promise.all(
+          attachments.map(file => messagingAttachmentsService.uploadAttachment(file))
+        )
+
+        const failed = uploadResults.find(result => !result.success)
+        if (failed) {
+          console.error('Failed to upload one or more attachments for support ticket reply', failed)
+          return
+        }
+
+        attachmentIds = uploadResults
+          .map(result => (result.success ? result.data.id : null))
+          .filter((id): id is string => id != null)
+      }
+
+      await sendReply(trimmed, attachmentIds)
     } finally {
       setSendingReply(false)
     }
@@ -159,15 +187,15 @@ export default function ParentSupportTicketDetailPage() {
 
   if (isLoadingTicket || !ticket) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
+      <div className="h-full max-w-3xl mx-auto bg-white dark:bg-gray-900">
+        <div className="flex items-center gap-3 py-4">
           <Skeleton className="h-9 w-9 rounded-lg" />
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <Skeleton className="h-5 w-64 rounded-md" />
             <Skeleton className="h-4 w-40 rounded-md" />
           </div>
         </div>
-        <Skeleton className="h-64 w-full rounded-xl" />
+        <Skeleton className="mt-4 h-64 w-full rounded-xl" />
       </div>
     )
   }

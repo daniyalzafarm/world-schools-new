@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -24,68 +23,40 @@ import {
   ApiTags,
 } from '@nestjs/swagger'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
-import { AttachmentsService } from '../services/attachments.service'
-import { validateFileUpload } from '../validators/file-upload.validator'
+import { AttachmentsService } from '../../messaging/services/attachments.service'
+import { validateFileUpload } from '../../messaging/validators/file-upload.validator'
 
-@ApiTags('Attachments')
+/**
+ * User Attachments Controller
+ *
+ * App-specific wrapper for message attachment endpoints used by wc-booking (user) app.
+ * All endpoints are prefixed with /user/messaging/attachments so the JWT strategy
+ * uses wc_user_access_token (cookie or x-access-token).
+ */
+@ApiTags('User Messaging - Attachments')
 @ApiBearerAuth()
-@Controller('messaging/attachments')
-export class AttachmentsController {
-  private readonly logger = new Logger(AttachmentsController.name)
+@Controller('user/messaging/attachments')
+export class UserAttachmentsController {
+  private readonly logger = new Logger(UserAttachmentsController.name)
 
   constructor(private readonly attachmentsService: AttachmentsService) {}
 
-  /**
-   * Upload a file attachment
-   */
   @Post('upload')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({
-    summary: 'Upload a file attachment',
-    description: 'Uploads a file to Azure Blob Storage and creates an attachment record',
-  })
+  @ApiOperation({ summary: 'Upload a file attachment' })
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        file: {
-          type: 'string',
-          format: 'binary',
-          description: 'File to upload (max 50MB)',
-        },
-        messageId: {
-          type: 'string',
-          format: 'uuid',
-          description: 'Optional message ID to associate with the attachment',
-        },
+        file: { type: 'string', format: 'binary' },
+        messageId: { type: 'string', format: 'uuid' },
       },
       required: ['file'],
     },
   })
-  @ApiResponse({
-    status: 201,
-    description: 'File uploaded successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        message: { type: 'string' },
-        data: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            fileName: { type: 'string' },
-            fileSize: { type: 'number' },
-            mimeType: { type: 'string' },
-            url: { type: 'string' },
-            thumbnailUrl: { type: 'string' },
-          },
-        },
-      },
-    },
-  })
+  @ApiResponse({ status: 201, description: 'File uploaded successfully' })
   @ApiResponse({ status: 400, description: 'Invalid file or file too large' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async uploadFile(
@@ -93,9 +64,7 @@ export class AttachmentsController {
     @Query('messageId') messageId: string | undefined,
     @CurrentUser('id') currentUserId: string
   ) {
-    // Validate file upload (size, type, extension)
     validateFileUpload(file)
-
     this.logger.log(`Uploading file: ${file.originalname} (${file.size} bytes)`)
 
     const attachment = await this.attachmentsService.uploadAttachment({
@@ -114,26 +83,11 @@ export class AttachmentsController {
     }
   }
 
-  /**
-   * Get attachment by ID
-   */
   @Get(':id')
-  @ApiOperation({
-    summary: 'Get attachment by ID',
-    description: 'Retrieves attachment metadata and generates a signed URL for download',
-  })
+  @ApiOperation({ summary: 'Get attachment by ID' })
   @ApiParam({ name: 'id', description: 'Attachment ID', type: String })
-  @ApiQuery({
-    name: 'expiryHours',
-    required: false,
-    type: Number,
-    example: 24,
-    description: 'URL expiry in hours',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Attachment retrieved successfully',
-  })
+  @ApiQuery({ name: 'expiryHours', required: false, type: Number, example: 24 })
+  @ApiResponse({ status: 200, description: 'Attachment retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Attachment not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getAttachment(
@@ -141,50 +95,32 @@ export class AttachmentsController {
     @Query('expiryHours') expiryHours = 24,
     @CurrentUser('id') currentUserId: string
   ) {
-    this.logger.log(`Getting attachment ${attachmentId} for user ${currentUserId}`)
-
     const attachment = await this.attachmentsService.getAttachment(attachmentId, currentUserId)
     const downloadUrl = await this.attachmentsService.getAttachmentUrl(
       attachmentId,
       expiryHours,
       currentUserId
     )
-
     return {
       success: true,
       message: 'Attachment retrieved successfully',
-      data: {
-        ...attachment,
-        downloadUrl,
-      },
+      data: { ...attachment, downloadUrl },
     }
   }
 
-  /**
-   * Get attachments for a message
-   */
   @Get('message/:messageId')
-  @ApiOperation({
-    summary: 'Get attachments for a message',
-    description: 'Retrieves all attachments associated with a specific message',
-  })
+  @ApiOperation({ summary: 'Get attachments for a message' })
   @ApiParam({ name: 'messageId', description: 'Message ID', type: String })
-  @ApiResponse({
-    status: 200,
-    description: 'Attachments retrieved successfully',
-  })
+  @ApiResponse({ status: 200, description: 'Attachments retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getMessageAttachments(
     @Param('messageId') messageId: string,
     @CurrentUser('id') currentUserId: string
   ) {
-    this.logger.log(`Getting attachments for message ${messageId} for user ${currentUserId}`)
-
     const attachments = await this.attachmentsService.getMessageAttachments(
       messageId,
       currentUserId
     )
-
     return {
       success: true,
       message: 'Attachments retrieved successfully',
@@ -192,30 +128,18 @@ export class AttachmentsController {
     }
   }
 
-  /**
-   * Delete an attachment
-   */
   @Delete(':id')
-  @ApiOperation({
-    summary: 'Delete an attachment',
-    description: 'Deletes an attachment from Azure Blob Storage and database (only by uploader)',
-  })
+  @ApiOperation({ summary: 'Delete an attachment' })
   @ApiParam({ name: 'id', description: 'Attachment ID', type: String })
-  @ApiResponse({
-    status: 200,
-    description: 'Attachment deleted successfully',
-  })
+  @ApiResponse({ status: 200, description: 'Attachment deleted successfully' })
   @ApiResponse({ status: 404, description: 'Attachment not found' })
-  @ApiResponse({ status: 403, description: 'Not authorized to delete this attachment' })
+  @ApiResponse({ status: 403, description: 'Not authorized to delete' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async deleteAttachment(
     @Param('id') attachmentId: string,
     @CurrentUser('id') currentUserId: string
   ) {
-    this.logger.log(`Deleting attachment ${attachmentId}`)
-
     await this.attachmentsService.deleteAttachment(attachmentId, currentUserId)
-
     return {
       success: true,
       message: 'Attachment deleted successfully',

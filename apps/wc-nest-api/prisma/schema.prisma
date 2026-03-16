@@ -993,9 +993,6 @@ model Message {
   content     String      @db.Text
   contentType ContentType @default(TEXT) @map("content_type")
 
-  // Attachments
-  attachments Json? // Array of {id, url, type, size, name}
-
   // Message metadata
   type     MessageType @default(REGULAR)
   metadata Json? // For transfer requests, system messages, etc.
@@ -1042,20 +1039,21 @@ model Message {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  conversation     Conversation             @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender           User                     @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  lastMessageFor   Conversation?            @relation("LastMessage")
-  readReceipts     MessageReadReceipt[]
-  deliveryReceipts MessageDeliveryReceipt[] // GAP 3
-  reactions        MessageReaction[] // GAP 4
-  editHistory      MessageEditHistory[] // GAP 8
-  mentions         MessageMention[] // GAP 14
-  bookmarks        MessageBookmark[] // GAP 15
-  reports          MessageReport[] // GAP 25
-  replyTo          Message?                 @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies          Message[]                @relation("MessageReplies")
-  forwardedFrom    Message?                 @relation("MessageForwards", fields: [forwardedFromId], references: [id], onDelete: SetNull)
-  forwards         Message[]                @relation("MessageForwards")
+  conversation       Conversation             @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender             User                     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  lastMessageFor     Conversation?            @relation("LastMessage")
+  readReceipts       MessageReadReceipt[]
+  deliveryReceipts   MessageDeliveryReceipt[] // GAP 3
+  reactions          MessageReaction[] // GAP 4
+  editHistory        MessageEditHistory[] // GAP 8
+  mentions           MessageMention[] // GAP 14
+  bookmarks          MessageBookmark[] // GAP 15
+  reports            MessageReport[] // GAP 25
+  replyTo            Message?                 @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies            Message[]                @relation("MessageReplies")
+  forwardedFrom      Message?                 @relation("MessageForwards", fields: [forwardedFromId], references: [id], onDelete: SetNull)
+  forwards           Message[]                @relation("MessageForwards")
+  messageAttachments MessageAttachment[]
 
   @@index([conversationId, createdAt])
   @@index([conversationId, createdAt(sort: Desc), id]) // GAP 2 - Cursor pagination
@@ -1200,8 +1198,8 @@ model MessageReport {
 }
 
 model MessageAttachment {
-  id        String @id @default(uuid())
-  messageId String @map("message_id")
+  id         String  @id @default(uuid())
+  messageId  String? @map("message_id") // null until attached to a message (upload-then-send)
 
   // File metadata
   fileName String   @map("file_name")
@@ -1209,17 +1207,17 @@ model MessageAttachment {
   mimeType String   @map("mime_type")
   fileType FileType @map("file_type")
 
-  // Storage
-  storageUrl   String  @map("storage_url") // Azure Blob Storage URL
-  cdnUrl       String? @map("cdn_url") // CDN URL for fast delivery
-  thumbnailUrl String? @map("thumbnail_url") // For images/videos
+  // Storage (paths; URLs built at read time from env, like camp images)
+  storageUrl   String  @map("storage_url")
+  thumbnailUrl String? @map("thumbnail_url")
 
   // Metadata
   uploadedBy String   @map("uploaded_by")
   uploadedAt DateTime @default(now()) @map("uploaded_at")
 
   // Relations
-  uploader User @relation(fields: [uploadedBy], references: [id])
+  message  Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  uploader User     @relation(fields: [uploadedBy], references: [id])
 
   @@index([messageId])
   @@index([uploadedBy])

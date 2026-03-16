@@ -83,6 +83,29 @@ export interface MessagingState {
   messagesError: Record<string, string | null>
 
   /**
+   * Pagination cursor for loading older messages per conversation
+   * Key: conversationId, Value: nextCursor or null
+   */
+  messagesNextCursor: Record<string, string | null>
+
+  /**
+   * Whether more (older) messages are available per conversation
+   * Key: conversationId, Value: boolean
+   */
+  messagesHasMore: Record<string, boolean>
+
+  /**
+   * Loading state for "load more" (older) messages by conversation ID
+   */
+  isLoadingMoreMessages: Record<string, boolean>
+
+  /**
+   * When set, the user hit rate limit (429); value is seconds to wait before sending again.
+   * Cleared after that time or on next successful send.
+   */
+  rateLimitRetryAfter: number | null
+
+  /**
    * Whether the store has been initialized
    */
   isInitialized: boolean
@@ -167,9 +190,14 @@ export interface MessagingActions {
 
   // Messages
   /**
-   * Fetch messages for a conversation
+   * Fetch messages for a conversation (initial load)
    */
   fetchMessages: (conversationId: string) => Promise<void>
+
+  /**
+   * Load older messages for a conversation (cursor-based pagination)
+   */
+  fetchMoreMessages: (conversationId: string) => Promise<void>
 
   /**
    * Send a message (with optimistic update)
@@ -249,6 +277,19 @@ export interface MessagingActions {
    * Clear messages error for a conversation
    */
   clearMessagesError: (conversationId: string) => void
+
+  /**
+   * Clear the rate limit cooldown (e.g. after retryAfter seconds or when user is allowed to send again)
+   */
+  clearRateLimitRetryAfter: () => void
+
+  /**
+   * Report a message for inappropriate content
+   */
+  reportMessage: (
+    messageId: string,
+    dto: { reason: string; description?: string }
+  ) => Promise<{ success: boolean; error?: string }>
 }
 
 /**

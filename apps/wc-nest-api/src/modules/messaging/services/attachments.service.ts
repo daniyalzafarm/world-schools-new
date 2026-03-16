@@ -1,7 +1,15 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { ConfigService } from '../../../config/config.service'
 import { AzureStorageService } from '@world-schools/wc-utils/backend'
+import { ConversationType } from '../../../generated/client/client'
+import { ConversationsService } from './conversations.service'
 
 /**
  * Attachment upload options
@@ -70,7 +78,8 @@ export class AttachmentsService {
 
   constructor(
     private prisma: PrismaService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private conversationsService: ConversationsService
   ) {
     // Azure Storage Service will be initialized lazily when needed
   }
@@ -119,40 +128,41 @@ export class AttachmentsService {
         },
       })
 
-      // Generate thumbnail for images
-      let thumbnailUrl: string | undefined
-      if (this.isImage(mimeType)) {
-        const thumbnail = await this.generateThumbnail(uploadResult.blobName)
-        thumbnailUrl = thumbnail ?? undefined
-      }
+      // Store only storage path (blob name), not full URL - URLs are built in GET APIs (like camp images)
+      const thumbnailPath = this.isImage(mimeType) ? uploadResult.blobName : null
 
       // Determine file type from MIME type
       const fileType = this.getFileType(mimeType)
 
-      // Create attachment record in database
+      // Create attachment record in database (storageUrl/thumbnailUrl = path on storage)
       const attachment = await this.prisma.messageAttachment.create({
         data: {
           fileName,
           fileSize: size,
           mimeType,
           fileType: fileType as any, // Cast to satisfy Prisma type
-          storageUrl: uploadResult.url,
-          cdnUrl: uploadResult.url, // Use same URL for now
-          thumbnailUrl,
+          storageUrl: uploadResult.blobName,
+          thumbnailUrl: thumbnailPath,
           uploadedBy,
-          messageId: messageId || '', // Temporary - will be updated when message is created
+          ...(messageId ? { messageId } : {}), // omit when no message yet (upload-then-send)
         },
       })
 
       this.logger.log(`Attachment uploaded: ${attachment.id} (${fileName})`)
+
+      // Build URLs for response (SAS URLs, not stored in DB)
+      const url = await this.generateStorageUrl(attachment.storageUrl)
+      const thumbnailUrl = attachment.thumbnailUrl
+        ? await this.generateStorageUrl(attachment.thumbnailUrl)
+        : undefined
 
       return {
         id: attachment.id,
         fileName: attachment.fileName,
         fileSize: attachment.fileSize,
         mimeType: attachment.mimeType,
-        url: attachment.storageUrl,
-        thumbnailUrl: attachment.thumbnailUrl || undefined,
+        url,
+        thumbnailUrl,
         blobName: uploadResult.blobName,
       }
     } catch (error) {
@@ -162,20 +172,36 @@ export class AttachmentsService {
   }
 
   /**
-   * Generate a thumbnail for an image attachment
-   * For now, returns the same URL - can be enhanced with actual thumbnail generation
+   * Generate a SAS URL for a storage path (blob name).
+   * Used when returning attachment data in API responses - like camp images in get camp API.
    */
-  async generateThumbnail(blobName: string): Promise<string | null> {
+  async generateStorageUrl(storagePath: string, expiryHours = 24): Promise<string> {
+    const blobName = this.getBlobName(storagePath)
+    if (!blobName) return storagePath
     try {
-      // TODO: Implement actual thumbnail generation using Sharp or similar library
-      // For now, return a SAS URL to the original image
       const azureStorage = this.getAzureStorage()
-      const sasUrl = await azureStorage.generateSasUrl(blobName, 24)
-      return sasUrl
+      return await azureStorage.generateSasUrl(blobName, expiryHours)
     } catch (error) {
-      this.logger.error('Failed to generate thumbnail:', error)
-      return null
+      this.logger.warn(`Failed to generate URL for path ${storagePath}:`, error)
+      return storagePath
     }
+  }
+
+  /**
+   * Resolve message.attachments array (paths) to full URLs for API response.
+   * Preserves all attachment fields (id, fileName, etc.); only url and thumbnailUrl are resolved.
+   */
+  async resolveMessageAttachmentsUrls<T extends { url: string; thumbnailUrl?: string | null }>(
+    attachments: T[] | null
+  ): Promise<T[]> {
+    if (!attachments || attachments.length === 0) return []
+    return Promise.all(
+      attachments.map(async a => ({
+        ...a,
+        url: await this.generateStorageUrl(a.url),
+        thumbnailUrl: a.thumbnailUrl ? await this.generateStorageUrl(a.thumbnailUrl) : null,
+      }))
+    )
   }
 
   /**
@@ -197,8 +223,7 @@ export class AttachmentsService {
         throw new BadRequestException('You do not have permission to delete this attachment')
       }
 
-      // Extract blob name from storage URL
-      const blobName = this.extractBlobNameFromUrl(attachment.storageUrl)
+      const blobName = this.getBlobName(attachment.storageUrl)
 
       // Delete from Azure Blob Storage
       if (blobName) {
@@ -225,7 +250,7 @@ export class AttachmentsService {
   /**
    * Get a signed CDN URL for an attachment
    */
-  async getAttachmentUrl(attachmentId: string, expiryHours = 24): Promise<string> {
+  async getAttachmentUrl(attachmentId: string, expiryHours = 24, userId?: string): Promise<string> {
     try {
       const attachment = await this.prisma.messageAttachment.findUnique({
         where: { id: attachmentId },
@@ -235,15 +260,14 @@ export class AttachmentsService {
         throw new NotFoundException('Attachment not found')
       }
 
-      // Extract blob name from storage URL
-      const blobName = this.extractBlobNameFromUrl(attachment.storageUrl)
-
-      if (!blobName) {
-        // Return existing URL if we can't extract blob name
-        return attachment.cdnUrl || attachment.storageUrl
+      // Optional access control when userId is provided
+      if (userId) {
+        await this.ensureUserCanAccessAttachment(attachment, userId)
       }
 
-      // Generate SAS URL with specified expiry
+      const blobName = this.getBlobName(attachment.storageUrl)
+      if (!blobName) return attachment.storageUrl
+
       const azureStorage = this.getAzureStorage()
       const sasUrl = await azureStorage.generateSasUrl(blobName, expiryHours)
 
@@ -287,7 +311,7 @@ export class AttachmentsService {
   /**
    * Get attachment by ID
    */
-  async getAttachment(attachmentId: string): Promise<AttachmentResult> {
+  async getAttachment(attachmentId: string, userId: string): Promise<AttachmentResult> {
     const attachment = await this.prisma.messageAttachment.findUnique({
       where: { id: attachmentId },
     })
@@ -296,57 +320,161 @@ export class AttachmentsService {
       throw new NotFoundException('Attachment not found')
     }
 
-    const blobName = this.extractBlobNameFromUrl(attachment.storageUrl)
+    await this.ensureUserCanAccessAttachment(attachment, userId)
+
+    const url = await this.generateStorageUrl(attachment.storageUrl)
+    const thumbnailUrl = attachment.thumbnailUrl
+      ? await this.generateStorageUrl(attachment.thumbnailUrl)
+      : undefined
 
     return {
       id: attachment.id,
       fileName: attachment.fileName,
       fileSize: attachment.fileSize,
       mimeType: attachment.mimeType,
-      url: attachment.cdnUrl || attachment.storageUrl,
-      thumbnailUrl: attachment.thumbnailUrl || undefined,
-      blobName: blobName || '',
+      url,
+      thumbnailUrl,
+      blobName: this.getBlobName(attachment.storageUrl) || '',
     }
   }
 
   /**
    * Get attachments for a message
    */
-  async getMessageAttachments(messageId: string): Promise<AttachmentResult[]> {
+  async getMessageAttachments(messageId: string, userId: string): Promise<AttachmentResult[]> {
+    // Ensure user participates in the conversation or is a provider org member (USER_PROVIDER)
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: {
+        conversationId: true,
+        senderId: true,
+        conversation: {
+          select: {
+            type: true,
+            metadata: true,
+            participants: {
+              where: { userId },
+              select: { id: true },
+            },
+          },
+        },
+      },
+    })
+
+    if (!message) {
+      throw new NotFoundException('Message not found')
+    }
+
+    const isParticipant =
+      message.conversation?.participants && message.conversation.participants.length > 0
+
+    if (!isParticipant && message.senderId !== userId) {
+      const conversation = message.conversation
+      const isProviderOrgMember =
+        conversation?.type === ConversationType.USER_PROVIDER &&
+        (conversation.metadata as { providerId?: string } | null)?.providerId &&
+        (await this.conversationsService.getProviderIdForUser(userId)) ===
+          (conversation.metadata as { providerId?: string }).providerId
+      if (!isProviderOrgMember) {
+        throw new ForbiddenException('You do not have access to these attachments')
+      }
+    }
+
     const attachments = await this.prisma.messageAttachment.findMany({
       where: { messageId },
       orderBy: { uploadedAt: 'asc' },
     })
 
-    return attachments.map(attachment => {
-      const blobName = this.extractBlobNameFromUrl(attachment.storageUrl)
-      return {
+    const result: AttachmentResult[] = []
+    for (const attachment of attachments) {
+      const url = await this.generateStorageUrl(attachment.storageUrl)
+      const thumbnailUrl = attachment.thumbnailUrl
+        ? await this.generateStorageUrl(attachment.thumbnailUrl)
+        : undefined
+      result.push({
         id: attachment.id,
         fileName: attachment.fileName,
         fileSize: attachment.fileSize,
         mimeType: attachment.mimeType,
-        url: attachment.cdnUrl || attachment.storageUrl,
-        thumbnailUrl: attachment.thumbnailUrl || undefined,
-        blobName: blobName || '',
-      }
-    })
+        url,
+        thumbnailUrl,
+        blobName: this.getBlobName(attachment.storageUrl) || '',
+      })
+    }
+    return result
   }
 
   /**
-   * Extract blob name from Azure Storage URL
+   * Ensure a user is allowed to access a specific attachment
+   */
+  private async ensureUserCanAccessAttachment(
+    attachment: { messageId: string | null; uploadedBy: string },
+    userId: string
+  ): Promise<void> {
+    // Uploader always has access
+    if (attachment.uploadedBy === userId) {
+      return
+    }
+
+    // Pre-send attachments (no associated message yet) are only visible to uploader
+    if (!attachment.messageId) {
+      throw new ForbiddenException('You do not have access to this attachment')
+    }
+
+    const message = await this.prisma.message.findUnique({
+      where: { id: attachment.messageId },
+      select: {
+        conversationId: true,
+        conversation: {
+          select: {
+            type: true,
+            metadata: true,
+            participants: {
+              where: { userId },
+              select: { id: true },
+            },
+          },
+        },
+      },
+    })
+
+    const isParticipant =
+      message?.conversation?.participants && message.conversation.participants.length > 0
+
+    if (isParticipant) return
+
+    // For USER_PROVIDER conversations, allow provider org members who are not yet direct participants
+    const conversation = message?.conversation
+    if (conversation?.type === ConversationType.USER_PROVIDER) {
+      const metadata = conversation.metadata as { providerId?: string } | null
+      if (metadata?.providerId) {
+        const userProviderId = await this.conversationsService.getProviderIdForUser(userId)
+        if (userProviderId === metadata.providerId) return
+      }
+    }
+
+    throw new ForbiddenException('You do not have access to this attachment')
+  }
+
+  /**
+   * Get blob name (storage path). storageUrl may be stored as path (blob name) or legacy full URL.
+   */
+  private getBlobName(storageUrl: string): string | null {
+    if (!storageUrl) return null
+    if (!storageUrl.includes('://')) return storageUrl
+    return this.extractBlobNameFromUrl(storageUrl)
+  }
+
+  /**
+   * Extract blob name from Azure Storage URL (for legacy records that stored full URL)
    */
   private extractBlobNameFromUrl(url: string): string | null {
     try {
       const urlObj = new URL(url)
-      // Remove leading slash and container name
       const pathParts = urlObj.pathname.split('/').filter(Boolean)
-      if (pathParts.length > 1) {
-        // Skip container name (first part) and return the rest
-        return pathParts.slice(1).join('/')
-      }
+      if (pathParts.length > 1) return pathParts.slice(1).join('/')
       return null
-    } catch (error) {
-      this.logger.error('Failed to extract blob name from URL:', error)
+    } catch {
       return null
     }
   }

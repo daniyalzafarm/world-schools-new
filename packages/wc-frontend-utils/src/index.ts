@@ -40,6 +40,9 @@ export * from './lib/messaging/services'
 // Messaging store (Zustand store factory)
 export * from './lib/messaging/store'
 
+// Messaging UI components (EnhancedMessageBubble, etc.)
+export * from './lib/messaging/components'
+
 // Global WebSocket service (shared across apps)
 export * from './lib/websocket'
 

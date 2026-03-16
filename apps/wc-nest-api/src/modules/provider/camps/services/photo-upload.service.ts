@@ -161,7 +161,7 @@ export class PhotoUploadService {
       const urlObj = new URL(url)
 
       // Extract the path after the container name
-      // Format: https://{account}.blob.core.windows.net/{container}/{blobName}
+      // Format: {accountUrl}/{container}/{blobName}
       const pathParts = urlObj.pathname.split('/')
 
       // Remove empty strings and container name (first two parts)

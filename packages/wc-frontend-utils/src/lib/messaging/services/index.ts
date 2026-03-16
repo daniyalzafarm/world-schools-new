@@ -19,3 +19,4 @@
 
 export * from './create-conversations-service'
 export * from './create-messages-service'
+export * from './create-attachments-service'

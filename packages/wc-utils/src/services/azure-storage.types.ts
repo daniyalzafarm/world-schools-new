@@ -4,6 +4,11 @@
 
 export interface AzureStorageConfig {
   /**
+   * Azure Storage account url
+   */
+  accountUrl: string
+
+  /**
    * Azure Storage account name
    */
   accountName: string

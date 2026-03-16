@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useCallback, useEffect, useRef } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Textarea } from '@heroui/react'
-import { ArrowUp } from 'lucide-react'
+import { ArrowUp, Paperclip, X } from 'lucide-react'
 import { cn } from '../../utils/cn'
 
 interface ChatInputProps {
@@ -15,6 +15,14 @@ interface ChatInputProps {
   className?: string
   isLarge?: boolean
   fullWidth?: boolean
+  /** Optional list of files currently attached to the message. */
+  attachments?: File[]
+  /** Called whenever the attachment list should change. */
+  onFilesChange?: (files: File[]) => void
+  /** Maximum number of files that can be attached to a single message. */
+  maxAttachments?: number
+  /** Maximum combined size of all attachments in bytes. */
+  maxTotalAttachmentSizeBytes?: number
 }
 
 export function ChatInput({
@@ -27,9 +35,15 @@ export function ChatInput({
   isLarge = false,
   fullWidth = false,
   className,
+  attachments,
+  onFilesChange,
+  maxAttachments = 10,
+  maxTotalAttachmentSizeBytes = 100 * 1024 * 1024,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const shouldRefocusAfterSendRef = useRef(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [attachmentError, setAttachmentError] = useState<string | null>(null)
 
   const setTextareaNode = useCallback((node: unknown) => {
     // HeroUI's Textarea may forward refs to a wrapper; ensure we capture the real <textarea>.
@@ -52,7 +66,7 @@ export function ChatInput({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (value.trim() && !disabled) {
+      if (canSend) {
         shouldRefocusAfterSendRef.current = true
         onSend()
       }
@@ -60,7 +74,7 @@ export function ChatInput({
   }
 
   const handleSend = () => {
-    if (value.trim() && !disabled) {
+    if (canSend) {
       shouldRefocusAfterSendRef.current = true
       onSend()
     }
@@ -83,7 +97,50 @@ export function ChatInput({
     focusTextarea()
   }, [value, disabled, focusTextarea])
 
-  const canSend = value.trim().length > 0 && !disabled
+  const canSend = (value.trim().length > 0 || (attachments && attachments.length > 0)) && !disabled
+
+  const handleFileButtonClick = () => {
+    if (disabled || !onFilesChange) return
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = event => {
+    if (!onFilesChange) return
+    const files = Array.from(event.target.files || [])
+    if (!files.length) return
+
+    const existing = attachments ?? []
+    let next = [...existing, ...files]
+
+    if (maxAttachments && next.length > maxAttachments) {
+      next = next.slice(0, maxAttachments)
+      setAttachmentError(`You can attach up to ${maxAttachments} files per message.`)
+    } else {
+      setAttachmentError(null)
+    }
+
+    const totalSize = next.reduce((sum, f) => sum + f.size, 0)
+    if (maxTotalAttachmentSizeBytes && totalSize > maxTotalAttachmentSizeBytes) {
+      setAttachmentError(
+        `Total attachment size exceeds ${(maxTotalAttachmentSizeBytes / (1024 * 1024)).toFixed(0)}MB.`
+      )
+      // Do not update attachments if over total limit
+      event.target.value = ''
+      return
+    }
+
+    onFilesChange(next)
+    event.target.value = ''
+  }
+
+  const handleRemoveAttachment = (index: number) => {
+    if (!onFilesChange || !attachments) return
+    const next = attachments.filter((_, i) => i !== index)
+    onFilesChange(next)
+    if (!next.length) {
+      setAttachmentError(null)
+    }
+  }
 
   return (
     <div
@@ -97,6 +154,30 @@ export function ChatInput({
         className={`w-full ${!isLarge && !fullWidth ? 'md:w-[80%]' : ''} ${fullWidth ? 'px-16' : ''} mx-auto`}
       >
         <div className="relative max-h-40 flex items-end gap-3 bg-white shadow dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-2">
+          {onFilesChange && (
+            <div className="self-center">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFileChange}
+                // Approximate backend allow-list; backend remains source of truth.
+                accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv,application/zip,application/x-zip-compressed,application/x-rar-compressed,application/x-7z-compressed,audio/*,video/*"
+              />
+              <Button
+                isIconOnly
+                size="sm"
+                variant="light"
+                onPress={handleFileButtonClick}
+                disabled={disabled}
+                className="shrink-0 text-gray-500 dark:text-gray-300"
+                aria-label="Attach files"
+              >
+                <Paperclip size={16} />
+              </Button>
+            </div>
+          )}
           <Textarea
             ref={setTextareaNode as any}
             value={value}
@@ -141,6 +222,31 @@ export function ChatInput({
             <ArrowUp className="text-white" size={16} />
           </Button>
         </div>
+
+        {attachments && attachments.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {attachments.map((file, index) => (
+              <div
+                key={`${file.name}-${index}`}
+                className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              >
+                <span className="max-w-[180px] truncate">{file.name}</span>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveAttachment(index)}
+                  className="cursor-pointer text-gray-500 hover:text-gray-700 dark:hover:text-gray-100"
+                  aria-label={`Remove ${file.name}`}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {attachmentError && (
+          <p className="mt-1 text-xs text-red-500 dark:text-red-400">{attachmentError}</p>
+        )}
 
         {/* Helper text */}
         {helpText && (

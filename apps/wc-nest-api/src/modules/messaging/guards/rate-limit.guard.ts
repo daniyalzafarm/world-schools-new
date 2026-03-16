@@ -92,8 +92,23 @@ export class RateLimitGuard implements CanActivate {
         throw error
       }
 
-      // For Redis errors, log and allow the request (fail open)
+      // Redis errors: fail open (allow) or fail closed (reject) based on config
+      // RATE_LIMIT_FAIL_MODE: 'open' (default) = allow request when Redis is down; 'closed' = return 503
+      const failMode = process.env.RATE_LIMIT_FAIL_MODE ?? 'open'
       this.logger.error(`Rate limit check failed for user ${userId}:`, error)
+
+      if (failMode === 'closed') {
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+            message: 'Rate limiting is temporarily unavailable. Please try again in a few moments.',
+            error: 'Service Unavailable',
+            retryAfter: this.WINDOW_SECONDS,
+          },
+          HttpStatus.SERVICE_UNAVAILABLE
+        )
+      }
+
       return true
     }
   }

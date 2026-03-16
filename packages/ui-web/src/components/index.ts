@@ -38,3 +38,4 @@ export {
   type MessageThreadMessage,
   type MessageThreadProps,
 } from './messages/message-thread'
+export { MessageAttachmentsList } from './messages/message-attachments-list'

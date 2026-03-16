@@ -14,8 +14,8 @@
 import React from 'react'
 import { Avatar, Button } from '@heroui/react'
 import { AlertCircle, Check, CheckCheck, Clock, RefreshCw } from 'lucide-react'
-import { cn, formatMessageTimestamp } from '@world-schools/ui-web'
-import { MessageStatus } from '@world-schools/wc-frontend-utils'
+import { cn, formatMessageTimestamp, MessageAttachmentsList } from '@world-schools/ui-web'
+import { MessageStatus } from '../types'
 
 export interface EnhancedMessage {
   id: string
@@ -28,6 +28,17 @@ export interface EnhancedMessage {
   isChatbot?: boolean
   deliveredAt?: Date | null
   readAt?: Date | null
+  attachments?:
+    | {
+        id: string
+        fileName: string
+        fileSize: number
+        mimeType: string
+        fileType: string
+        url: string
+        thumbnailUrl?: string | null
+      }[]
+    | null
 }
 
 interface EnhancedMessageBubbleProps {
@@ -120,7 +131,7 @@ export function EnhancedMessageBubble({
         <div className="max-w-[80%] lg:max-w-[60%]">
           <div
             className={cn(
-              'rounded-2xl rounded-bl-md px-4 py-3 shadow-sm',
+              'rounded-2xl rounded-bl-md px-4 py-3 shadow-sm flex flex-col gap-2',
               message.isTransferSummary
                 ? 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800'
                 : message.isTransferRequest
@@ -132,7 +143,20 @@ export function EnhancedMessageBubble({
                       : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
             )}
           >
-            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+            {message.attachments && message.attachments.length > 0 && (
+              <MessageAttachmentsList
+                attachments={message.attachments.map(a => ({
+                  id: a.id,
+                  fileName: a.fileName,
+                  fileSize: a.fileSize,
+                  mimeType: a.mimeType,
+                  fileType: a.fileType as any,
+                  url: a.url,
+                  thumbnailUrl: a.thumbnailUrl,
+                }))}
+              />
+            )}
+            <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">
               {message.text}
             </p>
           </div>
@@ -152,13 +176,28 @@ export function EnhancedMessageBubble({
       <div className="max-w-[80%] lg:max-w-[60%]">
         <div
           className={cn(
-            'rounded-2xl rounded-br-md px-4 py-3 shadow-sm',
+            'rounded-2xl rounded-br-md px-4 py-3 shadow-sm flex flex-col gap-2',
             message.status === MessageStatus.FAILED
               ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
               : 'bg-primary-100 text-primary-dark'
           )}
         >
-          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.text}</p>
+          {message.attachments && message.attachments.length > 0 && (
+            <MessageAttachmentsList
+              attachments={message.attachments.map(a => ({
+                id: a.id,
+                fileName: a.fileName,
+                fileSize: a.fileSize,
+                mimeType: a.mimeType,
+                fileType: a.fileType as any,
+                url: a.url,
+                thumbnailUrl: a.thumbnailUrl,
+              }))}
+            />
+          )}
+          <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">
+            {message.text}
+          </p>
         </div>
         <div className="flex items-center justify-end gap-2 mt-1">
           {message.timestamp && (

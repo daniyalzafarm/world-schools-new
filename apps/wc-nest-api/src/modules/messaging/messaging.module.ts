@@ -22,7 +22,6 @@ import { SanitizationService } from './services/sanitization.service'
 // Controllers
 import { ConversationsController } from './controllers/conversations.controller'
 import { MessagesController } from './controllers/messages.controller'
-import { AttachmentsController } from './controllers/attachments.controller'
 import { SearchController } from './controllers/search.controller'
 import { GdprController } from './controllers/gdpr.controller'
 import { ReportsController } from './controllers/reports.controller'
@@ -84,7 +83,6 @@ import { WsJwtGuard } from '../core/auth/guards/ws-jwt.guard'
   controllers: [
     ConversationsController,
     MessagesController,
-    AttachmentsController,
     SearchController,
     GdprController,
     ReportsController,

@@ -180,6 +180,10 @@ export function createMessagingStore(config: MessagingStoreConfig) {
       isLoadingMessages: {},
       conversationsError: null,
       messagesError: {},
+      messagesNextCursor: {},
+      messagesHasMore: {},
+      isLoadingMoreMessages: {},
+      rateLimitRetryAfter: null,
       isInitialized: false,
       draftConversation: null,
 
@@ -249,8 +253,9 @@ export function createMessagingStore(config: MessagingStoreConfig) {
                     }
                   }
 
-                  // Remove from pending messages
+                  // Remove from pending messages and clear rate limit cooldown on success
                   draft.pendingMessages = draft.pendingMessages.filter(m => m.id !== data.tempId)
+                  draft.rateLimitRetryAfter = null
                 })
               }
             )
@@ -490,6 +495,9 @@ export function createMessagingStore(config: MessagingStoreConfig) {
           draft.conversations = []
           draft.activeConversationId = null
           draft.messages = {}
+          draft.messagesNextCursor = {}
+          draft.messagesHasMore = {}
+          draft.isLoadingMoreMessages = {}
           draft.isConnected = false
           draft.typingUsers = {}
           draft.userPresence = {}
@@ -499,6 +507,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
           draft.isLoadingMessages = {}
           draft.conversationsError = null
           draft.messagesError = {}
+          draft.rateLimitRetryAfter = null
           draft.isInitialized = false
         })
 
@@ -722,6 +731,8 @@ export function createMessagingStore(config: MessagingStoreConfig) {
 
           set(draft => {
             draft.messages[conversationId] = messages
+            draft.messagesNextCursor[conversationId] = paginatedResponse.nextCursor ?? null
+            draft.messagesHasMore[conversationId] = paginatedResponse.hasMore ?? false
             draft.isLoadingMessages[conversationId] = false
           })
 
@@ -735,6 +746,62 @@ export function createMessagingStore(config: MessagingStoreConfig) {
           set(draft => {
             draft.isLoadingMessages[conversationId] = false
             draft.messagesError[conversationId] = error.message || 'Failed to fetch messages'
+          })
+        }
+      },
+
+      fetchMoreMessages: async conversationId => {
+        const state = get()
+        const nextCursor = state.messagesNextCursor[conversationId]
+        const hasMore = state.messagesHasMore[conversationId]
+        if (!nextCursor || !hasMore) {
+          log('No more messages to load for conversation:', conversationId)
+          return
+        }
+
+        log('Loading older messages for conversation:', conversationId, 'cursor:', nextCursor)
+
+        set(draft => {
+          draft.isLoadingMoreMessages[conversationId] = true
+        })
+
+        try {
+          const response = await messagesService.getMessages({
+            conversationId,
+            cursor: nextCursor,
+            direction: 'before',
+            limit: 50,
+          })
+
+          if (!response.success) {
+            const errorMessage =
+              typeof response.data === 'object' && response.data && 'message' in response.data
+                ? (response.data as any).message
+                : 'Failed to load older messages'
+            throw new Error(errorMessage)
+          }
+
+          const paginatedResponse = response.data
+          const newMessages = Array.isArray(paginatedResponse?.data) ? paginatedResponse.data : []
+
+          set(draft => {
+            const existing = draft.messages[conversationId] ?? []
+            // Backend returns "before" batch in descending order (newest of batch first); prepend oldest first
+            const combined = [...newMessages.reverse(), ...existing]
+            draft.messages[conversationId] = combined
+            draft.messagesNextCursor[conversationId] = paginatedResponse?.nextCursor ?? null
+            draft.messagesHasMore[conversationId] = paginatedResponse?.hasMore ?? false
+            draft.isLoadingMoreMessages[conversationId] = false
+          })
+
+          log('Loaded older messages:', {
+            count: newMessages.length,
+            hasMore: paginatedResponse?.hasMore,
+          })
+        } catch (error: unknown) {
+          logError('Failed to load older messages:', error)
+          set(draft => {
+            draft.isLoadingMoreMessages[conversationId] = false
           })
         }
       },
@@ -777,7 +844,9 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             // ✅ Send via WebSocket (fire-and-forget)
             // Server will confirm via message:created event or report via message:error event
             log('Sending message via WebSocket:', optimisticMessage.id)
-            messagingWebSocket.sendMessage(dto.conversationId, dto.content, optimisticMessage.id)
+            messagingWebSocket.sendMessage(dto.conversationId, dto.content, optimisticMessage.id, {
+              attachmentIds: dto.attachmentIds,
+            })
             // Note: Optimistic message replacement is handled by the message:created event listener
             // set up in initialize(). No need to await here.
           } else if (
@@ -844,12 +913,30 @@ export function createMessagingStore(config: MessagingStoreConfig) {
         const response = await messagesService.sendMessage(dto)
 
         if (!response.success) {
+          const data = response.data as
+            | { message?: string; retryAfter?: number; statusCode?: number }
+            | undefined
           const errorMessage =
-            typeof response.data === 'object' && response.data && 'message' in response.data
-              ? (response.data as any).message
+            data && typeof data === 'object' && 'message' in data
+              ? (data.message as string)
               : 'Failed to send message'
+          if (
+            data?.retryAfter != null &&
+            (data.statusCode === 429 || String(data.statusCode) === '429')
+          ) {
+            set(draft => {
+              draft.rateLimitRetryAfter = typeof data.retryAfter === 'number' ? data.retryAfter : 60
+            })
+            const err = new Error(errorMessage) as Error & { retryAfter?: number }
+            err.retryAfter = typeof data.retryAfter === 'number' ? data.retryAfter : 60
+            throw err
+          }
           throw new Error(errorMessage)
         }
+
+        set(draft => {
+          draft.rateLimitRetryAfter = null
+        })
 
         const sentMessage = response.data
 
@@ -1061,6 +1148,39 @@ export function createMessagingStore(config: MessagingStoreConfig) {
         set(draft => {
           draft.messagesError[conversationId] = null
         })
+      },
+
+      clearRateLimitRetryAfter: () => {
+        set(draft => {
+          draft.rateLimitRetryAfter = null
+        })
+      },
+
+      reportMessage: async (messageId, dto) => {
+        const userId = getCurrentUserId?.()
+        if (!userId) {
+          return { success: false, error: 'Not authenticated' }
+        }
+        try {
+          const response = await messagesService.reportMessage(messageId, {
+            messageId,
+            reportedBy: userId,
+            reason: dto.reason as import('../types').ReportReason,
+            description: dto.description,
+          })
+          if (!response.success) {
+            const err =
+              typeof response.data === 'object' && response.data && 'message' in response.data
+                ? (response.data as { message: string }).message
+                : 'Failed to submit report'
+            return { success: false, error: err }
+          }
+          return { success: true }
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : 'Failed to submit report'
+          logError('Report message failed:', error)
+          return { success: false, error: message }
+        }
       },
     }))
   )

@@ -140,11 +140,16 @@ export function useSupportTicketConversation({
   }, [ticketId, conversationId, currentUserId])
 
   const sendReply = useCallback(
-    async (content: string) => {
-      if (!ticketId || !content.trim()) return
-      const res = await supportTicketsService.addReply(ticketId, { content })
+    async (content: string, attachmentIds?: string[]) => {
+      const trimmed = content.trim()
+      const hasAttachments = !!attachmentIds && attachmentIds.length > 0
+      if (!ticketId || (!trimmed && !hasAttachments)) return
+
+      const res = await supportTicketsService.addReply(ticketId, {
+        content: trimmed,
+        attachmentIds,
+      })
       if (!res.success) return
-      // Message will also arrive via websocket; we can optimistically append
       const created = res.data
       setMessages(prev => {
         if (prev.find(m => m.id === created.id)) return prev

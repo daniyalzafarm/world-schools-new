@@ -61,6 +61,7 @@ export class ProviderSupportTicketConversationsController {
         senderId: user.id,
         senderType: SenderType.PROVIDER,
         content: dto.content,
+        attachmentIds: dto.attachmentIds,
       },
       user.id
     )

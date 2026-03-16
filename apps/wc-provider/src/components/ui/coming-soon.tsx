@@ -5,4 +5,6 @@
  * for backward compatibility.
  */
 
+'use client'
+
 export { ComingSoon } from '@world-schools/ui-web'

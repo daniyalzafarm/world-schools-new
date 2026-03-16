@@ -22,7 +22,12 @@ import type { GlobalWebSocketService } from '../../websocket/create-websocket-se
 
 export interface MessagingWebSocketAdapter {
   // Message operations
-  sendMessage(conversationId: string, content: string, tempId: string): void
+  sendMessage(
+    conversationId: string,
+    content: string,
+    tempId: string,
+    options?: { attachmentIds?: string[] }
+  ): void
   joinConversation(conversationId: string): void
   leaveConversation(conversationId: string): void
   onMessageCreated(handler: (data: any) => void): () => void
@@ -65,11 +70,17 @@ export function createMessagingWebSocketAdapter(
   wsService: GlobalWebSocketService
 ): MessagingWebSocketAdapter {
   return {
-    sendMessage(conversationId: string, content: string, tempId: string) {
+    sendMessage(
+      conversationId: string,
+      content: string,
+      tempId: string,
+      options?: { attachmentIds?: string[] }
+    ) {
       wsService.emit('send_message', {
         conversationId,
         content,
         tempId,
+        ...(options?.attachmentIds?.length ? { attachmentIds: options.attachmentIds } : {}),
       })
     },
 

@@ -278,15 +278,16 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       return error.response.data as ApiErrorResponse
     }
 
-    // Otherwise, format it to match our error structure
-    return {
-      success: false,
-      data: {
-        message: error.response?.data?.message ?? error.message ?? 'An error occurred',
-        error: error.response?.data?.error ?? error.name,
-        statusCode: error.response?.status,
-      },
+    // Otherwise, format it to match our error structure (include retryAfter for 429)
+    const data: { message: string; error?: string; statusCode?: number; retryAfter?: number } = {
+      message: error.response?.data?.message ?? error.message ?? 'An error occurred',
+      error: error.response?.data?.error ?? error.name,
+      statusCode: error.response?.status,
     }
+    if (error.response?.data?.retryAfter != null) {
+      data.retryAfter = Number(error.response.data.retryAfter)
+    }
+    return { success: false, data }
   }
 
   // GET request

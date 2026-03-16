@@ -61,6 +61,7 @@ export class UserSupportTicketConversationsController {
         senderId: user.id,
         senderType: SenderType.USER,
         content: dto.content,
+        attachmentIds: dto.attachmentIds,
       },
       user.id
     )

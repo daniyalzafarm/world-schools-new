@@ -11,6 +11,7 @@ import { PrismaService } from '../../../prisma/prisma.service'
 import { RedisService } from '../../redis/redis.service'
 import { RedisPubSubService } from './redis-pub-sub.service'
 import { ConversationsService } from './conversations.service'
+import { AttachmentsService } from './attachments.service'
 import {
   ContentType,
   ConversationType,
@@ -37,6 +38,23 @@ import {
   UnpinMessageDto,
 } from '../interfaces/message.interface'
 
+/** Shape of message attachment record when loaded from DB (paths; URLs built at read time) */
+type MessageAttachmentRecord = {
+  id: string
+  fileName: string
+  fileSize: number
+  mimeType: string
+  fileType: string
+  storageUrl: string
+  thumbnailUrl: string | null
+}
+
+/** Message with attachment relations for getMessages/getMessageById (join via forwardedFromId for forwards) */
+type MessageWithAttachmentRelations = {
+  messageAttachments: MessageAttachmentRecord[]
+  forwardedFrom?: { messageAttachments: MessageAttachmentRecord[] } | null
+}
+
 @Injectable()
 export class MessagesService {
   private readonly logger = new Logger(MessagesService.name)
@@ -46,7 +64,8 @@ export class MessagesService {
     private prisma: PrismaService,
     private redis: RedisService,
     private redisPubSub: RedisPubSubService,
-    private conversationsService: ConversationsService
+    private conversationsService: ConversationsService,
+    private attachmentsService: AttachmentsService
   ) {}
 
   /**
@@ -74,6 +93,69 @@ export class MessagesService {
       return JSON.parse(existing)
     }
 
+    // Resolve attachment records (if any) before creating the message
+    // We only allow associating attachments that:
+    // - Exist
+    // - Were uploaded by the same sender
+    // - Are not yet linked to another message (messageId is an empty string)
+    let attachmentRecords:
+      | {
+          id: string
+          fileName: string
+          fileSize: number
+          mimeType: string
+          fileType: string
+          storageUrl: string
+          thumbnailUrl: string | null
+        }[]
+      | null = null
+
+    if (attachmentIds && attachmentIds.length > 0) {
+      attachmentRecords = await this.prisma.messageAttachment.findMany({
+        where: {
+          id: { in: attachmentIds },
+          uploadedBy: senderId,
+          messageId: { equals: null }, // not yet attached to a message (upload-then-send)
+        },
+        select: {
+          id: true,
+          fileName: true,
+          fileSize: true,
+          mimeType: true,
+          fileType: true,
+          storageUrl: true,
+          thumbnailUrl: true,
+        },
+      })
+
+      if (!attachmentRecords || attachmentRecords.length !== attachmentIds.length) {
+        throw new BadRequestException(
+          'One or more attachments are invalid, already attached, or not owned by the sender'
+        )
+      }
+    }
+
+    // Determine final contentType:
+    // - If explicitly provided, respect it.
+    // - Otherwise, infer from attachments (if any).
+    // - Fallback to TEXT when no attachments.
+    let resolvedContentType = contentType
+    if (!resolvedContentType && attachmentRecords && attachmentRecords.length > 0) {
+      const mimeTypes = attachmentRecords.map(a => a.mimeType || '')
+      if (mimeTypes.every(m => m.startsWith('image/'))) {
+        resolvedContentType = ContentType.IMAGE
+      } else if (mimeTypes.every(m => m.startsWith('audio/'))) {
+        resolvedContentType = ContentType.AUDIO
+      } else if (mimeTypes.every(m => m.startsWith('video/'))) {
+        resolvedContentType = ContentType.VIDEO
+      } else {
+        resolvedContentType = ContentType.FILE
+      }
+    }
+    if (!resolvedContentType) {
+      resolvedContentType = ContentType.TEXT
+    }
+
     // Parse mentions from content (@username)
     const mentions = this.parseMentions(content)
 
@@ -90,14 +172,14 @@ export class MessagesService {
             senderId,
             senderType,
             content,
-            contentType,
+            contentType: resolvedContentType,
             replyToId,
             priority,
             scheduledFor,
             isScheduled: !!scheduledFor,
             status: scheduledFor ? MessageStatus.SENDING : MessageStatus.SENT,
             ...(scheduledFor ? {} : { sentAt: new Date() }),
-            attachments: attachmentIds ?? [],
+            // Attachments are stored only in MessageAttachment table (single source of truth)
           },
           include: {
             sender: {
@@ -108,6 +190,16 @@ export class MessagesService {
             },
           },
         })
+
+        // Associate attachment records with this message (link message_id so it persists)
+        if (attachmentRecords && attachmentRecords.length > 0) {
+          for (const attachment of attachmentRecords) {
+            await tx.messageAttachment.update({
+              where: { id: attachment.id },
+              data: { messageId: msg.id },
+            })
+          }
+        }
 
         // Create mentions if any
         if (mentions.length > 0) {
@@ -171,6 +263,24 @@ export class MessagesService {
 
         return msg
       })
+
+      // Build attachments for response/events from MessageAttachment relation (single source of truth)
+      const attachmentList =
+        attachmentRecords?.map(a => ({
+          id: a.id,
+          fileName: a.fileName,
+          fileSize: a.fileSize,
+          mimeType: a.mimeType,
+          fileType: a.fileType,
+          url: a.storageUrl,
+          thumbnailUrl: a.thumbnailUrl ?? null,
+        })) ?? []
+      if (attachmentList.length > 0) {
+        ;(message as { attachments?: unknown }).attachments =
+          await this.attachmentsService.resolveMessageAttachmentsUrls(attachmentList)
+      } else {
+        ;(message as { attachments?: unknown }).attachments = null
+      }
 
       // ✅ PHASE 4 FIX: Only cache after successful transaction
       await this.redis.setex(cacheKey, this.IDEMPOTENCY_TTL, JSON.stringify(message))
@@ -249,7 +359,7 @@ export class MessagesService {
             status: message.status,
             priority: message.priority,
             replyToId: message.replyToId,
-            attachments: message.attachments,
+            attachments: (message as { attachments?: unknown }).attachments,
             sentAt: message.sentAt,
             createdAt: message.createdAt,
             sender: message.sender,
@@ -317,6 +427,7 @@ export class MessagesService {
     senderId: string
     content: string
     tempId: string
+    attachmentIds?: string[]
   }) {
     // Validate user is a participant and determine sender type
     const participant = await this.prisma.conversationParticipant.findFirst({
@@ -388,6 +499,7 @@ export class MessagesService {
       senderType,
       content: data.content,
       idempotencyKey: data.tempId,
+      ...(data.attachmentIds?.length ? { attachmentIds: data.attachmentIds } : {}),
     })
   }
 
@@ -460,16 +572,56 @@ export class MessagesService {
   }
 
   /**
-   * Get messages with cursor-based pagination
+   * Assert that a user has access to a conversation (participant or provider org for USER_PROVIDER).
+   * Throws NotFoundException if conversation does not exist, ForbiddenException if no access.
    */
-  async getMessages(dto: GetMessagesDto) {
+  private async assertConversationAccess(conversationId: string, userId: string): Promise<void> {
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { id: true, type: true, metadata: true },
+    })
+
+    if (!conversation) {
+      this.logger.warn(`Conversation ${conversationId} not found`)
+      throw new NotFoundException('Conversation not found')
+    }
+
+    const participant = await this.prisma.conversationParticipant.findFirst({
+      where: { conversationId, userId },
+      select: { id: true },
+    })
+
+    if (participant) return
+
+    if (conversation.type === ConversationType.USER_PROVIDER) {
+      const metadata = conversation.metadata as { providerId?: string } | null
+      if (metadata?.providerId) {
+        const userProviderId = await this.conversationsService.getProviderIdForUser(userId)
+        if (userProviderId && userProviderId === metadata.providerId) return
+      }
+    }
+
+    this.logger.warn(
+      `User ${userId} attempted to access conversation ${conversationId} without permission`
+    )
+    throw new ForbiddenException('You do not have permission to access this conversation')
+  }
+
+  /**
+   * Get messages with cursor-based pagination.
+   * When accessUserId is provided, verifies the user has access to the conversation before returning messages.
+   */
+  async getMessages(dto: GetMessagesDto, accessUserId?: string) {
     const { conversationId, limit = 50, cursor, direction = 'before' } = dto
+
+    if (accessUserId) {
+      await this.assertConversationAccess(conversationId, accessUserId)
+    }
 
     // ✅ PHASE 4 FIX: Check cache first
     const cacheKey = `messages:${conversationId}:${limit}:${cursor || 'initial'}:${direction}`
     const cached = await this.redis.get(cacheKey)
     if (cached) {
-      // ✅ PHASE 5 FIX: Track cache hit
       this.logger.log({
         event: 'cache.messages.hit',
         direction,
@@ -477,7 +629,22 @@ export class MessagesService {
         cacheKey,
       })
       this.logger.debug(`Cache hit for messages: ${cacheKey}`)
-      return JSON.parse(cached)
+      const parsed = JSON.parse(cached)
+      if (!parsed.data || !Array.isArray(parsed.data)) return parsed
+      const dataWithUrls = await Promise.all(
+        parsed.data.map(
+          async (m: { attachments?: Array<{ url: string; thumbnailUrl?: string | null }> }) =>
+            m.attachments && Array.isArray(m.attachments) && m.attachments.length > 0
+              ? {
+                  ...m,
+                  attachments: await this.attachmentsService.resolveMessageAttachmentsUrls(
+                    m.attachments as Array<{ url: string; thumbnailUrl?: string | null }>
+                  ),
+                }
+              : { ...m }
+        )
+      )
+      return { ...parsed, data: dataWithUrls }
     }
 
     // ✅ PHASE 5 FIX: Track cache miss
@@ -523,46 +690,71 @@ export class MessagesService {
     }
 
     // Fetch one extra message to determine if there are more
-    const messages = await this.prisma.message.findMany({
-      where,
-      include: {
-        sender: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-        readReceipts: {
-          include: {
-            user: { select: { id: true, firstName: true, lastName: true, email: true } },
-          },
-        },
-        deliveryReceipts: {
-          include: {
-            user: { select: { id: true, firstName: true, lastName: true, email: true } },
-          },
-        },
-        reactions: {
-          include: {
-            user: { select: { id: true, firstName: true, lastName: true, email: true } },
-          },
-        },
-        mentions: {
-          include: {
-            user: { select: { id: true, firstName: true, lastName: true, email: true } },
-          },
-        },
-        replyTo: {
-          select: { id: true, content: true, senderId: true },
+    // Include messageAttachments; for forwards use original message's attachments (join via forwardedFromId)
+    const messagesInclude = {
+      sender: {
+        select: { id: true, firstName: true, lastName: true, email: true },
+      },
+      readReceipts: {
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, email: true } },
         },
       },
+      deliveryReceipts: {
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
+      },
+      reactions: {
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
+      },
+      mentions: {
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
+      },
+      replyTo: {
+        select: { id: true, content: true, senderId: true },
+      },
+      messageAttachments: true,
+      forwardedFrom: { select: { messageAttachments: true } },
+    }
+    const messages = await this.prisma.message.findMany({
+      where,
+      include: messagesInclude as any,
       orderBy: [{ createdAt: sortOrder }, { id: sortOrder }],
       take: limit + 1, // Fetch one extra to check if there are more
     })
 
     // Check if there are more messages
     const hasMore = messages.length > limit
-    const data = hasMore ? messages.slice(0, limit) : messages
+    const rawData = hasMore ? messages.slice(0, limit) : messages
+
+    // Build attachments from relation (for forwards use original message's attachments)
+    const data = rawData.map((m: unknown) => {
+      const msg = m as MessageWithAttachmentRelations & Record<string, unknown>
+      const source = msg.forwardedFrom?.messageAttachments ?? msg.messageAttachments ?? []
+      const attachments =
+        source.length > 0
+          ? source.map((a: MessageAttachmentRecord) => ({
+              id: a.id,
+              fileName: a.fileName,
+              fileSize: a.fileSize,
+              mimeType: a.mimeType,
+              fileType: a.fileType,
+              url: a.storageUrl,
+              thumbnailUrl: a.thumbnailUrl ?? null,
+            }))
+          : null
+      const { messageAttachments: _ma, forwardedFrom: _ff, ...rest } = msg
+      return { ...rest, attachments }
+    })
 
     // Get the cursor for the next page (last message ID)
-    const nextCursor = hasMore && data.length > 0 ? data[data.length - 1].id : null
+    const lastMessage = data.length > 0 ? data[data.length - 1] : null
+    const nextCursor = hasMore && lastMessage ? (lastMessage as unknown as { id: string }).id : null
 
     const result = {
       data,
@@ -570,22 +762,44 @@ export class MessagesService {
       hasMore,
     }
 
-    // ✅ PHASE 4 FIX: Cache the result for 5 minutes (same as conversations)
+    // ✅ PHASE 4 FIX: Cache the result for 5 minutes (cache stores paths, not URLs)
     await this.redis.setex(cacheKey, 300, JSON.stringify(result))
     this.logger.debug(`Cached messages: ${cacheKey}`)
 
-    return result
+    // Build attachment URLs for response (paths stored in DB, like camp images)
+    const dataWithUrls = await Promise.all(
+      result.data.map(async m =>
+        m.attachments && Array.isArray(m.attachments) && m.attachments.length > 0
+          ? {
+              ...m,
+              attachments: await this.attachmentsService.resolveMessageAttachmentsUrls(
+                m.attachments as Array<{ url: string; thumbnailUrl?: string | null }>
+              ),
+            }
+          : { ...m }
+      )
+    )
+    return { ...result, data: dataWithUrls }
   }
 
   /**
    * Get a single message by ID
    */
   async getMessageById(messageId: string) {
-    // ✅ PHASE 4 FIX: Check cache first
     const cacheKey = `message:${messageId}`
     const cached = await this.redis.get(cacheKey)
     if (cached) {
-      return JSON.parse(cached)
+      const message = JSON.parse(cached)
+      if (
+        message.attachments &&
+        Array.isArray(message.attachments) &&
+        message.attachments.length > 0
+      ) {
+        message.attachments = await this.attachmentsService.resolveMessageAttachmentsUrls(
+          message.attachments as Array<{ url: string; thumbnailUrl?: string | null }>
+        )
+      }
+      return message
     }
 
     const message = await this.prisma.message.findUnique({
@@ -620,17 +834,37 @@ export class MessagesService {
         editHistory: {
           orderBy: { editedAt: 'desc' },
         },
-      },
+        messageAttachments: true,
+        forwardedFrom: { select: { messageAttachments: true } },
+      } as any,
     })
 
     if (!message) {
       throw new NotFoundException('Message not found')
     }
 
-    // ✅ PHASE 4 FIX: Cache the result for 5 minutes
-    await this.redis.setex(cacheKey, 300, JSON.stringify(message))
-
-    return message
+    const msg = message as MessageWithAttachmentRelations & typeof message
+    const source = msg.forwardedFrom?.messageAttachments ?? msg.messageAttachments ?? []
+    const attachmentsRaw =
+      source.length > 0
+        ? source.map((a: MessageAttachmentRecord) => ({
+            id: a.id,
+            fileName: a.fileName,
+            fileSize: a.fileSize,
+            mimeType: a.mimeType,
+            fileType: a.fileType,
+            url: a.storageUrl,
+            thumbnailUrl: a.thumbnailUrl ?? null,
+          }))
+        : null
+    const { messageAttachments: _ma, forwardedFrom: _ff, ...rest } = msg
+    const toCache = { ...rest, attachments: attachmentsRaw }
+    await this.redis.setex(cacheKey, 300, JSON.stringify(toCache))
+    const resolved =
+      attachmentsRaw && attachmentsRaw.length > 0
+        ? await this.attachmentsService.resolveMessageAttachmentsUrls(attachmentsRaw)
+        : null
+    return { ...rest, attachments: resolved }
   }
 
   /**
@@ -1300,7 +1534,6 @@ export class MessagesService {
         id: true,
         content: true,
         contentType: true,
-        attachments: true,
         senderId: true,
         forwardCount: true,
       },
@@ -1320,7 +1553,6 @@ export class MessagesService {
           senderType: SenderType.USER,
           content: originalMessage.content,
           contentType: originalMessage.contentType,
-          attachments: originalMessage.attachments || undefined,
           forwardedFromId: messageId,
           status: MessageStatus.SENT,
           sentAt: new Date(),

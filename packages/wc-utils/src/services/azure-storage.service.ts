@@ -36,10 +36,7 @@ export class AzureStorageService {
     this.sharedKeyCredential = new StorageSharedKeyCredential(config.accountName, config.accountKey)
 
     // Create blob service client
-    this.blobServiceClient = new BlobServiceClient(
-      `https://${config.accountName}.blob.core.windows.net`,
-      this.sharedKeyCredential
-    )
+    this.blobServiceClient = new BlobServiceClient(config.accountUrl, this.sharedKeyCredential)
 
     // Get container client
     this.containerClient = this.blobServiceClient.getContainerClient(config.containerName)

@@ -24,6 +24,20 @@ import type {
 } from './enums'
 
 /**
+ * Lightweight attachment summary used on Message.attachments
+ * Mirrors the denormalized JSON stored on the Message model.
+ */
+export interface MessageAttachmentSummary {
+  id: string
+  fileName: string
+  fileSize: number
+  mimeType: string
+  fileType: FileType
+  url: string
+  thumbnailUrl?: string | null
+}
+
+/**
  * Conversation model
  * Represents a conversation between participants
  */
@@ -116,7 +130,7 @@ export interface Message {
   // Content
   content: string
   contentType: ContentType
-  attachments: Record<string, any> | null
+  attachments: MessageAttachmentSummary[] | null
   type: MessageType
   metadata: Record<string, any> | null
 

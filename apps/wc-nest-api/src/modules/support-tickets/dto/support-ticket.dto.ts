@@ -11,6 +11,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator'
 import {
   ContentType,
@@ -51,6 +52,10 @@ export class CreateSupportTicketDto {
   @IsString()
   @IsNotEmpty()
   description!: string
+
+  @IsArray()
+  @IsOptional()
+  attachmentIds?: string[]
 
   @IsUUID()
   @IsOptional()
@@ -180,6 +185,7 @@ export class CreateTicketReplyDto {
   @IsEnum(SenderType)
   senderType!: SenderType
 
+  @ValidateIf(o => !o.attachmentIds || o.attachmentIds.length === 0)
   @IsString()
   @IsNotEmpty()
   content!: string
@@ -195,7 +201,12 @@ export class CreateTicketReplyDto {
 
 /** Self-service reply: only content; senderId/senderType set by controller from current user. */
 export class AddTicketReplyDto {
+  @ValidateIf(o => !o.attachmentIds || o.attachmentIds.length === 0)
   @IsString()
   @IsNotEmpty()
   content!: string
+
+  @IsArray()
+  @IsOptional()
+  attachmentIds?: string[]
 }

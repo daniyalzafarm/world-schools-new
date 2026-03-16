@@ -191,7 +191,7 @@ export const DocumentDropzone: React.FC<DocumentDropzoneProps> = ({
     ${
       isDragOver
         ? 'border-primary bg-primary/10'
-        : 'border-default-200 bg-default-100 hover:border-primary hover:bg-primary/5'
+        : 'border-default-200 hover:border-primary hover:bg-primary/5'
     }
     ${isDisabled || isUploading ? 'cursor-not-allowed opacity-50' : ''}
   `

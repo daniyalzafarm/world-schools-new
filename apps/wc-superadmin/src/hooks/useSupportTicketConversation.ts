@@ -217,11 +217,12 @@ export function useSupportTicketConversation({ ticketId }: UseSupportTicketConve
   }, [ticketId, ticket, currentUserId])
 
   const sendReply = useCallback(
-    async (content: string, senderId: string) => {
-      if (!ticketId || !content.trim()) return
+    async (content: string, senderId: string, attachmentIds?: string[]) => {
+      const trimmed = content.trim()
+      if (!ticketId || (!trimmed && (!attachmentIds || attachmentIds.length === 0))) return
       const res = await supportTicketsService.addReply(
         ticketId,
-        { content, senderId },
+        { content: trimmed, senderId, attachmentIds },
         'SUPERADMIN'
       )
       if (!res.success) return

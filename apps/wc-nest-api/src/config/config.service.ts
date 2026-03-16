@@ -118,6 +118,7 @@ export class ConfigService {
   // Azure Storage Configuration
   get azureStorageConfig() {
     return {
+      accountUrl: this.getString('AZURE_STORAGE_ACCOUNT_URL', ''),
       accountName: this.getString('AZURE_STORAGE_ACCOUNT_NAME', ''),
       accountKey: this.getString('AZURE_STORAGE_ACCOUNT_KEY', ''),
       containerName: this.getString('AZURE_STORAGE_CONTAINER_NAME', ''),

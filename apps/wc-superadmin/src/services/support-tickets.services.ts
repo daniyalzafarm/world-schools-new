@@ -174,12 +174,16 @@ export const supportTicketsService = {
    */
   async addReply(
     ticketId: string,
-    body: { content: string; senderId: string },
+    body: { content: string; senderId: string; attachmentIds?: string[] },
     senderType: 'SUPERADMIN' = 'SUPERADMIN'
   ): Promise<ApiResult<SupportTicketMessageResponse>> {
     return apiClient.post<SupportTicketMessageResponse>(
       `${BASE}/${encodeURIComponent(ticketId)}/replies`,
-      { ticketId, ...body, senderType }
+      {
+        ticketId,
+        ...body,
+        senderType,
+      }
     )
   },
 

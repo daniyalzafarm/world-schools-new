@@ -75,7 +75,8 @@ export class SupportTicketConversationService {
   async createConversationForTicketTx(
     tx: Prisma.TransactionClient,
     ticketData: CreateConversationTicketData,
-    initialMessageContent: string
+    initialMessageContent: string,
+    initialAttachmentIds?: string[]
   ): Promise<string> {
     const requesterUserId = ticketData.requesterUserId
     const requesterProviderId = ticketData.requesterProviderId
@@ -106,16 +107,47 @@ export class SupportTicketConversationService {
               ],
             }
           : undefined,
-        messages: {
-          create: {
-            senderId: requesterUserId ?? ticketData.createdByUserId,
-            senderType:
-              ticketData.requesterType === SupportTicketRequesterType.PROVIDER
-                ? SenderType.PROVIDER
-                : SenderType.USER,
-            content: initialMessageContent,
-          },
+      },
+    })
+
+    const senderId = requesterUserId ?? ticketData.createdByUserId
+    const senderType =
+      ticketData.requesterType === SupportTicketRequesterType.PROVIDER
+        ? SenderType.PROVIDER
+        : SenderType.USER
+
+    const message = await tx.message.create({
+      data: {
+        conversationId: conversation.id,
+        senderId,
+        senderType,
+        content: initialMessageContent,
+        contentType: ContentType.TEXT,
+        status: MessageStatus.SENT,
+        sentAt: new Date(),
+      },
+    })
+
+    if (initialAttachmentIds && initialAttachmentIds.length > 0) {
+      await tx.messageAttachment.updateMany({
+        where: {
+          id: { in: initialAttachmentIds },
+          uploadedBy: senderId,
+          messageId: null,
         },
+        data: {
+          messageId: message.id,
+        },
+      })
+    }
+
+    await tx.conversation.update({
+      where: { id: conversation.id },
+      data: {
+        lastMessageId: message.id,
+        updatedAt: new Date(),
+        lastActivityAt: new Date(),
+        messageCount: 1,
       },
     })
 
@@ -139,32 +171,16 @@ export class SupportTicketConversationService {
     }
 
     const { limit = 50, cursor } = options
-    const take = limit + 1
-
-    const messages = await this.prisma.message.findMany({
-      where: {
-        conversationId: ticket.conversationId,
-        isDeleted: false,
-      },
-      include: {
-        sender: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-      },
-      orderBy: { createdAt: 'asc' },
-      take,
-      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+    const result = await this.messagesService.getMessages({
+      conversationId: ticket.conversationId,
+      limit,
+      cursor: cursor ?? undefined,
+      direction: 'before',
     })
-
-    const hasMore = messages.length > limit
-    const data = (hasMore ? messages.slice(0, limit) : messages).map(m =>
-      this.mapMessageToResponse(m)
-    )
-    const nextCursor = hasMore && data.length > 0 ? data[data.length - 1].id : null
-
+    const data = result.data as SupportTicketMessageResponse[]
     return {
       data,
-      meta: { limit, nextCursor, hasMore },
+      meta: { limit, nextCursor: result.nextCursor, hasMore: result.hasMore },
     }
   }
 
@@ -175,7 +191,7 @@ export class SupportTicketConversationService {
     senderType: SenderType
     content: string
     contentType: ContentType
-    attachments: unknown
+    attachments?: unknown
     type: MessageType
     metadata: unknown
     replyToId: string | null
@@ -209,7 +225,7 @@ export class SupportTicketConversationService {
       senderType: m.senderType,
       content: m.content,
       contentType: m.contentType,
-      attachments: m.attachments,
+      attachments: m.attachments ?? null,
       type: m.type,
       metadata: m.metadata,
       replyToId: m.replyToId,
@@ -279,15 +295,7 @@ export class SupportTicketConversationService {
         : { lastSupportReplyAt: new Date() },
     })
 
-    const withSender = await this.prisma.message.findUnique({
-      where: { id: message.id },
-      include: {
-        sender: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-      },
-    })
-    if (!withSender) throw new NotFoundException('Message not found after create')
-    return this.mapMessageToResponse(withSender)
+    // sendMessage already returns message with sender and resolved attachments
+    return message as unknown as SupportTicketMessageResponse
   }
 }

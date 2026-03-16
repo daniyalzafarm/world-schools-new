@@ -526,7 +526,8 @@ export class ProviderAuthController {
     }
 
     const userUpdateData: any = {}
-    if (updateProfileDto.firstName !== undefined) userUpdateData.firstName = updateProfileDto.firstName
+    if (updateProfileDto.firstName !== undefined)
+      userUpdateData.firstName = updateProfileDto.firstName
     if (updateProfileDto.lastName !== undefined) userUpdateData.lastName = updateProfileDto.lastName
     if (updateProfileDto.phone !== undefined) userUpdateData.phone = updateProfileDto.phone
     if (updateProfileDto.address !== undefined) userUpdateData.address = updateProfileDto.address

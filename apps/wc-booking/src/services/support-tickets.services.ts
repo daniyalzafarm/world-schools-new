@@ -163,7 +163,7 @@ export const supportTicketsService = {
    */
   async addReply(
     ticketId: string,
-    body: { content: string }
+    body: { content: string; attachmentIds?: string[] }
   ): Promise<ApiResult<SupportTicketMessageResponse>> {
     return apiClient.post<SupportTicketMessageResponse>(
       `/user/support-tickets/${encodeURIComponent(ticketId)}/replies`,

@@ -24,7 +24,7 @@ export class EmailTemplateService {
 
   // Logo URL
   private readonly logoUrl =
-    'https://sawcstg.blob.core.windows.net/wc-booking-system/favicon-world-camps.png'
+    'https://files.staging.world-camps.org/wc-booking-system/favicon-world-camps.png'
 
   /**
    * Get base email template with consistent styling

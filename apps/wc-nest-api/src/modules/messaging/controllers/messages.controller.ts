@@ -103,10 +103,11 @@ export class MessagesController {
     type: PaginatedMessagesResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getMessages(@Query() query: GetMessagesDto) {
+  @ApiResponse({ status: 403, description: 'Forbidden - Not a participant in this conversation' })
+  async getMessages(@Query() query: GetMessagesDto, @CurrentUser('id') currentUserId: string) {
     this.logger.log(`Getting messages for conversation ${query.conversationId}`)
 
-    const messages = await this.messagesService.getMessages(query)
+    const messages = await this.messagesService.getMessages(query, currentUserId)
 
     return {
       success: true,

@@ -16,7 +16,7 @@ export interface MessageThreadProps<T extends MessageThreadMessage> {
   /** Render a single message (e.g. EnhancedMessageBubble). */
   renderMessage: (message: T) => React.ReactNode
   /** Send handler; may be async. Input is cleared after send. */
-  onSend: (content: string) => void | Promise<void>
+  onSend: (payload: { content: string; attachments: File[] }) => void | Promise<void>
   /** Show loading skeleton in the message area. */
   isLoading?: boolean
   /** Error message to show with optional retry. */
@@ -31,6 +31,8 @@ export interface MessageThreadProps<T extends MessageThreadMessage> {
   emptyMessage?: React.ReactNode
   /** Show "Press Enter to send..." help text under input. */
   helpText?: boolean
+  /** Optional content rendered before the message list (e.g. "Load older messages" button). */
+  renderBeforeMessages?: () => React.ReactNode
   /** Optional content rendered after the message list (e.g. typing indicator). */
   renderAfterMessages?: () => React.ReactNode
   /** Optional loading skeleton when isLoading is true. */
@@ -38,6 +40,10 @@ export interface MessageThreadProps<T extends MessageThreadMessage> {
   className?: string
   /** Scroll container class (e.g. for max height). */
   scrollAreaClassName?: string
+  /** Maximum number of files that can be attached to a single message. */
+  maxAttachments?: number
+  /** Maximum combined size of all attachments in bytes. */
+  maxTotalAttachmentSizeBytes?: number
 }
 
 export function MessageThread<T extends MessageThreadMessage>({
@@ -51,20 +57,25 @@ export function MessageThread<T extends MessageThreadMessage>({
   disabled = false,
   emptyMessage,
   helpText = true,
+  renderBeforeMessages,
   renderAfterMessages,
   renderLoading,
   className,
   scrollAreaClassName,
+  maxAttachments = 10,
+  maxTotalAttachmentSizeBytes = 100 * 1024 * 1024,
 }: MessageThreadProps<T>) {
   const [inputValue, setInputValue] = useState('')
+  const [attachments, setAttachments] = useState<File[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const handleSend = async () => {
     const content = inputValue.trim()
-    if (!content || disabled) return
+    if ((content.length === 0 && attachments.length === 0) || disabled) return
     setInputValue('')
     try {
-      await Promise.resolve(onSend(content))
+      await Promise.resolve(onSend({ content, attachments }))
+      setAttachments([])
     } catch {
       setInputValue(content)
     }
@@ -105,6 +116,7 @@ export function MessageThread<T extends MessageThreadMessage>({
           </div>
         )}
         {!isLoading && !error && showEmpty && (emptyMessage ?? defaultEmpty)}
+        {!isLoading && !error && messages.length > 0 && renderBeforeMessages?.()}
         {!isLoading && !error && messages.length > 0 && (
           <div className="space-y-4 pb-4">
             {messages.map(msg => (
@@ -122,6 +134,10 @@ export function MessageThread<T extends MessageThreadMessage>({
         disabled={disabled}
         helpText={helpText}
         className="border-t border-gray-200 dark:border-gray-700"
+        attachments={attachments}
+        onFilesChange={setAttachments}
+        maxAttachments={maxAttachments}
+        maxTotalAttachmentSizeBytes={maxTotalAttachmentSizeBytes}
       />
     </div>
   )

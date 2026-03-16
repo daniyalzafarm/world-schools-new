@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { MessagingModule } from '../../messaging/messaging.module'
 import { UserMessagesController } from './user-messages.controller'
 import { UserConversationsController } from './user-conversations.controller'
+import { UserAttachmentsController } from './user-attachments.controller'
 
 /**
  * User Messaging Module
@@ -12,12 +13,13 @@ import { UserConversationsController } from './user-conversations.controller'
  * Endpoints:
  * - /user/messaging/messages/*
  * - /user/messaging/conversations/*
+ * - /user/messaging/attachments/*
  *
  * Authentication:
  * - Uses wc_user_access_token cookie (automatically selected by JWT strategy based on /user/* path)
  */
 @Module({
   imports: [MessagingModule],
-  controllers: [UserMessagesController, UserConversationsController],
+  controllers: [UserMessagesController, UserConversationsController, UserAttachmentsController],
 })
 export class UserMessagingModule {}

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import {
+  addToast,
   Avatar,
   Button,
   Checkbox,
@@ -29,19 +30,18 @@ import { MessagesSidebar } from '@/components/layout/messages-sidebar'
 import { useMessagingStore } from '@/stores/messaging-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { MessageListSkeleton } from '@/components/messages/message-skeleton'
-import {
-  type EnhancedMessage,
-  EnhancedMessageBubble,
-} from '@/components/messages/enhanced-message-bubble'
 import { TypingDots } from '@/components/messages/TypingIndicator'
 import { PresenceIndicator } from '@/components/messages/PresenceIndicator'
 
-import type {
-  MessageResponseDto,
-  MessageStatus,
-  PresenceStatus,
-  SenderType,
+import {
+  type EnhancedMessage,
+  EnhancedMessageBubble,
+  type MessageResponseDto,
+  type MessageStatus,
+  type PresenceStatus,
+  type SenderType,
 } from '@world-schools/wc-frontend-utils'
+import { messagingAttachmentsService } from '@/services/messaging-attachments.services'
 
 export default function MessagesPage() {
   const pathname = usePathname()
@@ -69,16 +69,31 @@ export default function MessagesPage() {
     markAsRead,
     stopTyping,
     retryFailedMessage,
+    reportMessage,
+    fetchMoreMessages,
+    messagesHasMore,
+    isLoadingMoreMessages,
+    rateLimitRetryAfter,
+    clearRateLimitRetryAfter,
   } = useMessagingStore()
 
   // Report modal state
   const [showReportModal, setShowReportModal] = useState(false)
+  const [reportedMessageId, setReportedMessageId] = useState<string | null>(null)
   const [selectedReasons, setSelectedReasons] = useState<string[]>([])
   const [reportComment, setReportComment] = useState('')
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
 
   // Get active conversation messages
   const activeMessages = activeConversationId ? storeMessages[activeConversationId] || [] : []
+
+  // Clear rate limit cooldown after retryAfter seconds
+  useEffect(() => {
+    if (rateLimitRetryAfter == null || rateLimitRetryAfter <= 0) return
+    const t = setTimeout(() => clearRateLimitRetryAfter(), rateLimitRetryAfter * 1000)
+    return () => clearTimeout(t)
+  }, [rateLimitRetryAfter, clearRateLimitRetryAfter])
 
   // Mark latest incoming message as read when viewing the conversation
   useEffect(() => {
@@ -111,6 +126,7 @@ export default function MessagesPage() {
       isChatbot: msg.senderType === 'CHATBOT',
       deliveredAt: msg.deliveredAt,
       readAt: msg.readAt,
+      attachments: msg.attachments ?? null,
     }
   }
 
@@ -129,14 +145,44 @@ export default function MessagesPage() {
 
   const presenceStatus = getPresenceStatus()
 
-  const sendMessageContent = async (text: string) => {
-    if (!text || !activeConversationId || !user) return
+  const sendMessageContent = async ({
+    content,
+    attachments,
+  }: {
+    content: string
+    attachments: File[]
+  }) => {
+    const trimmed = content.trim()
+    if (!activeConversationId || !user) return
+    if (!trimmed && attachments.length === 0) return
     stopTyping(activeConversationId)
+
+    let attachmentIds: string[] | undefined
+    if (attachments.length > 0) {
+      const uploadResults = await Promise.all(
+        attachments.map(file => messagingAttachmentsService.uploadAttachment(file))
+      )
+
+      const failed = uploadResults.find(result => !result.success)
+      if (failed) {
+        const message =
+          typeof failed.data === 'object' && failed.data && 'message' in failed.data
+            ? (failed.data as any).message
+            : 'Failed to upload attachments'
+        throw new Error(message)
+      }
+
+      attachmentIds = uploadResults
+        .map(result => (result.success ? result.data.id : null))
+        .filter((id): id is string => id != null)
+    }
+
     await sendMessage({
       conversationId: activeConversationId,
       senderId: user.id,
       senderType: 'PROVIDER' as SenderType,
-      content: text,
+      content: trimmed,
+      attachmentIds,
       idempotencyKey: `${user.id}-${Date.now()}`,
     })
   }
@@ -147,31 +193,51 @@ export default function MessagesPage() {
     )
   }
 
-  const handleSubmitReport = async () => {
-    if (selectedReasons.length === 0) {
-      return
+  // Map ui-web reason id to backend ReportReason enum
+  const mapReasonToBackend = (id: string): string => {
+    const map: Record<string, string> = {
+      inappropriate: 'INAPPROPRIATE_CONTENT',
+      spam: 'SPAM',
+      harassment: 'HARASSMENT',
+      impersonation: 'IMPERSONATION',
+      scam: 'SCAM',
+      other: 'OTHER',
     }
+    return map[id] ?? 'OTHER'
+  }
 
+  const handleSubmitReport = async () => {
+    if (selectedReasons.length === 0 || !reportedMessageId) return
+
+    setReportError(null)
     setIsSubmittingReport(true)
 
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
+    const result = await reportMessage(reportedMessageId, {
+      reason: mapReasonToBackend(selectedReasons[0]),
+      description: reportComment.trim() || undefined,
+    })
 
-      // Reset form and close modal
+    setIsSubmittingReport(false)
+    if (result.success) {
       setSelectedReasons([])
       setReportComment('')
+      setReportedMessageId(null)
       setShowReportModal(false)
-    } catch {
-      // Failed to submit report - handle error
-    } finally {
-      setIsSubmittingReport(false)
+      addToast({
+        title: 'Report submitted',
+        description: 'The conversation has been reported',
+        color: 'success',
+      })
+    } else {
+      setReportError(result.error ?? 'Failed to submit report')
     }
   }
 
   const handleCancelReport = () => {
     setSelectedReasons([])
     setReportComment('')
+    setReportedMessageId(null)
+    setReportError(null)
     setShowReportModal(false)
   }
 
@@ -294,7 +360,13 @@ export default function MessagesPage() {
             aria-label="Conversation actions"
             onAction={key => {
               if (key === 'report') {
-                setShowReportModal(true)
+                const lastMessage =
+                  activeMessages.length > 0 ? activeMessages[activeMessages.length - 1] : null
+                if (lastMessage?.id) {
+                  setReportedMessageId(lastMessage.id)
+                  setReportError(null)
+                  setShowReportModal(true)
+                }
               }
             }}
           >
@@ -312,6 +384,13 @@ export default function MessagesPage() {
             <span className="text-xs text-orange-500">Reconnecting...</span>
           </div>
         )}
+        {rateLimitRetryAfter != null && rateLimitRetryAfter > 0 && (
+          <div className="mb-2 text-center">
+            <span className="text-xs text-amber-600 dark:text-amber-400">
+              Too many messages. Try again in {rateLimitRetryAfter} seconds.
+            </span>
+          </div>
+        )}
         <MessageThread
           messages={enhancedMessages}
           renderMessage={msg => (
@@ -323,12 +402,29 @@ export default function MessagesPage() {
               onRetry={messageId => retryFailedMessage(messageId)}
             />
           )}
+          renderBeforeMessages={() =>
+            activeConversationId && messagesHasMore[activeConversationId] ? (
+              <div className="flex justify-center py-2">
+                <Button
+                  size="sm"
+                  variant="flat"
+                  onPress={() => fetchMoreMessages(activeConversationId)}
+                  isLoading={isLoadingMoreMessages[activeConversationId]}
+                  isDisabled={isLoadingMoreMessages[activeConversationId]}
+                >
+                  Load older messages
+                </Button>
+              </div>
+            ) : null
+          }
           onSend={sendMessageContent}
           isLoading={isLoadingMessages[activeConversationId || '']}
           error={messagesError[activeConversationId || '']}
           onRetry={() => activeConversationId && fetchMessages(activeConversationId)}
           placeholder="Type a message..."
-          disabled={!isConnected || !user}
+          disabled={
+            !isConnected || !user || (rateLimitRetryAfter != null && rateLimitRetryAfter > 0)
+          }
           emptyMessage={
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
@@ -372,7 +468,7 @@ export default function MessagesPage() {
                 Please select the reason(s) for reporting this conversation:
               </p>
 
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 {DEFAULT_REPORT_REASONS.map((reason: ReportReason) => (
                   <Checkbox
                     key={reason.id}
@@ -391,6 +487,7 @@ export default function MessagesPage() {
                 onValueChange={setReportComment}
                 minRows={3}
               />
+              {reportError && <p className="text-sm text-danger">{reportError}</p>}
             </div>
           </ModalBody>
           <ModalFooter>

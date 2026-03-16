@@ -3,17 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import {
-  Avatar,
-  BreadcrumbItem,
-  Breadcrumbs,
-  Button,
-  Chip,
-  Divider,
-  Select,
-  SelectItem,
-  Skeleton,
-} from '@heroui/react'
+import { Avatar, BreadcrumbItem, Breadcrumbs, Button, Chip, Divider, Skeleton } from '@heroui/react'
 import { type Message, MessageBubble, MessageThread } from '@world-schools/ui-web'
 import { ArrowLeft, Calendar, ExternalLink, Tag, User } from 'lucide-react'
 import { PageSlot } from '@/components/layout/page-slot'
@@ -21,6 +11,7 @@ import { SupportTicketLayout } from '@/components/support/SupportTicketLayout'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePermissions } from '@/hooks/use-permissions'
 import { supportTicketsService } from '@/services/support-tickets.services'
+import { messagingAttachmentsService } from '@/services/messaging-attachments.services'
 import { useSupportTicketConversation } from '@/hooks/useSupportTicketConversation'
 import type {
   SupportTicket,
@@ -49,6 +40,7 @@ function messageToUiMessage(
     status: msg.status,
     deliveredAt: msg.deliveredAt ? new Date(msg.deliveredAt) : null,
     readAt: msg.readAt ? new Date(msg.readAt) : null,
+    attachments: Array.isArray((msg as any).attachments) ? ((msg as any).attachments as any) : null,
   }
 }
 
@@ -150,13 +142,36 @@ export default function SupportTicketDetailPage() {
   }, [liveMessages, liveLoading])
 
   const handleSendReply = useCallback(
-    async (content: string) => {
+    async ({ content, attachments }: { content: string; attachments: File[] }) => {
+      const trimmed = content.trim()
       if (!id || !user?.id || sendingReply) return
+      if (!trimmed && attachments.length === 0) return
       setSendingReply(true)
       try {
+        let attachmentIds: string[] | undefined
+
+        if (attachments.length > 0) {
+          const uploadResults = await Promise.all(
+            attachments.map(file => messagingAttachmentsService.uploadAttachment(file))
+          )
+
+          const failed = uploadResults.find(result => !result.success)
+          if (failed) {
+            console.error(
+              'Failed to upload one or more attachments for support ticket reply (superadmin)',
+              failed
+            )
+            return
+          }
+
+          attachmentIds = uploadResults
+            .map(result => (result.success ? result.data.id : null))
+            .filter((id): id is string => id != null)
+        }
+
         const addRes = await supportTicketsService.addReply(
           id,
-          { content, senderId: user.id },
+          { content: trimmed, senderId: user.id, attachmentIds },
           'SUPERADMIN'
         )
         if (!addRes.success) return

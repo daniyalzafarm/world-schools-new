@@ -46,6 +46,7 @@ export class MessagingWebSocketHandler {
     conversationId: string
     content: string
     tempId: string
+    attachmentIds?: string[]
   }) {
     try {
       // Create message via WebSocket-specific method with validation and rate limiting
@@ -54,6 +55,7 @@ export class MessagingWebSocketHandler {
         senderId: payload.userId,
         content: payload.content,
         tempId: payload.tempId,
+        attachmentIds: payload.attachmentIds,
       })
 
       // Confirm to sender

@@ -127,7 +127,8 @@ export class SupportTicketsService {
           requesterProviderId: dto.requesterProviderId ?? null,
           createdByUserId: currentUserId,
         },
-        dto.description
+        dto.description,
+        dto.attachmentIds
       )
 
       const ticket = await tx.supportTicket.create({

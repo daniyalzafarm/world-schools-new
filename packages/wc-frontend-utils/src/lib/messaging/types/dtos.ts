@@ -20,6 +20,7 @@ import type {
   MessageType,
   MessageStatus,
 } from './enums'
+import type { MessageAttachmentSummary } from './models'
 
 // ============================================
 // Request DTOs - Messages
@@ -322,7 +323,7 @@ export interface MessageResponseDto {
   senderType: SenderType
   content: string
   contentType: ContentType
-  attachments: any | null
+  attachments: MessageAttachmentSummary[] | null
   type: MessageType
   metadata: any | null
   replyToId: string | null

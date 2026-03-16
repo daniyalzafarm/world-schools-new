@@ -5,6 +5,7 @@ import { Avatar } from '@heroui/react'
 import { AlertCircle, Check, CheckCheck, Clock, Users } from 'lucide-react'
 import { cn } from '../../utils/cn'
 import type { Message } from '../../types/messages'
+import { MessageAttachmentsList } from './message-attachments-list'
 
 interface MessageBubbleProps {
   message: Message
@@ -99,7 +100,7 @@ export function MessageBubble({
         <div className="max-w-[80%] lg:max-w-[60%]">
           <div
             className={cn(
-              'rounded-2xl rounded-bl-md px-4 py-3 shadow-sm',
+              'rounded-2xl rounded-bl-md px-4 py-3 shadow-sm flex flex-col gap-2',
               message.isTransferSummary
                 ? 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800'
                 : message.isTransferRequest
@@ -137,6 +138,9 @@ export function MessageBubble({
                 </span>
               )}
             </div>
+            {message.attachments && message.attachments.length > 0 && (
+              <MessageAttachmentsList attachments={message.attachments} />
+            )}
             <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-gray-900 dark:text-gray-100">
               {message.text}
             </p>
@@ -160,7 +164,7 @@ export function MessageBubble({
       <div className="max-w-[80%] lg:max-w-[60%]">
         <div
           className={cn(
-            'rounded-2xl rounded-br-md px-4 py-3 shadow-sm',
+            'rounded-2xl rounded-br-md px-4 py-3 shadow-sm flex flex-col gap-2',
             message.isTransferRequest
               ? 'bg-orange-100 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800'
               : message.isChatbot
@@ -182,6 +186,9 @@ export function MessageBubble({
                 {message.isChatbot ? 'AI Assistant' : isAdminView ? 'You' : senderName}
               </span>
             </div>
+          )}
+          {message.attachments && message.attachments.length > 0 && (
+            <MessageAttachmentsList attachments={message.attachments} />
           )}
           <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">
             {message.text}

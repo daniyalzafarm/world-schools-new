@@ -1,6 +1,19 @@
 /**
- * Shared types for messaging functionality across all applications
+ * Shared types for lightweight messaging UI components.
+ *
+ * These are intentionally minimal and are populated from the richer
+ * messaging DTOs exposed via @world-schools/wc-frontend-utils.
  */
+
+export interface MessageAttachment {
+  id: string
+  fileName: string
+  fileSize: number
+  mimeType: string
+  fileType: 'IMAGE' | 'DOCUMENT' | 'VIDEO' | 'AUDIO' | 'OTHER'
+  url: string
+  thumbnailUrl?: string | null
+}
 
 export interface Message {
   id: string
@@ -17,6 +30,9 @@ export interface Message {
   status?: string
   deliveredAt?: Date | null
   readAt?: Date | null
+
+  // Optional attachments rendered beneath the message bubble
+  attachments?: MessageAttachment[] | null
 }
 
 export interface Conversation {

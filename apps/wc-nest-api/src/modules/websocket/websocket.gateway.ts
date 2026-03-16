@@ -199,7 +199,13 @@ export class GlobalWebSocketGateway
   @SubscribeMessage('send_message')
   handleSendMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { conversationId: string; content: string; tempId: string }
+    @MessageBody()
+    payload: {
+      conversationId: string
+      content: string
+      tempId: string
+      attachmentIds?: string[]
+    }
   ) {
     const userId = client.data?.userId as string
     this.eventEmitter.emit('websocket:send_message', {

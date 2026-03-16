@@ -161,6 +161,7 @@ export interface CreateSupportTicketPayload {
   bookingId?: string
   campId?: string
   sessionId?: string
+  attachmentIds?: string[]
 }
 
 /** List tickets query params for GET /support-tickets */
