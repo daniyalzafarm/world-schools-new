@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "sc",
+  "projectType": "library",
+  "root": "tools/meta/sc",
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "nx run-many --target=lint --projects=\"schoolable-web,schoolable-nest-api\" --fix"
+      }
+    }
+  },
+  "tags": []
+}

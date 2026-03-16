@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "pkgs",
+  "projectType": "library",
+  "root": "tools/meta/pkgs",
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "nx run-many --target=lint --projects=\"packages/*\" --fix"
+      }
+    }
+  },
+  "tags": []
+}

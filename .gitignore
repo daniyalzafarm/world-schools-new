@@ -58,3 +58,5 @@ out
 next-env.d.ts
 static/
 graph.html
+.nx/polygraph
+.cursor

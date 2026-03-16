@@ -29,6 +29,16 @@ These targets are either [inferred automatically](https://nx.dev/concepts/inferr
 
 [More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
+### Lint command groups
+
+This workspace defines grouped lint commands for common project sets:
+
+- `npx nx lint wc` – lints (with `--fix`) all `wc-*` projects.
+- `npx nx lint sc` – lints (with `--fix`) all `schoolable-*` projects.
+- `npx nx lint pkgs` – lints (with `--fix`) all library/package projects.
+
+Internally these are small meta projects that invoke `nx run-many` with the appropriate filters, so you do not have to list each project individually.
+
 ## Add new projects
 
 While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
