@@ -472,7 +472,8 @@ export default function SupportTicketsPage() {
   }, [selectedTicketId, selectedTicket?.conversationId, user?.id])
 
   const handleSendReply = useCallback(
-    async (content: string) => {
+    async (payload: { content: string; attachments: File[] }) => {
+      const { content } = payload
       if (!selectedTicketId || !user?.id || sendingReply) return
       setSendingReply(true)
       try {
