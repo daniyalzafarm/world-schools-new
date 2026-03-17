@@ -346,3 +346,34 @@ export const generatePreviewToken = async (campId: string): Promise<string> => {
   if (!response.success) throw new Error((response.data as any).message)
   return (response.data as any).token
 }
+
+/** Camp eligibility requirement (skill requirements) */
+export interface CampEligibilityItem {
+  activityId: string
+  mode: 'INFO' | 'GATE'
+  minimumLevelValue: string | null
+}
+
+export const getCampEligibility = async (
+  campId: string
+): Promise<{ items: CampEligibilityItem[] }> => {
+  const response = await apiClient.get<{ items: CampEligibilityItem[] }>(
+    `/provider/camps/${campId}/eligibility`
+  )
+  if (!response.success) throw new Error((response.data as any)?.message ?? 'Failed to load')
+  const data = (response.data as any)?.data ?? response.data
+  return Array.isArray(data?.items) ? data : { items: data?.items ?? [] }
+}
+
+export const putCampEligibility = async (
+  campId: string,
+  items: CampEligibilityItem[]
+): Promise<{ items: CampEligibilityItem[] }> => {
+  const response = await apiClient.patch<{ items: CampEligibilityItem[] }>(
+    `/provider/camps/${campId}/eligibility`,
+    { items }
+  )
+  if (!response.success) throw new Error((response.data as any)?.message ?? 'Failed to save')
+  const data = (response.data as any)?.data ?? response.data
+  return Array.isArray(data?.items) ? data : { items: data?.items ?? [] }
+}

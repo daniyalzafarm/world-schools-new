@@ -142,7 +142,7 @@ export function CategoryModal() {
             <EmojiPicker
               label="Icon"
               isRequired
-              value={formData.icon || '📚'}
+              value={formData.icon}
               onChange={emoji => setFormData(prev => ({ ...prev, icon: emoji }))}
             />
             <Input

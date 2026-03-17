@@ -189,7 +189,6 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
             onChange={value => setFormData(prev => ({ ...prev, icon: value }))}
             label="Icon"
             description="Choose an emoji to represent this add-on"
-            emojiSize="lg"
           />
 
           {/* Pricing */}

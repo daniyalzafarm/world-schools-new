@@ -13,6 +13,7 @@ import {
   Phone,
   Plus,
   Sliders,
+  Sparkles,
   User,
 } from 'lucide-react'
 import type { Child } from '@/types/child'
@@ -173,6 +174,11 @@ export const ChildrenSidebar: React.FC<ChildrenSidebarProps> = ({
           name: 'Camp preferences',
           href: `/children/${currentChildId}/preferences`,
           icon: <Sliders size={20} />,
+        },
+        {
+          name: 'Interests & abilities',
+          href: `/children/${currentChildId}/interests-and-abilities`,
+          icon: <Sparkles size={20} />,
         },
         {
           name: 'Emergency contacts',

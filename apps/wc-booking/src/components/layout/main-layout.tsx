@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { Sidebar } from '@/components/layout/sidebar'
@@ -27,6 +28,8 @@ function LoadingScreen() {
 export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { isInitialized, isAuthenticated } = useAuthStore()
+  const pathname = usePathname()
+  const isChildDetailRoute = pathname?.startsWith('/children/')
 
   // Handle responsive behavior
   useEffect(() => {
@@ -58,7 +61,11 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
         <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <MobileHeader menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-          <main className="flex-1 overflow-auto bg-white dark:bg-slate-900">
+          <main
+            className={`flex-1 bg-white dark:bg-slate-900 ${
+              isChildDetailRoute ? 'overflow-hidden' : 'overflow-auto'
+            }`}
+          >
             <div className="relative h-full pt-14 lg:pt-0">{children}</div>
           </main>
         </div>
@@ -75,7 +82,11 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
         <div className="flex-1 flex flex-col overflow-hidden">
           <MobileHeader menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
 
-          <main className="flex-1 overflow-auto bg-white dark:bg-slate-900">
+          <main
+            className={`flex-1 bg-white dark:bg-slate-900 ${
+              isChildDetailRoute ? 'overflow-hidden' : 'overflow-auto'
+            }`}
+          >
             <div className="relative h-full pt-14 lg:pt-0">{children}</div>
           </main>
         </div>

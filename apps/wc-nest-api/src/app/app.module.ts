@@ -22,6 +22,7 @@ import { SuperAdminModule } from '../modules/superadmin/superadmin.module'
 import { ProviderModule } from '../modules/provider/provider.module'
 import { UserModule } from '../modules/user/user.module'
 import { KbModule } from '../modules/kb/kb.module'
+import { CatalogueModule } from '../modules/catalogue/catalogue.module'
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { KbModule } from '../modules/kb/kb.module'
     ProviderModule,
     UserModule,
     KbModule,
+    CatalogueModule,
   ],
   controllers: [AppController],
   providers: [AppService],

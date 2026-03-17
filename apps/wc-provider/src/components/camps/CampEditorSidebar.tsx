@@ -95,6 +95,14 @@ const editorSections: EditorSection[] = [
     activityKey: 'excursions',
   },
 
+  // ELIGIBILITY & BOOKING
+  {
+    id: 'skill-requirements',
+    label: 'Skills & Levels Required',
+    path: 'skill-requirements',
+    category: 'ELIGIBILITY & BOOKING',
+  },
+
   // ACCOMMODATION & CARE
   {
     id: 'accommodation',

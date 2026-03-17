@@ -32,6 +32,12 @@ import {
 import { UpdateCampAddOnsDto } from './dto/update-camp-addons.dto'
 import { PhotoUploadService } from './services/photo-upload.service'
 import { GetCampsFiltersDto } from './dto/get-camps-filters.dto'
+import {
+  PutCampEligibilityDto,
+  PutCampFocusBodyDto,
+  PutCampInterestsDto,
+} from './dto/camp-catalogue.dto'
+import { EligibilityMode } from '../../../generated/client/enums'
 
 @Injectable()
 export class CampsService {
@@ -814,6 +820,173 @@ export class CampsService {
     return camp
   }
 
+  // ---------- Catalogue: Focus, Interests, Eligibility ----------
+
+  async getCampFocus(campId: string, providerId: string) {
+    await this.verifyCampOwnership(campId, providerId)
+    const focus = await this.prisma.campFocus.findUnique({
+      where: { campId },
+      include: { category: true, activity: true },
+    })
+    if (!focus) return { focus: null }
+    return {
+      focus: {
+        categoryId: focus.category.slug,
+        activityId: focus.activity.slug,
+      },
+    }
+  }
+
+  async putCampFocus(campId: string, providerId: string, dto: PutCampFocusBodyDto) {
+    await this.verifyCampOwnership(campId, providerId)
+    if (dto.focus == null || (typeof dto.focus === 'object' && !dto.focus.activityId)) {
+      await this.prisma.campFocus.deleteMany({ where: { campId } })
+      return this.getCampFocus(campId, providerId)
+    }
+    const cat = await this.prisma.activityCategory.findUnique({
+      where: { slug: dto.focus.categoryId },
+      select: { id: true },
+    })
+    if (!cat) throw new BadRequestException(`Unknown category: ${dto.focus.categoryId}`)
+    const activity = await this.prisma.activity.findFirst({
+      where: { categoryId: cat.id, slug: dto.focus.activityId, isActive: true },
+      select: { id: true },
+    })
+    if (!activity) throw new BadRequestException(`Unknown activity: ${dto.focus.activityId}`)
+    await this.prisma.campFocus.upsert({
+      where: { campId },
+      create: { campId, categoryId: cat.id, activityId: activity.id },
+      update: { categoryId: cat.id, activityId: activity.id },
+    })
+    return this.getCampFocus(campId, providerId)
+  }
+
+  async getCampInterests(campId: string, providerId: string) {
+    await this.verifyCampOwnership(campId, providerId)
+    const list = await this.prisma.campInterest.findMany({
+      where: { campId },
+      include: { category: true },
+      orderBy: { categoryId: 'asc' },
+    })
+    const activitiesByCategory = await this.prisma.activity.findMany({
+      where: { categoryId: { in: list.map(i => i.categoryId) } },
+      select: { id: true, slug: true, categoryId: true },
+    })
+    const slugById = new Map(activitiesByCategory.map(a => [a.id, a.slug]))
+    return {
+      items: list.map(item => ({
+        categoryId: item.category.slug,
+        specificActivityIds: (item.specificActivityIds || []).map(id => slugById.get(id) ?? id),
+      })),
+    }
+  }
+
+  async putCampInterests(campId: string, providerId: string, dto: PutCampInterestsDto) {
+    await this.verifyCampOwnership(campId, providerId)
+    const categorySlugs = dto.items.map(i => i.categoryId)
+    const categories = await this.prisma.activityCategory.findMany({
+      where: { slug: { in: categorySlugs } },
+      select: { id: true, slug: true },
+    })
+    const categoryBySlug = new Map(categories.map(c => [c.slug, c.id]))
+    for (const item of dto.items) {
+      if (!categoryBySlug.has(item.categoryId)) {
+        throw new BadRequestException(`Unknown category: ${item.categoryId}`)
+      }
+    }
+    const payload = await Promise.all(
+      dto.items.map(async item => {
+        const categoryId = categoryBySlug.get(item.categoryId)!
+        const specificActivityIds = await this.resolveActivityIdsInCategory(
+          this.prisma,
+          categoryId,
+          item.specificActivityIds ?? []
+        )
+        return { campId, categoryId, specificActivityIds }
+      })
+    )
+    await this.prisma.$transaction(async tx => {
+      await tx.campInterest.deleteMany({ where: { campId } })
+      if (payload.length) await tx.campInterest.createMany({ data: payload })
+    })
+    return this.getCampInterests(campId, providerId)
+  }
+
+  private async resolveActivityIdsInCategory(
+    prisma: PrismaService,
+    categoryId: string,
+    activitySlugs: string[]
+  ): Promise<string[]> {
+    if (!activitySlugs.length) return []
+    const activities = await prisma.activity.findMany({
+      where: { categoryId, slug: { in: activitySlugs } },
+      select: { id: true },
+    })
+    return activities.map(a => a.id)
+  }
+
+  async getCampEligibility(campId: string, providerId: string) {
+    await this.verifyCampOwnership(campId, providerId)
+    const list = await this.prisma.campEligibilityRequirement.findMany({
+      where: { campId },
+      include: { activity: true },
+      orderBy: { createdAt: 'asc' },
+    })
+    return {
+      items: list.map(item => ({
+        activityId: item.activity.slug,
+        mode: item.mode,
+        minimumLevelValue: item.minimumLevelValue ?? null,
+      })),
+    }
+  }
+
+  async putCampEligibility(campId: string, providerId: string, dto: PutCampEligibilityDto) {
+    await this.verifyCampOwnership(campId, providerId)
+    const activitySlugs = dto.items.map(i => i.activityId)
+    const activities = await this.prisma.activity.findMany({
+      where: { slug: { in: activitySlugs } },
+      include: { scale: { include: { levels: true } } },
+    })
+    const activityBySlug = new Map(activities.map(a => [a.slug, a]))
+    for (const item of dto.items) {
+      const activity = activityBySlug.get(item.activityId)
+      if (!activity) throw new BadRequestException(`Unknown activity: ${item.activityId}`)
+      if (!activity.scaleId || !activity.scale) {
+        throw new BadRequestException(`Activity '${item.activityId}' does not have a skill scale`)
+      }
+      if (item.mode === EligibilityMode.GATE) {
+        if (!item.minimumLevelValue?.trim()) {
+          throw new BadRequestException(
+            `minimumLevelValue is required when mode is GATE for activity '${item.activityId}'`
+          )
+        }
+        const levelExists = activity.scale.levels.some(l => l.value === item.minimumLevelValue)
+        if (!levelExists) {
+          throw new BadRequestException(
+            `Invalid minimumLevelValue '${item.minimumLevelValue}' for activity '${item.activityId}'`
+          )
+        }
+      }
+    }
+    await this.prisma.$transaction(async tx => {
+      await tx.campEligibilityRequirement.deleteMany({ where: { campId } })
+      if (!dto.items.length) return
+      await tx.campEligibilityRequirement.createMany({
+        data: dto.items.map(item => {
+          const activity = activityBySlug.get(item.activityId)!
+          return {
+            campId,
+            activityId: activity.id,
+            mode: item.mode as EligibilityMode,
+            minimumLevelValue: item.mode === EligibilityMode.GATE ? item.minimumLevelValue! : null,
+          }
+        }),
+      })
+    })
+    return this.getCampEligibility(campId, providerId)
+  }
+
   /**
    * Get camp statistics for provider dashboard
    */
@@ -864,7 +1037,13 @@ export class CampsService {
     const originalCamp = await this.verifyCampOwnership(campId, providerId)
 
     // Create a copy of the camp with a new name
-    const { id, createdAt, updatedAt, publishedAt, ...campData } = originalCamp as any
+    const {
+      id: _id,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      publishedAt: _publishedAt,
+      ...campData
+    } = originalCamp as any
 
     const duplicatedCamp = await this.prisma.camp.create({
       data: {

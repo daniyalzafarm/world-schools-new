@@ -57,4 +57,32 @@ export const childrenService = {
   async delete(id: string): Promise<ApiResult<{ message: string }>> {
     return apiClient.del<{ message: string }>(`/user/children/${id}`)
   },
+
+  /** Get child interests (catalogue category + specific activities) */
+  async getInterests(
+    childId: string
+  ): Promise<ApiResult<{ categoryId: string; specificActivityIds: string[] }[]>> {
+    return apiClient.get(`/user/children/${childId}/interests`)
+  },
+
+  /** Replace child interests. Send full array. */
+  async updateInterests(
+    childId: string,
+    items: { categoryId: string; specificActivityIds?: string[] }[]
+  ): Promise<ApiResult<{ categoryId: string; specificActivityIds: string[] }[]>> {
+    return apiClient.patch(`/user/children/${childId}/interests`, { items })
+  },
+
+  /** Get child skills (activity + level) */
+  async getSkills(childId: string): Promise<ApiResult<{ activityId: string; level: string }[]>> {
+    return apiClient.get(`/user/children/${childId}/skills`)
+  },
+
+  /** Replace child skills. Send full array. */
+  async updateSkills(
+    childId: string,
+    items: { activityId: string; level: string }[]
+  ): Promise<ApiResult<{ activityId: string; level: string }[]>> {
+    return apiClient.patch(`/user/children/${childId}/skills`, { items })
+  },
 }

@@ -45,6 +45,11 @@ import {
 } from './dto/update-camp.dto'
 import { GetCampsFiltersDto } from './dto/get-camps-filters.dto'
 import { UpdateCampAddOnsDto } from './dto/update-camp-addons.dto'
+import {
+  PutCampEligibilityDto,
+  PutCampFocusBodyDto,
+  PutCampInterestsDto,
+} from './dto/camp-catalogue.dto'
 
 @Controller('provider/camps')
 @UseGuards(RolesOrPermissionsGuard)
@@ -229,6 +234,90 @@ export class CampsController {
     const providerId = await this.getProviderIdForUser(user)
     const camp = await this.campsService.getCamp(campId, providerId)
     return ResponseUtil.success({ camp })
+  }
+
+  /**
+   * Get camp focus (catalogue primary activity)
+   */
+  @Get(':id/focus')
+  @Permissions('camps.read')
+  @HttpCode(HttpStatus.OK)
+  async getCampFocus(@Param('id') campId: string, @CurrentUser() user: any) {
+    const providerId = await this.getProviderIdForUser(user)
+    const result = await this.campsService.getCampFocus(campId, providerId)
+    return ResponseUtil.success(result)
+  }
+
+  /**
+   * Set or clear camp focus (catalogue primary activity)
+   */
+  @Patch(':id/focus')
+  @Permissions('camps.update')
+  @HttpCode(HttpStatus.OK)
+  async putCampFocus(
+    @Param('id') campId: string,
+    @CurrentUser() user: any,
+    @Body() dto: PutCampFocusBodyDto
+  ) {
+    const providerId = await this.getProviderIdForUser(user)
+    const result = await this.campsService.putCampFocus(campId, providerId, dto)
+    return ResponseUtil.success(result)
+  }
+
+  /**
+   * Get camp interests (catalogue categories + activities)
+   */
+  @Get(':id/interests')
+  @Permissions('camps.read')
+  @HttpCode(HttpStatus.OK)
+  async getCampInterests(@Param('id') campId: string, @CurrentUser() user: any) {
+    const providerId = await this.getProviderIdForUser(user)
+    const result = await this.campsService.getCampInterests(campId, providerId)
+    return ResponseUtil.success(result)
+  }
+
+  /**
+   * Replace camp interests
+   */
+  @Patch(':id/interests')
+  @Permissions('camps.update')
+  @HttpCode(HttpStatus.OK)
+  async putCampInterests(
+    @Param('id') campId: string,
+    @CurrentUser() user: any,
+    @Body() dto: PutCampInterestsDto
+  ) {
+    const providerId = await this.getProviderIdForUser(user)
+    const result = await this.campsService.putCampInterests(campId, providerId, dto)
+    return ResponseUtil.success(result)
+  }
+
+  /**
+   * Get camp eligibility requirements (skill requirements)
+   */
+  @Get(':id/eligibility')
+  @Permissions('camps.read')
+  @HttpCode(HttpStatus.OK)
+  async getCampEligibility(@Param('id') campId: string, @CurrentUser() user: any) {
+    const providerId = await this.getProviderIdForUser(user)
+    const result = await this.campsService.getCampEligibility(campId, providerId)
+    return ResponseUtil.success(result)
+  }
+
+  /**
+   * Replace camp eligibility requirements
+   */
+  @Patch(':id/eligibility')
+  @Permissions('camps.update')
+  @HttpCode(HttpStatus.OK)
+  async putCampEligibility(
+    @Param('id') campId: string,
+    @CurrentUser() user: any,
+    @Body() dto: PutCampEligibilityDto
+  ) {
+    const providerId = await this.getProviderIdForUser(user)
+    const result = await this.campsService.putCampEligibility(campId, providerId, dto)
+    return ResponseUtil.success(result)
   }
 
   /**

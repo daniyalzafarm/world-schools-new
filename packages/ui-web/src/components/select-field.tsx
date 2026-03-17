@@ -2,6 +2,7 @@
 
 import { Select, SelectItem, type SelectProps, SelectSection } from '@heroui/react'
 import { cn } from '../utils/cn'
+import { mergeClassNames } from '../utils/merge-class-names'
 
 export interface SelectFieldSection {
   title: string
@@ -16,13 +17,17 @@ export interface SelectFieldOptionObject {
 export type SelectFieldOption = string | SelectFieldOptionObject
 
 export interface SelectFieldProps
-  extends Omit<SelectProps, 'children' | 'selectedKeys' | 'onSelectionChange' | 'onChange'> {
+  extends Omit<
+    SelectProps,
+    'children' | 'selectedKeys' | 'onSelectionChange' | 'onChange' | 'classNames'
+  > {
   value?: string
   onChange: (value: string) => void
   /** Flat array of options (for backward compatibility) */
   options?: readonly SelectFieldOption[] | SelectFieldOption[]
   /** Grouped sections of options */
   sections?: readonly SelectFieldSection[] | SelectFieldSection[]
+  classNames?: SelectProps['classNames']
 }
 
 export function SelectField({
@@ -32,6 +37,7 @@ export function SelectField({
   sections,
   placeholder = 'Select option',
   className,
+  classNames: customClassNames,
   ...props
 }: SelectFieldProps) {
   // Validate that either options or sections is provided, but not both
@@ -42,6 +48,23 @@ export function SelectField({
     throw new Error('SelectField: Cannot use both "options" and "sections" props simultaneously')
   }
 
+  const mergedClassNames = mergeClassNames(
+    {
+      trigger: cn(
+        'rounded-lg bg-white capitalize',
+        'border border-gray-200',
+        'hover:border-gray-300',
+        'aria-expanded:border-primary!',
+        'aria-expanded:bg-white!',
+        'data-focus:outline-none',
+        'data-focus:border-primary!',
+        'dark:border-gray-600'
+      ),
+      base: cn('w-auto data-[invalid=true]:mt-0'),
+    },
+    customClassNames
+  ) satisfies SelectProps['classNames']
+
   return (
     <Select
       selectedKeys={value ? [value] : []}
@@ -51,20 +74,7 @@ export function SelectField({
       }}
       placeholder={placeholder}
       labelPlacement="outside"
-      classNames={{
-        trigger: cn(
-          'rounded-lg bg-white capitalize',
-          'border border-gray-200',
-          'hover:border-gray-300',
-          'aria-expanded:border-primary!',
-          'aria-expanded:bg-white!',
-          'data-focus:outline-none',
-          'data-focus:border-primary!',
-          'dark:border-gray-600',
-          className
-        ),
-        base: cn('w-auto data-[invalid=true]:mt-0'),
-      }}
+      classNames={mergedClassNames}
       {...props}
     >
       {options
@@ -85,7 +95,7 @@ export function SelectField({
             )
           })
         : // Render grouped sections
-          sections!.map(section => (
+          (sections ?? []).map(section => (
             <SelectSection key={section.title} title={section.title} showDivider>
               {section.items.map(item => (
                 <SelectItem key={item}>{item}</SelectItem>

@@ -24,19 +24,22 @@
 
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import { Button } from '@heroui/react'
 import { Smile } from 'lucide-react'
 import { cn } from '../utils/cn'
 import type { EmojiClickData } from 'emoji-picker-react'
+import { createPortal } from 'react-dom'
+
+type EmojiPickerReactComponent = typeof import('emoji-picker-react').default
 
 // Dynamically import the emoji picker to avoid SSR issues
 // This is lazy-loaded only when the component is used
-let Picker: any = null
+let Picker: EmojiPickerReactComponent | null = null
 const loadPicker = async () => {
   if (!Picker) {
     const module = await import('emoji-picker-react')
-    Picker = module.default
+    Picker = module.default as EmojiPickerReactComponent
   }
   return Picker
 }
@@ -68,6 +71,8 @@ export interface EmojiPickerProps {
   }
   /** Whether the picker is required */
   isRequired?: boolean
+  /** Render the popup in a portal to avoid clipping by parents */
+  portal?: boolean
 }
 
 const emojiSizeClasses = {
@@ -94,11 +99,16 @@ export function EmojiPicker({
   pickerPosition = 'bottom',
   classNames,
   isRequired = false,
+  portal = true,
 }: EmojiPickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isPickerLoaded, setIsPickerLoaded] = useState(false)
-  const [PickerComponent, setPickerComponent] = useState<any>(null)
-  const pickerRef = useRef<HTMLDivElement>(null)
+  const [PickerComponent, setPickerComponent] = useState<EmojiPickerReactComponent | null>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const popupRef = useRef<HTMLDivElement>(null)
+
+  const pickerSize = useMemo(() => ({ width: 320, height: 400 }), [])
+  const [popupStyle, setPopupStyle] = useState<React.CSSProperties>({})
 
   // Load the picker component when first opened
   useEffect(() => {
@@ -110,12 +120,67 @@ export function EmojiPicker({
     }
   }, [isOpen, isPickerLoaded])
 
+  const updatePopupPosition = () => {
+    if (!portal) return
+    const anchor = rootRef.current
+    if (!anchor) return
+    const button = anchor.querySelector('button')
+    if (!button) return
+
+    const rect = button.getBoundingClientRect()
+    const gap = 8
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+
+    let top = rect.bottom + gap
+    let left = rect.left
+
+    if (pickerPosition === 'top') {
+      top = rect.top - pickerSize.height - gap
+      left = rect.left
+    } else if (pickerPosition === 'left') {
+      top = rect.top
+      left = rect.left - pickerSize.width - gap
+    } else if (pickerPosition === 'right') {
+      top = rect.top
+      left = rect.right + gap
+    }
+
+    // Clamp into viewport so it never renders off-screen.
+    left = Math.min(Math.max(gap, left), Math.max(gap, vw - pickerSize.width - gap))
+    top = Math.min(Math.max(gap, top), Math.max(gap, vh - pickerSize.height - gap))
+
+    setPopupStyle({
+      position: 'fixed',
+      top,
+      left,
+      width: pickerSize.width,
+      height: pickerSize.height,
+      zIndex: 2147483647,
+    })
+  }
+
+  useEffect(() => {
+    if (!isOpen) return
+    updatePopupPosition()
+    const onScrollOrResize = () => updatePopupPosition()
+    window.addEventListener('resize', onScrollOrResize)
+    // capture=true to react to scroll on nested containers too
+    window.addEventListener('scroll', onScrollOrResize, true)
+    return () => {
+      window.removeEventListener('resize', onScrollOrResize)
+      window.removeEventListener('scroll', onScrollOrResize, true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, portal, pickerPosition, pickerSize.width, pickerSize.height])
+
   // Close picker when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
+      const target = event.target as Node
+      if (rootRef.current?.contains(target)) return
+      if (popupRef.current?.contains(target)) return
+      setIsOpen(false)
     }
 
     if (isOpen) {
@@ -127,16 +192,40 @@ export function EmojiPicker({
     }
   }, [isOpen])
 
-  const handleEmojiClick = (emojiData: EmojiClickData) => {
+  const handleEmojiClick = (emojiData: EmojiClickData, _event: MouseEvent) => {
     onChange?.(emojiData.emoji)
     setIsOpen(false)
   }
 
   const handleToggle = () => {
     if (!disabled) {
-      setIsOpen(!isOpen)
+      setIsOpen(open => !open)
     }
   }
+
+  const popup =
+    isOpen && isPickerLoaded && PickerComponent ? (
+      <div
+        ref={popupRef}
+        className={cn(
+          !portal && 'absolute',
+          !portal && pickerPositionClasses[pickerPosition],
+          !portal && (pickerPosition === 'top' || pickerPosition === 'bottom' ? 'left-0' : 'top-0')
+        )}
+        style={portal ? popupStyle : undefined}
+      >
+        <PickerComponent
+          onEmojiClick={handleEmojiClick}
+          width={pickerSize.width}
+          height={pickerSize.height}
+          previewConfig={{
+            showPreview: false,
+          }}
+          searchPlaceholder="Search emoji..."
+          lazyLoadEmojis={true}
+        />
+      </div>
+    ) : null
 
   return (
     <div className={cn('flex flex-col gap-1', className, classNames?.container)}>
@@ -153,7 +242,7 @@ export function EmojiPicker({
         </label>
       )}
 
-      <div className="relative" ref={pickerRef}>
+      <div className="relative" ref={rootRef}>
         <Button
           type="button"
           onPress={handleToggle}
@@ -176,26 +265,11 @@ export function EmojiPicker({
           </div>
         </Button>
 
-        {isOpen && isPickerLoaded && PickerComponent && (
-          <div
-            className={cn(
-              'absolute z-50',
-              pickerPositionClasses[pickerPosition],
-              pickerPosition === 'top' || pickerPosition === 'bottom' ? 'left-0' : 'top-0'
-            )}
-          >
-            <PickerComponent
-              onEmojiClick={handleEmojiClick}
-              width={320}
-              height={400}
-              previewConfig={{
-                showPreview: false,
-              }}
-              searchPlaceHolder="Search emoji..."
-              lazyLoadEmojis={true}
-            />
-          </div>
-        )}
+        {portal
+          ? typeof document !== 'undefined'
+            ? createPortal(popup, document.body)
+            : null
+          : popup}
       </div>
 
       {description && (

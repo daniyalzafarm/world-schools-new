@@ -3,6 +3,7 @@
 import React from 'react'
 import { Input as HeroInput, type InputProps } from '@heroui/react'
 import { cn } from '../utils/cn'
+import { mergeClassNames } from '../utils/merge-class-names'
 
 export interface CustomInputProps extends Omit<InputProps, 'classNames'> {
   classNames?: InputProps['classNames']
@@ -10,21 +11,20 @@ export interface CustomInputProps extends Omit<InputProps, 'classNames'> {
 
 export const Input = React.forwardRef<HTMLInputElement, CustomInputProps>(
   ({ classNames: customClassNames, ...props }, ref) => {
-    const mergedClassNames = {
-      ...customClassNames,
-      ...{
+    const mergedClassNames = mergeClassNames(
+      {
         inputWrapper: cn(
           'rounded-lg bg-white',
           'border border-gray-200',
           'hover:border-gray-300',
           'focus-within:border-primary!',
           'focus-within:bg-white!',
-          'dark:border-gray-600',
-          customClassNames?.inputWrapper
+          'dark:border-gray-600'
         ),
-        input: cn(customClassNames?.input),
+        input: cn(),
       },
-    }
+      customClassNames
+    ) satisfies InputProps['classNames']
 
     return (
       <HeroInput

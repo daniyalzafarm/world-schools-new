@@ -3,6 +3,7 @@
 import React from 'react'
 import { Textarea as HeroTextarea, type TextAreaProps } from '@heroui/react'
 import { cn } from '../utils/cn'
+import { mergeClassNames } from '../utils/merge-class-names'
 
 export interface CustomTextareaProps extends Omit<TextAreaProps, 'classNames'> {
   classNames?: TextAreaProps['classNames']
@@ -18,9 +19,8 @@ export const Textarea: React.FC<CustomTextareaProps> = ({
   maxLength,
   ...props
 }) => {
-  const mergedClassNames = {
-    ...customClassNames,
-    ...{
+  const mergedClassNames = mergeClassNames(
+    {
       inputWrapper: cn(
         'rounded-lg bg-white',
         'border border-gray-200',
@@ -28,12 +28,12 @@ export const Textarea: React.FC<CustomTextareaProps> = ({
         'focus-within:border-primary!',
         'focus-within:!bg-white',
         'focus-within:outline-none',
-        'dark:border-gray-600',
-        customClassNames?.inputWrapper
+        'dark:border-gray-600'
       ),
-      input: cn(customClassNames?.input),
+      input: cn(),
     },
-  }
+    customClassNames
+  ) satisfies TextAreaProps['classNames']
 
   // Calculate character count
   const currentLength = typeof value === 'string' ? value.length : 0

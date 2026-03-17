@@ -7,6 +7,12 @@ import {
 import { PrismaService } from '../../../prisma/prisma.service'
 import { CreateChildDto } from './dto/create-child.dto'
 import { UpdateChildDto } from './dto/update-child.dto'
+import {
+  ChildInterestItemDto,
+  ChildSkillItemDto,
+  UpdateChildInterestsDto,
+  UpdateChildSkillsDto,
+} from './dto/child-interests-skills.dto'
 
 @Injectable()
 export class UserChildrenService {
@@ -210,6 +216,160 @@ export class UserChildrenService {
     return {
       message: `Child '${child.firstName} ${child.lastName || ''}' deleted successfully`,
     }
+  }
+
+  // ============================================
+  // Interests & Skills (catalogue-backed)
+  // ============================================
+
+  private async assertChildOwnership(userId: string, childId: string) {
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+    })
+
+    if (!parent) {
+      throw new NotFoundException('Parent profile not found for this user')
+    }
+
+    const child = await this.prisma.children.findUnique({
+      where: { id: childId },
+    })
+
+    if (!child || child.parentId !== parent.id) {
+      throw new ForbiddenException('You do not have permission to access this child')
+    }
+
+    return child
+  }
+
+  async getInterests(userId: string, childId: string): Promise<ChildInterestItemDto[]> {
+    await this.assertChildOwnership(userId, childId)
+
+    const items = await this.prisma.childInterest.findMany({
+      where: { childId },
+      include: {
+        category: true,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    })
+
+    return items.map(item => ({
+      categoryId: item.category.slug,
+      specificActivityIds: item.specificActivityIds,
+    }))
+  }
+
+  async updateInterests(
+    userId: string,
+    childId: string,
+    dto: UpdateChildInterestsDto
+  ): Promise<ChildInterestItemDto[]> {
+    await this.assertChildOwnership(userId, childId)
+
+    const categorySlugs = dto.items.map(i => i.categoryId)
+    const categories = await this.prisma.activityCategory.findMany({
+      where: { slug: { in: categorySlugs } },
+      select: { id: true, slug: true },
+    })
+    const categoryBySlug = new Map(categories.map(c => [c.slug, c.id]))
+
+    for (const item of dto.items) {
+      if (!categoryBySlug.has(item.categoryId)) {
+        throw new BadRequestException(`Unknown category: ${item.categoryId}`)
+      }
+    }
+
+    await this.prisma.$transaction(async tx => {
+      await tx.childInterest.deleteMany({ where: { childId } })
+
+      if (!dto.items.length) return
+
+      await tx.childInterest.createMany({
+        data: dto.items.map(item => ({
+          childId,
+          categoryId: categoryBySlug.get(item.categoryId)!,
+          specificActivityIds: item.specificActivityIds ?? [],
+        })),
+      })
+    })
+
+    return this.getInterests(userId, childId)
+  }
+
+  async getSkills(userId: string, childId: string): Promise<ChildSkillItemDto[]> {
+    await this.assertChildOwnership(userId, childId)
+
+    const skills = await this.prisma.childSkill.findMany({
+      where: { childId },
+      include: {
+        activity: true,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    })
+
+    return skills.map(skill => ({
+      activityId: skill.activity.slug,
+      level: skill.levelValue,
+    }))
+  }
+
+  async updateSkills(
+    userId: string,
+    childId: string,
+    dto: UpdateChildSkillsDto
+  ): Promise<ChildSkillItemDto[]> {
+    await this.assertChildOwnership(userId, childId)
+
+    if (!dto.items || dto.items.length === 0) {
+      await this.prisma.childSkill.deleteMany({ where: { childId } })
+      return []
+    }
+
+    const activitySlugs = dto.items.map(i => i.activityId)
+    const activities = await this.prisma.activity.findMany({
+      where: { slug: { in: activitySlugs } },
+      include: { scale: { include: { levels: true } } },
+    })
+    const activityBySlug = new Map(activities.map(a => [a.slug, a]))
+
+    for (const item of dto.items) {
+      const activity = activityBySlug.get(item.activityId)
+      if (!activity) {
+        throw new BadRequestException(`Unknown activity: ${item.activityId}`)
+      }
+      if (!activity.scaleId || !activity.scale) {
+        throw new BadRequestException(
+          `Activity '${item.activityId}' does not have a skill scale configured`
+        )
+      }
+      const levelExists = activity.scale.levels.some(lvl => lvl.value === item.level)
+      if (!levelExists) {
+        throw new BadRequestException(
+          `Invalid level '${item.level}' for activity '${item.activityId}'`
+        )
+      }
+    }
+
+    await this.prisma.$transaction(async tx => {
+      await tx.childSkill.deleteMany({ where: { childId } })
+
+      await tx.childSkill.createMany({
+        data: dto.items.map(item => {
+          const activity = activityBySlug.get(item.activityId)!
+          return {
+            childId,
+            activityId: activity.id,
+            levelValue: item.level,
+          }
+        }),
+      })
+    })
+
+    return this.getSkills(userId, childId)
   }
 
   /**

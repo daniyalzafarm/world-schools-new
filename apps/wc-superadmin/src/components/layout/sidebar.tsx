@@ -19,6 +19,7 @@ import {
   Building,
   ChevronDown,
   ChevronRight,
+  FolderOpen,
   Headphones,
   HelpCircle,
   House,
@@ -168,6 +169,12 @@ const NAV_ITEMS: NavItem[] = [
         permission: 'kb.categories.read',
       },
     ],
+  },
+  {
+    name: 'Activity Catalogue',
+    href: '/catalogue',
+    icon: <FolderOpen size={20} />,
+    type: 'regular',
   },
   {
     name: 'Help',
