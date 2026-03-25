@@ -261,9 +261,10 @@ model Parent {
   updatedAt            DateTime @updatedAt @map("updated_at")
 
   // Relations
-  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  children Children[]
-  bookings Booking[]
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  children             Children[]
+  bookings             Booking[]
+  bookingGroups        BookingGroup[]
 
   @@index([userId])
   @@map("parents")
@@ -583,7 +584,8 @@ model Camp {
   campAddOns               CampAddOn[]
   sessions                 Session[]
   globalDiscounts          GlobalDiscount[]
-  supportTickets            SupportTicket[]
+  supportTickets           SupportTicket[]
+  bookings                 Booking[]
   campFocusRecord          CampFocus?
   campInterests            CampInterest[]
   eligibilityRequirements  CampEligibilityRequirement[]
@@ -894,6 +896,52 @@ enum CalculationType {
 // Sessions & Bookings
 // ============================================
 
+/// Groups sibling bookings for a single parent; one payment flow per group.
+/// All bookings in a group share the same payment/refund lifecycle.
+model BookingGroup {
+  id       String @id @default(uuid())
+  parentId String @map("parent_id")
+
+  /// Monetary breakdown in booking currency.
+  /// Sum of child line items before discounts.
+  subtotalAmount Decimal @map("subtotal_amount") @db.Decimal(12, 2)
+  /// Total discount amount applied at group + line-item level.
+  discountTotal  Decimal @default(0) @map("discount_total") @db.Decimal(12, 2)
+  /// JSON snapshot of how discounts were calculated (for UI/debugging).
+  discountDetails Json?  @map("discount_details") @db.JsonB
+  /// Final amount due for the group (after discounts); intended PaymentIntent amount.
+  totalAmount Decimal @map("total_amount") @db.Decimal(12, 2)
+
+  /// Deposit required (from provider settings); balance = totalAmount - depositAmount.
+  depositAmount Decimal? @map("deposit_amount") @db.Decimal(10, 2)
+
+  /// Aggregated payment tracking for the group.
+  paidAmount     Decimal @default(0) @map("paid_amount") @db.Decimal(12, 2)
+  refundedAmount Decimal @default(0) @map("refunded_amount") @db.Decimal(12, 2)
+
+  /// Lifecycle status for the overall group/payment flow.
+  status BookingGroupStatus @default(pending_authorization)
+
+  /// Request/response metadata mirrored from UI.
+  requestedAt DateTime  @default(now()) @map("requested_at")
+  respondedAt DateTime? @map("responded_at")
+  expiresAt   DateTime? @map("expires_at")
+
+  specialRequest String? @map("special_request") @db.Text
+  internalNotes  String? @map("internal_notes") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  parent    Parent           @relation(fields: [parentId], references: [id], onDelete: Restrict)
+  bookings  Booking[]
+
+  @@index([parentId])
+  @@index([createdAt])
+  @@index([status])
+  @@map("booking_groups")
+}
+
 model Session {
   id     String @id @default(uuid())
   campId String @map("camp_id")
@@ -940,61 +988,80 @@ model Session {
   @@map("sessions")
 }
 
+/// One booking = one child. Siblings share a booking_group_id; parent pays once per group.
+/// Lifecycle: request → accepted|declined|expired → deposit_paid → fully_paid → at_camp → completed; any → cancelled.
 model Booking {
-  id        String @id @default(uuid())
-  sessionId String @map("session_id")
-  campId    String @map("camp_id")
+  id             String   @id @default(uuid())
+  bookingGroupId String   @map("booking_group_id")
+  sessionId      String   @map("session_id")
+  campId         String   @map("camp_id")
+  parentId       String   @map("parent_id")
+  childId        String   @map("child_id")
 
-  // Parent & Child Info
-  parentId String @map("parent_id")
-  childId  String @map("child_id")
+  // Dates & price
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+  duration  Json?    // Flexible sessions: {weeks: 2, days: 3}
+  /// Base price for this child before discounts.
+  basePrice Decimal @map("base_price") @db.Decimal(10, 2)
+  /// Total discount amount applied to this child.
+  discountAmount Decimal @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  /// Line total for this child (after discounts); payment is tracked at BookingGroup level.
+  totalPrice Decimal @map("price") @db.Decimal(10, 2)
 
-  // Booking Details
-  startDate DateTime      @map("start_date") // When child starts attending
-  endDate   DateTime      @map("end_date") // When child finishes
-  duration  Json? // For flexible sessions: {weeks: 2, days: 3}
-  price     Decimal       @db.Decimal(10, 2)
-  status    BookingStatus @default(pending)
+  // Lifecycle status (payment status is on BookingGroupPayment)
+  status BookingStatus @default(request)
 
-  // Payment
-  paymentStatus PaymentStatus @default(pending) @map("payment_status")
-  paidAmount    Decimal       @default(0) @map("paid_amount") @db.Decimal(10, 2)
-  depositAmount Decimal?      @map("deposit_amount") @db.Decimal(10, 2)
+  // Provider response (when status is request)
+  /// 72-hour deadline for provider to accept/decline; auto-expire if no response.
+  requestExpiresAt DateTime? @map("request_expires_at")
+  respondedAt      DateTime?  @map("responded_at")
+  /// Private note from provider when accepting or declining.
+  providerNote String? @map("provider_note") @db.Text
 
-  // Add-ons
-  addOns Json? @map("add_ons") // [{addOnId, quantity, price}, ...]
-
-  // Metadata
+  addOns    Json?   @map("add_ons") // [{addOnId, quantity, price}, ...]
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  // Relations
-  session        Session         @relation(fields: [sessionId], references: [id], onDelete: Restrict)
-  parent         Parent          @relation(fields: [parentId], references: [id], onDelete: Restrict)
-  child          Children        @relation(fields: [childId], references: [id], onDelete: Restrict)
-  supportTickets SupportTicket[]
+  bookingGroup BookingGroup   @relation(fields: [bookingGroupId], references: [id], onDelete: Restrict)
+  session             Session               @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  camp         Camp           @relation(fields: [campId], references: [id], onDelete: Restrict)
+  parent              Parent                @relation(fields: [parentId], references: [id], onDelete: Restrict)
+  child               Children              @relation(fields: [childId], references: [id], onDelete: Restrict)
+  supportTickets        SupportTicket[]
 
+  @@index([bookingGroupId])
   @@index([sessionId])
   @@index([campId])
   @@index([parentId])
   @@index([childId])
   @@index([status])
-  @@index([paymentStatus])
+  @@index([requestExpiresAt])
   @@map("bookings")
 }
 
+/// Booking lifecycle: request → provider response → payment → at camp → completed; any → cancelled.
 enum BookingStatus {
-  pending
-  confirmed
-  cancelled
-  completed
+  request       // Awaiting provider response (72h deadline)
+  accepted      // Provider accepted
+  declined      // Provider declined
+  expired       // No provider response by request_expires_at
+  deposit_paid  // Deposit received
+  fully_paid    // Balance paid
+  at_camp       // Child currently at camp
+  completed     // Camp finished
+  cancelled     // Cancelled from any prior status
 }
 
-enum PaymentStatus {
-  pending
-  partial
-  paid
-  refunded
+/// Aggregate status for a group of sibling bookings that share a single payment flow.
+enum BookingGroupStatus {
+  pending_authorization // PaymentIntent created, awaiting card authorization
+  authorized            // Card authorized; funds held but not captured
+  capture_pending       // Authorized and awaiting capture (e.g. after camp confirmation)
+  captured              // Capture succeeded; funds in platform balance
+  cancelled             // Authorization cancelled or expired with no capture
+  partially_refunded    // Some portion of captured funds refunded
+  fully_refunded        // All captured funds refunded
 }
 
 // ============================================
