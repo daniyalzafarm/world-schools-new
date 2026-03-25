@@ -920,7 +920,7 @@ model BookingGroup {
   refundedAmount Decimal @default(0) @map("refunded_amount") @db.Decimal(12, 2)
 
   /// Lifecycle status for the overall group/payment flow.
-  status BookingGroupStatus @default(pending_authorization)
+  status BookingGroupStatus @default(request)
 
   /// Request/response metadata mirrored from UI.
   requestedAt DateTime  @default(now()) @map("requested_at")
@@ -1009,9 +1009,6 @@ model Booking {
   /// Line total for this child (after discounts); payment is tracked at BookingGroup level.
   totalPrice Decimal @map("price") @db.Decimal(10, 2)
 
-  // Lifecycle status (payment status is on BookingGroupPayment)
-  status BookingStatus @default(request)
-
   // Provider response (when status is request)
   /// 72-hour deadline for provider to accept/decline; auto-expire if no response.
   requestExpiresAt DateTime? @map("request_expires_at")
@@ -1036,14 +1033,13 @@ model Booking {
   @@index([campId])
   @@index([parentId])
   @@index([childId])
-  @@index([status])
   @@index([requestExpiresAt])
   @@map("bookings")
 }
 
 /// Booking lifecycle: request → provider response → payment → at camp → completed; any → cancelled.
-enum BookingStatus {
-  request       // Awaiting provider response (72h deadline)
+enum BookingGroupStatus {
+  request       // Awaiting provider response
   accepted      // Provider accepted
   declined      // Provider declined
   expired       // No provider response by request_expires_at
@@ -1052,17 +1048,6 @@ enum BookingStatus {
   at_camp       // Child currently at camp
   completed     // Camp finished
   cancelled     // Cancelled from any prior status
-}
-
-/// Aggregate status for a group of sibling bookings that share a single payment flow.
-enum BookingGroupStatus {
-  pending_authorization // PaymentIntent created, awaiting card authorization
-  authorized            // Card authorized; funds held but not captured
-  capture_pending       // Authorized and awaiting capture (e.g. after camp confirmation)
-  captured              // Capture succeeded; funds in platform balance
-  cancelled             // Authorization cancelled or expired with no capture
-  partially_refunded    // Some portion of captured funds refunded
-  fully_refunded        // All captured funds refunded
 }
 
 // ============================================
