@@ -1019,7 +1019,8 @@ model Booking {
   /// Private note from provider when accepting or declining.
   providerNote String? @map("provider_note") @db.Text
 
-  addOns    Json?   @map("add_ons") // [{addOnId, quantity, price}, ...]
+  /// Selected add-ons for this specific child booking.
+  addOns    BookingCampAddOn[]
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -1148,11 +1149,40 @@ model CampAddOn {
 
   camp  Camp  @relation(fields: [campId], references: [id], onDelete: Cascade)
   addOn AddOn @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+  bookingAddOns BookingCampAddOn[]
 
   @@id([campId, addOnId])
   @@index([campId])
   @@index([addOnId])
   @@map("camp_add_ons")
+}
+
+/// Selected add-ons for a specific child booking.
+/// Stores a JSON snapshot for audit/UI, plus numeric fields for safe aggregation.
+model BookingCampAddOn {
+  bookingId String @map("booking_id")
+
+  /// References `CampAddOn`'s composite PK.
+  campId  String @map("camp_id")
+  addOnId String @map("add_on_id")
+
+  quantity Int @default(1) @map("quantity")
+  unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
+  lineTotal Decimal @map("line_total") @db.Decimal(12, 2)
+
+  /// Snapshot of the add-on selection (e.g. config, quantity basis, UI metadata).
+  snapshot Json @map("snapshot") @db.JsonB
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  campAddOn CampAddOn @relation(fields: [campId, addOnId], references: [campId, addOnId], onDelete: Restrict)
+
+  @@id([bookingId, campId, addOnId])
+  @@index([campId])
+  @@index([addOnId])
+  @@map("booking_camp_add_ons")
 }
 
 enum AddOnType {
