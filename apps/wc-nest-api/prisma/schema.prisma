@@ -234,6 +234,8 @@ model Provider {
   settings              ProviderSettings?
   verificationDocuments VerificationDocument[]
   camps                 Camp[]
+  bookings              Booking[]
+  bookingGroups         BookingGroup[]
   addOns                AddOn[]
 
   // Messaging Relations
@@ -586,6 +588,7 @@ model Camp {
   globalDiscounts          GlobalDiscount[]
   supportTickets           SupportTicket[]
   bookings                 Booking[]
+  bookingGroups           BookingGroup[]
   campFocusRecord          CampFocus?
   campInterests            CampInterest[]
   eligibilityRequirements  CampEligibilityRequirement[]
@@ -901,6 +904,9 @@ enum CalculationType {
 model BookingGroup {
   id       String @id @default(uuid())
   parentId String @map("parent_id")
+  sessionId String @map("session_id")
+  campId   String @map("camp_id")
+  providerId String @map("provider_id")
 
   /// Monetary breakdown in booking currency.
   /// Sum of child line items before discounts.
@@ -934,9 +940,15 @@ model BookingGroup {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   parent    Parent           @relation(fields: [parentId], references: [id], onDelete: Restrict)
+  session   Session          @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  camp      Camp             @relation(fields: [campId], references: [id], onDelete: Restrict)
+  provider  Provider         @relation(fields: [providerId], references: [id], onDelete: Restrict)
   bookings  Booking[]
 
   @@index([parentId])
+  @@index([sessionId])
+  @@index([campId])
+  @@index([providerId])
   @@index([createdAt])
   @@index([status])
   @@map("booking_groups")
@@ -980,6 +992,7 @@ model Session {
   // Relations
   camp           Camp            @relation(fields: [campId], references: [id], onDelete: Cascade)
   bookings       Booking[]
+  bookingGroups BookingGroup[]
   supportTickets SupportTicket[]
 
   @@index([campId])
@@ -995,6 +1008,7 @@ model Booking {
   bookingGroupId String   @map("booking_group_id")
   sessionId      String   @map("session_id")
   campId         String   @map("camp_id")
+  providerId     String   @map("provider_id")
   parentId       String   @map("parent_id")
   childId        String   @map("child_id")
 
@@ -1024,6 +1038,7 @@ model Booking {
   bookingGroup BookingGroup   @relation(fields: [bookingGroupId], references: [id], onDelete: Restrict)
   session             Session               @relation(fields: [sessionId], references: [id], onDelete: Restrict)
   camp         Camp           @relation(fields: [campId], references: [id], onDelete: Restrict)
+  provider     Provider      @relation(fields: [providerId], references: [id], onDelete: Restrict)
   parent              Parent                @relation(fields: [parentId], references: [id], onDelete: Restrict)
   child               Children              @relation(fields: [childId], references: [id], onDelete: Restrict)
   supportTickets        SupportTicket[]
@@ -1031,6 +1046,7 @@ model Booking {
   @@index([bookingGroupId])
   @@index([sessionId])
   @@index([campId])
+  @@index([providerId])
   @@index([parentId])
   @@index([childId])
   @@index([requestExpiresAt])
