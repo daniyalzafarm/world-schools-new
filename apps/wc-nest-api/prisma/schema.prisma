@@ -263,10 +263,10 @@ model Parent {
   updatedAt            DateTime @updatedAt @map("updated_at")
 
   // Relations
-  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  children             Children[]
-  bookings             Booking[]
-  bookingGroups        BookingGroup[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  children      Children[]
+  bookings      Booking[]
+  bookingGroups BookingGroup[]
 
   @@index([userId])
   @@map("parents")
@@ -582,16 +582,16 @@ model Camp {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  provider                 Provider                     @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  campAddOns               CampAddOn[]
-  sessions                 Session[]
-  globalDiscounts          GlobalDiscount[]
-  supportTickets           SupportTicket[]
-  bookings                 Booking[]
+  provider                Provider                     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  campAddOns              CampAddOn[]
+  sessions                Session[]
+  globalDiscounts         GlobalDiscount[]
+  supportTickets          SupportTicket[]
+  bookings                Booking[]
   bookingGroups           BookingGroup[]
-  campFocusRecord          CampFocus?
-  campInterests            CampInterest[]
-  eligibilityRequirements  CampEligibilityRequirement[]
+  campFocusRecord         CampFocus?
+  campInterests           CampInterest[]
+  eligibilityRequirements CampEligibilityRequirement[]
 
   @@index([providerId])
   @@index([status])
@@ -605,24 +605,24 @@ model Camp {
 
 /// Top-level interest / activity category configured by superadmin.
 model ActivityCategory {
-  id        String                @id @default(uuid())
+  id     String                 @id @default(uuid())
   /// Stable slug used by frontend (e.g. "sports")
-  slug      String                @unique @db.VarChar(80)
-  name      String                @db.VarChar(120)
-  emoji     String?               @db.VarChar(8)
-  status    ActivityCategoryStatus @default(ACTIVE)
+  slug   String                 @unique @db.VarChar(80)
+  name   String                 @db.VarChar(120)
+  emoji  String?                @db.VarChar(8)
+  status ActivityCategoryStatus @default(ACTIVE)
 
   // Surfaces – control where this category appears
-  surfaceParentInterests Boolean @default(true)  @map("surface_parent_interests")
-  surfaceCampFocus       Boolean @default(true)  @map("surface_camp_focus")
-  surfaceCampInterests   Boolean @default(true)  @map("surface_camp_interests")
+  surfaceParentInterests Boolean @default(true) @map("surface_parent_interests")
+  surfaceCampFocus       Boolean @default(true) @map("surface_camp_focus")
+  surfaceCampInterests   Boolean @default(true) @map("surface_camp_interests")
 
-  order     Int       @default(0)
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt      @map("updated_at")
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  activities   Activity[]
+  activities     Activity[]
   childInterests ChildInterest[]
   campInterests  CampInterest[]
   campFocuses    CampFocus[]
@@ -633,22 +633,22 @@ model ActivityCategory {
 
 /// Individual activity within a category (e.g. Football, Piano).
 model Activity {
-  id          String   @id @default(uuid())
-  categoryId  String   @map("category_id")
-  slug        String   @db.VarChar(80)
-  name        String   @db.VarChar(120)
-  emoji       String?  @db.VarChar(8)
-  scaleId     String?  @map("scale_id")
-  order       Int      @default(0)
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt      @map("updated_at")
+  id         String   @id @default(uuid())
+  categoryId String   @map("category_id")
+  slug       String   @db.VarChar(80)
+  name       String   @db.VarChar(120)
+  emoji      String?  @db.VarChar(8)
+  scaleId    String?  @map("scale_id")
+  order      Int      @default(0)
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-  category    ActivityCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  scale       ActivityScale?   @relation(fields: [scaleId], references: [id], onDelete: SetNull)
-  childSkills ChildSkill[]
+  category        ActivityCategory             @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  scale           ActivityScale?               @relation(fields: [scaleId], references: [id], onDelete: SetNull)
+  childSkills     ChildSkill[]
   campEligibility CampEligibilityRequirement[]
-  campFocuses CampFocus[]
+  campFocuses     CampFocus[]
 
   @@unique([categoryId, slug])
   @@index([categoryId])
@@ -659,9 +659,9 @@ model Activity {
 
 /// Scale definition (e.g. standard-3, standard-5, CEFR, swim-4).
 model ActivityScale {
-  id          String   @id @db.VarChar(80)
-  name        String   @db.VarChar(160)
-  description String?  @db.Text
+  id          String  @id @db.VarChar(80)
+  name        String  @db.VarChar(160)
+  description String? @db.Text
 
   /// Visual style used by frontend pickers (e.g. DOT or GRID).
   visualType ActivityScaleVisualType @default(DOT) @map("visual_type")
@@ -669,9 +669,9 @@ model ActivityScale {
   colorKey   ActivityScaleColorKey   @default(PURPLE) @map("color_key")
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  levels    ActivityScaleLevel[]
+  levels     ActivityScaleLevel[]
   activities Activity[]
 
   @@map("activity_scales")
@@ -679,13 +679,13 @@ model ActivityScale {
 
 /// Individual level within a scale (ordered for comparisons).
 model ActivityScaleLevel {
-  id       String   @id @default(uuid())
-  scaleId  String   @map("scale_id")
+  id      String @id @default(uuid())
+  scaleId String @map("scale_id")
   /// Canonical stored value used in APIs (e.g. "A1", "Beginner").
-  value    String   @db.VarChar(80)
-  label    String   @db.VarChar(160)
+  value   String @db.VarChar(80)
+  label   String @db.VarChar(160)
   /// Order used for >= comparisons (1 = lowest).
-  order    Int
+  order   Int
 
   scale ActivityScale @relation(fields: [scaleId], references: [id], onDelete: Cascade)
 
@@ -696,14 +696,14 @@ model ActivityScaleLevel {
 
 /// Child's interests at category + optional specific activities level.
 model ChildInterest {
-  id         String   @id @default(uuid())
-  childId    String   @map("child_id")
-  categoryId String   @map("category_id")
+  id                  String   @id @default(uuid())
+  childId             String   @map("child_id")
+  categoryId          String   @map("category_id")
   /// Optional list of specific activity IDs within this category.
   specificActivityIds String[] @default([]) @map("specific_activity_ids")
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   child    Children         @relation(fields: [childId], references: [id], onDelete: Cascade)
   category ActivityCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
@@ -716,14 +716,14 @@ model ChildInterest {
 
 /// Child's skill level for a specific activity.
 model ChildSkill {
-  id         String   @id @default(uuid())
-  childId    String   @map("child_id")
-  activityId String   @map("activity_id")
+  id         String @id @default(uuid())
+  childId    String @map("child_id")
+  activityId String @map("activity_id")
   /// Must correspond to ActivityScaleLevel.value for the activity's scale.
-  levelValue String   @map("level_value") @db.VarChar(80)
+  levelValue String @map("level_value") @db.VarChar(80)
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   child    Children @relation(fields: [childId], references: [id], onDelete: Cascade)
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
@@ -740,7 +740,7 @@ model CampFocus {
   categoryId String @map("category_id")
   activityId String @map("activity_id")
 
-  camp     Camp            @relation(fields: [campId], references: [id], onDelete: Cascade)
+  camp     Camp             @relation(fields: [campId], references: [id], onDelete: Cascade)
   category ActivityCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   activity Activity         @relation(fields: [activityId], references: [id], onDelete: Restrict)
 
@@ -751,16 +751,16 @@ model CampFocus {
 
 /// Broader set of interests a camp covers (derived from editor tabs).
 model CampInterest {
-  id         String   @id @default(uuid())
-  campId     String   @map("camp_id")
-  categoryId String   @map("category_id")
+  id                  String   @id @default(uuid())
+  campId              String   @map("camp_id")
+  categoryId          String   @map("category_id")
   /// Optional list of specific activities within this category.
   specificActivityIds String[] @default([]) @map("specific_activity_ids")
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  camp     Camp            @relation(fields: [campId], references: [id], onDelete: Cascade)
+  camp     Camp             @relation(fields: [campId], references: [id], onDelete: Cascade)
   category ActivityCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   @@unique([campId, categoryId])
@@ -771,15 +771,15 @@ model CampInterest {
 
 /// Camp's skill requirements for eligibility or grouping.
 model CampEligibilityRequirement {
-  id         String            @id @default(uuid())
-  campId     String            @map("camp_id")
-  activityId String            @map("activity_id")
-  mode       EligibilityMode   @default(INFO)
+  id                String          @id @default(uuid())
+  campId            String          @map("camp_id")
+  activityId        String          @map("activity_id")
+  mode              EligibilityMode @default(INFO)
   /// Minimum required level; null when mode = INFO.
-  minimumLevelValue String?    @map("minimum_level_value") @db.VarChar(80)
+  minimumLevelValue String?         @map("minimum_level_value") @db.VarChar(80)
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   camp     Camp     @relation(fields: [campId], references: [id], onDelete: Cascade)
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
@@ -902,21 +902,21 @@ enum CalculationType {
 /// Groups sibling bookings for a single parent; one payment flow per group.
 /// All bookings in a group share the same payment/refund lifecycle.
 model BookingGroup {
-  id       String @id @default(uuid())
-  parentId String @map("parent_id")
-  sessionId String @map("session_id")
-  campId   String @map("camp_id")
+  id         String @id @default(uuid())
+  parentId   String @map("parent_id")
+  sessionId  String @map("session_id")
+  campId     String @map("camp_id")
   providerId String @map("provider_id")
 
   /// Monetary breakdown in booking currency.
   /// Sum of child line items before discounts.
-  subtotalAmount Decimal @map("subtotal_amount") @db.Decimal(12, 2)
+  subtotalAmount  Decimal @map("subtotal_amount") @db.Decimal(12, 2)
   /// Total discount amount applied at group + line-item level.
-  discountTotal  Decimal @default(0) @map("discount_total") @db.Decimal(12, 2)
+  discountTotal   Decimal @default(0) @map("discount_total") @db.Decimal(12, 2)
   /// JSON snapshot of how discounts were calculated (for UI/debugging).
-  discountDetails Json?  @map("discount_details") @db.JsonB
+  discountDetails Json?   @map("discount_details") @db.JsonB
   /// Final amount due for the group (after discounts); intended PaymentIntent amount.
-  totalAmount Decimal @map("total_amount") @db.Decimal(12, 2)
+  totalAmount     Decimal @map("total_amount") @db.Decimal(12, 2)
 
   /// Deposit required (from provider settings); balance = totalAmount - depositAmount.
   depositAmount Decimal? @map("deposit_amount") @db.Decimal(10, 2)
@@ -939,11 +939,11 @@ model BookingGroup {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  parent    Parent           @relation(fields: [parentId], references: [id], onDelete: Restrict)
-  session   Session          @relation(fields: [sessionId], references: [id], onDelete: Restrict)
-  camp      Camp             @relation(fields: [campId], references: [id], onDelete: Restrict)
-  provider  Provider         @relation(fields: [providerId], references: [id], onDelete: Restrict)
-  bookings  Booking[]
+  parent   Parent    @relation(fields: [parentId], references: [id], onDelete: Restrict)
+  session  Session   @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  camp     Camp      @relation(fields: [campId], references: [id], onDelete: Restrict)
+  provider Provider  @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  bookings Booking[]
 
   @@index([parentId])
   @@index([sessionId])
@@ -992,7 +992,7 @@ model Session {
   // Relations
   camp           Camp            @relation(fields: [campId], references: [id], onDelete: Cascade)
   bookings       Booking[]
-  bookingGroups BookingGroup[]
+  bookingGroups  BookingGroup[]
   supportTickets SupportTicket[]
 
   @@index([campId])
@@ -1004,44 +1004,44 @@ model Session {
 /// One booking = one child. Siblings share a booking_group_id; parent pays once per group.
 /// Lifecycle: request → accepted|declined|expired → deposit_paid → fully_paid → at_camp → completed; any → cancelled.
 model Booking {
-  id             String   @id @default(uuid())
-  bookingGroupId String   @map("booking_group_id")
-  sessionId      String   @map("session_id")
-  campId         String   @map("camp_id")
-  providerId     String   @map("provider_id")
-  parentId       String   @map("parent_id")
-  childId        String   @map("child_id")
+  id             String @id @default(uuid())
+  bookingGroupId String @map("booking_group_id")
+  sessionId      String @map("session_id")
+  campId         String @map("camp_id")
+  providerId     String @map("provider_id")
+  parentId       String @map("parent_id")
+  childId        String @map("child_id")
 
   // Dates & price
-  startDate DateTime @map("start_date")
-  endDate   DateTime @map("end_date")
-  duration  Json?    // Flexible sessions: {weeks: 2, days: 3}
+  startDate      DateTime @map("start_date")
+  endDate        DateTime @map("end_date")
+  duration       Json? // Flexible sessions: {weeks: 2, days: 3}
   /// Base price for this child before discounts.
-  basePrice Decimal @map("base_price") @db.Decimal(10, 2)
+  basePrice      Decimal  @map("base_price") @db.Decimal(10, 2)
   /// Total discount amount applied to this child.
-  discountAmount Decimal @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  discountAmount Decimal  @default(0) @map("discount_amount") @db.Decimal(10, 2)
   /// Line total for this child (after discounts); payment is tracked at BookingGroup level.
-  totalPrice Decimal @map("price") @db.Decimal(10, 2)
+  totalPrice     Decimal  @map("price") @db.Decimal(10, 2)
 
   // Provider response (when status is request)
   /// 72-hour deadline for provider to accept/decline; auto-expire if no response.
   requestExpiresAt DateTime? @map("request_expires_at")
-  respondedAt      DateTime?  @map("responded_at")
+  respondedAt      DateTime? @map("responded_at")
   /// Private note from provider when accepting or declining.
-  providerNote String? @map("provider_note") @db.Text
+  providerNote     String?   @map("provider_note") @db.Text
 
   /// Selected add-ons for this specific child booking.
   addOns    BookingCampAddOn[]
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
 
-  bookingGroup BookingGroup   @relation(fields: [bookingGroupId], references: [id], onDelete: Restrict)
-  session             Session               @relation(fields: [sessionId], references: [id], onDelete: Restrict)
-  camp         Camp           @relation(fields: [campId], references: [id], onDelete: Restrict)
-  provider     Provider      @relation(fields: [providerId], references: [id], onDelete: Restrict)
-  parent              Parent                @relation(fields: [parentId], references: [id], onDelete: Restrict)
-  child               Children              @relation(fields: [childId], references: [id], onDelete: Restrict)
-  supportTickets        SupportTicket[]
+  bookingGroup   BookingGroup    @relation(fields: [bookingGroupId], references: [id], onDelete: Restrict)
+  session        Session         @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  camp           Camp            @relation(fields: [campId], references: [id], onDelete: Restrict)
+  provider       Provider        @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  parent         Parent          @relation(fields: [parentId], references: [id], onDelete: Restrict)
+  child          Children        @relation(fields: [childId], references: [id], onDelete: Restrict)
+  supportTickets SupportTicket[]
 
   @@index([bookingGroupId])
   @@index([sessionId])
@@ -1055,15 +1055,15 @@ model Booking {
 
 /// Booking lifecycle: request → provider response → payment → at camp → completed; any → cancelled.
 enum BookingGroupStatus {
-  request       // Awaiting provider response
-  accepted      // Provider accepted
-  declined      // Provider declined
-  expired       // No provider response by request_expires_at
-  deposit_paid  // Deposit received
-  fully_paid    // Balance paid
-  at_camp       // Child currently at camp
-  completed     // Camp finished
-  cancelled     // Cancelled from any prior status
+  request // Awaiting provider response
+  accepted // Provider accepted
+  declined // Provider declined
+  expired // No provider response by request_expires_at
+  deposit_paid // Deposit received
+  fully_paid // Balance paid
+  at_camp // Child currently at camp
+  completed // Camp finished
+  cancelled // Cancelled from any prior status
 }
 
 // ============================================
@@ -1148,8 +1148,8 @@ model CampAddOn {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  camp  Camp  @relation(fields: [campId], references: [id], onDelete: Cascade)
-  addOn AddOn @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+  camp          Camp               @relation(fields: [campId], references: [id], onDelete: Cascade)
+  addOn         AddOn              @relation(fields: [addOnId], references: [id], onDelete: Cascade)
   bookingAddOns BookingCampAddOn[]
 
   @@id([campId, addOnId])
@@ -1167,7 +1167,7 @@ model BookingCampAddOn {
   campId  String @map("camp_id")
   addOnId String @map("add_on_id")
 
-  quantity Int @default(1) @map("quantity")
+  quantity  Int     @default(1) @map("quantity")
   unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
   lineTotal Decimal @map("line_total") @db.Decimal(12, 2)
 
@@ -1177,7 +1177,7 @@ model BookingCampAddOn {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking   Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   campAddOn CampAddOn @relation(fields: [campId, addOnId], references: [campId, addOnId], onDelete: Restrict)
 
   @@id([bookingId, campId, addOnId])
@@ -1518,8 +1518,8 @@ model MessageReport {
 }
 
 model MessageAttachment {
-  id         String  @id @default(uuid())
-  messageId  String? @map("message_id") // null until attached to a message (upload-then-send)
+  id        String  @id @default(uuid())
+  messageId String? @map("message_id") // null until attached to a message (upload-then-send)
 
   // File metadata
   fileName String   @map("file_name")
