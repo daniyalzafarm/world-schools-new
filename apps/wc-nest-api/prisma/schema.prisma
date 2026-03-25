@@ -579,14 +579,14 @@ model Camp {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  provider                 Provider                     @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  campAddOns               CampAddOn[]
-  sessions                 Session[]
-  globalDiscounts          GlobalDiscount[]
-  supportTickets            SupportTicket[]
-  campFocusRecord          CampFocus?
-  campInterests            CampInterest[]
-  eligibilityRequirements  CampEligibilityRequirement[]
+  provider                Provider                     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  campAddOns              CampAddOn[]
+  sessions                Session[]
+  globalDiscounts         GlobalDiscount[]
+  supportTickets          SupportTicket[]
+  campFocusRecord         CampFocus?
+  campInterests           CampInterest[]
+  eligibilityRequirements CampEligibilityRequirement[]
 
   @@index([providerId])
   @@index([status])
@@ -600,24 +600,24 @@ model Camp {
 
 /// Top-level interest / activity category configured by superadmin.
 model ActivityCategory {
-  id        String                @id @default(uuid())
+  id     String                 @id @default(uuid())
   /// Stable slug used by frontend (e.g. "sports")
-  slug      String                @unique @db.VarChar(80)
-  name      String                @db.VarChar(120)
-  emoji     String?               @db.VarChar(8)
-  status    ActivityCategoryStatus @default(ACTIVE)
+  slug   String                 @unique @db.VarChar(80)
+  name   String                 @db.VarChar(120)
+  emoji  String?                @db.VarChar(8)
+  status ActivityCategoryStatus @default(ACTIVE)
 
   // Surfaces – control where this category appears
-  surfaceParentInterests Boolean @default(true)  @map("surface_parent_interests")
-  surfaceCampFocus       Boolean @default(true)  @map("surface_camp_focus")
-  surfaceCampInterests   Boolean @default(true)  @map("surface_camp_interests")
+  surfaceParentInterests Boolean @default(true) @map("surface_parent_interests")
+  surfaceCampFocus       Boolean @default(true) @map("surface_camp_focus")
+  surfaceCampInterests   Boolean @default(true) @map("surface_camp_interests")
 
-  order     Int       @default(0)
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt      @map("updated_at")
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  activities   Activity[]
+  activities     Activity[]
   childInterests ChildInterest[]
   campInterests  CampInterest[]
   campFocuses    CampFocus[]
@@ -628,22 +628,22 @@ model ActivityCategory {
 
 /// Individual activity within a category (e.g. Football, Piano).
 model Activity {
-  id          String   @id @default(uuid())
-  categoryId  String   @map("category_id")
-  slug        String   @db.VarChar(80)
-  name        String   @db.VarChar(120)
-  emoji       String?  @db.VarChar(8)
-  scaleId     String?  @map("scale_id")
-  order       Int      @default(0)
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt      @map("updated_at")
+  id         String   @id @default(uuid())
+  categoryId String   @map("category_id")
+  slug       String   @db.VarChar(80)
+  name       String   @db.VarChar(120)
+  emoji      String?  @db.VarChar(8)
+  scaleId    String?  @map("scale_id")
+  order      Int      @default(0)
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-  category    ActivityCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  scale       ActivityScale?   @relation(fields: [scaleId], references: [id], onDelete: SetNull)
-  childSkills ChildSkill[]
+  category        ActivityCategory             @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  scale           ActivityScale?               @relation(fields: [scaleId], references: [id], onDelete: SetNull)
+  childSkills     ChildSkill[]
   campEligibility CampEligibilityRequirement[]
-  campFocuses CampFocus[]
+  campFocuses     CampFocus[]
 
   @@unique([categoryId, slug])
   @@index([categoryId])
@@ -654,9 +654,9 @@ model Activity {
 
 /// Scale definition (e.g. standard-3, standard-5, CEFR, swim-4).
 model ActivityScale {
-  id          String   @id @db.VarChar(80)
-  name        String   @db.VarChar(160)
-  description String?  @db.Text
+  id          String  @id @db.VarChar(80)
+  name        String  @db.VarChar(160)
+  description String? @db.Text
 
   /// Visual style used by frontend pickers (e.g. DOT or GRID).
   visualType ActivityScaleVisualType @default(DOT) @map("visual_type")
@@ -664,9 +664,9 @@ model ActivityScale {
   colorKey   ActivityScaleColorKey   @default(PURPLE) @map("color_key")
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  levels    ActivityScaleLevel[]
+  levels     ActivityScaleLevel[]
   activities Activity[]
 
   @@map("activity_scales")
@@ -674,13 +674,13 @@ model ActivityScale {
 
 /// Individual level within a scale (ordered for comparisons).
 model ActivityScaleLevel {
-  id       String   @id @default(uuid())
-  scaleId  String   @map("scale_id")
+  id      String @id @default(uuid())
+  scaleId String @map("scale_id")
   /// Canonical stored value used in APIs (e.g. "A1", "Beginner").
-  value    String   @db.VarChar(80)
-  label    String   @db.VarChar(160)
+  value   String @db.VarChar(80)
+  label   String @db.VarChar(160)
   /// Order used for >= comparisons (1 = lowest).
-  order    Int
+  order   Int
 
   scale ActivityScale @relation(fields: [scaleId], references: [id], onDelete: Cascade)
 
@@ -691,14 +691,14 @@ model ActivityScaleLevel {
 
 /// Child's interests at category + optional specific activities level.
 model ChildInterest {
-  id         String   @id @default(uuid())
-  childId    String   @map("child_id")
-  categoryId String   @map("category_id")
+  id                  String   @id @default(uuid())
+  childId             String   @map("child_id")
+  categoryId          String   @map("category_id")
   /// Optional list of specific activity IDs within this category.
   specificActivityIds String[] @default([]) @map("specific_activity_ids")
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   child    Children         @relation(fields: [childId], references: [id], onDelete: Cascade)
   category ActivityCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
@@ -711,14 +711,14 @@ model ChildInterest {
 
 /// Child's skill level for a specific activity.
 model ChildSkill {
-  id         String   @id @default(uuid())
-  childId    String   @map("child_id")
-  activityId String   @map("activity_id")
+  id         String @id @default(uuid())
+  childId    String @map("child_id")
+  activityId String @map("activity_id")
   /// Must correspond to ActivityScaleLevel.value for the activity's scale.
-  levelValue String   @map("level_value") @db.VarChar(80)
+  levelValue String @map("level_value") @db.VarChar(80)
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   child    Children @relation(fields: [childId], references: [id], onDelete: Cascade)
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
@@ -735,7 +735,7 @@ model CampFocus {
   categoryId String @map("category_id")
   activityId String @map("activity_id")
 
-  camp     Camp            @relation(fields: [campId], references: [id], onDelete: Cascade)
+  camp     Camp             @relation(fields: [campId], references: [id], onDelete: Cascade)
   category ActivityCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   activity Activity         @relation(fields: [activityId], references: [id], onDelete: Restrict)
 
@@ -746,16 +746,16 @@ model CampFocus {
 
 /// Broader set of interests a camp covers (derived from editor tabs).
 model CampInterest {
-  id         String   @id @default(uuid())
-  campId     String   @map("camp_id")
-  categoryId String   @map("category_id")
+  id                  String   @id @default(uuid())
+  campId              String   @map("camp_id")
+  categoryId          String   @map("category_id")
   /// Optional list of specific activities within this category.
   specificActivityIds String[] @default([]) @map("specific_activity_ids")
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  camp     Camp            @relation(fields: [campId], references: [id], onDelete: Cascade)
+  camp     Camp             @relation(fields: [campId], references: [id], onDelete: Cascade)
   category ActivityCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   @@unique([campId, categoryId])
@@ -766,15 +766,15 @@ model CampInterest {
 
 /// Camp's skill requirements for eligibility or grouping.
 model CampEligibilityRequirement {
-  id         String            @id @default(uuid())
-  campId     String            @map("camp_id")
-  activityId String            @map("activity_id")
-  mode       EligibilityMode   @default(INFO)
+  id                String          @id @default(uuid())
+  campId            String          @map("camp_id")
+  activityId        String          @map("activity_id")
+  mode              EligibilityMode @default(INFO)
   /// Minimum required level; null when mode = INFO.
-  minimumLevelValue String?    @map("minimum_level_value") @db.VarChar(80)
+  minimumLevelValue String?         @map("minimum_level_value") @db.VarChar(80)
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   camp     Camp     @relation(fields: [campId], references: [id], onDelete: Cascade)
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
@@ -1420,8 +1420,8 @@ model MessageReport {
 }
 
 model MessageAttachment {
-  id         String  @id @default(uuid())
-  messageId  String? @map("message_id") // null until attached to a message (upload-then-send)
+  id        String  @id @default(uuid())
+  messageId String? @map("message_id") // null until attached to a message (upload-then-send)
 
   // File metadata
   fileName String   @map("file_name")
