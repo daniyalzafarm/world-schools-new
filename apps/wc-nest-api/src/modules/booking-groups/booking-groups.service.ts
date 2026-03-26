@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -472,6 +473,7 @@ export class BookingGroupsService {
     sessionId: string
     childIds: string[]
     specialRequest?: string
+    forceNew?: boolean
   }) {
     const parent = await this.prisma.parent.findUnique({
       where: { userId: params.userId },
@@ -506,6 +508,27 @@ export class BookingGroupsService {
     })
     if (children.length !== params.childIds.length) {
       throw new BadRequestException('One or more children are invalid')
+    }
+
+    if (!params.forceNew) {
+      const existingDraft = await this.prisma.bookingGroup.findFirst({
+        where: {
+          parentId: parent.id,
+          campId: params.campId,
+          status: 'draft',
+        },
+        select: { id: true },
+        orderBy: { updatedAt: 'desc' },
+      })
+
+      if (existingDraft) {
+        throw new ConflictException({
+          code: 'DRAFT_ALREADY_EXISTS',
+          bookingGroupId: existingDraft.id,
+          message:
+            'You already have a draft booking for this camp. Continue your existing booking or create a new one.',
+        })
+      }
     }
 
     const sessionPrice = Number(session.price ?? 0)

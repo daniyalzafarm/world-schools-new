@@ -1,4 +1,12 @@
-import { ArrayNotEmpty, IsArray, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator'
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsBoolean,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator'
 
 export class CreateDraftBookingGroupDto {
   @IsUUID()
@@ -16,4 +24,8 @@ export class CreateDraftBookingGroupDto {
   @IsString()
   @MaxLength(1500)
   specialRequest?: string
+
+  @IsOptional()
+  @IsBoolean()
+  forceNew?: boolean
 }

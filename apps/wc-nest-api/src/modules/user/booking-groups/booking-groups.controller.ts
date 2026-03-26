@@ -26,6 +26,7 @@ export class UserBookingGroupsController {
       sessionId: dto.sessionId,
       childIds: dto.childIds,
       specialRequest: dto.specialRequest,
+      forceNew: dto.forceNew,
     })
     return ResponseUtil.success(result)
   }

@@ -25,6 +25,7 @@ export interface CreateDraftBookingGroupRequest {
   sessionId: string
   childIds: string[]
   specialRequest?: string
+  forceNew?: boolean
 }
 
 export type CampBookingAddOnSelectionMode = 'per_child' | 'per_child_qty' | 'qty'
