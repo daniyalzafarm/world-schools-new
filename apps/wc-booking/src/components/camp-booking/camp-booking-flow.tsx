@@ -16,6 +16,11 @@ import { formatCurrency } from '@/utils/currency'
 import type { CampBookingAddOnSelectionMode } from '@/types/camp-booking'
 import { MobileBookingFooter } from '@/components/camp-booking/mobile-booking-footer'
 import { DesktopSessionsSidebar } from '@/components/camp-booking/desktop-sessions-sidebar'
+import { DesktopChildrenSidebar } from '@/components/camp-booking/desktop-children-sidebar'
+import {
+  getChildUnitPrice,
+  getSelectedChildrenSubtotal,
+} from '@/components/camp-booking/booking-flow-pricing'
 import { ChevronDown, ChevronRight, X } from 'lucide-react'
 
 function SessionsStep() {
@@ -472,6 +477,8 @@ function ChildrenStep() {
   const toggleChild = useCampBookingStore(state => state.toggleChild)
   const setStep = useCampBookingStore(state => state.setStep)
   const createDraftBookingGroup = useCampBookingStore(state => state.createDraftBookingGroup)
+  const camp = useCampBookingStore(state => state.camp)
+  const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
 
   const eligibleChildren = useMemo(
     () =>
@@ -489,10 +496,23 @@ function ChildrenStep() {
 
   return (
     <section className="space-y-4">
-      <h2 className="text-2xl font-bold text-gray-900">Select children</h2>
+      <div className="lg:hidden">
+        <h2 className="text-2xl font-bold text-gray-900">Who's going to camp?</h2>
+      </div>
+
+      <div className="hidden lg:block">
+        <p className="text-xs font-bold uppercase tracking-wider text-primary-600">Step 2 of 4</p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-gray-900">
+          Who's going to camp?
+        </h1>
+        <p className="mt-2 text-sm text-gray-500">
+          Select{maxSpots ? ` up to ${maxSpots}` : ''} children for this booking
+        </p>
+      </div>
       <div className="grid gap-3">
         {eligibleChildren.map(({ child, age, isEligible }) => {
           const selected = selectedChildIds.includes(child.id)
+          const unitPrice = getChildUnitPrice(session, camp, child)
           return (
             <button
               key={child.id}
@@ -512,26 +532,42 @@ function ChildrenStep() {
                 }
                 toggleChild(child.id)
               }}
-              className={`rounded-xl border p-4 text-left transition ${
-                selected
-                  ? 'border-primary bg-primary/10'
-                  : isEligible
-                    ? 'border-gray-200 hover:border-gray-300'
-                    : 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-60'
-              }`}
+              className={[
+                'cursor-pointer rounded-xl border p-4 text-left transition hover:opacity-hover',
+                selected ? 'border-primary bg-primary/10' : 'border-gray-200 hover:border-gray-300',
+                !isEligible ? 'cursor-not-allowed bg-gray-50 opacity-60' : '',
+              ].join(' ')}
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-gray-900">
-                    {child.firstName} {child.lastName}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {age !== null ? `${age} years old` : 'Unknown age'}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-4">
+                  <span
+                    className={[
+                      'mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+                      selected ? 'border-primary bg-primary' : 'border-gray-300 bg-white',
+                    ].join(' ')}
+                    aria-hidden="true"
+                  >
+                    {selected ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
+                  </span>
+
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 truncate">
+                      {child.firstName} {child.lastName}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {age !== null ? `${age} years old` : 'Unknown age'}
+                    </p>
+                    {!isEligible ? (
+                      <p className="mt-1 text-xs font-semibold text-error-500">Not eligible</p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end gap-1">
+                  <p className="text-lg font-bold text-gray-900 whitespace-nowrap">
+                    {formatCurrency(unitPrice, currency)}
                   </p>
                 </div>
-                {!isEligible && (
-                  <p className="text-xs font-semibold text-error-500">Not eligible</p>
-                )}
               </div>
             </button>
           )
@@ -1058,13 +1094,13 @@ function ReviewStep() {
   const addOnSelectionsById = useCampBookingStore(state => state.addOnSelectionsById)
   const specialRequest = useCampBookingStore(state => state.specialRequest)
   const setSpecialRequest = useCampBookingStore(state => state.setSpecialRequest)
+  const camp = useCampBookingStore(state => state.camp)
 
   const session = sessions.find(item => item.id === selectedSessionId)
   const selectedChildren = children.filter(child => selectedChildIds.includes(child.id))
   const selectedAddOns = addOns.filter(addOn => !!addOnSelectionsById[addOn.addOnId])
 
   const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
-  const sessionPrice = session?.price ?? 0
   const addOnTotal = selectedAddOns.reduce((acc, addOn) => {
     const sel = addOnSelectionsById[addOn.addOnId]
     if (!sel) return acc
@@ -1075,7 +1111,13 @@ function ReviewStep() {
     }
     return acc + addOn.price * (sel.quantity ?? 0)
   }, 0)
-  const total = sessionPrice * selectedChildren.length + addOnTotal
+  const childrenSubtotal = getSelectedChildrenSubtotal({
+    session,
+    camp,
+    children,
+    selectedChildIds,
+  })
+  const total = childrenSubtotal + addOnTotal
 
   const onRequestToBook = async () => {
     await submitBookingGroup()
@@ -1187,6 +1229,7 @@ export function CampBookingFlow() {
 
           <div className="hidden lg:block lg:col-span-4">
             {currentStep === 'sessions' ? <DesktopSessionsSidebar /> : null}
+            {currentStep === 'children' ? <DesktopChildrenSidebar /> : null}
           </div>
         </div>
       </main>

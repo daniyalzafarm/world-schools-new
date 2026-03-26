@@ -5,6 +5,7 @@ import { useMemo } from 'react'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
 import { formatCurrency } from '@/utils/currency'
 import type { Session } from '@/types/sessions'
+import { getSelectedChildrenSubtotal } from '@/components/camp-booking/booking-flow-pricing'
 
 function getSessionPrice(session: Session | null | undefined) {
   if (!session) return 0
@@ -66,6 +67,7 @@ export function MobileBookingFooter() {
     [sessions, selectedSessionId]
   )
 
+  const camp = useCampBookingStore(state => state.camp)
   const children = useCampBookingStore(state => state.children)
   const selectedChildIds = useCampBookingStore(state => state.selectedChildIds)
 
@@ -81,7 +83,16 @@ export function MobileBookingFooter() {
   )
 
   const sessionPrice = getSessionPrice(selectedSession)
-  const childrenSubtotal = sessionPrice * selectedChildren.length
+  const childrenSubtotal = useMemo(
+    () =>
+      getSelectedChildrenSubtotal({
+        session: selectedSession,
+        camp,
+        children,
+        selectedChildIds,
+      }),
+    [selectedSession, camp, children, selectedChildIds]
+  )
 
   const onMainPress = async () => {
     if (isLoading) return
