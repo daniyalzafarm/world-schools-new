@@ -387,6 +387,17 @@ export const useCampBookingStore = create<CampBookingStore>()(
 
     createDraftBookingGroup: async () => {
       const state = get()
+
+      // Reuse existing draft when user navigates back and forth between steps.
+      // This prevents creating duplicate booking groups for the same flow.
+      if (state.bookingGroupId) {
+        set(draft => {
+          draft.currentStep = 'addons'
+          draft.error = null
+        })
+        return state.bookingGroupId
+      }
+
       if (!state.camp?.id || !state.selectedSessionId || state.selectedChildIds.length === 0) {
         return null
       }

@@ -8,7 +8,6 @@ import {
   DrawerBody,
   DrawerContent,
   DrawerHeader,
-  Input,
   Textarea,
 } from '@heroui/react'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
@@ -18,6 +17,7 @@ import type { CampBookingAddOnSelectionMode } from '@/types/camp-booking'
 import { MobileBookingFooter } from '@/components/camp-booking/mobile-booking-footer'
 import { DesktopSessionsSidebar } from '@/components/camp-booking/desktop-sessions-sidebar'
 import { DesktopChildrenSidebar } from '@/components/camp-booking/desktop-children-sidebar'
+import { DesktopAddonsSidebar } from '@/components/camp-booking/desktop-addons-sidebar'
 import {
   getChildUnitPrice,
   getSelectedChildrenSubtotal,
@@ -692,157 +692,136 @@ function AddonsStep() {
     0
   )
 
+  const getAddonSummary = (addOnId: string) => {
+    const selection = addOnSelectionsById[addOnId]
+    if (!selection) return null
+    if (selection.mode === 'per_child') {
+      const selectedChildrenCount = selection.childIds?.length ?? 0
+      if (selectedChildrenCount === 0) return null
+      return `${selectedChildrenCount} child${selectedChildrenCount === 1 ? '' : 'ren'} selected`
+    }
+    if (selection.mode === 'per_child_qty') {
+      const qty = (selection.childQuantities ?? []).reduce(
+        (sum, item) => sum + (item.quantity ?? 0),
+        0
+      )
+      if (qty === 0) return null
+      return `${qty} unit${qty === 1 ? '' : 's'} selected`
+    }
+    const qty = selection.quantity ?? 0
+    if (qty === 0) return null
+    return `${qty} selected`
+  }
+
   return (
     <section className="space-y-4">
-      <h2 className="text-2xl font-bold text-gray-900">Add extras</h2>
+      <div className="hidden lg:block">
+        <p className="text-xs font-bold uppercase tracking-wider text-primary-600">Step 3 of 4</p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-gray-900">Add extras</h1>
+        <p className="mt-2 text-sm text-gray-500">
+          Optional add-ons · choose for each child or skip
+        </p>
+      </div>
 
-      <div className="space-y-3 hidden lg:block">
-        {addOns
-          .slice()
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-          .map(addOn => {
-            const selection = addOnSelectionsById[addOn.addOnId]
-            const isSelected = !!selection
-            const mode = selection?.mode || inferMode(addOn)
-            const selectedChildren = children.filter(c => selectedChildIds.includes(c.id))
+      <div className="lg:hidden">
+        <h2 className="text-2xl font-bold text-gray-900">Add extras</h2>
+      </div>
 
-            return (
-              <div key={addOn.addOnId} className="rounded-xl border border-gray-200 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-gray-900">{addOn.name}</p>
-                    {addOn.description ? (
-                      <p className="mt-1 text-sm text-gray-500">{addOn.description}</p>
-                    ) : null}
-                    <p className="mt-2 text-sm font-medium text-gray-700">
-                      {formatCurrency(addOn.price, currency)}{' '}
-                      {mode === 'qty'
-                        ? 'per item'
-                        : mode === 'per_child'
-                          ? 'per child'
-                          : 'per child / unit'}
-                    </p>
-                  </div>
+      <div className="hidden lg:flex items-center justify-between">
+        <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Optional extras</p>
+        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
+          {extrasSelectedTypes} selected
+        </span>
+      </div>
 
-                  {!isSelected ? (
-                    <Button color="primary" size="sm" onPress={() => toggleAddOn(addOn.addOnId)}>
-                      +
-                    </Button>
-                  ) : (
-                    <Button
-                      color="default"
-                      size="sm"
-                      variant="light"
-                      onPress={() => toggleAddOn(addOn.addOnId)}
-                    >
-                      Remove
-                    </Button>
-                  )}
-                </div>
+      <div className="hidden lg:block divide-y divide-gray-100">
+        {sortedAddOns.map(addOn => {
+          const selection = addOnSelectionsById[addOn.addOnId]
+          const isSelected = !!selection
+          const mode = selection?.mode ?? inferMode(addOn)
+          const summary = getAddonSummary(addOn.addOnId)
+          const qty = selection?.quantity ?? 0
+          const maxQuantity = addOn.maxQuantity ?? null
+          const atMax = typeof maxQuantity === 'number' && qty >= maxQuantity
 
-                {isSelected ? (
-                  <div className="mt-3 space-y-3">
-                    {mode === 'qty' ? (
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-medium text-gray-700">Quantity</p>
-                        <Input
-                          type="number"
-                          min={0}
-                          value={String(selection.quantity ?? 0)}
-                          onValueChange={value =>
-                            setAddOnQuantity(addOn.addOnId, Number(value ?? 0))
-                          }
-                          className="w-24"
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        {selectedChildren.map(child => {
-                          if (mode === 'per_child') {
-                            const checked = selection.childIds?.includes(child.id) ?? false
-                            return (
-                              <div
-                                key={child.id}
-                                className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 p-3"
-                              >
-                                <p className="text-sm font-medium text-gray-900">
-                                  {child.firstName} {child.lastName}
-                                </p>
-                                <Button
-                                  size="sm"
-                                  variant={checked ? 'solid' : 'flat'}
-                                  color={checked ? 'primary' : 'default'}
-                                  onPress={() => toggleAddOnChild(addOn.addOnId, child.id)}
-                                >
-                                  {checked ? 'Selected' : 'Select'}
-                                </Button>
-                              </div>
-                            )
-                          }
-
-                          // per_child_qty
-                          const cq = selection.childQuantities?.find(x => x.childId === child.id)
-                          const qty = cq?.quantity ?? 0
-                          return (
-                            <div
-                              key={child.id}
-                              className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 p-3"
-                            >
-                              <p className="text-sm font-medium text-gray-900">
-                                {child.firstName} {child.lastName}
-                              </p>
-                              <div className="flex items-center gap-3">
-                                <Button
-                                  isDisabled={qty <= 0}
-                                  size="sm"
-                                  variant="flat"
-                                  onPress={() =>
-                                    setAddOnChildQuantity(
-                                      addOn.addOnId,
-                                      child.id,
-                                      Math.max(0, qty - 1)
-                                    )
-                                  }
-                                >
-                                  -
-                                </Button>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  value={String(qty)}
-                                  onValueChange={value =>
-                                    setAddOnChildQuantity(
-                                      addOn.addOnId,
-                                      child.id,
-                                      Number(value ?? 0)
-                                    )
-                                  }
-                                  className="w-20"
-                                />
-                                <Button
-                                  isDisabled={
-                                    typeof addOn.maxQuantity === 'number' &&
-                                    qty >= addOn.maxQuantity
-                                  }
-                                  size="sm"
-                                  variant="flat"
-                                  onPress={() =>
-                                    setAddOnChildQuantity(addOn.addOnId, child.id, qty + 1)
-                                  }
-                                >
-                                  +
-                                </Button>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </>
-                    )}
-                  </div>
-                ) : null}
+          return (
+            <div key={addOn.addOnId} className="flex items-center gap-4 py-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <span className="text-sm font-bold text-primary-700">+</span>
               </div>
-            )
-          })}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900">{addOn.name}</p>
+                {addOn.description ? (
+                  <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{addOn.description}</p>
+                ) : null}
+                {summary ? <p className="mt-1 text-xs text-gray-500">{summary}</p> : null}
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-bold text-gray-900">
+                  {formatCurrency(addOn.price, currency)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {mode === 'qty'
+                    ? 'per item'
+                    : mode === 'per_child'
+                      ? 'per child'
+                      : 'per unit/child'}
+                </p>
+              </div>
+              <div className="shrink-0">
+                {mode === 'qty' ? (
+                  !isSelected ? (
+                    <button
+                      type="button"
+                      className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-2xl text-gray-800"
+                      onClick={() => toggleAddOn(addOn.addOnId)}
+                    >
+                      +
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={qty <= 0}
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl disabled:opacity-50"
+                        onClick={() => setAddOnQuantity(addOn.addOnId, Math.max(0, qty - 1))}
+                      >
+                        -
+                      </button>
+                      <span className="w-5 text-center text-sm font-semibold text-gray-900">
+                        {qty}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={atMax}
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-xl text-white disabled:opacity-50"
+                        onClick={() => setAddOnQuantity(addOn.addOnId, qty + 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  )
+                ) : !isSelected ? (
+                  <button
+                    type="button"
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-2xl text-gray-800"
+                    onClick={() => toggleAddOn(addOn.addOnId)}
+                  >
+                    +
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-900 text-lg font-bold text-white"
+                    onClick={() => setSheetAddonId(addOn.addOnId)}
+                  >
+                    ✓
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       <div className="lg:hidden border-t border-gray-200 pt-4">
@@ -939,14 +918,14 @@ function AddonsStep() {
       </div>
 
       {sheetAddonId && sheetAddon && sheetSelection ? (
-        <div className="fixed inset-0 z-60 lg:hidden">
+        <div className="fixed inset-0 z-60">
           <div
             className="absolute inset-0 bg-black/40"
             role="button"
             tabIndex={0}
             onClick={() => setSheetAddonId(null)}
           />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white shadow-xl">
+          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white shadow-xl lg:inset-auto lg:left-1/2 lg:top-1/2 lg:w-[460px] lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-2xl">
             <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-gray-200" />
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
               <div className="min-w-0">
@@ -1104,11 +1083,12 @@ function AddonsStep() {
       <div className="hidden pt-4 lg:block">
         <Button
           color="primary"
-          className="w-full md:w-auto"
+          className="w-full"
           onPress={async () => {
             const ok = await saveAddOnsAndGoToReview()
             if (ok) setStep('review-and-pay')
           }}
+          endContent={<ChevronRight size={16} />}
         >
           {extrasSelectedTypes === 0
             ? `No thanks · ${formatCurrency(0, currency)}`
@@ -1266,6 +1246,7 @@ export function CampBookingFlow() {
           <div className="hidden lg:block lg:col-span-4">
             {currentStep === 'sessions' ? <DesktopSessionsSidebar /> : null}
             {currentStep === 'children' ? <DesktopChildrenSidebar /> : null}
+            {currentStep === 'addons' ? <DesktopAddonsSidebar /> : null}
           </div>
         </div>
       </main>

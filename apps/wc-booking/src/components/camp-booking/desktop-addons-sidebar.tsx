@@ -4,10 +4,7 @@ import { useMemo } from 'react'
 import { Check } from 'lucide-react'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
 import { formatCurrency } from '@/utils/currency'
-import {
-  getSelectedChildrenPriceBreakdown,
-  getSelectedChildrenSubtotal,
-} from '@/components/camp-booking/booking-flow-pricing'
+import { getSelectedChildrenSubtotal } from '@/components/camp-booking/booking-flow-pricing'
 
 function formatMonthShort(date: Date) {
   return date.toLocaleString('en-US', { month: 'short' })
@@ -17,14 +14,15 @@ function formatBeforeLabel(date: Date) {
   return date.toLocaleString('en-US', { month: 'long', day: 'numeric' })
 }
 
-export function DesktopChildrenSidebar() {
+export function DesktopAddonsSidebar() {
   const camp = useCampBookingStore(state => state.camp)
   const sessions = useCampBookingStore(state => state.sessions)
   const selectedSessionId = useCampBookingStore(state => state.selectedSessionId)
   const children = useCampBookingStore(state => state.children)
   const selectedChildIds = useCampBookingStore(state => state.selectedChildIds)
+  const addOns = useCampBookingStore(state => state.addOns)
+  const addOnSelectionsById = useCampBookingStore(state => state.addOnSelectionsById)
   const setStep = useCampBookingStore(state => state.setStep)
-
   const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
 
   const selectedSession = useMemo(
@@ -58,18 +56,7 @@ export function DesktopChildrenSidebar() {
     ? sessionRangeText || selectedSession.name
     : 'Select a session'
 
-  const breakdown = useMemo(
-    () =>
-      getSelectedChildrenPriceBreakdown({
-        session: selectedSession,
-        camp,
-        children,
-        selectedChildIds,
-      }),
-    [selectedSession, camp, children, selectedChildIds]
-  )
-
-  const subtotal = useMemo(
+  const campFee = useMemo(
     () =>
       getSelectedChildrenSubtotal({
         session: selectedSession,
@@ -80,6 +67,36 @@ export function DesktopChildrenSidebar() {
     [selectedSession, camp, children, selectedChildIds]
   )
 
+  const extrasRows = useMemo(() => {
+    return Object.values(addOnSelectionsById)
+      .map(selection => {
+        const addon = addOns.find(a => a.addOnId === selection.addOnId)
+        if (!addon) return null
+        let qty = 0
+        if (selection.mode === 'per_child') qty = selection.childIds?.length ?? 0
+        else if (selection.mode === 'per_child_qty') {
+          qty = (selection.childQuantities ?? []).reduce(
+            (sum, item) => sum + (item.quantity ?? 0),
+            0
+          )
+        } else qty = selection.quantity ?? 0
+        if (qty <= 0) return null
+        return {
+          key: addon.addOnId,
+          label: qty > 1 ? `${addon.name} × ${qty}` : addon.name,
+          total: addon.price * qty,
+        }
+      })
+      .filter(Boolean) as Array<{ key: string; label: string; total: number }>
+  }, [addOnSelectionsById, addOns])
+
+  const extrasTotal = useMemo(
+    () => extrasRows.reduce((sum, row) => sum + row.total, 0),
+    [extrasRows]
+  )
+
+  const total = campFee + extrasTotal
+
   // Hard-coded for now (provider rating can be wired later).
   const ratingValue = 4.92
   const reviewsCount = 241
@@ -87,7 +104,6 @@ export function DesktopChildrenSidebar() {
   return (
     <aside className="hidden lg:block sticky top-[120px] md:top-[128px]">
       <div className="space-y-3">
-        {/* Camp info card */}
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-gray-100">
@@ -116,37 +132,48 @@ export function DesktopChildrenSidebar() {
           </div>
         </div>
 
-        {/* Price details card */}
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <h3 className="font-semibold text-gray-900">Price details</h3>
-          {!selectedSession ? (
-            <p className="mt-4 text-sm text-gray-500">Select a session to see pricing</p>
-          ) : selectedChildIds.length === 0 ? (
-            <p className="mt-4 text-sm text-gray-500">Select at least one child to see pricing</p>
-          ) : (
-            <div className="mt-4 space-y-2">
-              {breakdown.map(row => (
-                <div
-                  key={`${row.unitPrice}`}
-                  className="flex items-center justify-between font-medium text-gray-700"
-                >
-                  <span>
-                    {row.count} child{row.count === 1 ? '' : 'ren'} x
-                    <span className="ml-1 text-sm">{formatCurrency(row.unitPrice, currency)}</span>
-                  </span>
-                  <span>{formatCurrency(row.lineTotal, currency)}</span>
-                </div>
-              ))}
-              <div className="h-px bg-gray-200" />
-              <div className="flex items-center justify-between text-lg font-bold">
-                <span>Total</span>
-                <span>{formatCurrency(subtotal, currency)}</span>
-              </div>
+          <div className="mt-4 space-y-2">
+            <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Camp fee
             </div>
-          )}
+            <div className="flex items-center justify-between text-sm text-gray-700">
+              <button
+                type="button"
+                onClick={() => setStep('children')}
+                className="cursor-pointer underline decoration-gray-300 underline-offset-2 transition hover:text-gray-900"
+              >
+                {selectedChildIds.length} child{selectedChildIds.length === 1 ? '' : 'ren'}
+              </button>
+              <span>{formatCurrency(campFee, currency)}</span>
+            </div>
+
+            {extrasRows.length > 0 ? (
+              <>
+                <div className="pt-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Extras
+                </div>
+                {extrasRows.map(row => (
+                  <div
+                    key={row.key}
+                    className="flex items-center justify-between text-sm text-gray-700"
+                  >
+                    <span>{row.label}</span>
+                    <span>+{formatCurrency(row.total, currency)}</span>
+                  </div>
+                ))}
+              </>
+            ) : null}
+
+            <div className="h-px bg-gray-200" />
+            <div className="flex items-center justify-between text-lg font-bold">
+              <span>Total</span>
+              <span>{formatCurrency(total, currency)}</span>
+            </div>
+          </div>
         </div>
 
-        {/* Trust / cancellation card */}
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="space-y-3">
             <div className="flex items-start gap-3">
@@ -156,12 +183,10 @@ export function DesktopChildrenSidebar() {
                 <p className="text-sm text-gray-600">· before {beforeCancellationText}</p>
               ) : null}
             </div>
-
             <div className="flex items-start gap-3">
               <Check size={20} className="text-primary-600" />
               <p className="text-sm text-gray-700">No payment until camp confirms</p>
             </div>
-
             <div className="flex items-start gap-3">
               <Check size={20} className="text-primary-600" />
               <p className="text-sm text-gray-700">Secure checkout · data encrypted</p>
