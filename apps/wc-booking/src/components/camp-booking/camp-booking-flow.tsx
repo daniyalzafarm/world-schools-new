@@ -91,7 +91,7 @@ function SessionsStep() {
       </div>
 
       <div className="hidden lg:block">
-        <p className="text-xs font-bold uppercase tracking-[0.5px] text-primary-600">Step 1 of 4</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-primary-600">Step 1 of 4</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-gray-900">Choose a session</h1>
         <p className="mt-2 text-sm text-gray-500">
           {sessions.length} sessions available ·{' '}
@@ -115,7 +115,7 @@ function SessionsStep() {
           <button
             type="button"
             onClick={() => setFilterSheet('month')}
-            className={`cursor-pointer flex shrink-0 items-center gap-1.5 rounded-[10px] border-[1.5px] px-[14px] py-[9px] text-[15px] font-medium text-gray-600 shadow-[0_1px_3px_rgba(0,0,0,0.06)] transition-all duration-150 ${
+            className={`cursor-pointer flex shrink-0 items-center gap-1.5 rounded-xl border-2 px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-all duration-150 ${
               monthFilter
                 ? 'border-gray-900 bg-gray-900 text-white shadow-none'
                 : 'border-gray-200 bg-white'
@@ -127,7 +127,7 @@ function SessionsStep() {
           <button
             type="button"
             onClick={() => setFilterSheet('age')}
-            className={`cursor-pointer flex shrink-0 items-center gap-1.5 rounded-[10px] border-[1.5px]  px-[14px] py-[9px] text-[15px] font-medium text-gray-600 shadow-[0_1px_3px_rgba(0,0,0,0.06)] transition-all duration-150 ${
+            className={`cursor-pointer flex shrink-0 items-center gap-1.5 rounded-xl border-2 px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-all duration-150 ${
               ageRangeFilter
                 ? 'border-gray-900 bg-gray-900 text-white shadow-none'
                 : 'border-gray-200 bg-white'
@@ -154,9 +154,9 @@ function SessionsStep() {
       </div>
 
       <div className="hidden lg:block">
-        <div className="flex flex-wrap gap-[10px_20px] bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 items-center">
+        <div className="flex flex-wrap gap-y-2.5 gap-x-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 items-center">
           <div className="flex items-center gap-3">
-            <div className="text-[12px] font-bold uppercase tracking-[0.5px] text-gray-400 whitespace-nowrap">
+            <div className="text-xs font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
               Month
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -165,7 +165,7 @@ function SessionsStep() {
                   key={month}
                   type="button"
                   onClick={() => setMonthFilter(prev => (prev === month ? null : month))}
-                  className={`cursor-pointer rounded-full border-[1.5px] px-[13px] py-[5px] text-[13px] font-semibold transition-all duration-150 ${
+                  className={`cursor-pointer rounded-full border-2 px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
                     monthFilter === month
                       ? 'border-gray-900 bg-gray-900 text-white'
                       : 'border-gray-200 bg-white text-gray-600 hover:border-gray-600 hover:text-gray-900'
@@ -179,7 +179,7 @@ function SessionsStep() {
 
           <div className="flex items-center gap-3">
             <div className="h-5 w-px bg-gray-200" />
-            <div className="text-[12px] font-bold uppercase tracking-[0.5px] text-gray-400 whitespace-nowrap">
+            <div className="text-xs font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
               Age group
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -188,7 +188,7 @@ function SessionsStep() {
                   key={opt.value}
                   type="button"
                   onClick={() => setAgeRangeFilter(prev => (prev === opt.value ? null : opt.value))}
-                  className={`cursor-pointer rounded-full border-[1.5px] px-[13px] py-[5px] text-[13px] font-semibold transition-all duration-150 ${
+                  className={`cursor-pointer rounded-full border-2 px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
                     ageRangeFilter === opt.value
                       ? 'border-gray-900 bg-gray-900 text-white'
                       : 'border-gray-200 bg-white text-gray-600 hover:border-gray-600 hover:text-gray-900'
@@ -255,7 +255,7 @@ function SessionsStep() {
               </DrawerHeader>
 
               <DrawerBody>
-                <div className="max-h-[50vh] py-4 overflow-y-auto divide-y divide-gray-100">
+                <div className="max-h-1/2 py-4 overflow-y-auto divide-y divide-gray-100">
                   {(() => {
                     if (filterSheet === 'month') {
                       return availableMonths.map(m => (
@@ -825,7 +825,7 @@ function AddonsStep() {
               </button>
             </div>
 
-            <div className="max-h-[65vh] overflow-y-auto px-4 py-3 pb-28">
+            <div className="max-h-2/3 overflow-y-auto px-4 py-3 pb-28">
               {sheetMode === 'per_child' ? (
                 <div className="divide-y divide-gray-100">
                   {selectedChildren.map(child => {
@@ -1095,9 +1095,9 @@ export function CampBookingFlow() {
 
   return (
     <div>
-      <main className="mx-auto max-w-[1160px] px-4 py-6 pb-28 lg:px-8 lg:py-8 lg:pb-0">
-        <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:items-start">
-          <div className="lg:bg-white lg:rounded-2xl lg:border lg:border-gray-200 lg:shadow-sm lg:flex lg:flex-col">
+      <main className="mx-auto max-w-6xl px-4 py-6 pb-28 lg:px-8 lg:py-8 lg:pb-0">
+        <div className="lg:grid lg:grid-cols-12 lg:gap-8 lg:items-start">
+          <div className="lg:col-span-8 lg:bg-white lg:rounded-2xl lg:border lg:border-gray-200 lg:shadow-sm lg:flex lg:flex-col">
             <div className="lg:p-7 lg:px-8">
               {error && (
                 <div className="mb-4 rounded-lg border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-600">
@@ -1106,7 +1106,7 @@ export function CampBookingFlow() {
               )}
 
               {isLoading ? (
-                <div className="flex min-h-[40vh] items-center justify-center">
+                <div className="flex min-h-1/2 items-center justify-center">
                   <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900" />
                 </div>
               ) : (
@@ -1120,7 +1120,7 @@ export function CampBookingFlow() {
             </div>
           </div>
 
-          <div className="hidden lg:block">
+          <div className="hidden lg:block lg:col-span-4">
             {currentStep === 'sessions' ? <DesktopSessionsSidebar /> : null}
           </div>
         </div>
