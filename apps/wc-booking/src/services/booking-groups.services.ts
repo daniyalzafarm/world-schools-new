@@ -17,6 +17,16 @@ export const bookingGroupsService = {
     return apiClient.get<BookingGroupDetails>(`/user/booking-groups/${bookingGroupId}`)
   },
 
+  async updateDraft(
+    bookingGroupId: string,
+    payload: { sessionId: string; childIds: string[] }
+  ): Promise<ApiResult<{ bookingGroupId: string; status: string }>> {
+    return apiClient.post<{ bookingGroupId: string; status: string }>(
+      `/user/booking-groups/${bookingGroupId}/draft`,
+      payload
+    )
+  },
+
   async submit(
     bookingGroupId: string
   ): Promise<ApiResult<{ bookingGroupId: string; status: string }>> {

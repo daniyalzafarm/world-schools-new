@@ -10,6 +10,236 @@ import { PrismaService } from '../../prisma/prisma.service'
 export class BookingGroupsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async updateDraftForParent(params: {
+    userId: string
+    bookingGroupId: string
+    sessionId: string
+    childIds: string[]
+  }) {
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId: params.userId },
+      select: { id: true },
+    })
+    if (!parent) throw new ForbiddenException('Only parents can modify bookings')
+    if (!params.childIds.length) throw new BadRequestException('At least one child is required')
+
+    const bookingGroup = await this.prisma.bookingGroup.findFirst({
+      where: { id: params.bookingGroupId, parentId: parent.id },
+      select: {
+        id: true,
+        status: true,
+        campId: true,
+        providerId: true,
+        sessionId: true,
+        bookings: {
+          select: {
+            id: true,
+            childId: true,
+            basePrice: true,
+            addOns: {
+              select: {
+                bookingId: true,
+                campId: true,
+                addOnId: true,
+                quantity: true,
+                unitPrice: true,
+                lineTotal: true,
+                snapshot: true,
+              },
+            },
+          },
+        },
+      },
+    })
+    if (!bookingGroup) throw new NotFoundException('Booking group not found')
+    if (bookingGroup.status !== 'draft') {
+      throw new BadRequestException('Only draft bookings can be modified')
+    }
+
+    const session = await this.prisma.session.findFirst({
+      where: {
+        id: params.sessionId,
+        campId: bookingGroup.campId,
+        status: 'published',
+      },
+      include: {
+        camp: {
+          select: {
+            providerId: true,
+          },
+        },
+      },
+    })
+    if (!session) throw new BadRequestException('Session is invalid for this booking group')
+    if (session.camp.providerId !== bookingGroup.providerId) {
+      throw new BadRequestException('Session provider mismatch')
+    }
+
+    const children = await this.prisma.children.findMany({
+      where: {
+        id: { in: params.childIds },
+        parentId: parent.id,
+        archived: false,
+      },
+      select: { id: true },
+    })
+    if (children.length !== params.childIds.length) {
+      throw new BadRequestException('One or more children are invalid')
+    }
+
+    const nextChildIdSet = new Set(params.childIds)
+    const existingByChildId = new Map(bookingGroup.bookings.map(b => [b.childId, b]))
+    const removedBookingIds = bookingGroup.bookings
+      .filter(b => !nextChildIdSet.has(b.childId))
+      .map(b => b.id)
+
+    const qtyRowsByBookingId = bookingGroup.bookings.flatMap(booking =>
+      booking.addOns
+        .filter(row => (row.snapshot as any)?.mode === 'qty')
+        .map(row => ({
+          bookingId: booking.id,
+          campId: row.campId,
+          addOnId: row.addOnId,
+          quantity: row.quantity,
+          unitPrice: Number(row.unitPrice ?? 0),
+          lineTotal: Number(row.lineTotal ?? 0),
+          snapshot: row.snapshot,
+        }))
+    )
+
+    const sessionPrice = Number(session.price ?? 0)
+
+    await this.prisma.$transaction(async tx => {
+      if (removedBookingIds.length > 0) {
+        await tx.booking.deleteMany({
+          where: { id: { in: removedBookingIds } },
+        })
+      }
+
+      // Create booking rows for newly selected children.
+      for (const childId of params.childIds) {
+        if (existingByChildId.has(childId)) continue
+        await tx.booking.create({
+          data: {
+            bookingGroupId: bookingGroup.id,
+            sessionId: session.id,
+            campId: bookingGroup.campId,
+            providerId: bookingGroup.providerId,
+            parentId: parent.id,
+            childId,
+            startDate: session.startDate,
+            endDate: session.endDate,
+            basePrice: sessionPrice,
+            discountAmount: 0,
+            totalPrice: sessionPrice,
+          },
+        })
+      }
+
+      // Update persisted bookings when session is changed.
+      const keptBookingIds = bookingGroup.bookings
+        .filter(b => nextChildIdSet.has(b.childId))
+        .map(b => b.id)
+
+      if (keptBookingIds.length > 0) {
+        await tx.booking.updateMany({
+          where: { id: { in: keptBookingIds } },
+          data: {
+            sessionId: session.id,
+            startDate: session.startDate,
+            endDate: session.endDate,
+            basePrice: sessionPrice,
+          },
+        })
+      }
+
+      // Re-map qty add-ons if the previous holder booking was removed.
+      const groupBookingsAfterSync = await tx.booking.findMany({
+        where: { bookingGroupId: bookingGroup.id },
+        select: { id: true },
+        orderBy: { childId: 'asc' },
+      })
+      const remainingBookingIds = groupBookingsAfterSync.map(b => b.id)
+      const firstRemainingBookingId = remainingBookingIds[0]
+
+      if (firstRemainingBookingId) {
+        for (const qtyRow of qtyRowsByBookingId) {
+          if (!removedBookingIds.includes(qtyRow.bookingId)) continue
+
+          const existingQtyRow = await tx.bookingCampAddOn.findFirst({
+            where: {
+              bookingId: { in: remainingBookingIds },
+              campId: qtyRow.campId,
+              addOnId: qtyRow.addOnId,
+            },
+            select: { bookingId: true },
+          })
+          if (existingQtyRow) continue
+
+          await tx.bookingCampAddOn.create({
+            data: {
+              bookingId: firstRemainingBookingId,
+              campId: qtyRow.campId,
+              addOnId: qtyRow.addOnId,
+              quantity: qtyRow.quantity,
+              unitPrice: qtyRow.unitPrice,
+              lineTotal: qtyRow.lineTotal,
+              snapshot: JSON.parse(JSON.stringify(qtyRow.snapshot ?? {})),
+            },
+          })
+        }
+      }
+
+      // Recompute booking totals and group totals.
+      const bookingsWithAddOns = await tx.booking.findMany({
+        where: { bookingGroupId: bookingGroup.id },
+        select: {
+          id: true,
+          basePrice: true,
+          addOns: {
+            select: {
+              lineTotal: true,
+            },
+          },
+        },
+      })
+
+      let newGroupSubtotal = 0
+      for (const booking of bookingsWithAddOns) {
+        const addOnsTotal = booking.addOns.reduce((sum, row) => sum + Number(row.lineTotal ?? 0), 0)
+        const lineTotal = Number(booking.basePrice ?? 0) + addOnsTotal
+        newGroupSubtotal += lineTotal
+
+        await tx.booking.update({
+          where: { id: booking.id },
+          data: {
+            totalPrice: lineTotal,
+            discountAmount: 0,
+          },
+          select: { id: true },
+        })
+      }
+
+      await tx.bookingGroup.update({
+        where: { id: bookingGroup.id },
+        data: {
+          sessionId: session.id,
+          subtotalAmount: newGroupSubtotal,
+          totalAmount: newGroupSubtotal,
+          discountTotal: 0,
+          campId: bookingGroup.campId,
+          providerId: bookingGroup.providerId,
+        },
+        select: { id: true },
+      })
+    })
+
+    return {
+      bookingGroupId: bookingGroup.id,
+      status: 'draft',
+    }
+  }
+
   async saveAddOnsForParent(params: {
     userId: string
     bookingGroupId: string

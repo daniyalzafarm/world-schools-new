@@ -391,11 +391,37 @@ export const useCampBookingStore = create<CampBookingStore>()(
       // Reuse existing draft when user navigates back and forth between steps.
       // This prevents creating duplicate booking groups for the same flow.
       if (state.bookingGroupId) {
+        if (!state.selectedSessionId || state.selectedChildIds.length === 0) return null
+
         set(draft => {
-          draft.currentStep = 'addons'
+          draft.isLoading = true
           draft.error = null
         })
-        return state.bookingGroupId
+
+        try {
+          const response = await bookingGroupsService.updateDraft(state.bookingGroupId, {
+            sessionId: state.selectedSessionId,
+            childIds: state.selectedChildIds,
+          })
+          if (!response.success) throw new Error((response.data as any)?.message)
+
+          set(draft => {
+            draft.currentStep = 'addons'
+            draft.addOnSelectionsById = normalizeAddOnSelectionsForSelectedChildren(
+              draft.addOnSelectionsById,
+              draft.selectedChildIds
+            )
+            draft.isLoading = false
+            draft.error = null
+          })
+          return state.bookingGroupId
+        } catch (error: any) {
+          set(draft => {
+            draft.error = error?.message ?? 'Failed to update draft booking group'
+            draft.isLoading = false
+          })
+          return null
+        }
       }
 
       if (!state.camp?.id || !state.selectedSessionId || state.selectedChildIds.length === 0) {
@@ -504,6 +530,39 @@ function inferAddOnMode(
   }
 
   return addOnConfig.pricingUnit === 'per_child' ? 'per_child' : 'per_child_qty'
+}
+
+function normalizeAddOnSelectionsForSelectedChildren(
+  selections: Record<string, CampBookingAddOnSelection>,
+  selectedChildIds: string[]
+): Record<string, CampBookingAddOnSelection> {
+  const selectedSet = new Set(selectedChildIds)
+  const normalized: Record<string, CampBookingAddOnSelection> = {}
+
+  for (const [addOnId, selection] of Object.entries(selections)) {
+    if (!selection) continue
+
+    if (selection.mode === 'per_child') {
+      const childIds = (selection.childIds ?? []).filter(childId => selectedSet.has(childId))
+      if (childIds.length === 0) continue
+      normalized[addOnId] = { ...selection, childIds }
+      continue
+    }
+
+    if (selection.mode === 'per_child_qty') {
+      const childQuantities = (selection.childQuantities ?? []).filter(
+        item => selectedSet.has(item.childId) && (item.quantity ?? 0) > 0
+      )
+      if (childQuantities.length === 0) continue
+      normalized[addOnId] = { ...selection, childQuantities }
+      continue
+    }
+
+    if ((selection.quantity ?? 0) <= 0) continue
+    normalized[addOnId] = selection
+  }
+
+  return normalized
 }
 
 function buildSaveAddOnsPayload(state: {
