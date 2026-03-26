@@ -9,6 +9,7 @@ import { AddOnsModule } from './add-ons/add-ons.module'
 import { SessionsModule } from './sessions/sessions.module'
 import { DiscountsModule } from './discounts/discounts.module'
 import { ProviderMessagingModule } from './messaging/provider-messaging.module'
+import { ProviderBookingGroupsModule } from './booking-groups/booking-groups.module'
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ProviderMessagingModule } from './messaging/provider-messaging.module'
     AddOnsModule,
     SessionsModule,
     DiscountsModule,
+    ProviderBookingGroupsModule,
     ProviderMessagingModule,
   ],
 })

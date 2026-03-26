@@ -268,7 +268,10 @@ export default function CampPage() {
             </div>
             <span className="text-xs text-gray-500">Jun 15 - Aug 20</span>
           </div>
-          <button className="px-8 py-3.5 bg-primary text-gray-900 rounded-lg text-base font-semibold hover:bg-primary-300 transition-colors whitespace-nowrap">
+          <button
+            className="px-8 py-3.5 bg-primary text-gray-900 rounded-lg text-base font-semibold hover:bg-primary-300 transition-colors whitespace-nowrap"
+            onClick={() => router.push(`/camps/${camp.slug}/book`)}
+          >
             Reserve
           </button>
         </div>
@@ -849,11 +852,12 @@ function BookingSidebar({ camp }: { camp: Camp }) {
           className="w-full font-semibold"
           onPress={() => {
             if (selectedSession) {
-              // TODO: Implement reserve functionality
-              console.log('Reserve session:', selectedSession)
+              router.push(
+                `/camps/${camp.slug}/book?sessionId=${encodeURIComponent(selectedSession.id)}`
+              )
             } else {
-              // Scroll to sessions section
-              document.getElementById('sessions')?.scrollIntoView({ behavior: 'smooth' })
+              // No session selected: start booking flow at Step 1.
+              router.push(`/camps/${camp.slug}/book`)
             }
           }}
         >

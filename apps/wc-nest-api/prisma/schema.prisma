@@ -1055,6 +1055,7 @@ model Booking {
 
 /// Booking lifecycle: request → provider response → payment → at camp → completed; any → cancelled.
 enum BookingGroupStatus {
+  draft // Parent draft before request submission
   request // Awaiting provider response
   accepted // Provider accepted
   declined // Provider declined

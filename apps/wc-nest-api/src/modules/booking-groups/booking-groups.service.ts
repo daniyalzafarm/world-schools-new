@@ -1,0 +1,482 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
+import { PrismaService } from '../../prisma/prisma.service'
+
+@Injectable()
+export class BookingGroupsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async saveAddOnsForParent(params: {
+    userId: string
+    bookingGroupId: string
+    addOns: {
+      addOnId: string
+      mode: 'per_child' | 'per_child_qty' | 'qty'
+      quantity?: number
+      childIds?: string[]
+      childQuantities?: { childId: string; quantity: number }[]
+    }[]
+    specialRequest?: string
+  }) {
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId: params.userId },
+      select: { id: true },
+    })
+    if (!parent) throw new ForbiddenException('Only parents can modify bookings')
+
+    const bookingGroup = await this.prisma.bookingGroup.findFirst({
+      where: {
+        id: params.bookingGroupId,
+        parentId: parent.id,
+      },
+      select: {
+        id: true,
+        status: true,
+        campId: true,
+        specialRequest: true,
+        bookings: {
+          select: {
+            id: true,
+            childId: true,
+            basePrice: true,
+          },
+        },
+      },
+    })
+    if (!bookingGroup) throw new NotFoundException('Booking group not found')
+    if (bookingGroup.status !== 'draft') {
+      throw new BadRequestException('Only draft bookings can be modified')
+    }
+
+    const bookingIds = bookingGroup.bookings.map(b => b.id)
+    if (bookingIds.length === 0) {
+      throw new BadRequestException('Booking group has no bookings')
+    }
+
+    const addOnSelections = params.addOns
+    const uniqueAddOnIds = Array.from(new Set(addOnSelections.map(a => a.addOnId)))
+
+    // Validate add-ons belong to the camp and are enabled.
+    const campAddOns = await this.prisma.campAddOn.findMany({
+      where: {
+        campId: bookingGroup.campId,
+        addOnId: { in: uniqueAddOnIds },
+        isEnabled: true,
+        addOn: { isActive: true },
+      },
+      include: {
+        addOn: true,
+      },
+    })
+
+    if (campAddOns.length !== uniqueAddOnIds.length) {
+      throw new BadRequestException('One or more add-ons are invalid for this camp')
+    }
+
+    const campAddOnById = new Map<string, (typeof campAddOns)[number]>()
+    for (const ca of campAddOns) campAddOnById.set(ca.addOnId, ca)
+
+    const bookingByChildId = new Map(bookingGroup.bookings.map(b => [b.childId, b]))
+    const orderedBookings = [...bookingGroup.bookings].sort((a, b) =>
+      a.childId.localeCompare(b.childId)
+    )
+    const firstBooking = orderedBookings[0]
+
+    // Clear all current add-on selections for all bookings in this group.
+    await this.prisma.$transaction(async tx => {
+      await tx.bookingCampAddOn.deleteMany({
+        where: {
+          bookingId: { in: bookingIds },
+        },
+      })
+
+      // Create desired selections.
+      const toCreate: {
+        bookingId: string
+        campId: string
+        addOnId: string
+        quantity: number
+        unitPrice: number
+        lineTotal: number
+        snapshot: any
+      }[] = []
+
+      for (const selection of addOnSelections) {
+        const campAddOn = campAddOnById.get(selection.addOnId)
+        if (!campAddOn) continue
+
+        const unitPrice = Number(campAddOn.addOn.price ?? 0)
+        if (selection.mode === 'per_child') {
+          const childIds = selection.childIds ?? []
+          if (childIds.length === 0) continue
+
+          for (const childId of childIds) {
+            const booking = bookingByChildId.get(childId)
+            if (!booking) {
+              throw new BadRequestException('One or more selected children are invalid')
+            }
+            const qty = 1
+            toCreate.push({
+              bookingId: booking.id,
+              campId: bookingGroup.campId,
+              addOnId: selection.addOnId,
+              quantity: qty,
+              unitPrice,
+              lineTotal: unitPrice * qty,
+              snapshot: { mode: selection.mode, childId, quantity: qty },
+            })
+          }
+        } else if (selection.mode === 'per_child_qty') {
+          const childQuantities = selection.childQuantities ?? []
+          if (childQuantities.length === 0) continue
+
+          for (const cq of childQuantities) {
+            if (!cq.quantity || cq.quantity <= 0) continue
+            const booking = bookingByChildId.get(cq.childId)
+            if (!booking) {
+              throw new BadRequestException('One or more selected children are invalid')
+            }
+            const qty = cq.quantity
+            toCreate.push({
+              bookingId: booking.id,
+              campId: bookingGroup.campId,
+              addOnId: selection.addOnId,
+              quantity: qty,
+              unitPrice,
+              lineTotal: unitPrice * qty,
+              snapshot: {
+                mode: selection.mode,
+                childId: cq.childId,
+                quantity: qty,
+              },
+            })
+          }
+        } else {
+          // qty mode
+          const qty = selection.quantity ?? 0
+          if (!qty || qty <= 0) continue
+          // Global add-on should count once for the whole group.
+          toCreate.push({
+            bookingId: firstBooking.id,
+            campId: bookingGroup.campId,
+            addOnId: selection.addOnId,
+            quantity: qty,
+            unitPrice,
+            lineTotal: unitPrice * qty,
+            snapshot: { mode: selection.mode, quantity: qty },
+          })
+        }
+      }
+
+      if (toCreate.length > 0) {
+        await tx.bookingCampAddOn.createMany({
+          data: toCreate.map(row => ({
+            bookingId: row.bookingId,
+            campId: row.campId,
+            addOnId: row.addOnId,
+            quantity: row.quantity,
+            unitPrice: row.unitPrice,
+            lineTotal: row.lineTotal,
+            snapshot: row.snapshot,
+          })),
+        })
+      }
+
+      // Recompute booking totals and group totals.
+      const addOnsByBookingId = new Map<string, number>()
+      for (const row of toCreate) {
+        addOnsByBookingId.set(
+          row.bookingId,
+          (addOnsByBookingId.get(row.bookingId) ?? 0) + row.lineTotal
+        )
+      }
+
+      const updatedBookings = await Promise.all(
+        bookingGroup.bookings.map(b => {
+          const addonTotal = addOnsByBookingId.get(b.id) ?? 0
+          const newTotal = Number(b.basePrice ?? 0) + addonTotal
+          return tx.booking.update({
+            where: { id: b.id },
+            data: {
+              totalPrice: newTotal,
+              discountAmount: 0,
+            },
+            select: { id: true },
+          })
+        })
+      )
+
+      // Ensure Promise.all result is used (avoids unused var lint).
+      void updatedBookings
+
+      const newGroupSubtotal = bookingGroup.bookings.reduce((sum, b) => {
+        const addonTotal = addOnsByBookingId.get(b.id) ?? 0
+        return sum + Number(b.basePrice ?? 0) + addonTotal
+      }, 0)
+
+      await tx.bookingGroup.update({
+        where: { id: bookingGroup.id },
+        data: {
+          subtotalAmount: newGroupSubtotal,
+          totalAmount: newGroupSubtotal,
+          discountTotal: 0,
+          specialRequest: params.specialRequest ?? undefined,
+        },
+        select: { id: true, status: true },
+      })
+    })
+
+    return {
+      bookingGroupId: bookingGroup.id,
+      status: 'draft',
+    }
+  }
+
+  async createDraftForParent(params: {
+    userId: string
+    campId: string
+    sessionId: string
+    childIds: string[]
+    specialRequest?: string
+  }) {
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId: params.userId },
+      select: { id: true },
+    })
+    if (!parent) throw new ForbiddenException('Only parents can create bookings')
+    if (!params.childIds.length) throw new BadRequestException('At least one child is required')
+
+    const session = await this.prisma.session.findFirst({
+      where: {
+        id: params.sessionId,
+        campId: params.campId,
+        status: 'published',
+      },
+      include: {
+        camp: {
+          select: {
+            providerId: true,
+          },
+        },
+      },
+    })
+    if (!session) throw new NotFoundException('Session not found')
+
+    const children = await this.prisma.children.findMany({
+      where: {
+        id: { in: params.childIds },
+        parentId: parent.id,
+        archived: false,
+      },
+      select: { id: true },
+    })
+    if (children.length !== params.childIds.length) {
+      throw new BadRequestException('One or more children are invalid')
+    }
+
+    const sessionPrice = Number(session.price ?? 0)
+    const subtotal = sessionPrice * children.length
+    const now = new Date()
+
+    const bookingGroup = await this.prisma.bookingGroup.create({
+      data: {
+        parentId: parent.id,
+        sessionId: session.id,
+        campId: params.campId,
+        providerId: session.camp.providerId,
+        subtotalAmount: subtotal,
+        totalAmount: subtotal,
+        discountTotal: 0,
+        paidAmount: 0,
+        refundedAmount: 0,
+        status: 'draft',
+        requestedAt: now,
+        // Normalize empty/whitespace to null so reload hydration doesn't
+        // incorrectly assume the user already reached the review step.
+        specialRequest: params.specialRequest?.trim() ? params.specialRequest : null,
+        bookings: {
+          create: children.map(child => ({
+            sessionId: session.id,
+            campId: params.campId,
+            providerId: session.camp.providerId,
+            parentId: parent.id,
+            childId: child.id,
+            startDate: session.startDate,
+            endDate: session.endDate,
+            basePrice: sessionPrice,
+            discountAmount: 0,
+            totalPrice: sessionPrice,
+          })),
+        },
+      },
+      include: {
+        bookings: {
+          select: {
+            id: true,
+            childId: true,
+          },
+        },
+      },
+    })
+
+    return {
+      bookingGroupId: bookingGroup.id,
+      status: bookingGroup.status,
+      bookings: bookingGroup.bookings,
+    }
+  }
+
+  async getForParent(userId: string, bookingGroupId: string) {
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+      select: { id: true },
+    })
+    if (!parent) throw new ForbiddenException('Only parents can access bookings')
+
+    const bookingGroup = await this.prisma.bookingGroup.findFirst({
+      where: {
+        id: bookingGroupId,
+        parentId: parent.id,
+      },
+      include: {
+        bookings: {
+          include: {
+            addOns: {
+              select: {
+                campId: true,
+                addOnId: true,
+                quantity: true,
+              },
+            },
+          },
+        },
+      },
+    })
+    if (!bookingGroup) throw new NotFoundException('Booking group not found')
+
+    return bookingGroup
+  }
+
+  async listForProvider(providerId: string) {
+    return this.prisma.bookingGroup.findMany({
+      where: { providerId },
+      include: {
+        bookings: {
+          select: { id: true, childId: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+  }
+
+  async getForProvider(providerId: string, bookingGroupId: string) {
+    const bookingGroup = await this.prisma.bookingGroup.findFirst({
+      where: {
+        id: bookingGroupId,
+        providerId,
+      },
+      include: {
+        bookings: {
+          include: {
+            addOns: true,
+          },
+        },
+      },
+    })
+    if (!bookingGroup) throw new NotFoundException('Booking group not found')
+    return bookingGroup
+  }
+
+  async submitForParent(userId: string, bookingGroupId: string) {
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+      select: { id: true },
+    })
+    if (!parent) throw new ForbiddenException('Only parents can access bookings')
+
+    const bookingGroup = await this.prisma.bookingGroup.findFirst({
+      where: { id: bookingGroupId, parentId: parent.id },
+      select: { id: true, status: true },
+    })
+    if (!bookingGroup) throw new NotFoundException('Booking group not found')
+    if (bookingGroup.status !== 'draft') {
+      throw new BadRequestException('Only draft bookings can be submitted')
+    }
+
+    const updated = await this.prisma.bookingGroup.update({
+      where: { id: bookingGroupId },
+      data: {
+        status: 'request',
+        requestedAt: new Date(),
+      },
+      select: { id: true, status: true },
+    })
+    return { bookingGroupId: updated.id, status: updated.status }
+  }
+
+  async acceptForProvider(providerId: string, bookingGroupId: string, providerNote?: string) {
+    const bookingGroup = await this.prisma.bookingGroup.findFirst({
+      where: { id: bookingGroupId, providerId },
+      select: { id: true, status: true },
+    })
+    if (!bookingGroup) throw new NotFoundException('Booking group not found')
+    if (bookingGroup.status !== 'request') {
+      throw new BadRequestException('Only requested bookings can be accepted')
+    }
+
+    const now = new Date()
+    await this.prisma.$transaction(async tx => {
+      await tx.bookingGroup.update({
+        where: { id: bookingGroupId },
+        data: {
+          status: 'accepted',
+          respondedAt: now,
+        },
+      })
+      await tx.booking.updateMany({
+        where: { bookingGroupId },
+        data: {
+          respondedAt: now,
+          providerNote: providerNote ?? null,
+        },
+      })
+    })
+
+    return { bookingGroupId, status: 'accepted' }
+  }
+
+  async declineForProvider(providerId: string, bookingGroupId: string, providerNote?: string) {
+    const bookingGroup = await this.prisma.bookingGroup.findFirst({
+      where: { id: bookingGroupId, providerId },
+      select: { id: true, status: true },
+    })
+    if (!bookingGroup) throw new NotFoundException('Booking group not found')
+    if (bookingGroup.status !== 'request') {
+      throw new BadRequestException('Only requested bookings can be declined')
+    }
+
+    const now = new Date()
+    await this.prisma.$transaction(async tx => {
+      await tx.bookingGroup.update({
+        where: { id: bookingGroupId },
+        data: {
+          status: 'declined',
+          respondedAt: now,
+        },
+      })
+      await tx.booking.updateMany({
+        where: { bookingGroupId },
+        data: {
+          respondedAt: now,
+          providerNote: providerNote ?? null,
+        },
+      })
+    })
+
+    return { bookingGroupId, status: 'declined' }
+  }
+}

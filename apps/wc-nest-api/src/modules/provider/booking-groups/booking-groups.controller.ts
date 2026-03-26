@@ -1,0 +1,64 @@
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common'
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
+import { ResponseUtil } from '../../../common/utils/response.util'
+import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
+import { Permissions } from '../../core/auth/decorators/permissions.decorator'
+import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
+import { BookingGroupsService } from '../../booking-groups/booking-groups.service'
+import { RespondBookingGroupDto } from './dto/respond-booking-group.dto'
+
+@ApiTags('Provider Booking Groups')
+@ApiBearerAuth()
+@Controller('provider/booking-groups')
+@UseGuards(RolesOrPermissionsGuard)
+export class ProviderBookingGroupsController {
+  constructor(private readonly bookingGroupsService: BookingGroupsService) {}
+
+  @Get()
+  @Permissions('bookings.read')
+  @ApiOperation({ summary: 'List booking requests for provider' })
+  async list(@CurrentUser() user: any) {
+    const result = await this.bookingGroupsService.listForProvider(user.providerId)
+    return ResponseUtil.success(result)
+  }
+
+  @Get(':id')
+  @Permissions('bookings.read')
+  @ApiOperation({ summary: 'Get booking request details for provider' })
+  async getById(@CurrentUser() user: any, @Param('id') id: string) {
+    const result = await this.bookingGroupsService.getForProvider(user.providerId, id)
+    return ResponseUtil.success(result)
+  }
+
+  @Post(':id/accept')
+  @Permissions('bookings.write')
+  @ApiOperation({ summary: 'Accept booking request' })
+  async accept(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: RespondBookingGroupDto
+  ) {
+    const result = await this.bookingGroupsService.acceptForProvider(
+      user.providerId,
+      id,
+      dto.providerNote
+    )
+    return ResponseUtil.success(result)
+  }
+
+  @Post(':id/decline')
+  @Permissions('bookings.write')
+  @ApiOperation({ summary: 'Decline booking request' })
+  async decline(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: RespondBookingGroupDto
+  ) {
+    const result = await this.bookingGroupsService.declineForProvider(
+      user.providerId,
+      id,
+      dto.providerNote
+    )
+    return ResponseUtil.success(result)
+  }
+}
