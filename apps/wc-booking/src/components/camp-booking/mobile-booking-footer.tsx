@@ -43,7 +43,7 @@ function StepBars({ currentStep }: { currentStep: string }) {
         <div
           key={idx}
           className={[
-            'h-1.5 flex-1 rounded-[2px]',
+            'h-1 flex-1 rounded-[2px]',
             b.done ? 'bg-emerald-500' : '',
             b.active ? 'bg-gray-900' : '',
             !b.done && !b.active ? 'bg-gray-200' : '',
@@ -129,10 +129,10 @@ export function MobileBookingFooter() {
         (currentStep === 'sessions' ? !!selectedSession : selectedChildren.length > 0) ? (
           <div className="flex justify-between items-center gap-3">
             <div className="min-w-0">
-              <div className="text-xs font-semibold text-gray-500">
+              <div className="text-sm text-gray-500">
                 {currentStep === 'sessions' ? 'Selected Session' : 'Selected Children'}
               </div>
-              <div className="text-sm font-semibold text-gray-900 truncate">
+              <div className="text-lg font-bold text-gray-900 truncate">
                 {currentStep === 'sessions'
                   ? selectedSession?.name
                   : `${selectedChildren.length} child${selectedChildren.length === 1 ? '' : 'ren'}`}

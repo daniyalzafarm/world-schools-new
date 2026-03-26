@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import type { Session } from '@/types/sessions'
 import { formatCurrency } from '@/utils/currency'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
+import { Check } from 'lucide-react'
 
 function getSessionUnitPrice(session: Session | null | undefined): number {
   if (!session) return 0
@@ -70,12 +71,12 @@ export function DesktopSessionsSidebar() {
     : 'Select a session'
 
   return (
-    <aside className="hidden lg:block sticky top-[100px]">
+    <aside className="hidden lg:block sticky top-[120px] md:top-[128px]">
       <div className="space-y-3">
         {/* Camp info card */}
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-4">
-            <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-gray-100">
+            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-gray-100">
               {campPhotoUrl ? (
                 <img
                   src={campPhotoUrl}
@@ -120,52 +121,20 @@ export function DesktopSessionsSidebar() {
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="space-y-3">
             <div className="flex items-start gap-3">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#10B981"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mt-0.5 h-5 w-5"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <div>
-                <p className="text-sm font-medium text-gray-900">Free cancellation</p>
-                {beforeCancellationText ? (
-                  <p className="text-sm text-gray-600">· before {beforeCancellationText}</p>
-                ) : null}
-              </div>
+              <Check size={20} className="text-primary-600" />
+              <p className="text-sm font-medium text-gray-900">Free cancellation</p>
+              {beforeCancellationText ? (
+                <p className="text-sm text-gray-600">· before {beforeCancellationText}</p>
+              ) : null}
             </div>
 
             <div className="flex items-start gap-3">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#10B981"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mt-0.5 h-5 w-5"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+              <Check size={20} className="text-primary-600" />
               <p className="text-sm text-gray-700">No payment until camp confirms</p>
             </div>
 
             <div className="flex items-start gap-3">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#10B981"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mt-0.5 h-5 w-5"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+              <Check size={20} className="text-primary-600" />
               <p className="text-sm text-gray-700">Secure checkout · data encrypted</p>
             </div>
           </div>
