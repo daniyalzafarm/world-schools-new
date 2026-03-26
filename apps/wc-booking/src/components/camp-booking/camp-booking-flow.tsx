@@ -48,6 +48,62 @@ function SessionsStep() {
     return Number(session.price ?? 0)
   }
 
+  const parseDateUtc = (value: string | Date) => {
+    // Most backend date values are date-only strings (YYYY-MM-DD). Parsing them as local
+    // time can shift the day around DST; using UTC keeps day/month/year stable.
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return new Date(`${value}T00:00:00Z`)
+    }
+    return new Date(value)
+  }
+
+  const getSessionNights = (start: string | Date, end: string | Date) => {
+    const startDate = parseDateUtc(start)
+    const endDate = parseDateUtc(end)
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return null
+
+    const msPerDay = 24 * 60 * 60 * 1000
+    const nights = Math.round((endDate.getTime() - startDate.getTime()) / msPerDay)
+    return nights >= 0 ? nights : null
+  }
+
+  const formatSessionDateRange = (start: string | Date, end: string | Date) => {
+    const startDate = parseDateUtc(start)
+    const endDate = parseDateUtc(end)
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      return `${new Date(start).toLocaleDateString()} - ${new Date(end).toLocaleDateString()}`
+    }
+
+    const startYear = startDate.getUTCFullYear()
+    const endYear = endDate.getUTCFullYear()
+    const startMonth = startDate.getUTCMonth()
+    const endMonth = endDate.getUTCMonth()
+    const startDay = startDate.getUTCDate()
+    const endDay = endDate.getUTCDate()
+
+    const monthLongFmt = new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' })
+    const monthShortFmt = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' })
+
+    if (startYear === endYear && startMonth === endMonth) {
+      // "7–14 June 2026"
+      return `${startDay}–${endDay} ${monthLongFmt.format(startDate)} ${startYear}`
+    }
+
+    if (startYear === endYear) {
+      // "26 Jul–2 Aug 2026"
+      return `${startDay} ${monthShortFmt.format(startDate)}–${endDay} ${monthShortFmt.format(
+        endDate
+      )} ${startYear}`
+    }
+
+    // Fallback for cross-year ranges: "28 Dec 2025–5 Jan 2026"
+    return `${startDay} ${monthShortFmt.format(startDate)} ${startYear}–${endDay} ${monthShortFmt.format(
+      endDate
+    )} ${endYear}`
+  }
+
   const selectedAgeGroupIds = useMemo(() => {
     if (!ageRangeFilter) return null
     const [minStr, maxStr] = ageRangeFilter.split('-')
@@ -365,15 +421,24 @@ function SessionsStep() {
                     <div className="min-w-0">
                       <p className="font-semibold text-gray-900 truncate">{session.name}</p>
                       <p className="text-sm text-gray-500">
-                        {new Date(session.startDate).toLocaleDateString()} -{' '}
-                        {new Date(session.endDate).toLocaleDateString()}
+                        {formatSessionDateRange(session.startDate, session.endDate)}
                       </p>
                     </div>
                   </div>
 
-                  <p className="text-lg font-bold text-gray-900 whitespace-nowrap">
-                    {formatCurrency(getSessionCardUnitPrice(session), currency)}
-                  </p>
+                  <div className="flex flex-col items-end gap-1">
+                    <p className="text-lg font-bold text-gray-900 whitespace-nowrap">
+                      {formatCurrency(getSessionCardUnitPrice(session), currency)}
+                    </p>
+                    {camp?.type === 'residential' ? (
+                      <p className="text-sm text-gray-500 whitespace-nowrap">
+                        {(() => {
+                          const nights = getSessionNights(session.startDate, session.endDate)
+                          return nights === null ? '—' : `${nights} night${nights === 1 ? '' : 's'}`
+                        })()}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
               </button>
             )

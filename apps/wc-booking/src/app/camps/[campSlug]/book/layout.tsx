@@ -18,7 +18,7 @@ function CampBookingStepsBar() {
 
   return (
     <div className="mx-auto max-w-6xl border-gray-200 bg-white px-4 py-3 lg:px-8">
-      <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase text-gray-700">
+      <div className="mb-2 flex items-center justify-between text-sm font-bold uppercase text-gray-700">
         <p>
           Step {stepIndex} of {steps.length}: {currentStep}
         </p>

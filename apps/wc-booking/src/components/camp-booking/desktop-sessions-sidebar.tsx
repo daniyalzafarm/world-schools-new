@@ -88,7 +88,8 @@ export function DesktopSessionsSidebar() {
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-gray-900 truncate">{camp?.name ?? ''}</p>
               <p className="mt-1 text-sm text-gray-600">
-                ★ {ratingValue.toFixed(1)} ({reviewsCount})
+                <span className="text-primary-600">★</span> {ratingValue.toFixed(1)} ({reviewsCount}
+                )
               </p>
               <p className="mt-2 text-sm text-gray-500">{campSessionText}</p>
             </div>
@@ -97,21 +98,22 @@ export function DesktopSessionsSidebar() {
 
         {/* Price details card */}
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900">Price details</h3>
+          <h3 className="font-semibold text-gray-900">Price details</h3>
           {!selectedSession ? (
             <p className="mt-4 text-sm text-gray-500">Select a session to see pricing</p>
           ) : (
             <div className="mt-4 space-y-2">
-              <div className="flex items-center justify-between text-sm text-gray-700">
-                <span>1 camper × {formatCurrency(sessionUnitPrice, currency)}</span>
+              <div className="flex items-center justify-between font-medium text-gray-700">
+                <span>
+                  1 camper x
+                  <span className="ml-1 text-sm">{formatCurrency(sessionUnitPrice, currency)}</span>
+                </span>
                 <span>{formatCurrency(sessionUnitPrice, currency)}</span>
               </div>
               <div className="h-px bg-gray-200" />
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Total</span>
-                <span className="text-base font-bold text-gray-900">
-                  {formatCurrency(sessionUnitPrice, currency)}
-                </span>
+              <div className="flex items-center justify-between text-lg font-bold">
+                <span>Total</span>
+                <span>{formatCurrency(sessionUnitPrice, currency)}</span>
               </div>
             </div>
           )}
