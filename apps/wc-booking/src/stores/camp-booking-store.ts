@@ -39,6 +39,12 @@ interface CampBookingActions {
   setStep: (step: BookingFlowStep) => void
   selectSession: (sessionId: string | null) => void
   toggleChild: (childId: string) => void
+  addChild: (child: {
+    firstName: string
+    lastName?: string
+    dateOfBirth: string
+    gender: 'boy' | 'girl' | 'non_binary' | 'prefer_not_to_say'
+  }) => Promise<Child | null>
   createDraftBookingGroup: () => Promise<string | null>
   toggleAddOn: (addOnId: string) => void
   toggleAddOnChild: (addOnId: string, childId: string) => void
@@ -231,6 +237,26 @@ export const useCampBookingStore = create<CampBookingStore>()(
           state.selectedChildIds.push(childId)
         }
       })
+    },
+
+    addChild: async childData => {
+      try {
+        const response = await childrenService.create(childData)
+        if (!response.success) throw new Error((response.data as any)?.message)
+
+        const createdChild = response.data
+        set(state => {
+          state.children.push(createdChild)
+          state.error = null
+        })
+
+        return createdChild
+      } catch (error: any) {
+        set(state => {
+          state.error = error?.message ?? 'Failed to create child'
+        })
+        return null
+      }
     },
 
     toggleAddOn: addOnId => {

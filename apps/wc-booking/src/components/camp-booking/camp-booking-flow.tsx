@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
+  addToast,
   Button,
   Drawer,
   DrawerBody,
@@ -21,6 +22,7 @@ import {
   getChildUnitPrice,
   getSelectedChildrenSubtotal,
 } from '@/components/camp-booking/booking-flow-pricing'
+import { AddChildForm, type AddChildPayload } from '@/components/children/add-child-form-fields'
 import { ChevronDown, ChevronRight, X } from 'lucide-react'
 
 function SessionsStep() {
@@ -477,8 +479,10 @@ function ChildrenStep() {
   const toggleChild = useCampBookingStore(state => state.toggleChild)
   const setStep = useCampBookingStore(state => state.setStep)
   const createDraftBookingGroup = useCampBookingStore(state => state.createDraftBookingGroup)
+  const addChild = useCampBookingStore(state => state.addChild)
   const camp = useCampBookingStore(state => state.camp)
   const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
+  const [isAddingChild, setIsAddingChild] = useState(false)
 
   const eligibleChildren = useMemo(
     () =>
@@ -572,6 +576,37 @@ function ChildrenStep() {
             </button>
           )
         })}
+
+        {!isAddingChild ? (
+          <button
+            type="button"
+            onClick={() => setIsAddingChild(true)}
+            className="cursor-pointer flex items-center justify-center gap-2.5 w-full py-3 border-2 border-dashed border-gray-300 rounded-xl bg-white text-sm font-semibold text-gray-500 transition-all hover:border-gray-900 hover:text-gray-900"
+          >
+            <span className="text-base leading-none">+</span>
+            Add child
+          </button>
+        ) : (
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <AddChildForm
+              submitLabel="Save child"
+              submitColor="primary"
+              onCancel={() => setIsAddingChild(false)}
+              onSubmit={(payload: AddChildPayload) => addChild(payload)}
+              onSuccess={createdChild => {
+                if (maxSpots === null || selectedChildIds.length < maxSpots) {
+                  toggleChild(createdChild.id)
+                }
+                addToast({
+                  title: 'Success',
+                  description: 'Child profile added to your account.',
+                  color: 'success',
+                })
+                setIsAddingChild(false)
+              }}
+            />
+          </div>
+        )}
       </div>
       {showWaitlist && (
         <div className="rounded-xl border border-warning-300 bg-warning-50 p-4 text-sm text-warning-700">
@@ -586,9 +621,10 @@ function ChildrenStep() {
       <div className="hidden pt-4 lg:block">
         <Button
           color="primary"
-          className="w-full md:w-auto"
+          className="w-full"
           isDisabled={selectedChildIds.length === 0}
           onPress={onContinue}
+          endContent={<ChevronRight size={16} />}
         >
           Continue
         </Button>
