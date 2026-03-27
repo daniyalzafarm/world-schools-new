@@ -30,7 +30,7 @@ import {
   getSelectedChildrenSubtotal,
 } from '@/components/camp-booking/booking-flow-pricing'
 import { AddChildForm, type AddChildPayload } from '@/components/children/add-child-form-fields'
-import { ChevronDown, ChevronRight, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, Minus, Plus, X } from 'lucide-react'
 
 function SessionsStep() {
   const sessions = useCampBookingStore(state => state.sessions)
@@ -835,8 +835,8 @@ function AddonsStep() {
       </div>
 
       <div className="hidden lg:flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Optional extras</p>
-        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
+        <p className="text-sm font-bold uppercase tracking-wider text-gray-400">Optional extras</p>
+        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-sm font-semibold text-gray-600">
           {extrasSelectedTypes} selected
         </span>
       </div>
@@ -849,22 +849,20 @@ function AddonsStep() {
           const summary = getAddonSummary(addOn.addOnId)
 
           return (
-            <div key={addOn.addOnId} className="flex items-center gap-4 py-4">
+            <div key={addOn.addOnId} className="flex items-center gap-4 py-6">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                 <span className="text-sm font-bold text-primary-700">{addOn.icon}</span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-gray-900">{addOn.name}</p>
+                <p className="font-semibold text-gray-900">{addOn.name}</p>
                 {addOn.description ? (
-                  <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{addOn.description}</p>
+                  <p className="text-sm text-gray-500 line-clamp-2">{addOn.description}</p>
                 ) : null}
-                {summary ? <p className="mt-1 text-xs text-gray-500">{summary}</p> : null}
+                {summary ? <p className="text-sm text-gray-500">{summary}</p> : null}
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-sm font-bold text-gray-900">
-                  {formatCurrency(addOn.price, currency)}
-                </p>
-                <p className="text-xs text-gray-500">
+                <p className="font-bold text-gray-900">{formatCurrency(addOn.price, currency)}</p>
+                <p className="text-sm text-gray-500">
                   {mode === 'qty'
                     ? 'per item'
                     : mode === 'per_child'
@@ -874,21 +872,24 @@ function AddonsStep() {
               </div>
               <div className="shrink-0">
                 {!isSelected ? (
-                  <button
-                    type="button"
-                    className="cursor-pointer flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-2xl text-gray-800"
-                    onClick={() => openAddonConfigurator(addOn.addOnId)}
+                  <Button
+                    isIconOnly
+                    radius="full"
+                    aria-label={`Add ${addOn.name}`}
+                    onPress={() => openAddonConfigurator(addOn.addOnId)}
                   >
-                    +
-                  </button>
+                    <Plus size={16} />
+                  </Button>
                 ) : (
-                  <button
-                    type="button"
-                    className="cursor-pointer flex h-11 w-11 items-center justify-center rounded-full bg-gray-900 text-lg font-bold text-white"
-                    onClick={() => openAddonConfigurator(addOn.addOnId)}
+                  <Button
+                    isIconOnly
+                    radius="full"
+                    color="secondary"
+                    aria-label={`Add ${addOn.name}`}
+                    onPress={() => openAddonConfigurator(addOn.addOnId)}
                   >
-                    ✓
-                  </button>
+                    <Check size={16} />
+                  </Button>
                 )}
               </div>
             </div>
@@ -906,7 +907,7 @@ function AddonsStep() {
             return (
               <div
                 key={addOn.addOnId}
-                className="flex items-start justify-between gap-3 px-4 py-3"
+                className="flex items-start justify-between gap-3 p-4"
                 role="button"
                 tabIndex={0}
                 onClick={() => openAddonConfigurator(addOn.addOnId)}
@@ -940,26 +941,23 @@ function AddonsStep() {
                 {!isSelected ? (
                   <Button
                     isIconOnly
-                    size="sm"
-                    variant="flat"
-                    color="primary"
+                    radius="full"
                     aria-label={`Add ${addOn.name}`}
                     onPress={() => {
                       openAddonConfigurator(addOn.addOnId)
                     }}
                   >
-                    +
+                    <Plus size={16} />
                   </Button>
                 ) : (
                   <Button
                     isIconOnly
-                    size="sm"
-                    variant="flat"
-                    color="primary"
+                    radius="full"
+                    color="secondary"
                     aria-label={`Configure ${addOn.name}`}
                     onPress={() => openAddonConfigurator(addOn.addOnId)}
                   >
-                    ✓
+                    <Check size={16} />
                   </Button>
                 )}
               </div>
@@ -1000,7 +998,7 @@ function AddonsStep() {
                               return { ...prev, childIds: [...current] }
                             })
                           }
-                          classNames={{ base: 'max-w-full gap-2', label: 'w-full' }}
+                          classNames={{ base: 'py-4 max-w-full gap-2', label: 'w-full' }}
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0">
@@ -1048,8 +1046,7 @@ function AddonsStep() {
                             <Button
                               isIconOnly
                               size="sm"
-                              variant="flat"
-                              color="primary"
+                              radius="full"
                               isDisabled={qty <= 0}
                               onPress={() =>
                                 setSheetDraft(prev => {
@@ -1071,7 +1068,7 @@ function AddonsStep() {
                                 })
                               }
                             >
-                              -
+                              <Minus size={16} />
                             </Button>
                             <span className="w-6 text-center text-sm font-semibold text-gray-900">
                               {qty}
@@ -1079,8 +1076,8 @@ function AddonsStep() {
                             <Button
                               isIconOnly
                               size="sm"
-                              variant="flat"
-                              color="primary"
+                              radius="full"
+                              color="secondary"
                               isDisabled={atMax}
                               onPress={() =>
                                 setSheetDraft(prev => {
@@ -1102,7 +1099,7 @@ function AddonsStep() {
                                 })
                               }
                             >
-                              +
+                              <Plus size={16} />
                             </Button>
                           </div>
                         </div>
@@ -1123,8 +1120,7 @@ function AddonsStep() {
                             <Button
                               isIconOnly
                               size="sm"
-                              variant="flat"
-                              color="primary"
+                              radius="full"
                               isDisabled={qty <= 0}
                               onPress={() =>
                                 setSheetDraft(prev =>
@@ -1134,23 +1130,25 @@ function AddonsStep() {
                                 )
                               }
                             >
-                              -
+                              <Minus size={16} />
                             </Button>
                             <span className="w-6 text-center text-sm font-semibold text-gray-900">
                               {qty}
                             </span>
-                            <button
-                              type="button"
-                              disabled={atMax}
-                              className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-xl font-semibold text-white disabled:opacity-50"
-                              onClick={() =>
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              radius="full"
+                              color="secondary"
+                              isDisabled={atMax}
+                              onPress={() =>
                                 setSheetDraft(prev =>
                                   prev?.mode === 'qty' ? { ...prev, quantity: qty + 1 } : prev
                                 )
                               }
                             >
-                              +
-                            </button>
+                              <Plus size={16} />
+                            </Button>
                           </div>
                         </div>
                         <div className="rounded-xl border border-gray-200 p-4">
@@ -1186,7 +1184,7 @@ function AddonsStep() {
           >
             <DrawerContent>
               <DrawerHeader className="border-b border-gray-200">{sheetAddon.name}</DrawerHeader>
-              <DrawerBody className="max-h-[70vh] overflow-y-auto px-4 py-3 pb-28">
+              <DrawerBody className="max-h-[70vh] overflow-y-auto px-6 py-3 pb-28">
                 {sheetMode === 'per_child' ? (
                   <div className="flex flex-col gap-4 divide-y divide-gray-100">
                     {selectedChildren.map(child => {
@@ -1250,11 +1248,12 @@ function AddonsStep() {
                             </p>
                           </div>
                           <div className="flex items-center gap-3">
-                            <button
-                              type="button"
-                              disabled={qty <= 0}
-                              className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl disabled:opacity-50"
-                              onClick={() =>
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              radius="full"
+                              isDisabled={qty <= 0}
+                              onPress={() =>
                                 setSheetDraft(prev => {
                                   if (prev?.mode !== 'per_child_qty') return prev
                                   const map = new Map(
@@ -1274,16 +1273,18 @@ function AddonsStep() {
                                 })
                               }
                             >
-                              -
-                            </button>
-                            <span className="w-6 text-center text-sm font-semibold text-gray-900">
+                              <Minus size={16} />
+                            </Button>
+                            <span className="w-6 text-center font-semibold text-gray-900">
                               {qty}
                             </span>
-                            <button
-                              type="button"
-                              disabled={atMax}
-                              className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-xl font-semibold text-white disabled:opacity-50"
-                              onClick={() =>
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              radius="full"
+                              color="secondary"
+                              isDisabled={atMax}
+                              onPress={() =>
                                 setSheetDraft(prev => {
                                   if (prev?.mode !== 'per_child_qty') return prev
                                   const map = new Map(
@@ -1303,8 +1304,8 @@ function AddonsStep() {
                                 })
                               }
                             >
-                              +
-                            </button>
+                              <Plus size={16} />
+                            </Button>
                           </div>
                         </div>
                       )
@@ -1321,11 +1322,12 @@ function AddonsStep() {
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-sm font-medium text-gray-700">Number of {unitLabel}</p>
                           <div className="flex items-center gap-3">
-                            <button
-                              type="button"
-                              disabled={qty <= 0}
-                              className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl disabled:opacity-50"
-                              onClick={() =>
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              radius="full"
+                              isDisabled={qty <= 0}
+                              onPress={() =>
                                 setSheetDraft(prev =>
                                   prev?.mode === 'qty'
                                     ? { ...prev, quantity: Math.max(0, qty - 1) }
@@ -1334,22 +1336,24 @@ function AddonsStep() {
                               }
                             >
                               -
-                            </button>
+                            </Button>
                             <span className="w-6 text-center text-sm font-semibold text-gray-900">
                               {qty}
                             </span>
-                            <button
-                              type="button"
-                              disabled={atMax}
-                              className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-xl font-semibold text-white disabled:opacity-50"
-                              onClick={() =>
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              radius="full"
+                              color="secondary"
+                              isDisabled={atMax}
+                              onPress={() =>
                                 setSheetDraft(prev =>
                                   prev?.mode === 'qty' ? { ...prev, quantity: qty + 1 } : prev
                                 )
                               }
                             >
                               +
-                            </button>
+                            </Button>
                           </div>
                         </div>
                         <div className="rounded-xl border border-gray-200 p-4">
