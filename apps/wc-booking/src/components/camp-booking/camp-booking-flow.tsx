@@ -719,17 +719,17 @@ function AddonsStep() {
     } else if (mode === 'per_child') {
       setSheetDraft({
         mode,
-        childIds: selectedChildren.map(child => child.id),
+        childIds: [],
       })
     } else if (mode === 'per_child_qty') {
       setSheetDraft({
         mode,
-        childQuantities: selectedChildren.map(child => ({ childId: child.id, quantity: 1 })),
+        childQuantities: selectedChildren.map(child => ({ childId: child.id, quantity: 0 })),
       })
     } else {
       setSheetDraft({
         mode,
-        quantity: 1,
+        quantity: 0,
       })
     }
     setSheetAddonId(addOnId)
@@ -743,26 +743,30 @@ function AddonsStep() {
   const submitAddonConfigurator = () => {
     if (!sheetAddonId || !sheetDraft) return closeAddonConfigurator()
 
-    const existing = addOnSelectionsById[sheetAddonId]
     const nextQty = getSelectionQuantity(sheetDraft)
+    let liveSelection = useCampBookingStore.getState().addOnSelectionsById[sheetAddonId]
 
-    if (!existing && nextQty <= 0) return closeAddonConfigurator()
-    if (!existing && nextQty > 0) toggleAddOn(sheetAddonId)
-    if (existing && nextQty <= 0) {
+    if (!liveSelection && nextQty <= 0) return closeAddonConfigurator()
+    if (!liveSelection && nextQty > 0) {
+      toggleAddOn(sheetAddonId)
+      liveSelection = useCampBookingStore.getState().addOnSelectionsById[sheetAddonId]
+    }
+    if (liveSelection && nextQty <= 0) {
       toggleAddOn(sheetAddonId)
       return closeAddonConfigurator()
     }
 
     const mode = sheetDraft.mode
     if (mode === 'per_child') {
-      const currentIds = new Set(addOnSelectionsById[sheetAddonId]?.childIds ?? [])
+      const currentIds = new Set(liveSelection?.childIds ?? [])
       const nextIds = new Set(sheetDraft.childIds ?? [])
-      const allIds = new Set([...currentIds, ...nextIds])
-      allIds.forEach(childId => {
-        if (currentIds.has(childId) !== nextIds.has(childId)) {
-          toggleAddOnChild(sheetAddonId, childId)
-        }
-      })
+      const idsToAdd = [...nextIds].filter(childId => !currentIds.has(childId))
+      const idsToRemove = [...currentIds].filter(childId => !nextIds.has(childId))
+
+      // Add first, then remove. The store drops empty selections on remove,
+      // so this ordering avoids losing later adds in "switch child" flows.
+      idsToAdd.forEach(childId => toggleAddOnChild(sheetAddonId, childId))
+      idsToRemove.forEach(childId => toggleAddOnChild(sheetAddonId, childId))
     } else if (mode === 'per_child_qty') {
       const nextById = new Map(
         (sheetDraft.childQuantities ?? []).map(item => [item.childId, item.quantity])
