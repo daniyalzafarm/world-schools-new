@@ -8,11 +8,6 @@ import {
   DrawerBody,
   DrawerContent,
   DrawerHeader,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
   Textarea,
 } from '@heroui/react'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
@@ -23,6 +18,7 @@ import { MobileBookingFooter } from '@/components/camp-booking/mobile-booking-fo
 import { DesktopSessionsSidebar } from '@/components/camp-booking/desktop-sessions-sidebar'
 import { DesktopChildrenSidebar } from '@/components/camp-booking/desktop-children-sidebar'
 import { DesktopAddonsSidebar } from '@/components/camp-booking/desktop-addons-sidebar'
+import { DuplicateDraftModal } from '@/components/camp-booking/duplicate-draft-modal'
 import {
   getChildUnitPrice,
   getSelectedChildrenSubtotal,
@@ -1221,18 +1217,18 @@ export function CampBookingFlow() {
   const error = useCampBookingStore(state => state.error)
   const isLoading = useCampBookingStore(state => state.isLoading)
   const duplicateDraftConflict = useCampBookingStore(state => state.duplicateDraftConflict)
+  const draftPreviews = useCampBookingStore(state => state.draftPreviews)
   const clearDuplicateDraftConflict = useCampBookingStore(
     state => state.clearDuplicateDraftConflict
   )
   const hydrateFromBookingGroupId = useCampBookingStore(state => state.hydrateFromBookingGroupId)
   const createDraftBookingGroup = useCampBookingStore(state => state.createDraftBookingGroup)
   const setStep = useCampBookingStore(state => state.setStep)
+  const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
 
-  const onContinueExistingDraft = async () => {
-    const existingDraftId = duplicateDraftConflict?.bookingGroupId
-    if (!existingDraftId) return
+  const onSelectDraftPreview = async (bookingGroupId: string) => {
     clearDuplicateDraftConflict()
-    await hydrateFromBookingGroupId(existingDraftId)
+    await hydrateFromBookingGroupId(bookingGroupId)
     setStep('addons')
   }
 
@@ -1240,6 +1236,10 @@ export function CampBookingFlow() {
     clearDuplicateDraftConflict()
     const { bookingGroupId } = await createDraftBookingGroup({ forceNew: true })
     if (bookingGroupId) setStep('addons')
+  }
+
+  const onSeeDraftBookings = () => {
+    clearDuplicateDraftConflict()
   }
 
   return (
@@ -1277,34 +1277,18 @@ export function CampBookingFlow() {
         </div>
       </main>
       <MobileBookingFooter />
-      <Modal
+      <DuplicateDraftModal
         isOpen={Boolean(duplicateDraftConflict)}
-        onOpenChange={isOpen => {
-          if (!isOpen) clearDuplicateDraftConflict()
-        }}
-        placement="center"
-        size="md"
-      >
-        <ModalContent>
-          <ModalHeader className="text-lg font-semibold text-gray-900">
-            Existing draft found
-          </ModalHeader>
-          <ModalBody>
-            <p className="text-sm text-gray-600">
-              {duplicateDraftConflict?.message ??
-                'You already have a draft booking for this camp. Continue your existing booking or create a new one.'}
-            </p>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="light" onPress={onContinueExistingDraft}>
-              Continue existing booking
-            </Button>
-            <Button color="primary" onPress={onCreateNewDraft}>
-              Create new booking
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+        message={
+          duplicateDraftConflict?.message ??
+          'You already have a draft booking for this camp. Continue your existing booking or create a new one.'
+        }
+        previews={draftPreviews}
+        currency={currency}
+        onSelectDraft={onSelectDraftPreview}
+        onCreateNewBooking={onCreateNewDraft}
+        onSeeDraftBookings={onSeeDraftBookings}
+      />
     </div>
   )
 }

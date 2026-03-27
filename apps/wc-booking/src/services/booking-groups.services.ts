@@ -3,6 +3,7 @@ import type {
   BookingGroupDetails,
   CreateDraftBookingGroupRequest,
   DraftBookingGroupResponse,
+  DraftBookingPreview,
   SaveBookingGroupAddOnsRequest,
 } from '@/types/camp-booking'
 
@@ -15,6 +16,12 @@ export const bookingGroupsService = {
 
   async getById(bookingGroupId: string): Promise<ApiResult<BookingGroupDetails>> {
     return apiClient.get<BookingGroupDetails>(`/user/booking-groups/${bookingGroupId}`)
+  },
+
+  async getLatestDraftPreviews(campId: string): Promise<ApiResult<DraftBookingPreview[]>> {
+    return apiClient.get<DraftBookingPreview[]>(
+      `/user/booking-groups/draft-previews/latest?campId=${encodeURIComponent(campId)}`
+    )
   },
 
   async updateDraft(

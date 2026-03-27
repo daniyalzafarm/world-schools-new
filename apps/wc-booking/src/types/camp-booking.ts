@@ -77,6 +77,15 @@ export interface BookingGroupDetails {
   }[]
 }
 
+export interface DraftBookingPreview {
+  id: string
+  sessionId: string
+  sessionName?: string | null
+  updatedAt: string
+  totalAmount: number
+  childrenCount: number
+}
+
 export interface BookingStepChildrenState {
   selectedChildIds: string[]
   children: Child[]

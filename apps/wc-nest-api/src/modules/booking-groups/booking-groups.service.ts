@@ -614,6 +614,50 @@ export class BookingGroupsService {
     return bookingGroup
   }
 
+  async getLatestDraftPreviewsForParent(userId: string, campId: string) {
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+      select: { id: true },
+    })
+    if (!parent) throw new ForbiddenException('Only parents can access bookings')
+    if (!campId) throw new BadRequestException('campId is required')
+
+    const drafts = await this.prisma.bookingGroup.findMany({
+      where: {
+        parentId: parent.id,
+        campId,
+        status: 'draft',
+      },
+      select: {
+        id: true,
+        sessionId: true,
+        updatedAt: true,
+        totalAmount: true,
+        session: {
+          select: {
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            bookings: true,
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 3,
+    })
+
+    return drafts.map(draft => ({
+      id: draft.id,
+      sessionId: draft.sessionId,
+      sessionName: draft.session?.name ?? null,
+      updatedAt: draft.updatedAt,
+      totalAmount: Number(draft.totalAmount ?? 0),
+      childrenCount: draft._count.bookings,
+    }))
+  }
+
   async listForProvider(providerId: string) {
     return this.prisma.bookingGroup.findMany({
       where: { providerId },

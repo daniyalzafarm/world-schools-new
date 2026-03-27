@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { ResponseUtil } from '../../../common/utils/response.util'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
@@ -28,6 +28,13 @@ export class UserBookingGroupsController {
       specialRequest: dto.specialRequest,
       forceNew: dto.forceNew,
     })
+    return ResponseUtil.success(result)
+  }
+
+  @Get('draft-previews/latest')
+  @ApiOperation({ summary: 'Get latest draft booking previews for a camp' })
+  async getLatestDraftPreviews(@CurrentUser() user: any, @Query('campId') campId: string) {
+    const result = await this.bookingGroupsService.getLatestDraftPreviewsForParent(user.id, campId)
     return ResponseUtil.success(result)
   }
 

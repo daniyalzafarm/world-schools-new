@@ -14,6 +14,7 @@ import type {
   CampBookingAddOnSelection,
   CampBookingAddOnSelectionMode,
   CampBookingChildQuantity,
+  DraftBookingPreview,
   SaveBookingGroupAddOnsRequest,
 } from '@/types/camp-booking'
 
@@ -32,6 +33,7 @@ interface CampBookingState {
   isLoading: boolean
   error: string | null
   duplicateDraftConflict: { bookingGroupId: string; message: string } | null
+  draftPreviews: DraftBookingPreview[]
 }
 
 interface CampBookingActions {
@@ -81,6 +83,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
     isLoading: false,
     error: null,
     duplicateDraftConflict: null,
+    draftPreviews: [],
     specialRequest: '',
 
     initByCampSlug: async campSlug => {
@@ -110,6 +113,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
           state.currentStep = START_STEP
           state.bookingGroupId = null
           state.duplicateDraftConflict = null
+          state.draftPreviews = []
           state.hasSubmitted = false
           state.isLoading = false
         })
@@ -212,6 +216,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
 
           state.addOnSelectionsById = addOnSelectionsById
           state.duplicateDraftConflict = null
+          state.draftPreviews = []
           state.isLoading = false
           void hasAnySavedAddOns
         })
@@ -232,6 +237,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
     clearDuplicateDraftConflict: () => {
       set(state => {
         state.duplicateDraftConflict = null
+        state.draftPreviews = []
       })
     },
 
@@ -429,6 +435,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
             draft.isLoading = false
             draft.error = null
             draft.duplicateDraftConflict = null
+            draft.draftPreviews = []
           })
           return { bookingGroupId: state.bookingGroupId }
         } catch (error: any) {
@@ -459,23 +466,39 @@ export const useCampBookingStore = create<CampBookingStore>()(
           // Empty string should not be persisted in draft.
           specialRequest: state.specialRequest?.trim() ? state.specialRequest : undefined,
         })
+
         if (!response.success) {
           const payload = response.data as any
-          if (payload?.code === 'DRAFT_ALREADY_EXISTS' && payload?.bookingGroupId) {
+          const isDuplicateDraftConflict =
+            Number(payload?.statusCode) === 409 &&
+            typeof payload?.message === 'string' &&
+            payload.message.toLowerCase().includes('draft booking')
+
+          if (isDuplicateDraftConflict) {
             const message =
               payload?.message ??
               'You already have a draft booking for this camp. Continue your existing booking or create a new one.'
+            const previewsResponse = await bookingGroupsService.getLatestDraftPreviews(
+              state.camp.id
+            )
+            const draftPreviews = previewsResponse.success ? previewsResponse.data : []
+            const selectedDraftId = draftPreviews[0]?.id ?? ''
             set(draft => {
-              draft.error = message
+              // Duplicate draft is handled by the confirmation modal, not the page-level error banner.
+              draft.error = null
               draft.duplicateDraftConflict = {
-                bookingGroupId: payload.bookingGroupId,
+                bookingGroupId: selectedDraftId,
                 message,
               }
+              draft.draftPreviews = draftPreviews
               draft.isLoading = false
             })
-            return { bookingGroupId: null, duplicateDraftId: payload.bookingGroupId as string }
+            return {
+              bookingGroupId: null,
+              duplicateDraftId: selectedDraftId || undefined,
+            }
           }
-          throw new Error(payload?.message)
+          throw new Error(payload?.message ?? 'Failed to create draft booking group')
         }
 
         set(draft => {
@@ -486,6 +509,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
           draft.isLoading = false
           draft.error = null
           draft.duplicateDraftConflict = null
+          draft.draftPreviews = []
         })
         return { bookingGroupId: response.data.bookingGroupId }
       } catch (error: any) {
@@ -536,6 +560,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
         state.currentStep = START_STEP
         state.bookingGroupId = null
         state.duplicateDraftConflict = null
+        state.draftPreviews = []
         state.selectedSessionId = null
         state.selectedChildIds = []
         state.addOnSelectionsById = {}
