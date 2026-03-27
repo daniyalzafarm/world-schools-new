@@ -4,10 +4,16 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   addToast,
   Button,
+  Checkbox,
   Drawer,
   DrawerBody,
   DrawerContent,
   DrawerHeader,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
   Textarea,
 } from '@heroui/react'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
@@ -660,17 +666,117 @@ function AddonsStep() {
   const selectedChildren = children.filter(c => selectedChildIds.includes(c.id))
 
   const [sheetAddonId, setSheetAddonId] = useState<string | null>(null)
+  const [sheetDraft, setSheetDraft] = useState<{
+    mode: CampBookingAddOnSelectionMode
+    childIds?: string[]
+    childQuantities?: Array<{ childId: string; quantity: number }>
+    quantity?: number
+  } | null>(null)
+  const [isDesktop, setIsDesktop] = useState(false)
 
-  const sheetSelection = sheetAddonId ? addOnSelectionsById[sheetAddonId] : undefined
   const sheetAddon = sheetAddonId ? addOns.find(a => a.addOnId === sheetAddonId) : undefined
-  const sheetMode = sheetSelection?.mode ?? (sheetAddon ? inferMode(sheetAddon) : null)
+  const sheetMode = sheetDraft?.mode ?? (sheetAddon ? inferMode(sheetAddon) : null)
+  const isConfiguratorOpen = Boolean(sheetAddonId && sheetAddon && sheetDraft)
 
-  // If the selection is removed while the sheet is open, close it.
   useEffect(() => {
-    if (!sheetAddonId) return
-    if (addOnSelectionsById[sheetAddonId]) return
+    if (typeof window === 'undefined') return
+    const query = window.matchMedia('(min-width: 1024px)')
+    const sync = () => setIsDesktop(query.matches)
+    sync()
+    query.addEventListener('change', sync)
+    return () => query.removeEventListener('change', sync)
+  }, [])
+
+  const getSelectionQuantity = (selection: {
+    mode: CampBookingAddOnSelectionMode
+    childIds?: string[]
+    childQuantities?: Array<{ childId: string; quantity: number }>
+    quantity?: number
+  }) => {
+    if (selection.mode === 'per_child') return selection.childIds?.length ?? 0
+    if (selection.mode === 'per_child_qty') {
+      return (selection.childQuantities ?? []).reduce((sum, item) => sum + (item.quantity ?? 0), 0)
+    }
+    return selection.quantity ?? 0
+  }
+
+  const openAddonConfigurator = (addOnId: string) => {
+    const addon = addOns.find(item => item.addOnId === addOnId)
+    if (!addon) return
+    const existing = addOnSelectionsById[addOnId]
+    const mode = existing?.mode ?? inferMode(addon)
+
+    if (existing) {
+      setSheetDraft({
+        mode: existing.mode,
+        childIds: [...(existing.childIds ?? [])],
+        childQuantities: (existing.childQuantities ?? []).map(item => ({
+          childId: item.childId,
+          quantity: item.quantity ?? 0,
+        })),
+        quantity: existing.quantity ?? 0,
+      })
+    } else if (mode === 'per_child') {
+      setSheetDraft({
+        mode,
+        childIds: selectedChildren.map(child => child.id),
+      })
+    } else if (mode === 'per_child_qty') {
+      setSheetDraft({
+        mode,
+        childQuantities: selectedChildren.map(child => ({ childId: child.id, quantity: 1 })),
+      })
+    } else {
+      setSheetDraft({
+        mode,
+        quantity: 1,
+      })
+    }
+    setSheetAddonId(addOnId)
+  }
+
+  const closeAddonConfigurator = () => {
     setSheetAddonId(null)
-  }, [sheetAddonId, addOnSelectionsById])
+    setSheetDraft(null)
+  }
+
+  const submitAddonConfigurator = () => {
+    if (!sheetAddonId || !sheetDraft) return closeAddonConfigurator()
+
+    const existing = addOnSelectionsById[sheetAddonId]
+    const nextQty = getSelectionQuantity(sheetDraft)
+
+    if (!existing && nextQty <= 0) return closeAddonConfigurator()
+    if (!existing && nextQty > 0) toggleAddOn(sheetAddonId)
+    if (existing && nextQty <= 0) {
+      toggleAddOn(sheetAddonId)
+      return closeAddonConfigurator()
+    }
+
+    const mode = sheetDraft.mode
+    if (mode === 'per_child') {
+      const currentIds = new Set(addOnSelectionsById[sheetAddonId]?.childIds ?? [])
+      const nextIds = new Set(sheetDraft.childIds ?? [])
+      const allIds = new Set([...currentIds, ...nextIds])
+      allIds.forEach(childId => {
+        if (currentIds.has(childId) !== nextIds.has(childId)) {
+          toggleAddOnChild(sheetAddonId, childId)
+        }
+      })
+    } else if (mode === 'per_child_qty') {
+      const nextById = new Map(
+        (sheetDraft.childQuantities ?? []).map(item => [item.childId, item.quantity])
+      )
+      selectedChildren.forEach(child => {
+        const qty = nextById.get(child.id) ?? 0
+        setAddOnChildQuantity(sheetAddonId, child.id, qty)
+      })
+    } else {
+      setAddOnQuantity(sheetAddonId, sheetDraft.quantity ?? 0)
+    }
+
+    closeAddonConfigurator()
+  }
 
   const extrasSelectedTypes = Object.values(addOnSelectionsById).length
 
@@ -741,14 +847,11 @@ function AddonsStep() {
           const isSelected = !!selection
           const mode = selection?.mode ?? inferMode(addOn)
           const summary = getAddonSummary(addOn.addOnId)
-          const qty = selection?.quantity ?? 0
-          const maxQuantity = addOn.maxQuantity ?? null
-          const atMax = typeof maxQuantity === 'number' && qty >= maxQuantity
 
           return (
             <div key={addOn.addOnId} className="flex items-center gap-4 py-4">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                <span className="text-sm font-bold text-primary-700">+</span>
+                <span className="text-sm font-bold text-primary-700">{addOn.icon}</span>
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-gray-900">{addOn.name}</p>
@@ -770,51 +873,19 @@ function AddonsStep() {
                 </p>
               </div>
               <div className="shrink-0">
-                {mode === 'qty' ? (
-                  !isSelected ? (
-                    <button
-                      type="button"
-                      className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-2xl text-gray-800"
-                      onClick={() => toggleAddOn(addOn.addOnId)}
-                    >
-                      +
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={qty <= 0}
-                        className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl disabled:opacity-50"
-                        onClick={() => setAddOnQuantity(addOn.addOnId, Math.max(0, qty - 1))}
-                      >
-                        -
-                      </button>
-                      <span className="w-5 text-center text-sm font-semibold text-gray-900">
-                        {qty}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={atMax}
-                        className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-xl text-white disabled:opacity-50"
-                        onClick={() => setAddOnQuantity(addOn.addOnId, qty + 1)}
-                      >
-                        +
-                      </button>
-                    </div>
-                  )
-                ) : !isSelected ? (
+                {!isSelected ? (
                   <button
                     type="button"
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-2xl text-gray-800"
-                    onClick={() => toggleAddOn(addOn.addOnId)}
+                    className="cursor-pointer flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-2xl text-gray-800"
+                    onClick={() => openAddonConfigurator(addOn.addOnId)}
                   >
                     +
                   </button>
                 ) : (
                   <button
                     type="button"
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-900 text-lg font-bold text-white"
-                    onClick={() => setSheetAddonId(addOn.addOnId)}
+                    className="cursor-pointer flex h-11 w-11 items-center justify-center rounded-full bg-gray-900 text-lg font-bold text-white"
+                    onClick={() => openAddonConfigurator(addOn.addOnId)}
                   >
                     ✓
                   </button>
@@ -831,23 +902,31 @@ function AddonsStep() {
             const selection = addOnSelectionsById[addOn.addOnId]
             const isSelected = !!selection
             const mode = selection?.mode ?? inferMode(addOn)
-            const qty = selection?.quantity ?? 0
-
-            const maxQuantity = addOn.maxQuantity ?? null
-            const atMax = typeof maxQuantity === 'number' && qty >= maxQuantity
 
             return (
-              <div key={addOn.addOnId} className="flex items-start justify-between gap-3 px-4 py-3">
+              <div
+                key={addOn.addOnId}
+                className="flex items-start justify-between gap-3 px-4 py-3"
+                role="button"
+                tabIndex={0}
+                onClick={() => openAddonConfigurator(addOn.addOnId)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    openAddonConfigurator(addOn.addOnId)
+                  }
+                }}
+              >
                 <div className="flex items-start gap-3 min-w-0">
                   <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
-                    <span className="text-sm font-bold text-gray-700">+</span>
+                    <span className="text-sm font-bold text-gray-700">{addOn.icon}</span>
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-gray-900">{addOn.name}</p>
+                    <p className="truncate font-semibold text-gray-900">{addOn.name}</p>
                     {addOn.description ? (
-                      <p className="mt-1 line-clamp-2 text-xs text-gray-500">{addOn.description}</p>
+                      <p className="line-clamp-2 text-sm text-gray-500">{addOn.description}</p>
                     ) : null}
-                    <p className="mt-2 text-xs font-medium text-gray-700">
+                    <p className="text-sm font-semibold text-gray-500">
                       +{formatCurrency(addOn.price, currency)}{' '}
                       {mode === 'per_child'
                         ? 'per child'
@@ -858,59 +937,30 @@ function AddonsStep() {
                   </div>
                 </div>
 
-                {mode === 'qty' ? (
-                  !isSelected ? (
-                    <button
-                      type="button"
-                      aria-label={`Add ${addOn.name}`}
-                      className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-2xl text-gray-800"
-                      onClick={() => toggleAddOn(addOn.addOnId)}
-                    >
-                      +
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        disabled={qty <= 0}
-                        aria-label="Decrease quantity"
-                        className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl disabled:opacity-50"
-                        onClick={() => setAddOnQuantity(addOn.addOnId, Math.max(0, qty - 1))}
-                      >
-                        -
-                      </button>
-                      <span className="w-6 text-center text-sm font-semibold text-gray-900">
-                        {qty}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={atMax}
-                        aria-label="Increase quantity"
-                        className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-xl font-semibold text-white disabled:opacity-50"
-                        onClick={() => setAddOnQuantity(addOn.addOnId, qty + 1)}
-                      >
-                        +
-                      </button>
-                    </div>
-                  )
-                ) : !isSelected ? (
-                  <button
-                    type="button"
+                {!isSelected ? (
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="flat"
+                    color="primary"
                     aria-label={`Add ${addOn.name}`}
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-2xl text-gray-800"
-                    onClick={() => toggleAddOn(addOn.addOnId)}
+                    onPress={() => {
+                      openAddonConfigurator(addOn.addOnId)
+                    }}
                   >
                     +
-                  </button>
+                  </Button>
                 ) : (
-                  <button
-                    type="button"
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="flat"
+                    color="primary"
                     aria-label={`Configure ${addOn.name}`}
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-900 text-lg font-bold text-white"
-                    onClick={() => setSheetAddonId(addOn.addOnId)}
+                    onPress={() => openAddonConfigurator(addOn.addOnId)}
                   >
                     ✓
-                  </button>
+                  </Button>
                 )}
               </div>
             )
@@ -918,167 +968,413 @@ function AddonsStep() {
         </div>
       </div>
 
-      {sheetAddonId && sheetAddon && sheetSelection ? (
-        <div className="fixed inset-0 z-60">
-          <div
-            className="absolute inset-0 bg-black/40"
-            role="button"
-            tabIndex={0}
-            onClick={() => setSheetAddonId(null)}
-          />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white shadow-xl lg:inset-auto lg:left-1/2 lg:top-1/2 lg:w-[460px] lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-2xl">
-            <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-gray-200" />
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-              <div className="min-w-0">
-                <p className="truncate text-base font-semibold text-gray-900">{sheetAddon.name}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSheetAddonId(null)}
-                aria-label="Close"
-                className="rounded-md p-1 text-gray-500 hover:bg-gray-50"
-              >
-                ×
-              </button>
-            </div>
+      {sheetAddon && sheetDraft ? (
+        <>
+          <Modal
+            isOpen={isConfiguratorOpen && isDesktop}
+            onOpenChange={open => {
+              if (!open) closeAddonConfigurator()
+            }}
+            size="lg"
+            className="hidden lg:flex"
+            scrollBehavior="inside"
+          >
+            <ModalContent>
+              <ModalHeader>{sheetAddon.name}</ModalHeader>
+              <ModalBody className="max-h-[60vh]">
+                {sheetMode === 'per_child' ? (
+                  <div className="flex flex-col gap-3 divide-y divide-gray-100">
+                    {selectedChildren.map(child => {
+                      const checked = sheetDraft.childIds?.includes(child.id) ?? false
+                      return (
+                        <Checkbox
+                          key={child.id}
+                          aria-label={`${child.firstName} ${child.lastName}`}
+                          isSelected={checked}
+                          onValueChange={() =>
+                            setSheetDraft(prev => {
+                              if (prev?.mode !== 'per_child') return prev
+                              const current = new Set(prev.childIds ?? [])
+                              if (current.has(child.id)) current.delete(child.id)
+                              else current.add(child.id)
+                              return { ...prev, childIds: [...current] }
+                            })
+                          }
+                          classNames={{ base: 'max-w-full gap-2', label: 'w-full' }}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-gray-900">
+                                {child.firstName} {child.lastName}
+                              </p>
+                              <p className="mt-1 text-xs text-gray-500">
+                                {getChildAge(child) !== null
+                                  ? `${getChildAge(child)} years old`
+                                  : 'Unknown age'}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-sm font-semibold text-gray-900 whitespace-nowrap">
+                              {checked ? `+${formatCurrency(sheetAddon.price, currency)}` : '—'}
+                            </div>
+                          </div>
+                        </Checkbox>
+                      )
+                    })}
+                  </div>
+                ) : sheetMode === 'per_child_qty' ? (
+                  <div className="divide-y divide-gray-100">
+                    {selectedChildren.map(child => {
+                      const cq = sheetDraft.childQuantities?.find(x => x.childId === child.id)
+                      const qty = cq?.quantity ?? 0
+                      const maxQuantity = sheetAddon.maxQuantity ?? null
+                      const atMax = typeof maxQuantity === 'number' && qty >= maxQuantity
 
-            <div className="max-h-2/3 overflow-y-auto px-4 py-3 pb-28">
-              {sheetMode === 'per_child' ? (
-                <div className="divide-y divide-gray-100">
-                  {selectedChildren.map(child => {
-                    const checked = sheetSelection.childIds?.includes(child.id) ?? false
-                    return (
-                      <button
-                        key={child.id}
-                        type="button"
-                        className="w-full py-3 text-left flex items-center justify-between gap-3"
-                        onClick={() => toggleAddOnChild(sheetAddon.addOnId, child.id)}
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-gray-900">
-                            {child.firstName} {child.lastName}
-                          </p>
-                          <p className="mt-1 text-xs text-gray-500">
-                            {getChildAge(child) !== null
-                              ? `${getChildAge(child)} years old`
-                              : 'Unknown age'}
-                          </p>
+                      return (
+                        <div
+                          key={child.id}
+                          className="py-3 flex items-center justify-between gap-3"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-gray-900">
+                              {child.firstName} {child.lastName}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-500">
+                              {getChildAge(child) !== null
+                                ? `${getChildAge(child)} years old`
+                                : 'Unknown age'}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="flat"
+                              color="primary"
+                              isDisabled={qty <= 0}
+                              onPress={() =>
+                                setSheetDraft(prev => {
+                                  if (prev?.mode !== 'per_child_qty') return prev
+                                  const map = new Map(
+                                    (prev.childQuantities ?? []).map(item => [
+                                      item.childId,
+                                      item.quantity ?? 0,
+                                    ])
+                                  )
+                                  map.set(child.id, Math.max(0, qty - 1))
+                                  return {
+                                    ...prev,
+                                    childQuantities: selectedChildren.map(item => ({
+                                      childId: item.id,
+                                      quantity: map.get(item.id) ?? 0,
+                                    })),
+                                  }
+                                })
+                              }
+                            >
+                              -
+                            </Button>
+                            <span className="w-6 text-center text-sm font-semibold text-gray-900">
+                              {qty}
+                            </span>
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="flat"
+                              color="primary"
+                              isDisabled={atMax}
+                              onPress={() =>
+                                setSheetDraft(prev => {
+                                  if (prev?.mode !== 'per_child_qty') return prev
+                                  const map = new Map(
+                                    (prev.childQuantities ?? []).map(item => [
+                                      item.childId,
+                                      item.quantity ?? 0,
+                                    ])
+                                  )
+                                  map.set(child.id, qty + 1)
+                                  return {
+                                    ...prev,
+                                    childQuantities: selectedChildren.map(item => ({
+                                      childId: item.id,
+                                      quantity: map.get(item.id) ?? 0,
+                                    })),
+                                  }
+                                })
+                              }
+                            >
+                              +
+                            </Button>
+                          </div>
                         </div>
-                        <div className="shrink-0 text-sm font-semibold text-gray-900 whitespace-nowrap">
-                          {checked ? `+${formatCurrency(sheetAddon.price, currency)}` : '—'}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              ) : sheetMode === 'per_child_qty' ? (
-                <div className="divide-y divide-gray-100">
-                  {selectedChildren.map(child => {
-                    const cq = sheetSelection.childQuantities?.find(x => x.childId === child.id)
-                    const qty = cq?.quantity ?? 0
+                      )
+                    })}
+                  </div>
+                ) : (
+                  (() => {
+                    const qty = sheetDraft.quantity ?? 0
                     const maxQuantity = sheetAddon.maxQuantity ?? null
                     const atMax = typeof maxQuantity === 'number' && qty >= maxQuantity
-
+                    const unitLabel = sheetAddon.quantityUnit ?? 'items'
                     return (
-                      <div key={child.id} className="py-3 flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-gray-900">
-                            {child.firstName} {child.lastName}
-                          </p>
-                          <p className="mt-1 text-xs text-gray-500">
-                            {getChildAge(child) !== null
-                              ? `${getChildAge(child)} years old`
-                              : 'Unknown age'}
-                          </p>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-medium text-gray-700">Number of {unitLabel}</p>
+                          <div className="flex items-center gap-3">
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="flat"
+                              color="primary"
+                              isDisabled={qty <= 0}
+                              onPress={() =>
+                                setSheetDraft(prev =>
+                                  prev?.mode === 'qty'
+                                    ? { ...prev, quantity: Math.max(0, qty - 1) }
+                                    : prev
+                                )
+                              }
+                            >
+                              -
+                            </Button>
+                            <span className="w-6 text-center text-sm font-semibold text-gray-900">
+                              {qty}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={atMax}
+                              className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-xl font-semibold text-white disabled:opacity-50"
+                              onClick={() =>
+                                setSheetDraft(prev =>
+                                  prev?.mode === 'qty' ? { ...prev, quantity: qty + 1 } : prev
+                                )
+                              }
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            disabled={qty <= 0}
-                            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl disabled:opacity-50"
-                            onClick={() =>
-                              setAddOnChildQuantity(
-                                sheetAddon.addOnId,
-                                child.id,
-                                Math.max(0, qty - 1)
-                              )
-                            }
-                          >
-                            -
-                          </button>
-                          <span className="w-6 text-center text-sm font-semibold text-gray-900">
-                            {qty}
-                          </span>
-                          <button
-                            type="button"
-                            disabled={atMax}
-                            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-xl font-semibold text-white disabled:opacity-50"
-                            onClick={() =>
-                              setAddOnChildQuantity(sheetAddon.addOnId, child.id, qty + 1)
-                            }
-                          >
-                            +
-                          </button>
+                        <div className="rounded-xl border border-gray-200 p-4">
+                          <div className="flex items-center justify-between text-sm text-gray-600">
+                            <span>Total</span>
+                            <span className="font-bold text-gray-900 whitespace-nowrap">
+                              +{formatCurrency(sheetAddon.price * qty, currency)}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     )
-                  })}
-                </div>
-              ) : (
-                (() => {
-                  const qty = sheetSelection.quantity ?? 0
-                  const maxQuantity = sheetAddon.maxQuantity ?? null
-                  const atMax = typeof maxQuantity === 'number' && qty >= maxQuantity
-                  const unitLabel = sheetAddon.quantityUnit ?? 'items'
-                  return (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-medium text-gray-700">Number of {unitLabel}</p>
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            disabled={qty <= 0}
-                            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl disabled:opacity-50"
-                            onClick={() =>
-                              setAddOnQuantity(sheetAddon.addOnId, Math.max(0, qty - 1))
-                            }
-                          >
-                            -
-                          </button>
-                          <span className="w-6 text-center text-sm font-semibold text-gray-900">
-                            {qty}
-                          </span>
-                          <button
-                            type="button"
-                            disabled={atMax}
-                            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-xl font-semibold text-white disabled:opacity-50"
-                            onClick={() => setAddOnQuantity(sheetAddon.addOnId, qty + 1)}
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                      <div className="rounded-xl border border-gray-200 p-4">
-                        <div className="flex items-center justify-between text-sm text-gray-600">
-                          <span>Total</span>
-                          <span className="font-bold text-gray-900 whitespace-nowrap">
-                            +{formatCurrency(sheetAddon.price * qty, currency)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })()
-              )}
-            </div>
+                  })()
+                )}
+              </ModalBody>
+              <ModalFooter>
+                <Button color="primary" className="w-full" onPress={submitAddonConfigurator}>
+                  {getSelectionQuantity(sheetDraft) > 0
+                    ? `Add · ${formatCurrency(sheetAddon.price * getSelectionQuantity(sheetDraft), currency)}`
+                    : 'Done'}
+                </Button>
+              </ModalFooter>
+            </ModalContent>
+          </Modal>
 
-            <div className="border-t border-gray-200 bg-white px-4 py-3">
-              <Button color="primary" className="w-full" onPress={() => setSheetAddonId(null)}>
-                Done
-              </Button>
-            </div>
-          </div>
-        </div>
+          <Drawer
+            isOpen={isConfiguratorOpen && !isDesktop}
+            onOpenChange={open => {
+              if (!open) closeAddonConfigurator()
+            }}
+            placement="bottom"
+            hideCloseButton
+          >
+            <DrawerContent>
+              <DrawerHeader className="border-b border-gray-200">{sheetAddon.name}</DrawerHeader>
+              <DrawerBody className="max-h-[70vh] overflow-y-auto px-4 py-3 pb-28">
+                {sheetMode === 'per_child' ? (
+                  <div className="flex flex-col gap-4 divide-y divide-gray-100">
+                    {selectedChildren.map(child => {
+                      const checked = sheetDraft.childIds?.includes(child.id) ?? false
+                      return (
+                        <Checkbox
+                          key={child.id}
+                          aria-label={`${child.firstName} ${child.lastName}`}
+                          isSelected={checked}
+                          onValueChange={() =>
+                            setSheetDraft(prev => {
+                              if (prev?.mode !== 'per_child') return prev
+                              const current = new Set(prev.childIds ?? [])
+                              if (current.has(child.id)) current.delete(child.id)
+                              else current.add(child.id)
+                              return { ...prev, childIds: [...current] }
+                            })
+                          }
+                          classNames={{ base: 'py-4 max-w-full gap-2', label: 'w-full' }}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-gray-900">
+                                {child.firstName} {child.lastName}
+                              </p>
+                              <p className="mt-1 text-xs text-gray-500">
+                                {getChildAge(child) !== null
+                                  ? `${getChildAge(child)} years old`
+                                  : 'Unknown age'}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-sm font-semibold text-gray-900 whitespace-nowrap">
+                              {checked ? `+${formatCurrency(sheetAddon.price, currency)}` : '—'}
+                            </div>
+                          </div>
+                        </Checkbox>
+                      )
+                    })}
+                  </div>
+                ) : sheetMode === 'per_child_qty' ? (
+                  <div className="divide-y divide-gray-100">
+                    {selectedChildren.map(child => {
+                      const cq = sheetDraft.childQuantities?.find(x => x.childId === child.id)
+                      const qty = cq?.quantity ?? 0
+                      const maxQuantity = sheetAddon.maxQuantity ?? null
+                      const atMax = typeof maxQuantity === 'number' && qty >= maxQuantity
+
+                      return (
+                        <div
+                          key={child.id}
+                          className="py-3 flex items-center justify-between gap-3"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-gray-900">
+                              {child.firstName} {child.lastName}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-500">
+                              {getChildAge(child) !== null
+                                ? `${getChildAge(child)} years old`
+                                : 'Unknown age'}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              disabled={qty <= 0}
+                              className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl disabled:opacity-50"
+                              onClick={() =>
+                                setSheetDraft(prev => {
+                                  if (prev?.mode !== 'per_child_qty') return prev
+                                  const map = new Map(
+                                    (prev.childQuantities ?? []).map(item => [
+                                      item.childId,
+                                      item.quantity ?? 0,
+                                    ])
+                                  )
+                                  map.set(child.id, Math.max(0, qty - 1))
+                                  return {
+                                    ...prev,
+                                    childQuantities: selectedChildren.map(item => ({
+                                      childId: item.id,
+                                      quantity: map.get(item.id) ?? 0,
+                                    })),
+                                  }
+                                })
+                              }
+                            >
+                              -
+                            </button>
+                            <span className="w-6 text-center text-sm font-semibold text-gray-900">
+                              {qty}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={atMax}
+                              className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-xl font-semibold text-white disabled:opacity-50"
+                              onClick={() =>
+                                setSheetDraft(prev => {
+                                  if (prev?.mode !== 'per_child_qty') return prev
+                                  const map = new Map(
+                                    (prev.childQuantities ?? []).map(item => [
+                                      item.childId,
+                                      item.quantity ?? 0,
+                                    ])
+                                  )
+                                  map.set(child.id, qty + 1)
+                                  return {
+                                    ...prev,
+                                    childQuantities: selectedChildren.map(item => ({
+                                      childId: item.id,
+                                      quantity: map.get(item.id) ?? 0,
+                                    })),
+                                  }
+                                })
+                              }
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  (() => {
+                    const qty = sheetDraft.quantity ?? 0
+                    const maxQuantity = sheetAddon.maxQuantity ?? null
+                    const atMax = typeof maxQuantity === 'number' && qty >= maxQuantity
+                    const unitLabel = sheetAddon.quantityUnit ?? 'items'
+                    return (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-medium text-gray-700">Number of {unitLabel}</p>
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              disabled={qty <= 0}
+                              className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl disabled:opacity-50"
+                              onClick={() =>
+                                setSheetDraft(prev =>
+                                  prev?.mode === 'qty'
+                                    ? { ...prev, quantity: Math.max(0, qty - 1) }
+                                    : prev
+                                )
+                              }
+                            >
+                              -
+                            </button>
+                            <span className="w-6 text-center text-sm font-semibold text-gray-900">
+                              {qty}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={atMax}
+                              className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-xl font-semibold text-white disabled:opacity-50"
+                              onClick={() =>
+                                setSheetDraft(prev =>
+                                  prev?.mode === 'qty' ? { ...prev, quantity: qty + 1 } : prev
+                                )
+                              }
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-gray-200 p-4">
+                          <div className="flex items-center justify-between text-sm text-gray-600">
+                            <span>Total</span>
+                            <span className="font-bold text-gray-900 whitespace-nowrap">
+                              +{formatCurrency(sheetAddon.price * qty, currency)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()
+                )}
+              </DrawerBody>
+              <div className="border-t border-gray-200 bg-white px-4 py-3">
+                <Button color="primary" className="w-full" onPress={submitAddonConfigurator}>
+                  {getSelectionQuantity(sheetDraft) > 0
+                    ? `Add · ${formatCurrency(sheetAddon.price * getSelectionQuantity(sheetDraft), currency)}`
+                    : 'Done'}
+                </Button>
+              </div>
+            </DrawerContent>
+          </Drawer>
+        </>
       ) : null}
 
       <div className="hidden pt-4 lg:block">
