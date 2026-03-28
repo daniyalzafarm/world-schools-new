@@ -31,6 +31,7 @@ import { CancellationPolicyModal } from '@/components/camp-booking/cancellation-
 import { BookingTermsModal } from '@/components/camp-booking/booking-terms-modal'
 import {
   getChildUnitPrice,
+  getSelectedChildrenPriceBreakdown,
   getSelectedChildrenSubtotal,
 } from '@/components/camp-booking/booking-flow-pricing'
 import { AddChildForm, type AddChildPayload } from '@/components/children/add-child-form-fields'
@@ -1447,6 +1448,41 @@ function ReviewStep() {
     selectedChildIds,
   })
   const total = childrenSubtotal + addOnTotal
+
+  const campFeeBreakdown = useMemo(
+    () =>
+      getSelectedChildrenPriceBreakdown({
+        session,
+        camp,
+        children,
+        selectedChildIds,
+      }),
+    [session, camp, children, selectedChildIds]
+  )
+
+  const extrasPriceRows = useMemo(() => {
+    return Object.values(addOnSelectionsById)
+      .map(selection => {
+        const addon = addOns.find(a => a.addOnId === selection.addOnId)
+        if (!addon) return null
+        let qty = 0
+        if (selection.mode === 'per_child') qty = selection.childIds?.length ?? 0
+        else if (selection.mode === 'per_child_qty') {
+          qty = (selection.childQuantities ?? []).reduce(
+            (sum, item) => sum + (item.quantity ?? 0),
+            0
+          )
+        } else qty = selection.quantity ?? 0
+        if (qty <= 0) return null
+        return {
+          key: addon.addOnId,
+          label: qty > 1 ? `${addon.name} × ${qty}` : addon.name,
+          total: addon.price * qty,
+        }
+      })
+      .filter(Boolean) as Array<{ key: string; label: string; total: number }>
+  }, [addOnSelectionsById, addOns])
+
   const campPhotoUrl = useMemo(() => {
     const photos = camp?.photos ?? []
     const primary = photos.find(p => p.isPrimary)
@@ -1507,8 +1543,8 @@ function ReviewStep() {
           <h2 className="text-2xl font-bold tracking-tight text-gray-900">Review and pay</h2>
         </div>
 
-        <div className="lg:hidden rounded-2xl border border-gray-200 bg-white p-4">
-          <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+        <div className="lg:hidden">
+          <div className="flex gap-3 border-b border-gray-100 pb-4">
             <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
               {campPhotoUrl ? (
                 <img
@@ -1629,7 +1665,7 @@ function ReviewStep() {
           </div>
         </div>
 
-        <div className="pb-1">
+        <div className="pt-5 border-t border-gray-200">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h3 className="text-base font-bold text-gray-900">Message to camp</h3>
           </div>
@@ -1641,7 +1677,64 @@ function ReviewStep() {
           />
         </div>
 
-        <p className="mt-3 text-sm text-gray-500">
+        <div className="lg:hidden border-t border-gray-200 bg-white pt-5 space-y-4">
+          <h3 className="text-[15px] font-semibold text-gray-900">Price details</h3>
+
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+              Camp fee
+            </p>
+            {campFeeBreakdown.length === 0 ? (
+              <p className="text-sm text-gray-500">—</p>
+            ) : (
+              <div className="space-y-2">
+                {campFeeBreakdown.map((row, idx) => (
+                  <div
+                    key={`${row.unitPrice}-${idx}`}
+                    className="flex items-center justify-between gap-3 text-sm text-gray-900"
+                  >
+                    <span className="min-w-0">
+                      {formatCurrency(row.unitPrice, currency)} × {row.count} child
+                      {row.count === 1 ? '' : 'ren'}
+                    </span>
+                    <span className="shrink-0">{formatCurrency(row.lineTotal, currency)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {extrasPriceRows.length > 0 ? (
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                Extras
+              </p>
+              <div className="space-y-2">
+                {extrasPriceRows.map(row => (
+                  <div
+                    key={row.key}
+                    className="flex items-center justify-between gap-3 text-sm text-gray-900"
+                  >
+                    <span className="min-w-0">{row.label}</span>
+                    <span className="shrink-0">{formatCurrency(row.total, currency)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="h-px bg-gray-200" />
+          <div className="flex items-center justify-between text-base font-semibold text-gray-900">
+            <span>Total due</span>
+            <span>{formatCurrency(total, currency)}</span>
+          </div>
+          <p className="text-xs leading-relaxed text-gray-500">
+            The camp has <span className="font-semibold text-gray-700">72 hours</span> to confirm
+            your booking. You will be charged after the request is accepted.
+          </p>
+        </div>
+
+        <p className="mt-3 hidden text-sm text-gray-500 lg:block">
           The camp has <span className="font-semibold text-gray-700">72 hours</span> to confirm your
           booking. You will be charged after the request is accepted.
         </p>
