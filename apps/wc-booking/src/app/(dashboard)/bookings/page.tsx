@@ -119,9 +119,17 @@ function BookingCard({ row }: { row: ParentBookingGroupSummary }) {
   const cover = row.camp.coverImageUrl
   const pct = progressPercent(row.status)
   const barColor = progressBarColor(row.status)
+  const isDraft = row.status === 'draft'
+  const draftContinueHref = isDraft
+    ? `/camps/${encodeURIComponent(row.camp.slug)}/book?bookingGroupId=${encodeURIComponent(row.id)}`
+    : null
 
-  return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-default-200 bg-white shadow-sm transition hover:border-default-300 hover:shadow-md sm:flex-row">
+  const className =
+    'flex flex-col overflow-hidden rounded-2xl border border-default-200 bg-white shadow-sm transition hover:border-default-300 hover:shadow-md sm:flex-row' +
+    (isDraft ? ' cursor-pointer' : '')
+
+  const inner = (
+    <>
       <div className="relative h-44 w-full shrink-0 overflow-hidden bg-default-100 sm:h-auto sm:w-60 sm:min-h-[200px]">
         {cover ? (
           <img
@@ -175,8 +183,18 @@ function BookingCard({ row }: { row: ParentBookingGroupSummary }) {
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
+
+  if (draftContinueHref) {
+    return (
+      <Link href={draftContinueHref} className={className}>
+        {inner}
+      </Link>
+    )
+  }
+
+  return <div className={className}>{inner}</div>
 }
 
 export default function BookingsPage() {
