@@ -1,9 +1,9 @@
 import apiClient, { type ApiResult } from '@/utils/api-client'
 import type {
-  BookingGroupDetails,
   CreateDraftBookingGroupRequest,
   DraftBookingGroupResponse,
   DraftBookingPreview,
+  ParentBookingGroupDetail,
   ParentBookingGroupSummary,
   SaveBookingGroupAddOnsRequest,
 } from '@/types/camp-booking'
@@ -19,8 +19,8 @@ export const bookingGroupsService = {
     return apiClient.post<DraftBookingGroupResponse>('/user/booking-groups/draft', payload)
   },
 
-  async getById(bookingGroupId: string): Promise<ApiResult<BookingGroupDetails>> {
-    return apiClient.get<BookingGroupDetails>(`/user/booking-groups/${bookingGroupId}`)
+  async getById(bookingGroupId: string): Promise<ApiResult<ParentBookingGroupDetail>> {
+    return apiClient.get<ParentBookingGroupDetail>(`/user/booking-groups/${bookingGroupId}`)
   },
 
   async getLatestDraftPreviews(campId: string): Promise<ApiResult<DraftBookingPreview[]>> {

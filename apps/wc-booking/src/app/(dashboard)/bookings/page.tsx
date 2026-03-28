@@ -5,107 +5,20 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { addToast, Alert, Button, Chip, Spinner, Tab, Tabs } from '@heroui/react'
 import { useConfirmDialog } from '@world-schools/ui-web'
 import { bookingGroupsService } from '@/services/booking-groups.services'
+import {
+  ageFromDateOfBirth,
+  formatSessionRange,
+  progressBarColor,
+  progressPercent,
+  statusBadgeClass,
+  statusLabel,
+  UPCOMING_STATUSES,
+} from '@/lib/booking-group-ui'
 import type { ParentBookingGroupStatus, ParentBookingGroupSummary } from '@/types/camp-booking'
 import Link from 'next/link'
 import { Trash2 } from 'lucide-react'
 
 type BookingsTab = 'upcoming' | 'quotes' | 'past' | 'cancelled'
-
-const UPCOMING_STATUSES: ParentBookingGroupStatus[] = [
-  'draft',
-  'request',
-  'accepted',
-  'declined',
-  'expired',
-  'deposit_paid',
-  'fully_paid',
-  'at_camp',
-]
-
-function statusLabel(status: ParentBookingGroupStatus): string {
-  const map: Record<ParentBookingGroupStatus, string> = {
-    draft: 'Draft',
-    request: 'Pending review',
-    accepted: 'Confirmed',
-    declined: 'Declined',
-    expired: 'Expired',
-    deposit_paid: 'Deposit paid',
-    fully_paid: 'Fully paid',
-    at_camp: 'At camp',
-    completed: 'Completed',
-    cancelled: 'Cancelled',
-  }
-  return map[status] ?? status
-}
-
-function statusBadgeClass(status: ParentBookingGroupStatus): string {
-  switch (status) {
-    case 'request':
-    case 'expired':
-      return 'bg-warning-100 text-warning-800 border border-warning-200'
-    case 'accepted':
-    case 'fully_paid':
-    case 'at_camp':
-      return 'bg-success-500 text-white'
-    case 'draft':
-      return 'bg-default-100 text-default-700'
-    case 'deposit_paid':
-      return 'bg-primary-100 text-primary-800'
-    case 'declined':
-    case 'cancelled':
-      return 'bg-danger-100 text-danger-800'
-    case 'completed':
-      return 'bg-success-100 text-success-800'
-    default:
-      return 'bg-default-100 text-default-700'
-  }
-}
-
-function progressPercent(status: ParentBookingGroupStatus): number {
-  const map: Record<ParentBookingGroupStatus, number> = {
-    draft: 12,
-    request: 28,
-    accepted: 42,
-    declined: 20,
-    expired: 25,
-    deposit_paid: 58,
-    fully_paid: 72,
-    at_camp: 88,
-    completed: 100,
-    cancelled: 0,
-  }
-  return map[status] ?? 20
-}
-
-function progressBarColor(status: ParentBookingGroupStatus): string {
-  if (status === 'cancelled' || status === 'declined') return 'bg-danger-400'
-  if (status === 'completed' || status === 'fully_paid' || status === 'at_camp')
-    return 'bg-success-500'
-  if (status === 'request' || status === 'expired') return 'bg-warning-500'
-  return 'bg-primary-500'
-}
-
-function ageFromDateOfBirth(iso: string | null): number | null {
-  if (!iso) return null
-  const birthDate = new Date(iso)
-  if (Number.isNaN(birthDate.getTime())) return null
-  const today = new Date()
-  let age = today.getFullYear() - birthDate.getFullYear()
-  const monthDiff = today.getMonth() - birthDate.getMonth()
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--
-  }
-  return age
-}
-
-function formatSessionRange(startIso: string, endIso: string, sessionName: string): string {
-  const start = new Date(startIso)
-  const end = new Date(endIso)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return sessionName
-  const a = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  const b = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  return `${a} – ${b} · ${sessionName}`
-}
 
 function filterByTab(
   items: ParentBookingGroupSummary[],
@@ -134,10 +47,11 @@ function BookingCard({
   const draftContinueHref = isDraft
     ? `/camps/${encodeURIComponent(row.camp.slug)}/book?bookingGroupId=${encodeURIComponent(row.id)}`
     : null
+  const detailHref = !isDraft ? `/bookings/${encodeURIComponent(row.id)}` : null
 
   const className =
     'flex flex-col overflow-hidden rounded-2xl border border-default-200 bg-white shadow-sm transition hover:border-default-300 hover:shadow-md sm:flex-row' +
-    (isDraft ? ' cursor-pointer' : '')
+    (isDraft || detailHref ? ' cursor-pointer' : '')
 
   const handleDeleteDraft = async () => {
     const ok = await confirm({
@@ -266,6 +180,14 @@ function BookingCard({
       >
         {inner}
       </div>
+    )
+  }
+
+  if (detailHref) {
+    return (
+      <Link href={detailHref} className={className}>
+        {inner}
+      </Link>
     )
   }
 

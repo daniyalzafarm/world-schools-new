@@ -64,18 +64,67 @@ export interface DraftBookingGroupResponse {
   bookings: DraftBookingChild[]
 }
 
-export interface BookingGroupDetails {
+/** GET /user/booking-groups/:id — parent detail (hydration + booking detail page). */
+export interface ParentBookingGroupBookingLine {
   id: string
-  status: string
+  childId: string
+  basePrice: number
+  discountAmount: number
+  totalPrice: number
+  addOns: { campId: string; addOnId: string; quantity: number }[]
+  child: {
+    id: string
+    firstName: string
+    dateOfBirth: string | null
+    photoUrl: string | null
+  }
+}
+
+export type SessionDayTypeApi = 'full_day' | 'half_day' | null
+
+export interface ParentBookingGroupDetail {
+  id: string
+  status: ParentBookingGroupStatus
   campId: string
   sessionId: string
+  providerId: string
   specialRequest?: string | null
-  bookings: {
+  subtotalAmount: number
+  discountTotal: number
+  totalAmount: number
+  depositAmount: number | null
+  paidAmount: number
+  refundedAmount: number
+  requestedAt: string
+  respondedAt: string | null
+  expiresAt: string | null
+  updatedAt: string
+  camp: {
     id: string
-    childId: string
-    addOns?: { campId: string; addOnId: string; quantity: number }[]
-  }[]
+    name: string
+    slug: string
+    coverImageUrl: string | null
+    locationLat: number | null
+    locationLng: number | null
+    locationName: string | null
+    locationAddress: string | null
+  }
+  session: {
+    name: string
+    startDate: string
+    endDate: string
+    sessionDayType: SessionDayTypeApi
+    arrivalTime: string | null
+    departureTime: string | null
+  }
+  provider: {
+    legalCompanyName: string | null
+  }
+  bookings: ParentBookingGroupBookingLine[]
 }
+
+/** @deprecated Use ParentBookingGroupDetail — alias kept for existing imports. */
+export type BookingGroupDetails = ParentBookingGroupDetail
 
 export interface DraftBookingPreview {
   id: string

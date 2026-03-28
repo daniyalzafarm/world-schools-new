@@ -53,6 +53,49 @@ export class BookingGroupsService {
     )
   }
 
+  private pickPrimaryPhotoForSas(
+    photos: unknown
+  ): { url: string; thumbnail?: string; isPrimary?: boolean; id?: string } | null {
+    if (!photos || !Array.isArray(photos) || photos.length === 0) return null
+    const list = photos as Array<{
+      url?: string
+      thumbnail?: string
+      isPrimary?: boolean
+      id?: string
+    }>
+    const withUrl = list.filter(p => p?.url)
+    if (withUrl.length === 0) return null
+    const primary = withUrl.find(p => p.isPrimary)
+    const chosen = primary ?? withUrl[0]
+    return {
+      id: chosen.id,
+      url: chosen.url as string,
+      thumbnail: chosen.thumbnail,
+      isPrimary: chosen.isPrimary,
+    }
+  }
+
+  /** Resolve public or SAS URL for camp cover (same rules as listForParent). */
+  private async resolveCampCoverImageUrl(photos: unknown): Promise<string | null> {
+    const photo = this.pickPrimaryPhotoForSas(photos)
+    if (!photo?.url) return null
+
+    const raw = String(photo.url).trim()
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      return raw
+    }
+
+    try {
+      const [resolved] = await this.generatePhotoUrls([photo])
+      const url = resolved?.url
+      return typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))
+        ? url
+        : null
+    } catch {
+      return null
+    }
+  }
+
   async updateDraftForParent(params: {
     userId: string
     bookingGroupId: string
@@ -638,8 +681,43 @@ export class BookingGroupsService {
         parentId: parent.id,
       },
       include: {
+        camp: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            photos: true,
+            locationLat: true,
+            locationLng: true,
+            locationName: true,
+            locationAddress: true,
+          },
+        },
+        session: {
+          select: {
+            name: true,
+            startDate: true,
+            endDate: true,
+            sessionDayType: true,
+            arrivalTime: true,
+            departureTime: true,
+          },
+        },
+        provider: {
+          select: {
+            legalCompanyName: true,
+          },
+        },
         bookings: {
           include: {
+            child: {
+              select: {
+                id: true,
+                firstName: true,
+                dateOfBirth: true,
+                photoUrl: true,
+              },
+            },
             addOns: {
               select: {
                 campId: true,
@@ -653,7 +731,68 @@ export class BookingGroupsService {
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
 
-    return bookingGroup
+    const coverImageUrl = await this.resolveCampCoverImageUrl(bookingGroup.camp.photos)
+
+    const lat = bookingGroup.camp.locationLat
+    const lng = bookingGroup.camp.locationLng
+
+    return {
+      id: bookingGroup.id,
+      status: bookingGroup.status,
+      campId: bookingGroup.campId,
+      sessionId: bookingGroup.sessionId,
+      providerId: bookingGroup.providerId,
+      specialRequest: bookingGroup.specialRequest,
+      subtotalAmount: Number(bookingGroup.subtotalAmount ?? 0),
+      discountTotal: Number(bookingGroup.discountTotal ?? 0),
+      totalAmount: Number(bookingGroup.totalAmount ?? 0),
+      depositAmount: bookingGroup.depositAmount != null ? Number(bookingGroup.depositAmount) : null,
+      paidAmount: Number(bookingGroup.paidAmount ?? 0),
+      refundedAmount: Number(bookingGroup.refundedAmount ?? 0),
+      requestedAt: bookingGroup.requestedAt.toISOString(),
+      respondedAt: bookingGroup.respondedAt?.toISOString() ?? null,
+      expiresAt: bookingGroup.expiresAt?.toISOString() ?? null,
+      updatedAt: bookingGroup.updatedAt.toISOString(),
+      camp: {
+        id: bookingGroup.camp.id,
+        name: bookingGroup.camp.name,
+        slug: bookingGroup.camp.slug,
+        coverImageUrl,
+        locationLat: lat != null ? Number(lat) : null,
+        locationLng: lng != null ? Number(lng) : null,
+        locationName: bookingGroup.camp.locationName,
+        locationAddress: bookingGroup.camp.locationAddress,
+      },
+      session: {
+        name: bookingGroup.session.name,
+        startDate: bookingGroup.session.startDate.toISOString(),
+        endDate: bookingGroup.session.endDate.toISOString(),
+        sessionDayType: bookingGroup.session.sessionDayType,
+        arrivalTime: bookingGroup.session.arrivalTime,
+        departureTime: bookingGroup.session.departureTime,
+      },
+      provider: {
+        legalCompanyName: bookingGroup.provider.legalCompanyName,
+      },
+      bookings: bookingGroup.bookings.map(b => ({
+        id: b.id,
+        childId: b.childId,
+        basePrice: Number(b.basePrice ?? 0),
+        discountAmount: Number(b.discountAmount ?? 0),
+        totalPrice: Number(b.totalPrice ?? 0),
+        addOns: b.addOns.map(a => ({
+          campId: a.campId,
+          addOnId: a.addOnId,
+          quantity: a.quantity,
+        })),
+        child: {
+          id: b.child.id,
+          firstName: b.child.firstName,
+          dateOfBirth: b.child.dateOfBirth?.toISOString() ?? null,
+          photoUrl: b.child.photoUrl,
+        },
+      })),
+    }
   }
 
   /**
@@ -707,28 +846,6 @@ export class BookingGroupsService {
       },
     })
 
-    const pickPrimaryPhotoForSas = (
-      photos: unknown
-    ): { url: string; thumbnail?: string; isPrimary?: boolean; id?: string } | null => {
-      if (!photos || !Array.isArray(photos) || photos.length === 0) return null
-      const list = photos as Array<{
-        url?: string
-        thumbnail?: string
-        isPrimary?: boolean
-        id?: string
-      }>
-      const withUrl = list.filter(p => p?.url)
-      if (withUrl.length === 0) return null
-      const primary = withUrl.find(p => p.isPrimary)
-      const chosen = primary ?? withUrl[0]
-      return {
-        id: chosen.id,
-        url: chosen.url as string,
-        thumbnail: chosen.thumbnail,
-        isPrimary: chosen.isPrimary,
-      }
-    }
-
     const coverUrlByCampId = new Map<string, string | null>()
 
     const resolveCoverImageUrl = async (
@@ -738,31 +855,9 @@ export class BookingGroupsService {
       if (coverUrlByCampId.has(campId)) {
         return coverUrlByCampId.get(campId) ?? null
       }
-      const photo = pickPrimaryPhotoForSas(photos)
-      if (!photo?.url) {
-        coverUrlByCampId.set(campId, null)
-        return null
-      }
-
-      const raw = String(photo.url).trim()
-      if (raw.startsWith('http://') || raw.startsWith('https://')) {
-        coverUrlByCampId.set(campId, raw)
-        return raw
-      }
-
-      try {
-        const [resolved] = await this.generatePhotoUrls([photo])
-        const url = resolved?.url
-        const ok =
-          typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))
-            ? url
-            : null
-        coverUrlByCampId.set(campId, ok)
-        return ok
-      } catch {
-        coverUrlByCampId.set(campId, null)
-        return null
-      }
+      const url = await this.resolveCampCoverImageUrl(photos)
+      coverUrlByCampId.set(campId, url)
+      return url
     }
 
     return Promise.all(
