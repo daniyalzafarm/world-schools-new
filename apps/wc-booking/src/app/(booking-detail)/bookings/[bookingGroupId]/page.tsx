@@ -93,8 +93,9 @@ export default function BookingGroupDetailPage() {
   return (
     <>
       <BookingDetailTopBar title={detail.camp.name} status={detail.status} />
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <aside className="min-h-0 w-full shrink-0 overflow-y-auto border-default-200 lg:max-w-md lg:w-[min(100%,28rem)] lg:border-r dark:border-slate-700">
+      {/* overflow-hidden + min-h-0: cap height so aside can scroll on mobile (shrink-0 was growing to content height). */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+        <aside className="min-h-0 w-full flex-1 overflow-y-auto overscroll-y-contain border-default-200 lg:max-w-md lg:w-[min(100%,28rem)] lg:flex-none lg:shrink-0 lg:border-r dark:border-slate-700">
           <BookingDetailSidebar detail={detail} />
         </aside>
         <div className="hidden min-h-0 flex-1 lg:flex lg:flex-col">
