@@ -86,6 +86,47 @@ export interface DraftBookingPreview {
   childrenCount: number
 }
 
+/** Parent dashboard list item — matches GET /user/booking-groups */
+export type ParentBookingGroupStatus =
+  | 'draft'
+  | 'request'
+  | 'accepted'
+  | 'declined'
+  | 'expired'
+  | 'deposit_paid'
+  | 'fully_paid'
+  | 'at_camp'
+  | 'completed'
+  | 'cancelled'
+
+export interface ParentBookingGroupSummaryChild {
+  id: string
+  firstName: string
+  dateOfBirth: string | null
+  photoUrl: string | null
+}
+
+export interface ParentBookingGroupSummary {
+  id: string
+  status: ParentBookingGroupStatus
+  totalAmount: number
+  requestedAt: string
+  respondedAt: string | null
+  expiresAt: string | null
+  updatedAt: string
+  camp: {
+    name: string
+    slug: string
+    coverImageUrl: string | null
+  }
+  session: {
+    name: string
+    startDate: string
+    endDate: string
+  }
+  children: ParentBookingGroupSummaryChild[]
+}
+
 export interface BookingStepChildrenState {
   selectedChildIds: string[]
   children: Child[]

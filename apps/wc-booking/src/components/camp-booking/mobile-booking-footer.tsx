@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@heroui/react'
+import { useRouter } from 'next/navigation'
 import { useMemo } from 'react'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
 import { formatCurrency } from '@/utils/currency'
@@ -56,6 +57,7 @@ function StepBars({ currentStep }: { currentStep: string }) {
 }
 
 export function MobileBookingFooter() {
+  const router = useRouter()
   const currentStep = useCampBookingStore(state => state.currentStep)
   const isLoading = useCampBookingStore(state => state.isLoading)
   const hasSubmitted = useCampBookingStore(state => state.hasSubmitted)
@@ -76,6 +78,7 @@ export function MobileBookingFooter() {
   const createDraftBookingGroup = useCampBookingStore(state => state.createDraftBookingGroup)
   const saveAddOnsAndGoToReview = useCampBookingStore(state => state.saveAddOnsAndGoToReview)
   const submitBookingGroup = useCampBookingStore(state => state.submitBookingGroup)
+  const resetForNewBooking = useCampBookingStore(state => state.resetForNewBooking)
 
   const selectedChildren = useMemo(
     () => children.filter(c => selectedChildIds.includes(c.id)),
@@ -114,7 +117,11 @@ export function MobileBookingFooter() {
     }
 
     if (currentStep === 'review-and-pay') {
-      await submitBookingGroup()
+      const ok = await submitBookingGroup()
+      if (ok) {
+        resetForNewBooking()
+        router.push('/bookings?submitted=1')
+      }
     }
   }
 

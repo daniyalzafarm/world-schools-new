@@ -4,10 +4,15 @@ import type {
   CreateDraftBookingGroupRequest,
   DraftBookingGroupResponse,
   DraftBookingPreview,
+  ParentBookingGroupSummary,
   SaveBookingGroupAddOnsRequest,
 } from '@/types/camp-booking'
 
 export const bookingGroupsService = {
+  async list(): Promise<ApiResult<ParentBookingGroupSummary[]>> {
+    return apiClient.get<ParentBookingGroupSummary[]>('/user/booking-groups')
+  },
+
   async createDraft(
     payload: CreateDraftBookingGroupRequest
   ): Promise<ApiResult<DraftBookingGroupResponse>> {

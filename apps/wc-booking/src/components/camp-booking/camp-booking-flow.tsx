@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   addToast,
   Button,
@@ -1410,7 +1411,9 @@ function AddonsStep() {
 }
 
 function ReviewStep() {
+  const router = useRouter()
   const submitBookingGroup = useCampBookingStore(state => state.submitBookingGroup)
+  const resetForNewBooking = useCampBookingStore(state => state.resetForNewBooking)
   const hasSubmitted = useCampBookingStore(state => state.hasSubmitted)
   const setStep = useCampBookingStore(state => state.setStep)
   const sessions = useCampBookingStore(state => state.sessions)
@@ -1527,7 +1530,11 @@ function ReviewStep() {
   }, [session])
 
   const onRequestToBook = async () => {
-    await submitBookingGroup()
+    const ok = await submitBookingGroup()
+    if (ok) {
+      resetForNewBooking()
+      router.push('/bookings?submitted=1')
+    }
   }
 
   return (

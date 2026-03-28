@@ -5,11 +5,53 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { AzureStorageService } from '@world-schools/wc-utils/backend'
+import { ConfigService } from '../../config/config.service'
 import { PrismaService } from '../../prisma/prisma.service'
 
 @Injectable()
 export class BookingGroupsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private azureStorage: AzureStorageService | null = null
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService
+  ) {}
+
+  /**
+   * Same as {@link UserCampsService#getAzureStorage} — camp images use this path.
+   */
+  private getAzureStorage(): AzureStorageService {
+    if (!this.azureStorage) {
+      const config = this.configService.azureStorageConfig
+      if (!config.accountName || !config.accountKey || !config.containerName) {
+        throw new Error('Azure Storage is not configured. Please contact the administrator.')
+      }
+      this.azureStorage = new AzureStorageService(config)
+    }
+    return this.azureStorage
+  }
+
+  /**
+   * Same as {@link UserCampsService#generatePhotoUrls} — SAS URLs for camp photo JSON.
+   */
+  private async generatePhotoUrls(photos: any[]): Promise<any[]> {
+    const azureStorage = this.getAzureStorage()
+    return Promise.all(
+      photos.map(async photo => {
+        try {
+          const sasUrl = await azureStorage.generateSasUrl(photo.url, 24)
+          return {
+            ...photo,
+            url: sasUrl,
+            thumbnail: sasUrl,
+          }
+        } catch {
+          return photo
+        }
+      })
+    )
+  }
 
   async updateDraftForParent(params: {
     userId: string
@@ -612,6 +654,147 @@ export class BookingGroupsService {
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
 
     return bookingGroup
+  }
+
+  /**
+   * Parent dashboard: all booking groups with fields needed for list cards.
+   */
+  async listForParent(userId: string) {
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+      select: { id: true },
+    })
+    if (!parent) throw new ForbiddenException('Only parents can access bookings')
+
+    const rows = await this.prisma.bookingGroup.findMany({
+      where: { parentId: parent.id },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        id: true,
+        status: true,
+        totalAmount: true,
+        requestedAt: true,
+        respondedAt: true,
+        expiresAt: true,
+        updatedAt: true,
+        camp: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            photos: true,
+          },
+        },
+        session: {
+          select: {
+            name: true,
+            startDate: true,
+            endDate: true,
+          },
+        },
+        bookings: {
+          select: {
+            child: {
+              select: {
+                id: true,
+                firstName: true,
+                dateOfBirth: true,
+                photoUrl: true,
+              },
+            },
+          },
+        },
+      },
+    })
+
+    const pickPrimaryPhotoForSas = (
+      photos: unknown
+    ): { url: string; thumbnail?: string; isPrimary?: boolean; id?: string } | null => {
+      if (!photos || !Array.isArray(photos) || photos.length === 0) return null
+      const list = photos as Array<{
+        url?: string
+        thumbnail?: string
+        isPrimary?: boolean
+        id?: string
+      }>
+      const withUrl = list.filter(p => p?.url)
+      if (withUrl.length === 0) return null
+      const primary = withUrl.find(p => p.isPrimary)
+      const chosen = primary ?? withUrl[0]
+      return {
+        id: chosen.id,
+        url: chosen.url as string,
+        thumbnail: chosen.thumbnail,
+        isPrimary: chosen.isPrimary,
+      }
+    }
+
+    const coverUrlByCampId = new Map<string, string | null>()
+
+    const resolveCoverImageUrl = async (
+      campId: string,
+      photos: unknown
+    ): Promise<string | null> => {
+      if (coverUrlByCampId.has(campId)) {
+        return coverUrlByCampId.get(campId) ?? null
+      }
+      const photo = pickPrimaryPhotoForSas(photos)
+      if (!photo?.url) {
+        coverUrlByCampId.set(campId, null)
+        return null
+      }
+
+      const raw = String(photo.url).trim()
+      if (raw.startsWith('http://') || raw.startsWith('https://')) {
+        coverUrlByCampId.set(campId, raw)
+        return raw
+      }
+
+      try {
+        const [resolved] = await this.generatePhotoUrls([photo])
+        const url = resolved?.url
+        const ok =
+          typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))
+            ? url
+            : null
+        coverUrlByCampId.set(campId, ok)
+        return ok
+      } catch {
+        coverUrlByCampId.set(campId, null)
+        return null
+      }
+    }
+
+    return Promise.all(
+      rows.map(async row => {
+        const coverImageUrl = await resolveCoverImageUrl(row.camp.id, row.camp.photos)
+        return {
+          id: row.id,
+          status: row.status,
+          totalAmount: Number(row.totalAmount ?? 0),
+          requestedAt: row.requestedAt.toISOString(),
+          respondedAt: row.respondedAt?.toISOString() ?? null,
+          expiresAt: row.expiresAt?.toISOString() ?? null,
+          updatedAt: row.updatedAt.toISOString(),
+          camp: {
+            name: row.camp.name,
+            slug: row.camp.slug,
+            coverImageUrl,
+          },
+          session: {
+            name: row.session.name,
+            startDate: row.session.startDate.toISOString(),
+            endDate: row.session.endDate.toISOString(),
+          },
+          children: row.bookings.map(b => ({
+            id: b.child.id,
+            firstName: b.child.firstName,
+            dateOfBirth: b.child.dateOfBirth?.toISOString() ?? null,
+            photoUrl: b.child.photoUrl,
+          })),
+        }
+      })
+    )
   }
 
   async getLatestDraftPreviewsForParent(userId: string, campId: string) {

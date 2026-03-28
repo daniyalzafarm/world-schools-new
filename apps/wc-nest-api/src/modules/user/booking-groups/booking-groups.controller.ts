@@ -38,6 +38,13 @@ export class UserBookingGroupsController {
     return ResponseUtil.success(result)
   }
 
+  @Get()
+  @ApiOperation({ summary: 'List booking groups for the current parent' })
+  async list(@CurrentUser() user: any) {
+    const result = await this.bookingGroupsService.listForParent(user.id)
+    return ResponseUtil.success(result)
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get booking group details' })
   async getById(@CurrentUser() user: any, @Param('id') id: string) {
