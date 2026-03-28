@@ -469,27 +469,32 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
           <SectionHeader title="Location & Campus" icon="🏫" className="mb-6" />
 
           {/* Google Map */}
-          {camp.locationLat && camp.locationLng && (
+          {(camp.locationLat && camp.locationLng) || camp.locationPlaceId ? (
             <div className="mb-6">
               <GoogleMapsLoader apiKey={config.maps.googleApiKey}>
                 <div className="h-[400px] w-full rounded-xl overflow-hidden border border-gray-300">
                   <GoogleMapWithSearch
                     selectedPlace={{
                       lat:
-                        typeof camp.locationLat === 'string'
-                          ? parseFloat(camp.locationLat)
-                          : camp.locationLat,
+                        camp.locationLat != null
+                          ? typeof camp.locationLat === 'string'
+                            ? parseFloat(camp.locationLat)
+                            : camp.locationLat
+                          : 0,
                       lng:
-                        typeof camp.locationLng === 'string'
-                          ? parseFloat(camp.locationLng)
-                          : camp.locationLng,
+                        camp.locationLng != null
+                          ? typeof camp.locationLng === 'string'
+                            ? parseFloat(camp.locationLng)
+                            : camp.locationLng
+                          : 0,
                       name: camp.locationName || camp.name,
+                      placeId: camp.locationPlaceId ?? null,
                     }}
                   />
                 </div>
               </GoogleMapsLoader>
             </div>
-          )}
+          ) : null}
 
           {/* Location Information */}
           {(camp.locationName || camp.locationAddress) && (

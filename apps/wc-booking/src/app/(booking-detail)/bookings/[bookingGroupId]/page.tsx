@@ -102,6 +102,7 @@ export default function BookingGroupDetailPage() {
             lat={detail.camp.locationLat}
             lng={detail.camp.locationLng}
             placeName={placeName}
+            placeId={detail.camp.locationPlaceId}
           />
         </div>
       </div>

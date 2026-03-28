@@ -8,14 +8,18 @@ export function BookingDetailMapPanel({
   lat,
   lng,
   placeName,
+  placeId,
 }: {
   lat: number | null
   lng: number | null
   placeName: string
+  /** Google Maps place id for the business — enables Place Details card on the map. */
+  placeId: string | null
 }) {
   const hasCoords = lat != null && lng != null && !Number.isNaN(lat) && !Number.isNaN(lng)
+  const hasPlaceId = Boolean(placeId?.trim())
 
-  if (!hasCoords) {
+  if (!hasCoords && !hasPlaceId) {
     return (
       <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 bg-default-100 text-default-500 lg:min-h-0">
         <span className="text-3xl" aria-hidden>
@@ -23,7 +27,7 @@ export function BookingDetailMapPanel({
         </span>
         <p className="text-sm font-medium">Location unavailable</p>
         <p className="max-w-xs px-4 text-center text-xs text-default-400">
-          This camp has not published map coordinates yet.
+          This camp has not published a map location or Google place yet.
         </p>
       </div>
     )
@@ -34,9 +38,10 @@ export function BookingDetailMapPanel({
       <div className="h-full min-h-[280px] w-full lg:min-h-0">
         <GoogleMapWithSearch
           selectedPlace={{
-            lat,
-            lng,
+            lat: hasCoords ? lat : 0,
+            lng: hasCoords ? lng : 0,
             name: placeName,
+            placeId: hasPlaceId ? placeId : null,
           }}
         />
       </div>

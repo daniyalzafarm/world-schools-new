@@ -691,6 +691,7 @@ export class BookingGroupsService {
             locationLng: true,
             locationName: true,
             locationAddress: true,
+            locationPlaceId: true,
           },
         },
         session: {
@@ -762,6 +763,7 @@ export class BookingGroupsService {
         locationLng: lng != null ? Number(lng) : null,
         locationName: bookingGroup.camp.locationName,
         locationAddress: bookingGroup.camp.locationAddress,
+        locationPlaceId: bookingGroup.camp.locationPlaceId,
       },
       session: {
         name: bookingGroup.session.name,

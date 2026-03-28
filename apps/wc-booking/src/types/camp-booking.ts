@@ -108,6 +108,8 @@ export interface ParentBookingGroupDetail {
     locationLng: number | null
     locationName: string | null
     locationAddress: string | null
+    /** Google Maps place ID for the camp location / business (Places API). */
+    locationPlaceId: string | null
   }
   session: {
     name: string
