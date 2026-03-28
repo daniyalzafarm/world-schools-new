@@ -57,4 +57,12 @@ export const bookingGroupsService = {
       payload
     )
   },
+
+  async deleteDraft(
+    bookingGroupId: string
+  ): Promise<ApiResult<{ bookingGroupId: string; deleted: boolean }>> {
+    return apiClient.del<{ bookingGroupId: string; deleted: boolean }>(
+      `/user/booking-groups/${bookingGroupId}`
+    )
+  },
 }

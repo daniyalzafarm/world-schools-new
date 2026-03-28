@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Alert, Button, Chip, Spinner, Tab, Tabs } from '@heroui/react'
+import { addToast, Alert, Button, Chip, Spinner, Tab, Tabs } from '@heroui/react'
+import { useConfirmDialog } from '@world-schools/ui-web'
 import { bookingGroupsService } from '@/services/booking-groups.services'
 import type { ParentBookingGroupStatus, ParentBookingGroupSummary } from '@/types/camp-booking'
 import Link from 'next/link'
+import { Trash2 } from 'lucide-react'
 
 type BookingsTab = 'upcoming' | 'quotes' | 'past' | 'cancelled'
 
@@ -115,7 +117,16 @@ function filterByTab(
   return items.filter(i => UPCOMING_STATUSES.includes(i.status))
 }
 
-function BookingCard({ row }: { row: ParentBookingGroupSummary }) {
+function BookingCard({
+  row,
+  onDraftDeleted,
+}: {
+  row: ParentBookingGroupSummary
+  onDraftDeleted: () => void | Promise<void>
+}) {
+  const router = useRouter()
+  const { confirm } = useConfirmDialog()
+  const [deleting, setDeleting] = useState(false)
   const cover = row.camp.coverImageUrl
   const pct = progressPercent(row.status)
   const barColor = progressBarColor(row.status)
@@ -127,6 +138,34 @@ function BookingCard({ row }: { row: ParentBookingGroupSummary }) {
   const className =
     'flex flex-col overflow-hidden rounded-2xl border border-default-200 bg-white shadow-sm transition hover:border-default-300 hover:shadow-md sm:flex-row' +
     (isDraft ? ' cursor-pointer' : '')
+
+  const handleDeleteDraft = async () => {
+    const ok = await confirm({
+      title: 'Delete draft booking?',
+      message:
+        'This will remove your saved progress for this camp. You can start a new booking anytime.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    })
+    if (!ok) return
+    setDeleting(true)
+    try {
+      const res = await bookingGroupsService.deleteDraft(row.id)
+      if (res.success) {
+        addToast({ title: 'Draft deleted', color: 'success' })
+        await onDraftDeleted()
+      } else {
+        const msg =
+          typeof res.data === 'object' && res.data && 'message' in res.data
+            ? String((res.data as { message?: string }).message)
+            : 'Could not delete this draft.'
+        addToast({ title: 'Could not delete', description: msg, color: 'danger' })
+      }
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const inner = (
     <>
@@ -148,6 +187,27 @@ function BookingCard({ row }: { row: ParentBookingGroupSummary }) {
       <div className="flex min-w-0 flex-1 flex-col gap-3 p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <h3 className="text-lg font-semibold text-secondary">{row.camp.name}</h3>
+          {isDraft ? (
+            <div
+              className="shrink-0"
+              onClick={e => e.stopPropagation()}
+              onPointerDown={e => e.stopPropagation()}
+              onKeyDown={e => e.stopPropagation()}
+              role="presentation"
+            >
+              <Button
+                size="sm"
+                variant="flat"
+                color="danger"
+                isLoading={deleting}
+                isDisabled={deleting}
+                onPress={handleDeleteDraft}
+                isIconOnly
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : null}
         </div>
         <p className="text-sm text-default-600">
           {formatSessionRange(row.session.startDate, row.session.endDate, row.session.name)}
@@ -188,9 +248,24 @@ function BookingCard({ row }: { row: ParentBookingGroupSummary }) {
 
   if (draftContinueHref) {
     return (
-      <Link href={draftContinueHref} className={className}>
+      <div
+        role="link"
+        tabIndex={0}
+        className={className}
+        onClick={() => {
+          if (deleting) return
+          router.push(draftContinueHref)
+        }}
+        onKeyDown={e => {
+          if (deleting) return
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            router.push(draftContinueHref)
+          }
+        }}
+      >
         {inner}
-      </Link>
+      </div>
     )
   }
 
@@ -374,7 +449,7 @@ export default function BookingsPage() {
       ) : (
         <div className="flex flex-col gap-4">
           {filtered.map(row => (
-            <BookingCard key={row.id} row={row} />
+            <BookingCard key={row.id} row={row} onDraftDeleted={load} />
           ))}
         </div>
       )}

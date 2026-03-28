@@ -898,6 +898,30 @@ export class BookingGroupsService {
     return { bookingGroupId: updated.id, status: updated.status }
   }
 
+  async deleteDraftForParent(userId: string, bookingGroupId: string) {
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+      select: { id: true },
+    })
+    if (!parent) throw new ForbiddenException('Only parents can delete bookings')
+
+    const bookingGroup = await this.prisma.bookingGroup.findFirst({
+      where: { id: bookingGroupId, parentId: parent.id },
+      select: { id: true, status: true },
+    })
+    if (!bookingGroup) throw new NotFoundException('Booking group not found')
+    if (bookingGroup.status !== 'draft') {
+      throw new BadRequestException('Only draft bookings can be deleted')
+    }
+
+    await this.prisma.$transaction(async tx => {
+      await tx.booking.deleteMany({ where: { bookingGroupId } })
+      await tx.bookingGroup.delete({ where: { id: bookingGroupId } })
+    })
+
+    return { bookingGroupId, deleted: true as const }
+  }
+
   async acceptForProvider(providerId: string, bookingGroupId: string, providerNote?: string) {
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
       where: { id: bookingGroupId, providerId },

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { ResponseUtil } from '../../../common/utils/response.util'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
@@ -88,6 +88,13 @@ export class UserBookingGroupsController {
       sessionId: dto.sessionId,
       childIds: dto.childIds,
     })
+    return ResponseUtil.success(result)
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete a draft booking group' })
+  async deleteDraft(@CurrentUser() user: any, @Param('id') id: string) {
+    const result = await this.bookingGroupsService.deleteDraftForParent(user.id, id)
     return ResponseUtil.success(result)
   }
 }
