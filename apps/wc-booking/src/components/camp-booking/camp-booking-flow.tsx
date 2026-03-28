@@ -14,8 +14,8 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
-  Textarea,
 } from '@heroui/react'
+import { Textarea } from '@world-schools/ui-web'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
 import { getChildAge } from '@/types/child'
 import { formatCurrency } from '@/utils/currency'
@@ -24,7 +24,11 @@ import { MobileBookingFooter } from '@/components/camp-booking/mobile-booking-fo
 import { DesktopSessionsSidebar } from '@/components/camp-booking/desktop-sessions-sidebar'
 import { DesktopChildrenSidebar } from '@/components/camp-booking/desktop-children-sidebar'
 import { DesktopAddonsSidebar } from '@/components/camp-booking/desktop-addons-sidebar'
+import { DesktopReviewSidebar } from '@/components/camp-booking/desktop-review-sidebar'
 import { DuplicateDraftModal } from '@/components/camp-booking/duplicate-draft-modal'
+import { CampRulesModal } from '@/components/camp-booking/camp-rules-modal'
+import { CancellationPolicyModal } from '@/components/camp-booking/cancellation-policy-modal'
+import { BookingTermsModal } from '@/components/camp-booking/booking-terms-modal'
 import {
   getChildUnitPrice,
   getSelectedChildrenSubtotal,
@@ -1407,6 +1411,7 @@ function AddonsStep() {
 function ReviewStep() {
   const submitBookingGroup = useCampBookingStore(state => state.submitBookingGroup)
   const hasSubmitted = useCampBookingStore(state => state.hasSubmitted)
+  const setStep = useCampBookingStore(state => state.setStep)
   const sessions = useCampBookingStore(state => state.sessions)
   const selectedSessionId = useCampBookingStore(state => state.selectedSessionId)
   const children = useCampBookingStore(state => state.children)
@@ -1416,6 +1421,9 @@ function ReviewStep() {
   const specialRequest = useCampBookingStore(state => state.specialRequest)
   const setSpecialRequest = useCampBookingStore(state => state.setSpecialRequest)
   const camp = useCampBookingStore(state => state.camp)
+  const [isCampRulesOpen, setIsCampRulesOpen] = useState(false)
+  const [isCancellationOpen, setIsCancellationOpen] = useState(false)
+  const [isBookingTermsOpen, setIsBookingTermsOpen] = useState(false)
 
   const session = sessions.find(item => item.id === selectedSessionId)
   const selectedChildren = children.filter(child => selectedChildIds.includes(child.id))
@@ -1439,80 +1447,284 @@ function ReviewStep() {
     selectedChildIds,
   })
   const total = childrenSubtotal + addOnTotal
+  const campPhotoUrl = useMemo(() => {
+    const photos = camp?.photos ?? []
+    const primary = photos.find(p => p.isPrimary)
+    const chosen = primary ?? photos[0]
+    return chosen?.url ?? chosen?.thumbnail ?? null
+  }, [camp])
+  const selectedChildrenLabel = selectedChildren
+    .map(child => {
+      const age = getChildAge(child)
+      return `${child.firstName}${age !== null ? ` (${age})` : ''}`
+    })
+    .join(', ')
+  const selectedAddOnsLabel = selectedAddOns
+    .map(addOn => {
+      const sel = addOnSelectionsById[addOn.addOnId]
+      if (!sel) return null
+      const qty =
+        sel.mode === 'per_child'
+          ? (sel.childIds?.length ?? 0)
+          : sel.mode === 'per_child_qty'
+            ? (sel.childQuantities ?? []).reduce((s, cq) => s + (cq.quantity ?? 0), 0)
+            : (sel.quantity ?? 0)
+      if (qty <= 0) return null
+      return qty > 1 ? `${addOn.name} x ${qty}` : addOn.name
+    })
+    .filter(Boolean)
+    .join(', ')
+  const sessionRangeLabel = useMemo(() => {
+    if (!session) return ''
+    const start = new Date(session.startDate)
+    const end = new Date(session.endDate)
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return session.name
+    const dayDiff = Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000))
+    const weeks = Math.max(1, Math.round(dayDiff / 7))
+    const startFmt = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const endFmt = end.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+    return `${startFmt} - ${endFmt} · ${weeks} week${weeks === 1 ? '' : 's'}`
+  }, [session])
 
   const onRequestToBook = async () => {
     await submitBookingGroup()
   }
 
   return (
-    <section className="space-y-4">
-      <h2 className="text-2xl font-bold text-gray-900">Review and pay</h2>
-      <div className="rounded-xl border border-gray-200 p-4">
-        <p className="text-sm text-gray-500">Session</p>
-        <p className="font-semibold text-gray-900">{session?.name || 'No session selected'}</p>
-      </div>
-      <div className="rounded-xl border border-gray-200 p-4">
-        <p className="text-sm text-gray-500">Children</p>
-        <div className="mt-1 space-y-1">
-          {selectedChildren.map(child => (
-            <p key={child.id} className="font-semibold text-gray-900">
-              {child.firstName} {child.lastName}
-            </p>
-          ))}
-        </div>
-      </div>
-      <div className="rounded-xl border border-gray-200 p-4">
-        <p className="text-sm text-gray-500">Add-ons</p>
-        <div className="mt-1 space-y-1">
-          {selectedAddOns.length === 0 ? (
-            <p className="text-sm text-gray-500">No add-ons selected</p>
-          ) : null}
-
-          {selectedAddOns.map(addOn => {
-            const sel = addOnSelectionsById[addOn.addOnId]
-            if (!sel) return null
-
-            const qty =
-              sel.mode === 'per_child'
-                ? (sel.childIds?.length ?? 0)
-                : sel.mode === 'per_child_qty'
-                  ? (sel.childQuantities ?? []).reduce((s, cq) => s + (cq.quantity ?? 0), 0)
-                  : (sel.quantity ?? 0)
-
-            const label = qty > 1 ? `${addOn.name} × ${qty}` : addOn.name
-            return (
-              <p key={addOn.addOnId} className="font-semibold text-gray-900">
-                {label}
-              </p>
-            )
-          })}
-        </div>
-      </div>
-      <Textarea
-        label="Special request"
-        labelPlacement="outside"
-        placeholder="Add a note for the organizer..."
-        value={specialRequest}
-        onValueChange={setSpecialRequest}
-      />
-      <div className="rounded-xl border border-gray-200 p-4">
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <span>Total</span>
-          <span className="text-lg font-bold text-gray-900">{formatCurrency(total, currency)}</span>
-        </div>
-      </div>
-      {hasSubmitted ? (
-        <div className="rounded-xl border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-700">
-          Booking request submitted successfully.
-        </div>
-      ) : (
+    <>
+      <section className="space-y-6">
         <div className="hidden lg:block">
-          <Button color="primary" className="w-full md:w-auto" onPress={onRequestToBook}>
-            Request to book
-          </Button>
+          <p className="text-xs font-bold uppercase tracking-wider text-primary-600">Step 4 of 4</p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-gray-900">Review and pay</h1>
+          <p className="mt-2 text-sm text-gray-500">Check your booking details before confirming</p>
         </div>
-      )}
-    </section>
+
+        <div className="lg:hidden">
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900">Review and pay</h2>
+        </div>
+
+        <div className="lg:hidden rounded-2xl border border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+              {campPhotoUrl ? (
+                <img
+                  src={campPhotoUrl}
+                  alt={camp?.name ?? 'Camp'}
+                  className="h-full w-full object-cover"
+                />
+              ) : null}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-gray-900">
+                {camp?.name ?? 'Selected camp'}
+              </p>
+              <p className="mt-1 text-sm text-gray-600">
+                <span className="text-primary-600">★</span> 4.9 (241 reviews)
+              </p>
+            </div>
+          </div>
+          <div className="py-3 border-b border-gray-100 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Session</p>
+              <p className="mt-0.5 text-sm text-gray-500">
+                {sessionRangeLabel || session?.name || '—'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStep('sessions')}
+              className="cursor-pointer rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
+            >
+              Change
+            </button>
+          </div>
+          <div className="py-3 border-b border-gray-100 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Children</p>
+              <p className="mt-0.5 text-sm text-gray-500">
+                {selectedChildrenLabel || 'None selected'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStep('children')}
+              className="cursor-pointer rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
+            >
+              Change
+            </button>
+          </div>
+          <div className="pt-3 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Add-ons</p>
+              <p className="mt-0.5 text-sm text-gray-500">
+                {selectedAddOnsLabel || 'No add-ons selected'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStep('addons')}
+              className="cursor-pointer rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
+            >
+              Change
+            </button>
+          </div>
+        </div>
+
+        <div className="hidden lg:block space-y-7">
+          <div className="pb-7 border-b border-gray-100">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="text-base font-bold text-gray-900">Booking summary</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Session</p>
+                  <p className="mt-0.5 text-sm text-gray-500">
+                    {sessionRangeLabel || session?.name || '—'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStep('sessions')}
+                  className="cursor-pointer text-sm font-medium text-gray-500 underline decoration-gray-300 underline-offset-2 transition hover:text-gray-900"
+                >
+                  Edit
+                </button>
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Children</p>
+                  <p className="mt-0.5 text-sm text-gray-500">
+                    {selectedChildrenLabel || 'None selected'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStep('children')}
+                  className="cursor-pointer text-sm font-medium text-gray-500 underline decoration-gray-300 underline-offset-2 transition hover:text-gray-900"
+                >
+                  Edit
+                </button>
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Add-ons</p>
+                  <p className="mt-0.5 text-sm text-gray-500">
+                    {selectedAddOnsLabel || 'No add-ons selected'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStep('addons')}
+                  className="cursor-pointer text-sm font-medium text-gray-500 underline decoration-gray-300 underline-offset-2 transition hover:text-gray-900"
+                >
+                  Edit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="pb-1">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-base font-bold text-gray-900">Message to camp</h3>
+          </div>
+          <Textarea
+            minRows={5}
+            placeholder="Introduce your children, mention any special requests (allergies, dietary needs, medical conditions, arrival details)..."
+            value={specialRequest}
+            onValueChange={setSpecialRequest}
+          />
+        </div>
+
+        <p className="mt-3 text-sm text-gray-500">
+          The camp has <span className="font-semibold text-gray-700">72 hours</span> to confirm your
+          booking. You will be charged after the request is accepted.
+        </p>
+
+        <div className="hidden lg:block rounded-xl bg-gray-50 p-3 text-center text-xs leading-5 text-gray-500">
+          By clicking the button to request to book, you agree to the{' '}
+          <button
+            type="button"
+            onClick={() => setIsCampRulesOpen(true)}
+            className="cursor-pointer underline decoration-gray-300 underline-offset-2 hover:text-gray-900"
+          >
+            Camp Rules
+          </button>
+          ,{' '}
+          <button
+            type="button"
+            onClick={() => setIsCancellationOpen(true)}
+            className="cursor-pointer underline decoration-gray-300 underline-offset-2 hover:text-gray-900"
+          >
+            Cancellation Policy
+          </button>
+          , and{' '}
+          <button
+            type="button"
+            onClick={() => setIsBookingTermsOpen(true)}
+            className="cursor-pointer underline decoration-gray-300 underline-offset-2 hover:text-gray-900"
+          >
+            Booking Terms
+          </button>
+          .
+        </div>
+
+        <div className="lg:hidden rounded-xl bg-gray-50 px-4 py-3 text-center text-xs leading-5 text-gray-500">
+          By clicking the button to request to book, you agree to the{' '}
+          <button
+            type="button"
+            onClick={() => setIsCampRulesOpen(true)}
+            className="cursor-pointer underline decoration-gray-300 underline-offset-2 hover:text-gray-900"
+          >
+            Camp Rules
+          </button>
+          ,{' '}
+          <button
+            type="button"
+            onClick={() => setIsCancellationOpen(true)}
+            className="cursor-pointer underline decoration-gray-300 underline-offset-2 hover:text-gray-900"
+          >
+            Cancellation Policy
+          </button>
+          , and{' '}
+          <button
+            type="button"
+            onClick={() => setIsBookingTermsOpen(true)}
+            className="cursor-pointer underline decoration-gray-300 underline-offset-2 hover:text-gray-900"
+          >
+            Booking Terms
+          </button>
+          .
+        </div>
+
+        {hasSubmitted ? (
+          <div className="rounded-xl border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-700">
+            Booking request submitted successfully.
+          </div>
+        ) : (
+          <div className="hidden lg:block">
+            <Button color="primary" className="w-full" onPress={onRequestToBook}>
+              Request to book
+            </Button>
+          </div>
+        )}
+      </section>
+
+      <CampRulesModal isOpen={isCampRulesOpen} onOpenChange={setIsCampRulesOpen} />
+
+      <CancellationPolicyModal
+        isOpen={isCancellationOpen}
+        onOpenChange={setIsCancellationOpen}
+        cancellationPolicy={camp?.provider?.settings?.cancellationPolicy}
+      />
+
+      <BookingTermsModal isOpen={isBookingTermsOpen} onOpenChange={setIsBookingTermsOpen} />
+    </>
   )
 }
 
@@ -1577,6 +1789,7 @@ export function CampBookingFlow() {
             {currentStep === 'sessions' ? <DesktopSessionsSidebar /> : null}
             {currentStep === 'children' ? <DesktopChildrenSidebar /> : null}
             {currentStep === 'addons' ? <DesktopAddonsSidebar /> : null}
+            {currentStep === 'review-and-pay' ? <DesktopReviewSidebar /> : null}
           </div>
         </div>
       </main>
