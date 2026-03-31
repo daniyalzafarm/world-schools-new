@@ -938,16 +938,126 @@ export class BookingGroupsService {
     }))
   }
 
+  /**
+   * Provider dashboard: booking groups for this provider (excludes parent drafts).
+   */
   async listForProvider(providerId: string) {
-    return this.prisma.bookingGroup.findMany({
-      where: { providerId },
-      include: {
+    const rows = await this.prisma.bookingGroup.findMany({
+      where: {
+        providerId,
+        status: { not: 'draft' },
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        id: true,
+        status: true,
+        totalAmount: true,
+        requestedAt: true,
+        respondedAt: true,
+        expiresAt: true,
+        updatedAt: true,
+        camp: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            photos: true,
+          },
+        },
+        session: {
+          select: {
+            name: true,
+            startDate: true,
+            endDate: true,
+          },
+        },
+        parent: {
+          select: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
+        provider: {
+          select: {
+            settings: {
+              select: { currency: true },
+            },
+          },
+        },
         bookings: {
-          select: { id: true, childId: true },
+          select: {
+            child: {
+              select: {
+                id: true,
+                firstName: true,
+                dateOfBirth: true,
+                photoUrl: true,
+              },
+            },
+          },
         },
       },
-      orderBy: { createdAt: 'desc' },
     })
+
+    const coverUrlByCampId = new Map<string, string | null>()
+
+    const resolveCoverImageUrl = async (
+      campId: string,
+      photos: unknown
+    ): Promise<string | null> => {
+      if (coverUrlByCampId.has(campId)) {
+        return coverUrlByCampId.get(campId) ?? null
+      }
+      const url = await this.resolveCampCoverImageUrl(photos)
+      coverUrlByCampId.set(campId, url)
+      return url
+    }
+
+    return Promise.all(
+      rows.map(async row => {
+        const coverImageUrl = await resolveCoverImageUrl(row.camp.id, row.camp.photos)
+        const currency = row.provider.settings?.currency ?? 'CHF'
+        const u = row.parent.user
+        const displayName = [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.email
+        return {
+          id: row.id,
+          status: row.status,
+          totalAmount: Number(row.totalAmount ?? 0),
+          currency,
+          requestedAt: row.requestedAt.toISOString(),
+          respondedAt: row.respondedAt?.toISOString() ?? null,
+          expiresAt: row.expiresAt?.toISOString() ?? null,
+          updatedAt: row.updatedAt.toISOString(),
+          parent: {
+            displayName,
+            email: u.email,
+            phone: u.phone,
+          },
+          camp: {
+            name: row.camp.name,
+            slug: row.camp.slug,
+            coverImageUrl,
+          },
+          session: {
+            name: row.session.name,
+            startDate: row.session.startDate.toISOString(),
+            endDate: row.session.endDate.toISOString(),
+          },
+          children: row.bookings.map(b => ({
+            id: b.child.id,
+            firstName: b.child.firstName,
+            dateOfBirth: b.child.dateOfBirth?.toISOString() ?? null,
+            photoUrl: b.child.photoUrl,
+          })),
+        }
+      })
+    )
   }
 
   async getForProvider(providerId: string, bookingGroupId: string) {
@@ -955,17 +1065,158 @@ export class BookingGroupsService {
       where: {
         id: bookingGroupId,
         providerId,
+        status: { not: 'draft' },
       },
       include: {
+        camp: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            photos: true,
+            locationLat: true,
+            locationLng: true,
+            locationName: true,
+            locationAddress: true,
+            locationPlaceId: true,
+          },
+        },
+        session: {
+          select: {
+            name: true,
+            startDate: true,
+            endDate: true,
+            sessionDayType: true,
+            arrivalTime: true,
+            departureTime: true,
+          },
+        },
+        provider: {
+          select: {
+            legalCompanyName: true,
+            settings: {
+              select: { currency: true },
+            },
+          },
+        },
+        parent: {
+          select: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
         bookings: {
           include: {
-            addOns: true,
+            child: {
+              select: {
+                id: true,
+                firstName: true,
+                dateOfBirth: true,
+                photoUrl: true,
+              },
+            },
+            addOns: {
+              include: {
+                campAddOn: {
+                  include: {
+                    addOn: {
+                      select: {
+                        id: true,
+                        name: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
-    return bookingGroup
+
+    const coverImageUrl = await this.resolveCampCoverImageUrl(bookingGroup.camp.photos)
+    const lat = bookingGroup.camp.locationLat
+    const lng = bookingGroup.camp.locationLng
+    const currency = bookingGroup.provider.settings?.currency ?? 'CHF'
+    const u = bookingGroup.parent.user
+    const parentDisplayName = [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.email
+
+    return {
+      id: bookingGroup.id,
+      status: bookingGroup.status,
+      currency,
+      campId: bookingGroup.campId,
+      sessionId: bookingGroup.sessionId,
+      providerId: bookingGroup.providerId,
+      specialRequest: bookingGroup.specialRequest,
+      subtotalAmount: Number(bookingGroup.subtotalAmount ?? 0),
+      discountTotal: Number(bookingGroup.discountTotal ?? 0),
+      totalAmount: Number(bookingGroup.totalAmount ?? 0),
+      depositAmount: bookingGroup.depositAmount != null ? Number(bookingGroup.depositAmount) : null,
+      paidAmount: Number(bookingGroup.paidAmount ?? 0),
+      refundedAmount: Number(bookingGroup.refundedAmount ?? 0),
+      requestedAt: bookingGroup.requestedAt.toISOString(),
+      respondedAt: bookingGroup.respondedAt?.toISOString() ?? null,
+      expiresAt: bookingGroup.expiresAt?.toISOString() ?? null,
+      updatedAt: bookingGroup.updatedAt.toISOString(),
+      parent: {
+        displayName: parentDisplayName,
+        email: u.email,
+        phone: u.phone,
+      },
+      camp: {
+        id: bookingGroup.camp.id,
+        name: bookingGroup.camp.name,
+        slug: bookingGroup.camp.slug,
+        coverImageUrl,
+        locationLat: lat != null ? Number(lat) : null,
+        locationLng: lng != null ? Number(lng) : null,
+        locationName: bookingGroup.camp.locationName,
+        locationAddress: bookingGroup.camp.locationAddress,
+        locationPlaceId: bookingGroup.camp.locationPlaceId,
+      },
+      session: {
+        name: bookingGroup.session.name,
+        startDate: bookingGroup.session.startDate.toISOString(),
+        endDate: bookingGroup.session.endDate.toISOString(),
+        sessionDayType: bookingGroup.session.sessionDayType,
+        arrivalTime: bookingGroup.session.arrivalTime,
+        departureTime: bookingGroup.session.departureTime,
+      },
+      provider: {
+        legalCompanyName: bookingGroup.provider.legalCompanyName,
+      },
+      bookings: bookingGroup.bookings.map(b => ({
+        id: b.id,
+        childId: b.childId,
+        basePrice: Number(b.basePrice ?? 0),
+        discountAmount: Number(b.discountAmount ?? 0),
+        totalPrice: Number(b.totalPrice ?? 0),
+        providerNote: b.providerNote,
+        respondedAt: b.respondedAt?.toISOString() ?? null,
+        addOns: b.addOns.map(a => ({
+          campId: a.campId,
+          addOnId: a.addOnId,
+          quantity: a.quantity,
+          name: a.campAddOn.addOn.name,
+          unitPrice: Number(a.unitPrice ?? 0),
+          lineTotal: Number(a.lineTotal ?? 0),
+        })),
+        child: {
+          id: b.child.id,
+          firstName: b.child.firstName,
+          dateOfBirth: b.child.dateOfBirth?.toISOString() ?? null,
+          photoUrl: b.child.photoUrl,
+        },
+      })),
+    }
   }
 
   async submitForParent(userId: string, bookingGroupId: string) {

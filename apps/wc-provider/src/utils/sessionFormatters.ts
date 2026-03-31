@@ -2,6 +2,8 @@
  * Formatting utilities for sessions
  */
 
+import { formatCurrency as formatCurrencyFromUtils } from '@world-schools/wc-utils'
+
 /**
  * Format date to readable string (e.g., "Jan 15, 2024")
  */
@@ -43,23 +45,10 @@ export function formatDateRange(startDate: string, endDate: string): string {
 }
 
 /**
- * Format currency (e.g., "$1,234")
+ * Format currency (e.g., "$1,234") — shared Intl-based implementation.
  */
 export function formatCurrency(amount: number, currency = 'USD'): string {
-  // Simple formatting - can be enhanced with Intl.NumberFormat
-  const formatted = Math.round(amount).toLocaleString('en-US')
-
-  // Currency symbol mapping
-  const symbols: Record<string, string> = {
-    USD: '$',
-    EUR: '€',
-    GBP: '£',
-    CAD: 'C$',
-    AUD: 'A$',
-  }
-
-  const symbol = symbols[currency] || currency
-  return `${symbol}${formatted}`
+  return formatCurrencyFromUtils(amount, currency)
 }
 
 /**

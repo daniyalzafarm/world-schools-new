@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Button } from '@heroui/react'
 import { ChevronLeft } from 'lucide-react'
-import { statusBadgeClass, statusLabel } from '@/lib/booking-group-ui'
+import { statusBadgeClass, statusLabel } from '@world-schools/wc-frontend-utils'
 import type { ParentBookingGroupStatus } from '@/types/camp-booking'
 
 export function BookingDetailTopBar({

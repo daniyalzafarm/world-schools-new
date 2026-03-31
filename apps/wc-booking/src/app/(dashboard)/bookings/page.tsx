@@ -13,8 +13,8 @@ import {
   statusBadgeClass,
   statusLabel,
   UPCOMING_STATUSES,
-} from '@/lib/booking-group-ui'
-import type { ParentBookingGroupStatus, ParentBookingGroupSummary } from '@/types/camp-booking'
+} from '@world-schools/wc-frontend-utils'
+import type { ParentBookingGroupSummary } from '@/types/camp-booking'
 import Link from 'next/link'
 import { Trash2 } from 'lucide-react'
 

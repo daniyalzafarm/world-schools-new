@@ -12,7 +12,7 @@ import {
   progressPercent,
   statusBadgeClass,
   statusLabel,
-} from '@/lib/booking-group-ui'
+} from '@world-schools/wc-frontend-utils'
 import { formatCurrency } from '@/utils/currency'
 import type { ParentBookingGroupDetail, ParentBookingGroupStatus } from '@/types/camp-booking'
 

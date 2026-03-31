@@ -1,6 +1,6 @@
-import type { ParentBookingGroupStatus } from '@/types/camp-booking'
+import type { BookingGroupStatus } from '@world-schools/wc-types'
 
-export const UPCOMING_STATUSES: ParentBookingGroupStatus[] = [
+export const UPCOMING_STATUSES: BookingGroupStatus[] = [
   'draft',
   'request',
   'accepted',
@@ -11,8 +11,8 @@ export const UPCOMING_STATUSES: ParentBookingGroupStatus[] = [
   'at_camp',
 ]
 
-export function statusLabel(status: ParentBookingGroupStatus): string {
-  const map: Record<ParentBookingGroupStatus, string> = {
+export function statusLabel(status: BookingGroupStatus): string {
+  const map: Record<BookingGroupStatus, string> = {
     draft: 'Draft',
     request: 'Pending review',
     accepted: 'Confirmed',
@@ -27,7 +27,24 @@ export function statusLabel(status: ParentBookingGroupStatus): string {
   return map[status] ?? status
 }
 
-export function statusBadgeClass(status: ParentBookingGroupStatus): string {
+/** Provider dashboard copy where it differs from the parent-facing label. */
+export function providerStatusLabel(status: BookingGroupStatus): string {
+  const map: Record<BookingGroupStatus, string> = {
+    draft: 'Draft',
+    request: 'New request',
+    accepted: 'Confirmed',
+    declined: 'Declined',
+    expired: 'Expired',
+    deposit_paid: 'Deposit paid',
+    fully_paid: 'Fully paid',
+    at_camp: 'At camp',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+  }
+  return map[status] ?? status
+}
+
+export function statusBadgeClass(status: BookingGroupStatus): string {
   switch (status) {
     case 'request':
     case 'expired':
@@ -50,8 +67,8 @@ export function statusBadgeClass(status: ParentBookingGroupStatus): string {
   }
 }
 
-export function progressPercent(status: ParentBookingGroupStatus): number {
-  const map: Record<ParentBookingGroupStatus, number> = {
+export function progressPercent(status: BookingGroupStatus): number {
+  const map: Record<BookingGroupStatus, number> = {
     draft: 12,
     request: 28,
     accepted: 42,
@@ -66,7 +83,7 @@ export function progressPercent(status: ParentBookingGroupStatus): number {
   return map[status] ?? 20
 }
 
-export function progressBarColor(status: ParentBookingGroupStatus): string {
+export function progressBarColor(status: BookingGroupStatus): string {
   if (status === 'cancelled' || status === 'declined') return 'bg-danger-400'
   if (status === 'completed' || status === 'fully_paid' || status === 'at_camp')
     return 'bg-success-500'
@@ -141,7 +158,7 @@ export interface JourneyStep {
 
 export type JourneyStepState = 'done' | 'current' | 'upcoming'
 
-export function journeyStepStates(status: ParentBookingGroupStatus): {
+export function journeyStepStates(status: BookingGroupStatus): {
   steps: JourneyStep[]
   states: JourneyStepState[]
 } {
@@ -194,4 +211,22 @@ export function journeyStepStates(status: ParentBookingGroupStatus): {
   }
 
   return { steps, states }
+}
+
+/**
+ * Short urgency line for provider request rows when `expiresAt` is set (otherwise null).
+ */
+export function providerRequestUrgencyLabel(expiresAt: string | null): string | null {
+  if (!expiresAt) return null
+  const end = new Date(expiresAt)
+  if (Number.isNaN(end.getTime())) return null
+  const ms = end.getTime() - Date.now()
+  if (ms <= 0) return 'Expired'
+  const hours = Math.floor(ms / 3600000)
+  if (hours < 48) {
+    if (hours <= 0) return 'Expires soon'
+    return hours < 24 ? `Expires in ${hours}h` : `Expires in ${Math.ceil(hours / 24)}d`
+  }
+  const days = Math.floor(hours / 24)
+  return `Expires in ${days}d`
 }

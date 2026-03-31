@@ -63,3 +63,6 @@ export * from './lib/kb/types'
 
 // Help (KB) shared module – service, context, components, page content
 export * from './lib/kb/help'
+
+// Booking group labels, formatting, journey (parent + provider apps)
+export * from './lib/booking-group-display'
