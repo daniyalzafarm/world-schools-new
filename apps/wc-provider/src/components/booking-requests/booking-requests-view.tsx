@@ -177,77 +177,79 @@ export function BookingRequestsView() {
     <>
       <div className="mb-6">
         <Tabs
+          aria-label="Booking request categories"
           selectedKey={tab}
           onSelectionChange={key => setTab(key as TabId)}
           variant="underlined"
           classNames={{
             base: 'w-full border-b border-divider',
-            tabList: 'gap-0 p-0 flex-wrap',
-            cursor: 'bg-primary',
-            tab: 'h-12',
-            tabContent:
-              'group-data-[selected=true]:text-primary-600 group-data-[selected=true]:font-semibold',
+            tab: 'w-36 px-0!',
+            tabList: 'p-0!',
           }}
         >
           <Tab
             key="requests"
             title={
-              <div className="flex items-center gap-2 px-3">
+              <span className="flex items-center gap-1.5">
                 <span>Requests</span>
                 {counts.requests > 0 ? (
-                  <Chip size="sm" color="danger" variant="flat">
+                  <Chip size="sm" color="secondary">
                     {counts.requests}
                   </Chip>
-                ) : (
-                  <Chip size="sm" variant="flat">
-                    0
-                  </Chip>
-                )}
-              </div>
+                ) : null}
+              </span>
             }
           />
           <Tab
             key="upcoming"
             title={
-              <div className="flex items-center gap-2 px-3">
+              <span className="flex items-center gap-1.5">
                 <span>Upcoming</span>
-                <Chip size="sm" variant="flat">
-                  {counts.upcoming}
-                </Chip>
-              </div>
+                {counts.upcoming > 0 ? (
+                  <Chip size="sm" color="secondary">
+                    {counts.upcoming}
+                  </Chip>
+                ) : null}
+              </span>
             }
           />
           <Tab
             key="at-camp"
             title={
-              <div className="flex items-center gap-2 px-3">
+              <span className="flex items-center gap-1.5">
                 <span>At camp</span>
-                <Chip size="sm" variant="flat">
-                  {counts.atCamp}
-                </Chip>
-              </div>
+                {counts.atCamp > 0 ? (
+                  <Chip size="sm" color="secondary">
+                    {counts.atCamp}
+                  </Chip>
+                ) : null}
+              </span>
             }
           />
           <Tab
             key="past"
             title={
-              <div className="flex items-center gap-2 px-3">
+              <span className="flex items-center gap-1.5">
                 <span>Past</span>
-                <Chip size="sm" variant="flat">
-                  {counts.past}
-                </Chip>
-              </div>
+                {counts.past > 0 ? (
+                  <Chip size="sm" color="secondary">
+                    {counts.past}
+                  </Chip>
+                ) : null}
+              </span>
             }
           />
           <Tab
             key="cancelled"
             title={
-              <div className="flex items-center gap-2 px-3">
+              <span className="flex items-center gap-1.5">
                 <span>Cancelled</span>
-                <Chip size="sm" variant="flat">
-                  {counts.cancelled}
-                </Chip>
-              </div>
+                {counts.cancelled > 0 ? (
+                  <Chip size="sm" color="secondary">
+                    {counts.cancelled}
+                  </Chip>
+                ) : null}
+              </span>
             }
           />
         </Tabs>
