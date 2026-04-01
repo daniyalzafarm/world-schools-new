@@ -9,9 +9,11 @@ import type { ParentBookingGroupStatus } from '@/types/camp-booking'
 export function BookingDetailTopBar({
   title,
   status,
+  bookingGroupNumber,
 }: {
   title: string
   status: ParentBookingGroupStatus
+  bookingGroupNumber?: string
 }) {
   return (
     <header className="z-10 shrink-0 border-b border-default-200 bg-white dark:bg-slate-900">
@@ -29,6 +31,9 @@ export function BookingDetailTopBar({
         </Button>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-semibold text-secondary">{title}</h1>
+          {bookingGroupNumber ? (
+            <p className="truncate font-mono text-xs text-default-500">{bookingGroupNumber}</p>
+          ) : null}
         </div>
         <span
           className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(status)}`}

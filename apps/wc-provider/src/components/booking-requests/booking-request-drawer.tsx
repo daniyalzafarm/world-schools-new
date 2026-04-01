@@ -58,11 +58,6 @@ function formatLocation(p: ProviderBookingGroupDetail['parent']): string | null 
   return parts.length ? parts.join(', ') : null
 }
 
-function formatBookingId(id: string): string {
-  const compact = id.replace(/-/g, '').toUpperCase()
-  return `WC-${compact.slice(0, 8)}`
-}
-
 function daysUntil(iso: string): number {
   const t = new Date(iso).getTime()
   if (Number.isNaN(t)) return 0
@@ -815,6 +810,7 @@ export function BookingRequestDrawer({
                         className="mb-3 rounded-xl border border-gray-200 bg-white last:mb-0"
                       >
                         <CardBody className="gap-0 p-4">
+                          <p className="mb-2 text-xs text-gray-400">{b.bookingNumber}</p>
                           <div className="mb-1 text-base font-semibold text-secondary-500">
                             {b.child.firstName}
                             {b.child.lastName ? ` ${b.child.lastName}` : ''}
@@ -1123,7 +1119,7 @@ export function BookingRequestDrawer({
                 </div>
 
                 <div className="px-6 py-4 text-center text-xs text-gray-400">
-                  Booking ID: {formatBookingId(detail.id)}
+                  Booking ID: {detail.bookingGroupNumber}
                 </div>
               </div>
             )}

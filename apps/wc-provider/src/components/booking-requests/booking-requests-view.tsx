@@ -292,6 +292,9 @@ export function BookingRequestsView() {
                     <TableColumn className="min-w-[140px] text-xs font-semibold uppercase tracking-wide text-default-500">
                       Status
                     </TableColumn>
+                    <TableColumn className="min-w-[160px] text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Reference
+                    </TableColumn>
                     <TableColumn className="min-w-[200px] text-xs font-semibold uppercase tracking-wide text-default-500">
                       Booked by
                     </TableColumn>
@@ -340,6 +343,11 @@ export function BookingRequestsView() {
                                 </span>
                               ) : null}
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-mono text-xs text-default-600">
+                              {row.bookingGroupNumber}
+                            </span>
                           </TableCell>
                           <TableCell>
                             <p className="font-medium text-foreground">{row.parent.displayName}</p>
@@ -394,6 +402,9 @@ export function BookingRequestsView() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
+                        <p className="font-mono text-xs text-default-500">
+                          {row.bookingGroupNumber}
+                        </p>
                         <p className="font-semibold text-default-900 dark:text-default-100">
                           {row.parent.displayName}
                         </p>

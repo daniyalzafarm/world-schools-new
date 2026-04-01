@@ -56,10 +56,12 @@ export interface SaveBookingGroupAddOnsRequest {
 export interface DraftBookingChild {
   id: string
   childId: string
+  bookingNumber: string
 }
 
 export interface DraftBookingGroupResponse {
   bookingGroupId: string
+  bookingGroupNumber: string
   status: string
   bookings: DraftBookingChild[]
 }
@@ -67,6 +69,7 @@ export interface DraftBookingGroupResponse {
 /** GET /user/booking-groups/:id — parent detail (hydration + booking detail page). */
 export interface ParentBookingGroupBookingLine {
   id: string
+  bookingNumber: string
   childId: string
   basePrice: number
   discountAmount: number
@@ -84,6 +87,7 @@ export type SessionDayTypeApi = 'full_day' | 'half_day' | null
 
 export interface ParentBookingGroupDetail {
   id: string
+  bookingGroupNumber: string
   status: ParentBookingGroupStatus
   campId: string
   sessionId: string
@@ -130,6 +134,7 @@ export type BookingGroupDetails = ParentBookingGroupDetail
 
 export interface DraftBookingPreview {
   id: string
+  bookingGroupNumber: string
   sessionId: string
   sessionName?: string | null
   updatedAt: string
@@ -159,6 +164,7 @@ export interface ParentBookingGroupSummaryChild {
 
 export interface ParentBookingGroupSummary {
   id: string
+  bookingGroupNumber: string
   status: ParentBookingGroupStatus
   totalAmount: number
   requestedAt: string

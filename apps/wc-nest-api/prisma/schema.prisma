@@ -903,6 +903,7 @@ enum CalculationType {
 /// All bookings in a group share the same payment/refund lifecycle.
 model BookingGroup {
   id         String @id @default(uuid())
+  bookingGroupNumber String @unique @map("booking_group_number") @db.VarChar(32)
   parentId   String @map("parent_id")
   sessionId  String @map("session_id")
   campId     String @map("camp_id")
@@ -1005,6 +1006,7 @@ model Session {
 /// Lifecycle: request → accepted|declined|expired → deposit_paid → fully_paid → at_camp → completed; any → cancelled.
 model Booking {
   id             String @id @default(uuid())
+  bookingNumber  String @unique @map("booking_number") @db.VarChar(36)
   bookingGroupId String @map("booking_group_id")
   sessionId      String @map("session_id")
   campId         String @map("camp_id")

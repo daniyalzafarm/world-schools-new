@@ -19,10 +19,12 @@ export interface CreateDraftBookingGroupDto {
 
 export interface DraftBookingGroupResponse {
   bookingGroupId: string
+  bookingGroupNumber: string
   status: BookingGroupStatus
   bookings: {
     id: string
     childId: string
+    bookingNumber: string
   }[]
 }
 
@@ -31,6 +33,7 @@ export type SessionDayTypeApi = 'full_day' | 'half_day' | null
 /** GET /provider/booking-groups — provider dashboard list row */
 export interface ProviderBookingGroupSummary {
   id: string
+  bookingGroupNumber: string
   status: BookingGroupStatus
   totalAmount: number
   currency: string
@@ -63,6 +66,7 @@ export interface ProviderBookingGroupSummary {
 
 export interface ProviderBookingGroupBookingLine {
   id: string
+  bookingNumber: string
   childId: string
   basePrice: number
   discountAmount: number
@@ -98,6 +102,7 @@ export interface ProviderBookingGroupBookingLine {
 /** GET /provider/booking-groups/:id — provider detail (drawer) */
 export interface ProviderBookingGroupDetail {
   id: string
+  bookingGroupNumber: string
   status: BookingGroupStatus
   currency: string
   campId: string

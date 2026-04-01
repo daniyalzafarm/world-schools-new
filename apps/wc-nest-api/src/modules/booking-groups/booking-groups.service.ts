@@ -7,6 +7,11 @@ import {
 } from '@nestjs/common'
 import { AzureStorageService } from '@world-schools/wc-utils/backend'
 import { ConfigService } from '../../config/config.service'
+import {
+  bookingGroupWhereByRef,
+  generateBookingGroupNumber,
+  generateNextBookingLineNumber,
+} from '../../common/utils/wc-reference.util'
 import { PrismaService } from '../../prisma/prisma.service'
 import { ProfilePhotoService } from '../user/auth/services/profile-photo.service'
 
@@ -120,13 +125,14 @@ export class BookingGroupsService {
     if (!params.childIds.length) throw new BadRequestException('At least one child is required')
 
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
-      where: { id: params.bookingGroupId, parentId: parent.id },
+      where: { parentId: parent.id, ...bookingGroupWhereByRef(params.bookingGroupId) },
       select: {
         id: true,
         status: true,
         campId: true,
         providerId: true,
         sessionId: true,
+        bookingGroupNumber: true,
         bookings: {
           select: {
             id: true,
@@ -215,8 +221,20 @@ export class BookingGroupsService {
       // Create booking rows for newly selected children.
       for (const childId of params.childIds) {
         if (existingByChildId.has(childId)) continue
+        let bookingNumber: string
+        try {
+          bookingNumber = await generateNextBookingLineNumber(tx, bookingGroup.bookingGroupNumber)
+        } catch (e) {
+          if (e instanceof Error && e.message === 'BOOKING_LINE_LIMIT') {
+            throw new BadRequestException(
+              'This booking group cannot add more children (limit reached)'
+            )
+          }
+          throw e
+        }
         await tx.booking.create({
           data: {
+            bookingNumber,
             bookingGroupId: bookingGroup.id,
             sessionId: session.id,
             campId: bookingGroup.campId,
@@ -356,8 +374,8 @@ export class BookingGroupsService {
 
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
       where: {
-        id: params.bookingGroupId,
         parentId: parent.id,
+        ...bookingGroupWhereByRef(params.bookingGroupId),
       },
       select: {
         id: true,
@@ -630,49 +648,61 @@ export class BookingGroupsService {
     const subtotal = sessionPrice * children.length
     const now = new Date()
 
-    const bookingGroup = await this.prisma.bookingGroup.create({
-      data: {
-        parentId: parent.id,
-        sessionId: session.id,
-        campId: params.campId,
-        providerId: session.camp.providerId,
-        subtotalAmount: subtotal,
-        totalAmount: subtotal,
-        discountTotal: 0,
-        paidAmount: 0,
-        refundedAmount: 0,
-        status: 'draft',
-        requestedAt: now,
-        // Normalize empty/whitespace to null so reload hydration doesn't
-        // incorrectly assume the user already reached the review step.
-        specialRequest: params.specialRequest?.trim() ? params.specialRequest : null,
-        bookings: {
-          create: children.map(child => ({
-            sessionId: session.id,
-            campId: params.campId,
-            providerId: session.camp.providerId,
-            parentId: parent.id,
-            childId: child.id,
-            startDate: session.startDate,
-            endDate: session.endDate,
-            basePrice: sessionPrice,
-            discountAmount: 0,
-            totalPrice: sessionPrice,
-          })),
-        },
-      },
-      include: {
-        bookings: {
-          select: {
-            id: true,
-            childId: true,
+    const childById = new Map(children.map(c => [c.id, c]))
+    const orderedChildren = params.childIds
+      .map(id => childById.get(id))
+      .filter((c): c is { id: string } => c != null)
+
+    const bookingGroup = await this.prisma.$transaction(async tx => {
+      const bookingGroupNumber = await generateBookingGroupNumber(tx, now)
+      return tx.bookingGroup.create({
+        data: {
+          bookingGroupNumber,
+          parentId: parent.id,
+          sessionId: session.id,
+          campId: params.campId,
+          providerId: session.camp.providerId,
+          subtotalAmount: subtotal,
+          totalAmount: subtotal,
+          discountTotal: 0,
+          paidAmount: 0,
+          refundedAmount: 0,
+          status: 'draft',
+          requestedAt: now,
+          // Normalize empty/whitespace to null so reload hydration doesn't
+          // incorrectly assume the user already reached the review step.
+          specialRequest: params.specialRequest?.trim() ? params.specialRequest : null,
+          bookings: {
+            create: orderedChildren.map((child, index) => ({
+              bookingNumber: `${bookingGroupNumber}-${String(index + 1).padStart(2, '0')}`,
+              sessionId: session.id,
+              campId: params.campId,
+              providerId: session.camp.providerId,
+              parentId: parent.id,
+              childId: child.id,
+              startDate: session.startDate,
+              endDate: session.endDate,
+              basePrice: sessionPrice,
+              discountAmount: 0,
+              totalPrice: sessionPrice,
+            })),
           },
         },
-      },
+        include: {
+          bookings: {
+            select: {
+              id: true,
+              childId: true,
+              bookingNumber: true,
+            },
+          },
+        },
+      })
     })
 
     return {
       bookingGroupId: bookingGroup.id,
+      bookingGroupNumber: bookingGroup.bookingGroupNumber,
       status: bookingGroup.status,
       bookings: bookingGroup.bookings,
     }
@@ -687,8 +717,8 @@ export class BookingGroupsService {
 
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
       where: {
-        id: bookingGroupId,
         parentId: parent.id,
+        ...bookingGroupWhereByRef(bookingGroupId),
       },
       include: {
         camp: {
@@ -753,6 +783,7 @@ export class BookingGroupsService {
 
     return {
       id: bookingGroup.id,
+      bookingGroupNumber: bookingGroup.bookingGroupNumber,
       status: bookingGroup.status,
       campId: bookingGroup.campId,
       sessionId: bookingGroup.sessionId,
@@ -792,6 +823,7 @@ export class BookingGroupsService {
       },
       bookings: bookingGroup.bookings.map((b, idx) => ({
         id: b.id,
+        bookingNumber: b.bookingNumber,
         childId: b.childId,
         basePrice: Number(b.basePrice ?? 0),
         discountAmount: Number(b.discountAmount ?? 0),
@@ -826,6 +858,7 @@ export class BookingGroupsService {
       orderBy: { updatedAt: 'desc' },
       select: {
         id: true,
+        bookingGroupNumber: true,
         status: true,
         totalAmount: true,
         requestedAt: true,
@@ -881,6 +914,7 @@ export class BookingGroupsService {
         const coverImageUrl = await resolveCoverImageUrl(row.camp.id, row.camp.photos)
         return {
           id: row.id,
+          bookingGroupNumber: row.bookingGroupNumber,
           status: row.status,
           totalAmount: Number(row.totalAmount ?? 0),
           requestedAt: row.requestedAt.toISOString(),
@@ -926,6 +960,7 @@ export class BookingGroupsService {
       },
       select: {
         id: true,
+        bookingGroupNumber: true,
         sessionId: true,
         updatedAt: true,
         totalAmount: true,
@@ -946,6 +981,7 @@ export class BookingGroupsService {
 
     return drafts.map(draft => ({
       id: draft.id,
+      bookingGroupNumber: draft.bookingGroupNumber,
       sessionId: draft.sessionId,
       sessionName: draft.session?.name ?? null,
       updatedAt: draft.updatedAt,
@@ -966,6 +1002,7 @@ export class BookingGroupsService {
       orderBy: { updatedAt: 'desc' },
       select: {
         id: true,
+        bookingGroupNumber: true,
         status: true,
         totalAmount: true,
         requestedAt: true,
@@ -1043,6 +1080,7 @@ export class BookingGroupsService {
         const displayName = [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.email
         return {
           id: row.id,
+          bookingGroupNumber: row.bookingGroupNumber,
           status: row.status,
           totalAmount: Number(row.totalAmount ?? 0),
           currency,
@@ -1114,9 +1152,9 @@ export class BookingGroupsService {
   async getForProvider(providerId: string, bookingGroupId: string) {
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
       where: {
-        id: bookingGroupId,
         providerId,
         status: { not: 'draft' },
+        ...bookingGroupWhereByRef(bookingGroupId),
       },
       include: {
         camp: {
@@ -1281,6 +1319,7 @@ export class BookingGroupsService {
 
     return {
       id: bookingGroup.id,
+      bookingGroupNumber: bookingGroup.bookingGroupNumber,
       status: bookingGroup.status,
       currency,
       campId: bookingGroup.campId,
@@ -1353,6 +1392,7 @@ export class BookingGroupsService {
       },
       bookings: bookingGroup.bookings.map((b, idx) => ({
         id: b.id,
+        bookingNumber: b.bookingNumber,
         childId: b.childId,
         basePrice: Number(b.basePrice ?? 0),
         discountAmount: Number(b.discountAmount ?? 0),
@@ -1396,22 +1436,22 @@ export class BookingGroupsService {
       throw new BadRequestException('internalNotes is required (use null to clear)')
     }
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
-      where: { id: bookingGroupId, providerId },
+      where: { providerId, ...bookingGroupWhereByRef(bookingGroupId) },
       select: { id: true },
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
 
     await this.prisma.bookingGroup.update({
-      where: { id: bookingGroupId },
+      where: { id: bookingGroup.id },
       data: { internalNotes },
     })
 
-    return { bookingGroupId, internalNotes }
+    return { bookingGroupId: bookingGroup.id, internalNotes }
   }
 
   async requestExtensionForProvider(providerId: string, bookingGroupId: string) {
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
-      where: { id: bookingGroupId, providerId },
+      where: { providerId, ...bookingGroupWhereByRef(bookingGroupId) },
       select: { id: true, status: true, expiresAt: true },
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
@@ -1427,11 +1467,11 @@ export class BookingGroupsService {
     const extended = new Date(base.getTime() + 24 * 60 * 60 * 1000)
 
     await this.prisma.bookingGroup.update({
-      where: { id: bookingGroupId },
+      where: { id: bookingGroup.id },
       data: { expiresAt: extended },
     })
 
-    return { bookingGroupId, expiresAt: extended.toISOString() }
+    return { bookingGroupId: bookingGroup.id, expiresAt: extended.toISOString() }
   }
 
   async submitForParent(userId: string, bookingGroupId: string) {
@@ -1442,7 +1482,7 @@ export class BookingGroupsService {
     if (!parent) throw new ForbiddenException('Only parents can access bookings')
 
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
-      where: { id: bookingGroupId, parentId: parent.id },
+      where: { parentId: parent.id, ...bookingGroupWhereByRef(bookingGroupId) },
       select: { id: true, status: true },
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
@@ -1451,7 +1491,7 @@ export class BookingGroupsService {
     }
 
     const updated = await this.prisma.bookingGroup.update({
-      where: { id: bookingGroupId },
+      where: { id: bookingGroup.id },
       data: {
         status: 'request',
         requestedAt: new Date(),
@@ -1469,7 +1509,7 @@ export class BookingGroupsService {
     if (!parent) throw new ForbiddenException('Only parents can delete bookings')
 
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
-      where: { id: bookingGroupId, parentId: parent.id },
+      where: { parentId: parent.id, ...bookingGroupWhereByRef(bookingGroupId) },
       select: { id: true, status: true },
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
@@ -1478,16 +1518,16 @@ export class BookingGroupsService {
     }
 
     await this.prisma.$transaction(async tx => {
-      await tx.booking.deleteMany({ where: { bookingGroupId } })
-      await tx.bookingGroup.delete({ where: { id: bookingGroupId } })
+      await tx.booking.deleteMany({ where: { bookingGroupId: bookingGroup.id } })
+      await tx.bookingGroup.delete({ where: { id: bookingGroup.id } })
     })
 
-    return { bookingGroupId, deleted: true as const }
+    return { bookingGroupId: bookingGroup.id, deleted: true as const }
   }
 
   async acceptForProvider(providerId: string, bookingGroupId: string, providerNote?: string) {
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
-      where: { id: bookingGroupId, providerId },
+      where: { providerId, ...bookingGroupWhereByRef(bookingGroupId) },
       select: { id: true, status: true },
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
@@ -1498,14 +1538,14 @@ export class BookingGroupsService {
     const now = new Date()
     await this.prisma.$transaction(async tx => {
       await tx.bookingGroup.update({
-        where: { id: bookingGroupId },
+        where: { id: bookingGroup.id },
         data: {
           status: 'accepted',
           respondedAt: now,
         },
       })
       await tx.booking.updateMany({
-        where: { bookingGroupId },
+        where: { bookingGroupId: bookingGroup.id },
         data: {
           respondedAt: now,
           providerNote: providerNote ?? null,
@@ -1513,12 +1553,12 @@ export class BookingGroupsService {
       })
     })
 
-    return { bookingGroupId, status: 'accepted' }
+    return { bookingGroupId: bookingGroup.id, status: 'accepted' }
   }
 
   async declineForProvider(providerId: string, bookingGroupId: string, providerNote?: string) {
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
-      where: { id: bookingGroupId, providerId },
+      where: { providerId, ...bookingGroupWhereByRef(bookingGroupId) },
       select: { id: true, status: true },
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
@@ -1529,14 +1569,14 @@ export class BookingGroupsService {
     const now = new Date()
     await this.prisma.$transaction(async tx => {
       await tx.bookingGroup.update({
-        where: { id: bookingGroupId },
+        where: { id: bookingGroup.id },
         data: {
           status: 'declined',
           respondedAt: now,
         },
       })
       await tx.booking.updateMany({
-        where: { bookingGroupId },
+        where: { bookingGroupId: bookingGroup.id },
         data: {
           respondedAt: now,
           providerNote: providerNote ?? null,
@@ -1544,6 +1584,6 @@ export class BookingGroupsService {
       })
     })
 
-    return { bookingGroupId, status: 'declined' }
+    return { bookingGroupId: bookingGroup.id, status: 'declined' }
   }
 }
