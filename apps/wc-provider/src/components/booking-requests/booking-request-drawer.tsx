@@ -29,8 +29,8 @@ import {
   providerRequestBannerVariant,
 } from '@world-schools/wc-frontend-utils'
 import type { BookingGroupStatus, ProviderBookingGroupDetail } from '@world-schools/wc-types'
-import { cn, StarRating, Textarea, useConfirmDialog } from '@world-schools/ui-web'
-import { X } from 'lucide-react'
+import { cn, Textarea, useConfirmDialog } from '@world-schools/ui-web'
+import { Calendar, Globe, Languages, MapPin, Star } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMessagingStore } from '@/stores/messaging-store'
@@ -385,105 +385,59 @@ export function BookingRequestDrawer({
     const nat = [d.parent.primaryNationality, d.parent.secondaryNationality]
       .filter(Boolean)
       .join(' · ')
+    const notSpecified = 'Not Specified'
 
-    const iconWrap = 'flex size-5 shrink-0 items-center justify-center'
-    const iconSvg = '[&_svg]:size-4 [&_svg]:stroke-2 [&_svg]:stroke-secondary-500 [&_svg]:fill-none'
+    const { averageRating: avg, reviewsCount, completedBookingGroupsCount } = d.parentStats
+    let ratingInner: React.ReactNode
+    if (avg != null && reviewsCount != null && reviewsCount > 0) {
+      ratingInner = (
+        <span className="cursor-default underline underline-offset-2">
+          {`${Number(avg).toFixed(1)} rating from ${reviewsCount} reviews`}
+        </span>
+      )
+    } else if (avg != null) {
+      ratingInner = (
+        <span className="cursor-default underline underline-offset-2">
+          {`${Number(avg).toFixed(1)} rating`}
+        </span>
+      )
+    } else {
+      ratingInner = <span>No ratings</span>
+    }
+
+    const locationLine = loc ? `Lives in ${loc}` : notSpecified
+    const languagesLine = langs ? `Speaks ${langs}` : notSpecified
+    const nationalityLine = nat || notSpecified
+    const campsLine =
+      typeof completedBookingGroupsCount === 'number'
+        ? `Attended ${completedBookingGroupsCount} camp${completedBookingGroupsCount === 1 ? '' : 's'}`
+        : notSpecified
 
     return (
       <div className="border-b border-gray-200 px-6 py-6 last:border-b-0">
-        <div className="mb-4 text-base font-semibold text-secondary-500">
-          About {fn} <span className="text-sm font-normal text-gray-400">(profile)</span>
-        </div>
+        <div className="mb-4 text-lg font-semibold text-secondary-500">About {fn}</div>
         <div className="flex flex-col gap-3.5">
-          {d.parentStats.completedBookingGroupsCount === 0 ? (
-            <div className={cn('flex items-center gap-3 text-sm text-secondary-500', iconSvg)}>
-              <span className={iconWrap} aria-hidden>
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 6v6l4 2" />
-                </svg>
-              </span>
-              <span>New to World-Camps</span>
-            </div>
-          ) : (
-            <div className={cn('flex items-center gap-3 text-sm text-secondary-500', iconSvg)}>
-              <span className={iconWrap} aria-hidden>
-                <svg viewBox="0 0 24 24">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                  <line x1="16" y1="2" x2="16" y2="6" />
-                  <line x1="8" y1="2" x2="8" y2="6" />
-                  <line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
-              </span>
-              <span>Attended {d.parentStats.completedBookingGroupsCount} camps</span>
-            </div>
-          )}
-          <div className={cn('flex items-center gap-3 text-sm text-secondary-500', iconSvg)}>
-            <span className={iconWrap} aria-hidden>
-              <svg viewBox="0 0 24 24">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
-            </span>
-            <span className="text-sm text-gray-500">No public reviews yet</span>
+          <div className="flex items-center gap-3 text-secondary-500">
+            <Star className="size-5" aria-hidden />
+            {ratingInner}
           </div>
-          {nat ? (
-            <div className={cn('flex items-center gap-3 text-sm text-secondary-500', iconSvg)}>
-              <span className={iconWrap} aria-hidden>
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="2" y1="12" x2="22" y2="12" />
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                </svg>
-              </span>
-              <span>{nat}</span>
-            </div>
-          ) : null}
-          {loc ? (
-            <div className={cn('flex items-center gap-3 text-sm text-secondary-500', iconSvg)}>
-              <span className={iconWrap} aria-hidden>
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="10" r="3" />
-                  <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z" />
-                </svg>
-              </span>
-              <span>Lives in {loc}</span>
-            </div>
-          ) : null}
-          {langs ? (
-            <div className={cn('flex items-center gap-3 text-sm text-secondary-500', iconSvg)}>
-              <span className={iconWrap} aria-hidden>
-                <svg viewBox="0 0 24 24">
-                  <path d="M5 8l6 6" />
-                  <path d="M4 14l6-6 2 2" />
-                  <path d="M14 4l6 6-6 6" />
-                  <path d="M14 10h7" />
-                </svg>
-              </span>
-              <span>Speaks {langs}</span>
-            </div>
-          ) : null}
-          {d.parent.emailVerified ? (
-            <div className={cn('flex items-center gap-3 text-sm text-secondary-500', iconSvg)}>
-              <span className={iconWrap} aria-hidden>
-                <svg viewBox="0 0 24 24">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22 4 12 14.01 9 11.01" />
-                </svg>
-              </span>
-              <span>Identity verified</span>
-            </div>
-          ) : null}
-        </div>
-        <div className="mb-2 mt-4 flex items-center gap-4">
-          <span className="whitespace-nowrap text-sm text-gray-500">Rating</span>
-          <div className="h-1.5 flex-1 overflow-hidden rounded-sm bg-gray-200">
-            <div className="h-full w-0 rounded-sm bg-secondary-500" />
+          <div className="flex items-center gap-3 text-secondary-500">
+            <Globe className="size-5" aria-hidden />
+            <span>{nationalityLine}</span>
           </div>
-          <div className="whitespace-nowrap text-sm font-semibold text-secondary-500">
-            <StarRating rating={0} maxRating={5} size={14} showRating={false} />
+          <div className="flex items-center gap-3 text-secondary-500">
+            <MapPin className="size-5" aria-hidden />
+            <span>{locationLine}</span>
+          </div>
+          <div className="flex items-center gap-3 text-secondary-500">
+            <Languages className="size-5" aria-hidden />
+            <span>{languagesLine}</span>
+          </div>
+          <div className="flex items-center gap-3 text-secondary-500">
+            <Calendar className="size-5" aria-hidden />
+            <span>{campsLine}</span>
           </div>
         </div>
-        <p className="mb-0 text-sm text-gray-500">Reviews will appear here when available.</p>
       </div>
     )
   }

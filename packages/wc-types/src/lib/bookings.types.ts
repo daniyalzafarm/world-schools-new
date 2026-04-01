@@ -202,6 +202,9 @@ export interface ProviderBookingGroupDetail {
   }
   parentStats: {
     completedBookingGroupsCount: number
+    /** When set, shown as the first About row (e.g. “4.7 rating from 13 reviews”). */
+    averageRating?: number | null
+    reviewsCount?: number | null
   }
   camp: {
     id: string
