@@ -30,6 +30,64 @@ export interface DraftBookingGroupResponse {
 
 export type SessionDayTypeApi = 'full_day' | 'half_day' | null
 
+/** Lifecycle tabs for GET /provider/booking-groups — match `tab` query param */
+export const PROVIDER_BOOKING_TABS = [
+  'requests',
+  'upcoming',
+  'at-camp',
+  'past',
+  'cancelled',
+] as const
+
+export type ProviderBookingTab = (typeof PROVIDER_BOOKING_TABS)[number]
+
+/** Status values available for the status filter under each lifecycle tab */
+export const PROVIDER_TAB_STATUS_FILTER: Record<ProviderBookingTab, BookingGroupStatus[]> = {
+  requests: ['request'],
+  upcoming: ['accepted', 'deposit_paid', 'fully_paid'],
+  'at-camp': ['at_camp'],
+  past: ['completed', 'declined', 'expired'],
+  cancelled: ['cancelled'],
+}
+
+/** Sort fields for GET /provider/booking-groups — match `sortBy` query param */
+export type ProviderBookingSortField =
+  | 'updatedAt'
+  | 'requestedAt'
+  | 'totalAmount'
+  | 'sessionStart'
+  | 'status'
+  | 'bookingGroupNumber'
+  | 'parentFirstName'
+  | 'sessionName'
+
+/** Query params for GET /provider/booking-groups */
+export interface ProviderBookingGroupsQuery {
+  tab?: ProviderBookingTab
+  search?: string
+  /** Narrow to one status within the current tab group */
+  status?: BookingGroupStatus
+  sortBy?: ProviderBookingSortField
+  sortOrder?: 'asc' | 'desc'
+  page?: number
+  limit?: number
+}
+
+/** Pagination + tab counts in GET /provider/booking-groups `meta` */
+export interface ProviderBookingGroupsListMeta {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+  tabCounts: {
+    requests: number
+    upcoming: number
+    atCamp: number
+    past: number
+    cancelled: number
+  }
+}
+
 /** GET /provider/booking-groups — provider dashboard list row */
 export interface ProviderBookingGroupSummary {
   id: string

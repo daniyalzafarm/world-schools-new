@@ -79,7 +79,6 @@ export function SelectField({
 
   return (
     <Select
-      fullWidth={fullWidth}
       selectedKeys={value ? [value] : []}
       onSelectionChange={keys => {
         const selectedValue = Array.from(keys)[0] as string

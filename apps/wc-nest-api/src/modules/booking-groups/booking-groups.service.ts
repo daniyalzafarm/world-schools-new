@@ -12,8 +12,15 @@ import {
   generateBookingGroupNumber,
   generateNextBookingLineNumber,
 } from '../../common/utils/wc-reference.util'
+import { BookingGroupStatus } from '../../generated/client/enums'
+import { Prisma } from '../../generated/client/client'
 import { PrismaService } from '../../prisma/prisma.service'
 import { ProfilePhotoService } from '../user/auth/services/profile-photo.service'
+import type {
+  ProviderBookingSortField,
+  ProviderBookingTab,
+  QueryProviderBookingGroupsDto,
+} from '../provider/booking-groups/dto/query-provider-booking-groups.dto'
 
 @Injectable()
 export class BookingGroupsService {
@@ -990,73 +997,198 @@ export class BookingGroupsService {
     }))
   }
 
+  private static providerTabStatusList(tab: ProviderBookingTab): BookingGroupStatus[] {
+    switch (tab) {
+      case 'requests':
+        return [BookingGroupStatus.request]
+      case 'upcoming':
+        return [
+          BookingGroupStatus.accepted,
+          BookingGroupStatus.deposit_paid,
+          BookingGroupStatus.fully_paid,
+        ]
+      case 'at-camp':
+        return [BookingGroupStatus.at_camp]
+      case 'past':
+        return [
+          BookingGroupStatus.completed,
+          BookingGroupStatus.declined,
+          BookingGroupStatus.expired,
+        ]
+      case 'cancelled':
+        return [BookingGroupStatus.cancelled]
+      default:
+        return [BookingGroupStatus.request]
+    }
+  }
+
   /**
    * Provider dashboard: booking groups for this provider (excludes parent drafts).
+   * Paginated with optional search and sort; meta includes tab counts (global, not search-scoped).
    */
-  async listForProvider(providerId: string) {
-    const rows = await this.prisma.bookingGroup.findMany({
-      where: {
-        providerId,
-        status: { not: 'draft' },
-      },
-      orderBy: { updatedAt: 'desc' },
-      select: {
-        id: true,
-        bookingGroupNumber: true,
-        status: true,
-        totalAmount: true,
-        requestedAt: true,
-        respondedAt: true,
-        expiresAt: true,
-        updatedAt: true,
-        camp: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            photos: true,
+  async listForProvider(providerId: string, query: QueryProviderBookingGroupsDto = {}) {
+    const tab = query.tab ?? 'requests'
+    const page = query.page ?? 1
+    const limit = query.limit ?? 10
+    const sortBy = (query.sortBy ?? 'updatedAt') as ProviderBookingSortField
+    const sortOrder = query.sortOrder ?? 'desc'
+    const search = query.search?.trim()
+
+    const allowedStatuses = BookingGroupsService.providerTabStatusList(tab)
+    if (query.status && !allowedStatuses.includes(query.status)) {
+      throw new BadRequestException('Status does not match the selected tab')
+    }
+
+    const baseWhere: Prisma.BookingGroupWhereInput = {
+      providerId,
+      status: query.status ?? { in: allowedStatuses },
+    }
+
+    const searchWhere: Prisma.BookingGroupWhereInput = search
+      ? {
+          OR: [
+            { bookingGroupNumber: { contains: search, mode: 'insensitive' } },
+            {
+              parent: {
+                user: {
+                  OR: [
+                    { firstName: { contains: search, mode: 'insensitive' } },
+                    { lastName: { contains: search, mode: 'insensitive' } },
+                    { email: { contains: search, mode: 'insensitive' } },
+                  ],
+                },
+              },
+            },
+            { camp: { name: { contains: search, mode: 'insensitive' } } },
+            { session: { name: { contains: search, mode: 'insensitive' } } },
+            {
+              bookings: {
+                some: {
+                  child: { firstName: { contains: search, mode: 'insensitive' } },
+                },
+              },
+            },
+          ],
+        }
+      : {}
+
+    const where: Prisma.BookingGroupWhereInput =
+      search && Object.keys(searchWhere).length > 0 ? { AND: [baseWhere, searchWhere] } : baseWhere
+
+    let orderBy: Prisma.BookingGroupOrderByWithRelationInput
+    switch (sortBy) {
+      case 'requestedAt':
+        orderBy = { requestedAt: sortOrder }
+        break
+      case 'totalAmount':
+        orderBy = { totalAmount: sortOrder }
+        break
+      case 'sessionStart':
+        orderBy = { session: { startDate: sortOrder } }
+        break
+      case 'status':
+        orderBy = { status: sortOrder }
+        break
+      case 'bookingGroupNumber':
+        orderBy = { bookingGroupNumber: sortOrder }
+        break
+      case 'parentFirstName':
+        orderBy = { parent: { user: { firstName: sortOrder } } }
+        break
+      case 'sessionName':
+        orderBy = { session: { name: sortOrder } }
+        break
+      default:
+        orderBy = { updatedAt: sortOrder }
+    }
+
+    const [total, groupedStatuses, rows] = await Promise.all([
+      this.prisma.bookingGroup.count({ where }),
+      this.prisma.bookingGroup.groupBy({
+        by: ['status'],
+        where: { providerId, status: { not: 'draft' } },
+        _count: { id: true },
+      }),
+      this.prisma.bookingGroup.findMany({
+        where,
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          bookingGroupNumber: true,
+          status: true,
+          totalAmount: true,
+          requestedAt: true,
+          respondedAt: true,
+          expiresAt: true,
+          updatedAt: true,
+          camp: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              photos: true,
+            },
           },
-        },
-        session: {
-          select: {
-            name: true,
-            startDate: true,
-            endDate: true,
+          session: {
+            select: {
+              name: true,
+              startDate: true,
+              endDate: true,
+            },
           },
-        },
-        parent: {
-          select: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-                email: true,
-                phone: true,
+          parent: {
+            select: {
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+          provider: {
+            select: {
+              settings: {
+                select: { currency: true },
+              },
+            },
+          },
+          bookings: {
+            select: {
+              child: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  dateOfBirth: true,
+                  photoUrl: true,
+                },
               },
             },
           },
         },
-        provider: {
-          select: {
-            settings: {
-              select: { currency: true },
-            },
-          },
-        },
-        bookings: {
-          select: {
-            child: {
-              select: {
-                id: true,
-                firstName: true,
-                dateOfBirth: true,
-                photoUrl: true,
-              },
-            },
-          },
-        },
-      },
-    })
+      }),
+    ])
+
+    const countByStatus = Object.fromEntries(
+      groupedStatuses.map(g => [g.status, g._count.id])
+    ) as Record<string, number>
+
+    const sum = (statuses: string[]) =>
+      statuses.reduce((acc, s) => acc + (countByStatus[s] ?? 0), 0)
+
+    const tabCounts = {
+      requests: countByStatus['request'] ?? 0,
+      upcoming: sum(['accepted', 'deposit_paid', 'fully_paid']),
+      atCamp: countByStatus['at_camp'] ?? 0,
+      past: sum(['completed', 'declined', 'expired']),
+      cancelled: countByStatus['cancelled'] ?? 0,
+    }
+
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit)
 
     const coverUrlByCampId = new Map<string, string | null>()
 
@@ -1072,7 +1204,7 @@ export class BookingGroupsService {
       return url
     }
 
-    return Promise.all(
+    const data = await Promise.all(
       rows.map(async row => {
         const coverImageUrl = await resolveCoverImageUrl(row.camp.id, row.camp.photos)
         const currency = row.provider.settings?.currency ?? 'CHF'
@@ -1114,6 +1246,17 @@ export class BookingGroupsService {
         }
       })
     )
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        tabCounts,
+      },
+    }
   }
 
   private formatCampAgeRangeLabel(ageGroups: unknown): string | null {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { ResponseUtil } from '../../../common/utils/response.util'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
@@ -6,6 +6,7 @@ import { Permissions } from '../../core/auth/decorators/permissions.decorator'
 import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
 import { BookingGroupsService } from '../../booking-groups/booking-groups.service'
 import { PatchProviderBookingGroupDto } from './dto/patch-provider-booking-group.dto'
+import { QueryProviderBookingGroupsDto } from './dto/query-provider-booking-groups.dto'
 import { RespondBookingGroupDto } from './dto/respond-booking-group.dto'
 
 @ApiTags('Provider Booking Groups')
@@ -17,10 +18,10 @@ export class ProviderBookingGroupsController {
 
   @Get()
   @Permissions('bookings.read')
-  @ApiOperation({ summary: 'List booking requests for provider' })
-  async list(@CurrentUser() user: any) {
-    const result = await this.bookingGroupsService.listForProvider(user.providerId)
-    return ResponseUtil.success(result)
+  @ApiOperation({ summary: 'List booking requests for provider (paginated)' })
+  async list(@CurrentUser() user: any, @Query() query: QueryProviderBookingGroupsDto) {
+    const result = await this.bookingGroupsService.listForProvider(user.providerId, query)
+    return ResponseUtil.success(result.data, result.meta)
   }
 
   @Get(':id')

@@ -1,12 +1,33 @@
 import apiClient, { type ApiResult } from '@/utils/api-client'
 import type {
   ProviderBookingGroupDetail,
+  ProviderBookingGroupsQuery,
   ProviderBookingGroupSummary,
 } from '@world-schools/wc-types'
 
+function appendBookingGroupsQuery(
+  params: ProviderBookingGroupsQuery | undefined,
+  searchParams: URLSearchParams
+) {
+  if (!params) return
+  if (params.tab) searchParams.set('tab', params.tab)
+  if (params.status) searchParams.set('status', params.status)
+  if (params.search) searchParams.set('search', params.search)
+  if (params.sortBy) searchParams.set('sortBy', params.sortBy)
+  if (params.sortOrder) searchParams.set('sortOrder', params.sortOrder)
+  if (params.page != null) searchParams.set('page', String(params.page))
+  if (params.limit != null) searchParams.set('limit', String(params.limit))
+}
+
 export const providerBookingGroupsService = {
-  async list(): Promise<ApiResult<ProviderBookingGroupSummary[]>> {
-    return apiClient.get<ProviderBookingGroupSummary[]>('/provider/booking-groups')
+  async list(
+    params?: ProviderBookingGroupsQuery
+  ): Promise<ApiResult<ProviderBookingGroupSummary[]>> {
+    const searchParams = new URLSearchParams()
+    appendBookingGroupsQuery(params, searchParams)
+    const q = searchParams.toString()
+    const url = q ? `/provider/booking-groups?${q}` : '/provider/booking-groups'
+    return apiClient.get<ProviderBookingGroupSummary[]>(url)
   },
 
   async getById(id: string): Promise<ApiResult<ProviderBookingGroupDetail>> {
