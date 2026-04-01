@@ -1,7 +1,22 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { addToast, Button, Chip, Spinner, Tab, Tabs } from '@heroui/react'
+import {
+  addToast,
+  Button,
+  Card,
+  CardBody,
+  Chip,
+  Spinner,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableColumn,
+  TableHeader,
+  TableRow,
+  Tabs,
+} from '@heroui/react'
 import { formatCurrency } from '@world-schools/wc-utils'
 import {
   formatSessionRange,
@@ -255,126 +270,151 @@ export function BookingRequestsView() {
         </Tabs>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <Spinner size="lg" label="Loading booking requests" />
-        </div>
-      ) : listError ? (
+      {listError ? (
         <div className="rounded-lg border border-danger-200 bg-danger-50 p-6 dark:border-danger-900/40 dark:bg-danger-950/30">
           <p className="text-danger-800 dark:text-danger-200">{listError}</p>
           <Button className="mt-4" variant="flat" onPress={() => void loadList()}>
             Retry
           </Button>
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-default-300 py-16 text-center text-default-500">
-          No bookings in this tab.
-        </div>
       ) : (
         <>
-          <div className="hidden md:block overflow-x-auto rounded-xl border border-default-200 dark:border-default-100/20">
-            <table className="min-w-full divide-y divide-default-200 text-left text-sm dark:divide-default-100/20">
-              <thead className="bg-default-100/80 dark:bg-default-100/10">
-                <tr>
-                  <th className="px-4 py-3 font-semibold text-default-700">Status</th>
-                  <th className="px-4 py-3 font-semibold text-default-700">Booked by</th>
-                  <th className="px-4 py-3 font-semibold text-default-700">Session</th>
-                  <th className="px-4 py-3 font-semibold text-default-700 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-default-200 dark:divide-default-100/15">
-                {filtered.map(row => {
-                  const urgency =
-                    row.status === 'request' ? providerRequestUrgencyLabel(row.expiresAt) : null
-                  return (
-                    <tr
-                      key={row.id}
-                      className="cursor-pointer transition-colors hover:bg-default-100/60 dark:hover:bg-default-100/10"
-                      onClick={() => setSelectedId(row.id)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          setSelectedId(row.id)
-                        }
-                      }}
-                      tabIndex={0}
-                      role="button"
-                    >
-                      <td className="px-4 py-3 align-top">
-                        <div className="flex flex-col gap-1">
-                          <span
-                            className={`inline-flex w-fit rounded-md px-2 py-0.5 text-xs font-semibold ${statusBadgeClass(row.status)}`}
-                          >
-                            {providerStatusLabel(row.status)}
-                          </span>
-                          {urgency ? (
-                            <span className="text-xs text-warning-700 dark:text-warning-400">
-                              {urgency}
+          <Card className="hidden md:block">
+            <CardBody className="p-0">
+              <div className="overflow-x-auto">
+                <Table
+                  aria-label="Booking requests table"
+                  classNames={{
+                    wrapper: 'shadow-none',
+                  }}
+                >
+                  <TableHeader>
+                    <TableColumn className="min-w-[140px] text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Status
+                    </TableColumn>
+                    <TableColumn className="min-w-[200px] text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Booked by
+                    </TableColumn>
+                    <TableColumn className="min-w-[220px] text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Session
+                    </TableColumn>
+                    <TableColumn className="min-w-[120px] text-right text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Amount
+                    </TableColumn>
+                  </TableHeader>
+                  <TableBody
+                    items={filtered}
+                    isLoading={loading}
+                    emptyContent={
+                      <div className="py-12 text-center">
+                        <p className="text-default-500">No bookings in this tab.</p>
+                      </div>
+                    }
+                  >
+                    {row => {
+                      const urgency =
+                        row.status === 'request' ? providerRequestUrgencyLabel(row.expiresAt) : null
+                      return (
+                        <TableRow
+                          key={row.id}
+                          className="cursor-pointer"
+                          onClick={() => setSelectedId(row.id)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setSelectedId(row.id)
+                            }
+                          }}
+                          tabIndex={0}
+                        >
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <span
+                                className={`inline-flex w-fit rounded-md px-2 py-0.5 text-xs font-semibold ${statusBadgeClass(row.status)}`}
+                              >
+                                {providerStatusLabel(row.status)}
+                              </span>
+                              {urgency ? (
+                                <span className="text-xs text-warning-700 dark:text-warning-400">
+                                  {urgency}
+                                </span>
+                              ) : null}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <p className="font-medium text-foreground">{row.parent.displayName}</p>
+                            <p className="text-xs text-default-500">
+                              {row.children.length}{' '}
+                              {row.children.length === 1 ? 'child' : 'children'}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            <p className="font-medium text-default-700">{row.session.name}</p>
+                            <p className="text-xs text-default-500">
+                              {formatSessionRange(
+                                row.session.startDate,
+                                row.session.endDate,
+                                row.session.name
+                              )}
+                            </p>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="font-semibold text-foreground">
+                              {formatCurrency(row.totalAmount, row.currency)}
                             </span>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 align-top">
-                        <p className="font-medium text-default-900 dark:text-default-100">
+                          </TableCell>
+                        </TableRow>
+                      )
+                    }}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardBody>
+          </Card>
+
+          {loading ? (
+            <div className="flex justify-center py-20 md:hidden">
+              <Spinner size="lg" label="Loading booking requests" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-default-300 py-16 text-center text-default-500 md:hidden">
+              No bookings in this tab.
+            </div>
+          ) : (
+            <div className="space-y-3 md:hidden">
+              {filtered.map(row => {
+                const urgency =
+                  row.status === 'request' ? providerRequestUrgencyLabel(row.expiresAt) : null
+                return (
+                  <button
+                    key={row.id}
+                    type="button"
+                    className="w-full rounded-xl border border-default-200 bg-content1 p-4 text-left shadow-sm transition hover:border-primary-300 dark:border-default-100/20"
+                    onClick={() => setSelectedId(row.id)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-default-900 dark:text-default-100">
                           {row.parent.displayName}
                         </p>
-                        <p className="text-xs text-default-500">
-                          {row.children.length} {row.children.length === 1 ? 'child' : 'children'}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3 align-top text-default-700">
-                        <p className="font-medium">{row.session.name}</p>
-                        <p className="text-xs text-default-500">
-                          {formatSessionRange(
-                            row.session.startDate,
-                            row.session.endDate,
-                            row.session.name
-                          )}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3 align-top text-right font-semibold text-default-900 dark:text-default-100">
-                        {formatCurrency(row.totalAmount, row.currency)}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="space-y-3 md:hidden">
-            {filtered.map(row => {
-              const urgency =
-                row.status === 'request' ? providerRequestUrgencyLabel(row.expiresAt) : null
-              return (
-                <button
-                  key={row.id}
-                  type="button"
-                  className="w-full rounded-xl border border-default-200 bg-content1 p-4 text-left shadow-sm transition hover:border-primary-300 dark:border-default-100/20"
-                  onClick={() => setSelectedId(row.id)}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-semibold text-default-900 dark:text-default-100">
-                        {row.parent.displayName}
-                      </p>
-                      <p className="text-xs text-default-500">{row.camp.name}</p>
+                        <p className="text-xs text-default-500">{row.camp.name}</p>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${statusBadgeClass(row.status)}`}
+                      >
+                        {providerStatusLabel(row.status)}
+                      </span>
                     </div>
-                    <span
-                      className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${statusBadgeClass(row.status)}`}
-                    >
-                      {providerStatusLabel(row.status)}
-                    </span>
-                  </div>
-                  {urgency ? <p className="mt-1 text-xs text-warning-700">{urgency}</p> : null}
-                  <p className="mt-2 text-sm text-default-600">{row.session.name}</p>
-                  <p className="mt-2 text-lg font-bold text-default-900 dark:text-default-100">
-                    {formatCurrency(row.totalAmount, row.currency)}
-                  </p>
-                </button>
-              )
-            })}
-          </div>
+                    {urgency ? <p className="mt-1 text-xs text-warning-700">{urgency}</p> : null}
+                    <p className="mt-2 text-sm text-default-600">{row.session.name}</p>
+                    <p className="mt-2 text-lg font-bold text-default-900 dark:text-default-100">
+                      {formatCurrency(row.totalAmount, row.currency)}
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </>
       )}
 
