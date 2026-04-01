@@ -702,8 +702,8 @@ export function BookingRequestDrawer({
     >
       <DrawerContent className="flex h-full max-h-dvh flex-col font-sans leading-normal">
         <>
-          <DrawerHeader className="p-0">
-            <div className="flex w-full items-center gap-4 border-b border-gray-200 px-6 py-5">
+          <DrawerHeader>
+            <div className="flex w-full items-center gap-4 border-b border-gray-200 p-6">
               <div className="min-w-0 flex-1">
                 <div className="text-base font-semibold text-secondary-500">
                   {detail ? statusPanelTitle(detail.status) : 'Booking'}
@@ -717,11 +717,10 @@ export function BookingRequestDrawer({
                 )}
               </div>
               <Button
-                type="button"
                 variant="bordered"
+                color="secondary"
                 size="sm"
-                radius="md"
-                className="shrink-0 rounded-lg border-secondary-500 bg-white px-4 py-2 text-sm font-medium text-secondary-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="mr-2"
                 isDisabled={!detail || !!headerActionDisabled}
                 title={headerActionDisabled ? 'Coming soon' : undefined}
                 onPress={() => {
@@ -732,16 +731,6 @@ export function BookingRequestDrawer({
                 }}
               >
                 {detail ? headerActionLabel(detail.status) : 'Message'}
-              </Button>
-              <Button
-                isIconOnly
-                variant="light"
-                radius="full"
-                aria-label="Close"
-                className="size-8 shrink-0 text-xl text-secondary-500 hover:bg-gray-100"
-                onPress={() => onOpenChange(false)}
-              >
-                <X className="h-5 w-5" />
               </Button>
             </div>
           </DrawerHeader>
