@@ -80,8 +80,18 @@ export interface ProviderBookingGroupBookingLine {
   child: {
     id: string
     firstName: string
+    lastName: string | null
+    nickname: string | null
     dateOfBirth: string | null
     photoUrl: string | null
+    gender: string | null
+    languages: string[]
+    schoolYear: string | null
+    schoolCountry: string | null
+    medicalInfo: unknown | null
+    emergencyContacts: unknown
+    campPreferences: unknown | null
+    interestLabels: string[]
   }
 }
 
@@ -94,6 +104,7 @@ export interface ProviderBookingGroupDetail {
   sessionId: string
   providerId: string
   specialRequest?: string | null
+  internalNotes: string | null
   subtotalAmount: number
   discountTotal: number
   totalAmount: number
@@ -104,10 +115,29 @@ export interface ProviderBookingGroupDetail {
   respondedAt: string | null
   expiresAt: string | null
   updatedAt: string
+  discountDetails: unknown | null
   parent: {
+    id: string
+    userId: string
     displayName: string
+    firstName: string | null
+    lastName: string | null
     email: string
     phone: string | null
+    phoneVerified: boolean
+    profilePhotoUrl: string | null
+    address: string | null
+    languages: string[]
+    primaryNationality: string | null
+    secondaryNationality: string | null
+    city: string | null
+    state: string | null
+    postalCode: string | null
+    country: string | null
+    emailVerified: boolean
+  }
+  parentStats: {
+    completedBookingGroupsCount: number
   }
   camp: {
     id: string
@@ -127,9 +157,16 @@ export interface ProviderBookingGroupDetail {
     sessionDayType: SessionDayTypeApi
     arrivalTime: string | null
     departureTime: string | null
+    durationWeeks: number | null
+    spotsRemaining: number | null
+    ageRangeLabel: string | null
   }
   provider: {
     legalCompanyName: string | null
+  }
+  messaging: {
+    parentUserId: string
+    conversationId: string | null
   }
   bookings: ProviderBookingGroupBookingLine[]
 }

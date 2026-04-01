@@ -34,4 +34,23 @@ export const providerBookingGroupsService = {
       body
     )
   },
+
+  async patch(
+    id: string,
+    body: { internalNotes: string | null }
+  ): Promise<ApiResult<{ bookingGroupId: string; internalNotes: string | null }>> {
+    return apiClient.patch<{ bookingGroupId: string; internalNotes: string | null }>(
+      `/provider/booking-groups/${encodeURIComponent(id)}`,
+      body
+    )
+  },
+
+  async requestExtension(
+    id: string
+  ): Promise<ApiResult<{ bookingGroupId: string; expiresAt: string }>> {
+    return apiClient.post<{ bookingGroupId: string; expiresAt: string }>(
+      `/provider/booking-groups/${encodeURIComponent(id)}/request-extension`,
+      {}
+    )
+  },
 }

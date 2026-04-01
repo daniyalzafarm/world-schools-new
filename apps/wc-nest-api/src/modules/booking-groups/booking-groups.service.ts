@@ -8,6 +8,7 @@ import {
 import { AzureStorageService } from '@world-schools/wc-utils/backend'
 import { ConfigService } from '../../config/config.service'
 import { PrismaService } from '../../prisma/prisma.service'
+import { ProfilePhotoService } from '../user/auth/services/profile-photo.service'
 
 @Injectable()
 export class BookingGroupsService {
@@ -15,8 +16,17 @@ export class BookingGroupsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly profilePhotoService: ProfilePhotoService
   ) {}
+
+  /** Same SAS URL generation as user/provider GET profile (`ProfilePhotoService.generatePhotoUrl`). */
+  private async resolveProfilePhotoSasUrl(
+    blobPath: string | null | undefined
+  ): Promise<string | null> {
+    if (!blobPath) return null
+    return this.profilePhotoService.generatePhotoUrl(blobPath)
+  }
 
   /**
    * Same as {@link UserCampsService#getAzureStorage} — camp images use this path.
@@ -737,6 +747,10 @@ export class BookingGroupsService {
     const lat = bookingGroup.camp.locationLat
     const lng = bookingGroup.camp.locationLng
 
+    const childPhotoSasUrls = await Promise.all(
+      bookingGroup.bookings.map(b => this.resolveProfilePhotoSasUrl(b.child.photoUrl))
+    )
+
     return {
       id: bookingGroup.id,
       status: bookingGroup.status,
@@ -776,7 +790,7 @@ export class BookingGroupsService {
       provider: {
         legalCompanyName: bookingGroup.provider.legalCompanyName,
       },
-      bookings: bookingGroup.bookings.map(b => ({
+      bookings: bookingGroup.bookings.map((b, idx) => ({
         id: b.id,
         childId: b.childId,
         basePrice: Number(b.basePrice ?? 0),
@@ -791,7 +805,7 @@ export class BookingGroupsService {
           id: b.child.id,
           firstName: b.child.firstName,
           dateOfBirth: b.child.dateOfBirth?.toISOString() ?? null,
-          photoUrl: b.child.photoUrl,
+          photoUrl: childPhotoSasUrls[idx] ?? null,
         },
       })),
     }
@@ -883,12 +897,14 @@ export class BookingGroupsService {
             startDate: row.session.startDate.toISOString(),
             endDate: row.session.endDate.toISOString(),
           },
-          children: row.bookings.map(b => ({
-            id: b.child.id,
-            firstName: b.child.firstName,
-            dateOfBirth: b.child.dateOfBirth?.toISOString() ?? null,
-            photoUrl: b.child.photoUrl,
-          })),
+          children: await Promise.all(
+            row.bookings.map(async b => ({
+              id: b.child.id,
+              firstName: b.child.firstName,
+              dateOfBirth: b.child.dateOfBirth?.toISOString() ?? null,
+              photoUrl: await this.resolveProfilePhotoSasUrl(b.child.photoUrl),
+            }))
+          ),
         }
       })
     )
@@ -1049,15 +1065,50 @@ export class BookingGroupsService {
             startDate: row.session.startDate.toISOString(),
             endDate: row.session.endDate.toISOString(),
           },
-          children: row.bookings.map(b => ({
-            id: b.child.id,
-            firstName: b.child.firstName,
-            dateOfBirth: b.child.dateOfBirth?.toISOString() ?? null,
-            photoUrl: b.child.photoUrl,
-          })),
+          children: await Promise.all(
+            row.bookings.map(async b => ({
+              id: b.child.id,
+              firstName: b.child.firstName,
+              dateOfBirth: b.child.dateOfBirth?.toISOString() ?? null,
+              photoUrl: await this.resolveProfilePhotoSasUrl(b.child.photoUrl),
+            }))
+          ),
         }
       })
     )
+  }
+
+  private formatCampAgeRangeLabel(ageGroups: unknown): string | null {
+    if (!Array.isArray(ageGroups) || ageGroups.length === 0) return null
+    let min = Infinity
+    let max = -Infinity
+    for (const g of ageGroups) {
+      const o = g as { min?: number; max?: number }
+      if (typeof o.min === 'number') min = Math.min(min, o.min)
+      if (typeof o.max === 'number') max = Math.max(max, o.max)
+    }
+    if (min === Infinity || max === -Infinity) return null
+    return `${min}–${max} years`
+  }
+
+  private sessionTotalCapacity(session: {
+    availabilityType: string
+    totalSpots: number | null
+    ageGroupSpots: unknown
+  }): number | null {
+    if (session.availabilityType === 'single') {
+      return session.totalSpots ?? null
+    }
+    const ag = session.ageGroupSpots as { spots?: number }[] | null
+    if (!ag?.length) return null
+    return ag.reduce((s, x) => s + (typeof x.spots === 'number' ? x.spots : 0), 0)
+  }
+
+  private durationWeeksFromDates(start: Date, end: Date): number | null {
+    const ms = end.getTime() - start.getTime()
+    const days = Math.max(0, Math.round(ms / 86400000))
+    const weeks = Math.round(days / 7)
+    return weeks > 0 ? weeks : null
   }
 
   async getForProvider(providerId: string, bookingGroupId: string) {
@@ -1074,6 +1125,7 @@ export class BookingGroupsService {
             name: true,
             slug: true,
             photos: true,
+            ageGroups: true,
             locationLat: true,
             locationLng: true,
             locationName: true,
@@ -1089,6 +1141,11 @@ export class BookingGroupsService {
             sessionDayType: true,
             arrivalTime: true,
             departureTime: true,
+            totalSpots: true,
+            ageGroupPrices: true,
+            ageGroupSpots: true,
+            availabilityType: true,
+            pricingType: true,
           },
         },
         provider: {
@@ -1101,12 +1158,25 @@ export class BookingGroupsService {
         },
         parent: {
           select: {
+            id: true,
+            primaryNationality: true,
+            secondaryNationality: true,
+            languages: true,
             user: {
               select: {
+                id: true,
                 firstName: true,
                 lastName: true,
                 email: true,
                 phone: true,
+                phoneVerified: true,
+                profilePhotoUrl: true,
+                address: true,
+                city: true,
+                state: true,
+                postalCode: true,
+                country: true,
+                emailVerified: true,
               },
             },
           },
@@ -1117,8 +1187,22 @@ export class BookingGroupsService {
               select: {
                 id: true,
                 firstName: true,
+                lastName: true,
+                nickname: true,
                 dateOfBirth: true,
                 photoUrl: true,
+                gender: true,
+                languages: true,
+                schoolYear: true,
+                schoolCountry: true,
+                medicalInfo: true,
+                emergencyContacts: true,
+                campPreferences: true,
+                childInterests: {
+                  include: {
+                    category: { select: { name: true } },
+                  },
+                },
               },
             },
             addOns: {
@@ -1148,6 +1232,53 @@ export class BookingGroupsService {
     const u = bookingGroup.parent.user
     const parentDisplayName = [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.email
 
+    const sessionStart = bookingGroup.session.startDate
+    const sessionEnd = bookingGroup.session.endDate
+
+    const spotStatuses = [
+      'request',
+      'accepted',
+      'deposit_paid',
+      'fully_paid',
+      'at_camp',
+      'completed',
+    ] as const
+
+    const [bookedSpotCount, completedBookingGroupsCount, bookingConversation] = await Promise.all([
+      this.prisma.booking.count({
+        where: {
+          sessionId: bookingGroup.sessionId,
+          bookingGroup: { status: { in: [...spotStatuses] } },
+        },
+      }),
+      this.prisma.bookingGroup.count({
+        where: {
+          parentId: bookingGroup.parent.id,
+          id: { not: bookingGroup.id },
+          status: 'completed',
+        },
+      }),
+      this.prisma.conversation.findFirst({
+        where: {
+          contextType: 'BOOKING',
+          contextId: bookingGroup.id,
+        },
+        select: { id: true },
+      }),
+    ])
+
+    const capacity = this.sessionTotalCapacity(bookingGroup.session)
+    const spotsRemaining = capacity != null ? Math.max(0, capacity - bookedSpotCount) : null
+
+    const ageRangeLabel = this.formatCampAgeRangeLabel(bookingGroup.camp.ageGroups)
+
+    const resolvedPhotoUrls = await Promise.all([
+      this.resolveProfilePhotoSasUrl(u.profilePhotoUrl),
+      ...bookingGroup.bookings.map(b => this.resolveProfilePhotoSasUrl(b.child.photoUrl)),
+    ])
+    const parentProfilePhotoUrl = resolvedPhotoUrls[0]
+    const childProfilePhotoUrls = resolvedPhotoUrls.slice(1)
+
     return {
       id: bookingGroup.id,
       status: bookingGroup.status,
@@ -1156,6 +1287,7 @@ export class BookingGroupsService {
       sessionId: bookingGroup.sessionId,
       providerId: bookingGroup.providerId,
       specialRequest: bookingGroup.specialRequest,
+      internalNotes: bookingGroup.internalNotes ?? null,
       subtotalAmount: Number(bookingGroup.subtotalAmount ?? 0),
       discountTotal: Number(bookingGroup.discountTotal ?? 0),
       totalAmount: Number(bookingGroup.totalAmount ?? 0),
@@ -1166,10 +1298,29 @@ export class BookingGroupsService {
       respondedAt: bookingGroup.respondedAt?.toISOString() ?? null,
       expiresAt: bookingGroup.expiresAt?.toISOString() ?? null,
       updatedAt: bookingGroup.updatedAt.toISOString(),
+      discountDetails: bookingGroup.discountDetails ?? null,
       parent: {
+        id: bookingGroup.parent.id,
+        userId: u.id,
         displayName: parentDisplayName,
+        firstName: u.firstName,
+        lastName: u.lastName,
         email: u.email,
         phone: u.phone,
+        phoneVerified: u.phoneVerified,
+        profilePhotoUrl: parentProfilePhotoUrl,
+        address: u.address,
+        city: u.city,
+        state: u.state,
+        postalCode: u.postalCode,
+        country: u.country,
+        emailVerified: u.emailVerified,
+        languages: bookingGroup.parent.languages ?? [],
+        primaryNationality: bookingGroup.parent.primaryNationality,
+        secondaryNationality: bookingGroup.parent.secondaryNationality,
+      },
+      parentStats: {
+        completedBookingGroupsCount,
       },
       camp: {
         id: bookingGroup.camp.id,
@@ -1184,16 +1335,23 @@ export class BookingGroupsService {
       },
       session: {
         name: bookingGroup.session.name,
-        startDate: bookingGroup.session.startDate.toISOString(),
-        endDate: bookingGroup.session.endDate.toISOString(),
+        startDate: sessionStart.toISOString(),
+        endDate: sessionEnd.toISOString(),
         sessionDayType: bookingGroup.session.sessionDayType,
         arrivalTime: bookingGroup.session.arrivalTime,
         departureTime: bookingGroup.session.departureTime,
+        durationWeeks: this.durationWeeksFromDates(sessionStart, sessionEnd),
+        spotsRemaining,
+        ageRangeLabel,
       },
       provider: {
         legalCompanyName: bookingGroup.provider.legalCompanyName,
       },
-      bookings: bookingGroup.bookings.map(b => ({
+      messaging: {
+        parentUserId: u.id,
+        conversationId: bookingConversation?.id ?? null,
+      },
+      bookings: bookingGroup.bookings.map((b, idx) => ({
         id: b.id,
         childId: b.childId,
         basePrice: Number(b.basePrice ?? 0),
@@ -1212,11 +1370,68 @@ export class BookingGroupsService {
         child: {
           id: b.child.id,
           firstName: b.child.firstName,
+          lastName: b.child.lastName,
+          nickname: b.child.nickname,
           dateOfBirth: b.child.dateOfBirth?.toISOString() ?? null,
-          photoUrl: b.child.photoUrl,
+          photoUrl: childProfilePhotoUrls[idx] ?? null,
+          gender: b.child.gender,
+          languages: b.child.languages ?? [],
+          schoolYear: b.child.schoolYear,
+          schoolCountry: b.child.schoolCountry,
+          medicalInfo: b.child.medicalInfo,
+          emergencyContacts: b.child.emergencyContacts,
+          campPreferences: b.child.campPreferences,
+          interestLabels: b.child.childInterests.map(ci => ci.category.name),
         },
       })),
     }
+  }
+
+  async updateInternalNotesForProvider(
+    providerId: string,
+    bookingGroupId: string,
+    internalNotes: string | null | undefined
+  ) {
+    if (internalNotes === undefined) {
+      throw new BadRequestException('internalNotes is required (use null to clear)')
+    }
+    const bookingGroup = await this.prisma.bookingGroup.findFirst({
+      where: { id: bookingGroupId, providerId },
+      select: { id: true },
+    })
+    if (!bookingGroup) throw new NotFoundException('Booking group not found')
+
+    await this.prisma.bookingGroup.update({
+      where: { id: bookingGroupId },
+      data: { internalNotes },
+    })
+
+    return { bookingGroupId, internalNotes }
+  }
+
+  async requestExtensionForProvider(providerId: string, bookingGroupId: string) {
+    const bookingGroup = await this.prisma.bookingGroup.findFirst({
+      where: { id: bookingGroupId, providerId },
+      select: { id: true, status: true, expiresAt: true },
+    })
+    if (!bookingGroup) throw new NotFoundException('Booking group not found')
+    if (bookingGroup.status !== 'request') {
+      throw new BadRequestException('Only pending requests can be extended')
+    }
+
+    const now = new Date()
+    const base =
+      bookingGroup.expiresAt && bookingGroup.expiresAt.getTime() > now.getTime()
+        ? bookingGroup.expiresAt
+        : now
+    const extended = new Date(base.getTime() + 24 * 60 * 60 * 1000)
+
+    await this.prisma.bookingGroup.update({
+      where: { id: bookingGroupId },
+      data: { expiresAt: extended },
+    })
+
+    return { bookingGroupId, expiresAt: extended.toISOString() }
   }
 
   async submitForParent(userId: string, bookingGroupId: string) {

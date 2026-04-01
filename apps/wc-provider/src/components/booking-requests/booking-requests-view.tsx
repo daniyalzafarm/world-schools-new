@@ -387,6 +387,7 @@ export function BookingRequestsView() {
         loading={detailLoading}
         error={detailError}
         onRetry={() => selectedId && void loadDetail(selectedId)}
+        onDetailRefresh={() => selectedId && void loadDetail(selectedId)}
         actionLoading={actionLoading}
         onAccept={runAccept}
         onDecline={runDecline}

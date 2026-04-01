@@ -230,3 +230,20 @@ export function providerRequestUrgencyLabel(expiresAt: string | null): string | 
   const days = Math.floor(hours / 24)
   return `Expires in ${days}d`
 }
+
+/** Visual variant for provider request detail status banner (reference panel v9). */
+export type ProviderRequestBannerVariant = 'calm' | 'warning' | 'urgent'
+
+export function providerRequestBannerVariant(
+  expiresAt: string | null
+): ProviderRequestBannerVariant {
+  if (!expiresAt) return 'calm'
+  const end = new Date(expiresAt)
+  if (Number.isNaN(end.getTime())) return 'calm'
+  const ms = end.getTime() - Date.now()
+  if (ms <= 0) return 'urgent'
+  const hours = ms / 3600000
+  if (hours <= 6) return 'urgent'
+  if (hours <= 24) return 'warning'
+  return 'calm'
+}

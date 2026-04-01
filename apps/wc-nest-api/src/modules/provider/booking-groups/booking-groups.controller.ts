@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { ResponseUtil } from '../../../common/utils/response.util'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 import { Permissions } from '../../core/auth/decorators/permissions.decorator'
 import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
 import { BookingGroupsService } from '../../booking-groups/booking-groups.service'
+import { PatchProviderBookingGroupDto } from './dto/patch-provider-booking-group.dto'
 import { RespondBookingGroupDto } from './dto/respond-booking-group.dto'
 
 @ApiTags('Provider Booking Groups')
@@ -59,6 +60,30 @@ export class ProviderBookingGroupsController {
       id,
       dto.providerNote
     )
+    return ResponseUtil.success(result)
+  }
+
+  @Patch(':id')
+  @Permissions('bookings.write')
+  @ApiOperation({ summary: 'Update provider-only booking fields (e.g. internal notes)' })
+  async patch(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: PatchProviderBookingGroupDto
+  ) {
+    const result = await this.bookingGroupsService.updateInternalNotesForProvider(
+      user.providerId,
+      id,
+      dto.internalNotes
+    )
+    return ResponseUtil.success(result)
+  }
+
+  @Post(':id/request-extension')
+  @Permissions('bookings.write')
+  @ApiOperation({ summary: 'Extend request deadline by 24 hours (need more time)' })
+  async requestExtension(@CurrentUser() user: any, @Param('id') id: string) {
+    const result = await this.bookingGroupsService.requestExtensionForProvider(user.providerId, id)
     return ResponseUtil.success(result)
   }
 }
