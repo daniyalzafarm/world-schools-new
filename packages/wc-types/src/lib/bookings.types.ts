@@ -189,6 +189,7 @@ export interface ProviderBookingGroupDetail {
     phone: string | null
     phoneVerified: boolean
     profilePhotoUrl: string | null
+    bio: string | null
     address: string | null
     languages: string[]
     primaryNationality: string | null

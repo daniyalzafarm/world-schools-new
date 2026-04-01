@@ -761,8 +761,8 @@ export function BookingRequestDrawer({
                       <div className="mb-1.5 text-lg font-semibold text-secondary-500">
                         {detail.parent.displayName}
                       </div>
-                      <div className="text-sm leading-normal text-gray-500">
-                        {detail.specialRequest?.split('\n')[0]?.trim() || '—'}
+                      <div className="whitespace-pre-wrap text-sm leading-normal text-gray-500">
+                        {detail.parent.bio?.trim() || ''}
                       </div>
                     </div>
                     <Avatar
