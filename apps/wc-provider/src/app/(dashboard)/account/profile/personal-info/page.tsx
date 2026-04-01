@@ -5,6 +5,7 @@ import { addToast } from '@heroui/react'
 import { profileService } from '@/services/profile.services'
 import { ProfilePhotoSection } from '@/components/account/profile-photo-section'
 import { InfoRow } from '@/components/account/info-row'
+import { BioModal } from '@/components/account/modals/bio-modal'
 import { LegalNameModal } from '@/components/account/modals/legal-name-modal'
 
 function formatBioPreview(bio: string | null | undefined): string {
@@ -17,7 +18,7 @@ export default function PersonalInfoPage() {
   const [profileData, setProfileData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
-  const [modals, setModals] = useState({ name: false })
+  const [modals, setModals] = useState({ name: false, bio: false })
 
   useEffect(() => {
     void loadProfile()
@@ -150,7 +151,7 @@ export default function PersonalInfoPage() {
           <InfoRow
             label="Bio"
             value={formatBioPreview(profileData?.bio)}
-            onEdit={() => openModal('name')}
+            onEdit={() => openModal('bio')}
           />
         </div>
       </section>
@@ -160,6 +161,11 @@ export default function PersonalInfoPage() {
         onClose={() => closeModal('name')}
         currentFirstName={profileData?.firstName}
         currentLastName={profileData?.lastName}
+        onSuccess={handleModalSuccess}
+      />
+      <BioModal
+        isOpen={modals.bio}
+        onClose={() => closeModal('bio')}
         currentBio={profileData?.bio}
         onSuccess={handleModalSuccess}
       />
