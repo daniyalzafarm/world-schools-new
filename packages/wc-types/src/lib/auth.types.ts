@@ -22,6 +22,7 @@ export interface User {
   email: string
   firstName?: string
   lastName?: string
+  bio?: string | null
   roles: Role[]
   permissions: string[]
   passwordChangedAt?: Date | string

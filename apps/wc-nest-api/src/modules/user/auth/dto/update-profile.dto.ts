@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsArray, IsOptional, IsString } from 'class-validator'
+import { IsArray, IsOptional, IsString, MaxLength } from 'class-validator'
 
 export class UpdateProfileDto {
   @ApiProperty({
@@ -19,6 +19,16 @@ export class UpdateProfileDto {
   @IsString()
   @IsOptional()
   lastName?: string
+
+  @ApiProperty({
+    description: 'Short biography or about text',
+    example: 'Parent of two campers; interested in STEM programs.',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  @MaxLength(2000)
+  bio?: string
 
   @ApiProperty({
     description: 'Phone number',

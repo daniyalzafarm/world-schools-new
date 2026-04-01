@@ -316,6 +316,7 @@ export class AuthService {
       email: user.email,
       firstName: user.firstName ?? undefined,
       lastName: user.lastName ?? undefined,
+      bio: user.bio ?? null,
       profilePhotoUrl: user.profilePhotoUrl ?? null,
       phone: user.phone ?? null,
       phoneVerified: user.phoneVerified ?? false,

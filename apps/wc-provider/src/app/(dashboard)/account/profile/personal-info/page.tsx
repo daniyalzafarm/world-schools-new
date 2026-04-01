@@ -7,6 +7,12 @@ import { ProfilePhotoSection } from '@/components/account/profile-photo-section'
 import { InfoRow } from '@/components/account/info-row'
 import { LegalNameModal } from '@/components/account/modals/legal-name-modal'
 
+function formatBioPreview(bio: string | null | undefined): string {
+  const t = bio?.trim()
+  if (!t) return 'Not set'
+  return t.length > 80 ? `${t.slice(0, 80)}…` : t
+}
+
 export default function PersonalInfoPage() {
   const [profileData, setProfileData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -141,6 +147,11 @@ export default function PersonalInfoPage() {
             value={`${profileData?.firstName || ''} ${profileData?.lastName || ''}`}
             onEdit={() => openModal('name')}
           />
+          <InfoRow
+            label="Bio"
+            value={formatBioPreview(profileData?.bio)}
+            onEdit={() => openModal('name')}
+          />
         </div>
       </section>
 
@@ -149,6 +160,7 @@ export default function PersonalInfoPage() {
         onClose={() => closeModal('name')}
         currentFirstName={profileData?.firstName}
         currentLastName={profileData?.lastName}
+        currentBio={profileData?.bio}
         onSuccess={handleModalSuccess}
       />
     </div>
