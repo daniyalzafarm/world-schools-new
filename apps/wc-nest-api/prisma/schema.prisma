@@ -67,6 +67,9 @@ model User {
   conversationsAssigned      Conversation[]                @relation("AssignedByUser")
   statusChangedConversations Conversation[]                @relation("StatusChangedByUser")
 
+  // Review Relations
+  campReviewResponses  CampReviewResponse[]
+
   // Knowledge Base Relations
   articleFeedback ArticleFeedback[]
 
@@ -2208,6 +2211,7 @@ model CampReviewResponse {
   reviewId     String @unique @map("review_id")
   campId       String @map("camp_id")
   providerId   String @map("provider_id")
+  userId       String @map("user_id")
   responseText String @map("response_text") @db.Text
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -2216,6 +2220,7 @@ model CampReviewResponse {
   review   CampReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
   camp     Camp       @relation(fields: [campId], references: [id], onDelete: Restrict)
   provider Provider   @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  user     User       @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([campId])
   @@map("camp_review_responses")

@@ -10,6 +10,7 @@ import { SessionsModule } from './sessions/sessions.module'
 import { DiscountsModule } from './discounts/discounts.module'
 import { ProviderMessagingModule } from './messaging/provider-messaging.module'
 import { ProviderBookingGroupsModule } from './booking-groups/booking-groups.module'
+import { ProviderReviewsModule } from './reviews/provider-reviews.module'
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ProviderBookingGroupsModule } from './booking-groups/booking-groups.mod
     DiscountsModule,
     ProviderBookingGroupsModule,
     ProviderMessagingModule,
+    ProviderReviewsModule,
   ],
 })
 export class ProviderModule {}
