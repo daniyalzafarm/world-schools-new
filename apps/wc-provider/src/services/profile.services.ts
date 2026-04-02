@@ -6,6 +6,7 @@ export interface UserProfile {
   emailVerified?: boolean
   firstName?: string
   lastName?: string
+  bio?: string | null
   profilePhotoUrl?: string | null
   phone?: string | null
   phoneVerified?: boolean
@@ -32,6 +33,7 @@ export interface UserProfile {
 export interface UpdateProfileDto {
   firstName?: string
   lastName?: string
+  bio?: string
   phone?: string
   address?: string
   city?: string

@@ -98,6 +98,14 @@ const addonsPermissions: PermissionGroup = {
   ],
 }
 
+const bookingsPermissions: PermissionGroup = {
+  name: 'Bookings',
+  permissions: [
+    { id: 'bookings.read', name: 'Read bookings' },
+    { id: 'bookings.write', name: 'Write bookings' },
+  ],
+}
+
 const kbCategoriesPermissions: PermissionGroup = {
   name: 'Knowledge Base Categories',
   permissions: [
@@ -141,6 +149,7 @@ export const superadminContext: PermissionContext = {
     providerDocumentsPermissions,
     campsPermissions,
     addonsPermissions,
+    bookingsPermissions,
     kbCategoriesPermissions,
     kbArticlesPermissions,
     supportTicketsPermissions,
@@ -149,7 +158,13 @@ export const superadminContext: PermissionContext = {
 
 export const providerContext: PermissionContext = {
   name: 'Provider',
-  groups: [usersPermissions, rolesPermissions, campsPermissions, addonsPermissions],
+  groups: [
+    usersPermissions,
+    rolesPermissions,
+    campsPermissions,
+    addonsPermissions,
+    bookingsPermissions,
+  ],
 }
 
 /**

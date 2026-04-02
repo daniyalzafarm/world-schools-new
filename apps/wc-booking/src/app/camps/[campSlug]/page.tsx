@@ -268,7 +268,10 @@ export default function CampPage() {
             </div>
             <span className="text-xs text-gray-500">Jun 15 - Aug 20</span>
           </div>
-          <button className="px-8 py-3.5 bg-primary text-gray-900 rounded-lg text-base font-semibold hover:bg-primary-300 transition-colors whitespace-nowrap">
+          <button
+            className="px-8 py-3.5 bg-primary text-gray-900 rounded-lg text-base font-semibold hover:bg-primary-300 transition-colors whitespace-nowrap"
+            onClick={() => router.push(`/camps/${camp.slug}/book`)}
+          >
             Reserve
           </button>
         </div>
@@ -466,27 +469,32 @@ function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: (
           <SectionHeader title="Location & Campus" icon="🏫" className="mb-6" />
 
           {/* Google Map */}
-          {camp.locationLat && camp.locationLng && (
+          {(camp.locationLat && camp.locationLng) || camp.locationPlaceId ? (
             <div className="mb-6">
               <GoogleMapsLoader apiKey={config.maps.googleApiKey}>
                 <div className="h-[400px] w-full rounded-xl overflow-hidden border border-gray-300">
                   <GoogleMapWithSearch
                     selectedPlace={{
                       lat:
-                        typeof camp.locationLat === 'string'
-                          ? parseFloat(camp.locationLat)
-                          : camp.locationLat,
+                        camp.locationLat != null
+                          ? typeof camp.locationLat === 'string'
+                            ? parseFloat(camp.locationLat)
+                            : camp.locationLat
+                          : 0,
                       lng:
-                        typeof camp.locationLng === 'string'
-                          ? parseFloat(camp.locationLng)
-                          : camp.locationLng,
+                        camp.locationLng != null
+                          ? typeof camp.locationLng === 'string'
+                            ? parseFloat(camp.locationLng)
+                            : camp.locationLng
+                          : 0,
                       name: camp.locationName || camp.name,
+                      placeId: camp.locationPlaceId ?? null,
                     }}
                   />
                 </div>
               </GoogleMapsLoader>
             </div>
-          )}
+          ) : null}
 
           {/* Location Information */}
           {(camp.locationName || camp.locationAddress) && (
@@ -849,11 +857,12 @@ function BookingSidebar({ camp }: { camp: Camp }) {
           className="w-full font-semibold"
           onPress={() => {
             if (selectedSession) {
-              // TODO: Implement reserve functionality
-              console.log('Reserve session:', selectedSession)
+              router.push(
+                `/camps/${camp.slug}/book?sessionId=${encodeURIComponent(selectedSession.id)}`
+              )
             } else {
-              // Scroll to sessions section
-              document.getElementById('sessions')?.scrollIntoView({ behavior: 'smooth' })
+              // No session selected: start booking flow at Step 1.
+              router.push(`/camps/${camp.slug}/book`)
             }
           }}
         >

@@ -24,6 +24,6 @@ import { PhotoUploadService } from './services/photo-upload.service'
   ],
   controllers: [CampsController],
   providers: [CampsService, PhotoUploadService],
-  exports: [CampsService],
+  exports: [CampsService, PhotoUploadService],
 })
 export class CampsModule {}

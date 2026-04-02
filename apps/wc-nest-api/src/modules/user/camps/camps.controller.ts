@@ -40,4 +40,28 @@ export class UserCampsController {
     const camp = await this.campsService.getCampBySlug(slug, previewToken)
     return ResponseUtil.success({ camp })
   }
+
+  @Public()
+  @Get(':campId/sessions')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get published sessions by camp ID',
+    description: 'Retrieve published sessions for a specific published camp',
+  })
+  async getCampSessions(@Param('campId') campId: string) {
+    const sessions = await this.campsService.getCampSessions(campId)
+    return ResponseUtil.success(sessions)
+  }
+
+  @Public()
+  @Get(':campId/addons')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get enabled add-ons by camp ID',
+    description: 'Retrieve enabled camp add-ons for a specific published camp',
+  })
+  async getCampAddOns(@Param('campId') campId: string) {
+    const addOns = await this.campsService.getCampAddOns(campId)
+    return ResponseUtil.success(addOns)
+  }
 }

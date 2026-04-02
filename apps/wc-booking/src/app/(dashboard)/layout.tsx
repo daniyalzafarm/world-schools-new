@@ -13,8 +13,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {isHelp ? (
         <div className="min-h-full">{children}</div>
       ) : isSupportTicketDetail ? (
-        // Full-height, no max-width container for support ticket conversations
-        <div className="h-full">{children}</div>
+        <div className="h-full min-h-0">{children}</div>
       ) : (
         <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">{children}</div>
       )}

@@ -628,6 +628,7 @@ export class UserAuthController {
         email: true,
         firstName: true,
         lastName: true,
+        bio: true,
         emailVerified: true,
         passwordChangedAt: true,
         createdAt: true,
@@ -678,6 +679,7 @@ export class UserAuthController {
       email: dbUser.email,
       firstName: dbUser.firstName,
       lastName: dbUser.lastName,
+      bio: dbUser.bio ?? null,
       emailVerified: dbUser.emailVerified,
       passwordChangedAt: dbUser.passwordChangedAt,
       createdAt: dbUser.createdAt,
@@ -721,6 +723,10 @@ export class UserAuthController {
     }
     if (updateProfileDto.lastName !== undefined) {
       userUpdateData.lastName = updateProfileDto.lastName
+    }
+    if (updateProfileDto.bio !== undefined) {
+      const trimmed = updateProfileDto.bio.trim()
+      userUpdateData.bio = trimmed.length > 0 ? trimmed : null
     }
     if (updateProfileDto.phone !== undefined) {
       userUpdateData.phone = updateProfileDto.phone

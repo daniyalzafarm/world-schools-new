@@ -33,7 +33,6 @@ export const LegalNameModal: React.FC<LegalNameModalProps> = ({
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       setFirstName(currentFirstName)
@@ -43,7 +42,6 @@ export const LegalNameModal: React.FC<LegalNameModalProps> = ({
   }, [isOpen, currentFirstName, currentLastName])
 
   const handleSave = async () => {
-    // Validation
     if (!firstName.trim()) {
       setError('First name is required')
       return

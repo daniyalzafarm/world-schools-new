@@ -38,6 +38,7 @@ export function SelectField({
   placeholder = 'Select option',
   className,
   classNames: customClassNames,
+  fullWidth = true,
   ...props
 }: SelectFieldProps) {
   // Validate that either options or sections is provided, but not both
@@ -50,7 +51,17 @@ export function SelectField({
 
   const mergedClassNames = mergeClassNames(
     {
+      base: cn(
+        !fullWidth && 'w-fit min-w-0 shrink-0 max-w-[min(100%,24rem)]',
+        'data-[invalid=true]:mt-0'
+      ),
+      mainWrapper: !fullWidth ? 'w-fit' : undefined,
+      // w-full inside padded trigger so label does not run under the absolute chevron.
+      innerWrapper: !fullWidth ? 'w-full min-w-0 max-w-full' : undefined,
+      value: !fullWidth ? 'min-w-0 max-w-full' : undefined,
+      // pr-10 keeps label from sitting under the absolute selector icon when trigger is w-fit.
       trigger: cn(
+        !fullWidth && 'w-fit min-w-0 ps-3 pe-10',
         'rounded-lg bg-white capitalize',
         'border border-gray-200',
         'hover:border-gray-300',
@@ -60,7 +71,8 @@ export function SelectField({
         'data-focus:border-primary!',
         'dark:border-gray-600'
       ),
-      base: cn('w-auto data-[invalid=true]:mt-0'),
+      // HeroUI sets popover width to the trigger width; min-w-max lets the list match long options.
+      popoverContent: !fullWidth ? 'min-w-max max-w-[min(100vw,24rem)]' : undefined,
     },
     customClassNames
   ) satisfies SelectProps['classNames']
@@ -75,6 +87,7 @@ export function SelectField({
       placeholder={placeholder}
       labelPlacement="outside"
       classNames={mergedClassNames}
+      className={className}
       {...props}
     >
       {options

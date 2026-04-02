@@ -194,4 +194,67 @@ export class UserCampsService {
       sessions: transformedSessions,
     }
   }
+
+  async getCampSessions(campId: string) {
+    const camp = await this.prisma.camp.findFirst({
+      where: { id: campId, status: 'published' },
+      select: { id: true },
+    })
+    if (!camp) throw new NotFoundException('Camp not found')
+
+    const sessions = await this.prisma.session.findMany({
+      where: {
+        campId,
+        status: 'published',
+      },
+      orderBy: [{ sortOrder: 'asc' }, { startDate: 'asc' }],
+    })
+
+    return sessions.map(session => ({
+      ...session,
+      price:
+        session.price !== null && session.price !== undefined
+          ? Number(session.price)
+          : session.price,
+    }))
+  }
+
+  async getCampAddOns(campId: string) {
+    const camp = await this.prisma.camp.findFirst({
+      where: { id: campId, status: 'published' },
+      select: { id: true },
+    })
+    if (!camp) throw new NotFoundException('Camp not found')
+
+    const campAddOns = await this.prisma.campAddOn.findMany({
+      where: {
+        campId,
+        isEnabled: true,
+        addOn: {
+          isActive: true,
+        },
+      },
+      include: {
+        addOn: true,
+      },
+      orderBy: [{ sortOrder: 'asc' }, { addOn: { sortOrder: 'asc' } }],
+    })
+
+    return campAddOns.map(item => ({
+      campId: item.campId,
+      addOnId: item.addOnId,
+      sortOrder: item.sortOrder,
+      name: item.addOn.name,
+      description: item.addOn.description,
+      icon: item.addOn.icon,
+      type: item.addOn.type,
+      price: Number(item.addOn.price),
+      currency: item.addOn.currency,
+      pricingUnit: item.addOn.pricingUnit,
+      maxQuantity: item.addOn.maxQuantity,
+      quantityUnit: item.addOn.quantityUnit,
+      minAge: item.addOn.minAge,
+      maxAge: item.addOn.maxAge,
+    }))
+  }
 }

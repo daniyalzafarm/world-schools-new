@@ -6,9 +6,16 @@ import { ProtectedRoute } from '@/components/auth/protected-route'
 import { profileService } from '@/services/profile.services'
 import { ProfilePhotoSection } from '@/components/account/profile-photo-section'
 import { InfoRow } from '@/components/account/info-row'
+import { BioModal } from '@/components/account/modals/bio-modal'
 import { LegalNameModal } from '@/components/account/modals/legal-name-modal'
 import { NationalityModal } from '@/components/account/modals/nationality-modal'
 import { LanguagesModal } from '@/components/account/modals/languages-modal'
+
+function formatBioPreview(bio: string | null | undefined): string {
+  const t = bio?.trim()
+  if (!t) return 'Not set'
+  return t.length > 80 ? `${t.slice(0, 80)}…` : t
+}
 
 const ProfilePage = () => {
   // Profile data state
@@ -19,6 +26,7 @@ const ProfilePage = () => {
   // Modal state
   const [modals, setModals] = useState({
     name: false,
+    bio: false,
     nationality: false,
     languages: false,
   })
@@ -182,6 +190,11 @@ const ProfilePage = () => {
               onEdit={() => openModal('name')}
             />
             <InfoRow
+              label="Bio"
+              value={formatBioPreview(profileData?.bio)}
+              onEdit={() => openModal('bio')}
+            />
+            <InfoRow
               label="Nationality"
               value={getNationalityDisplay()}
               onEdit={() => openModal('nationality')}
@@ -201,6 +214,12 @@ const ProfilePage = () => {
         onClose={() => closeModal('name')}
         currentFirstName={profileData?.firstName}
         currentLastName={profileData?.lastName}
+        onSuccess={handleModalSuccess}
+      />
+      <BioModal
+        isOpen={modals.bio}
+        onClose={() => closeModal('bio')}
+        currentBio={profileData?.bio}
         onSuccess={handleModalSuccess}
       />
       <NationalityModal

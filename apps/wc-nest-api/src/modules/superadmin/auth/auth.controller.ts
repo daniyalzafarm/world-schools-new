@@ -226,6 +226,7 @@ export class SuperAdminAuthController {
         email: true,
         firstName: true,
         lastName: true,
+        bio: true,
         emailVerified: true,
         passwordChangedAt: true,
         createdAt: true,
@@ -269,6 +270,7 @@ export class SuperAdminAuthController {
       email: dbUser.email,
       firstName: dbUser.firstName,
       lastName: dbUser.lastName,
+      bio: dbUser.bio ?? null,
       emailVerified: dbUser.emailVerified,
       passwordChangedAt: dbUser.passwordChangedAt,
       createdAt: dbUser.createdAt,
@@ -307,6 +309,10 @@ export class SuperAdminAuthController {
     if (updateProfileDto.firstName !== undefined)
       userUpdateData.firstName = updateProfileDto.firstName
     if (updateProfileDto.lastName !== undefined) userUpdateData.lastName = updateProfileDto.lastName
+    if (updateProfileDto.bio !== undefined) {
+      const trimmed = updateProfileDto.bio.trim()
+      userUpdateData.bio = trimmed.length > 0 ? trimmed : null
+    }
     if (updateProfileDto.phone !== undefined) userUpdateData.phone = updateProfileDto.phone
     if (updateProfileDto.address !== undefined) userUpdateData.address = updateProfileDto.address
     if (updateProfileDto.city !== undefined) userUpdateData.city = updateProfileDto.city
