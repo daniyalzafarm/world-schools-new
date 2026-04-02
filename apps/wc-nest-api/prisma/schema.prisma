@@ -242,6 +242,7 @@ model Provider {
   // Messaging Relations
   conversationParticipants ConversationParticipant[]
   supportTicketsRequested  SupportTicket[]           @relation("SupportTicketRequesterProvider")
+  reviewResponses          CampReviewResponse[]
 
   @@index([ownerId])
   @@index([approvalStatus])
@@ -268,6 +269,7 @@ model Parent {
   children      Children[]
   bookings      Booking[]
   bookingGroups BookingGroup[]
+  reviews       CampReview[]
 
   @@index([userId])
   @@map("parents")
@@ -593,6 +595,8 @@ model Camp {
   campFocusRecord         CampFocus?
   campInterests           CampInterest[]
   eligibilityRequirements CampEligibilityRequirement[]
+  reviews                 CampReview[]
+  reviewResponses         CampReviewResponse[]
 
   @@index([providerId])
   @@index([status])
@@ -946,6 +950,7 @@ model BookingGroup {
   camp     Camp      @relation(fields: [campId], references: [id], onDelete: Restrict)
   provider Provider  @relation(fields: [providerId], references: [id], onDelete: Restrict)
   bookings Booking[]
+  reviews  CampReview[]
 
   @@index([parentId])
   @@index([sessionId])
@@ -1045,6 +1050,7 @@ model Booking {
   parent         Parent          @relation(fields: [parentId], references: [id], onDelete: Restrict)
   child          Children        @relation(fields: [childId], references: [id], onDelete: Restrict)
   supportTickets SupportTicket[]
+  review         CampReview?
 
   @@index([bookingGroupId])
   @@index([sessionId])
@@ -2106,4 +2112,111 @@ enum ArticleStatus {
   archived
 
   @@map("article_status")
+}
+
+// ============================================
+// Camp Reviews
+// ============================================
+
+enum ReviewStatus {
+  draft
+  pending
+  published
+  rejected
+
+  @@map("review_status")
+}
+
+enum ReviewTagDimension {
+  happiness
+  safety
+  communication
+
+  @@map("review_tag_dimension")
+}
+
+model CampReview {
+  id       String @id @default(uuid())
+  campId   String @map("camp_id")
+  parentId String @map("parent_id")
+
+  // Booking link — both null for public (unverified) reviews
+  bookingGroupId String? @map("booking_group_id")
+  bookingId      String? @unique @map("booking_id")
+
+  // Visit details (captured for public reviewers; derived from booking for verified)
+  visitMonth Int?   @map("visit_month")
+  visitYear  Int?   @map("visit_year")
+  kidCount   Int?   @default(1) @map("kid_count")
+  kidAges    Int[]  @map("kid_ages")
+  kidTags    String[] @map("kid_tags")
+
+  // Core ratings (1–5, null = not rated)
+  happinessRating      Int? @map("happiness_rating")
+  safetyRating         Int? @map("safety_rating")
+  communicationRating  Int? @map("communication_rating")
+  asDescribedRating    Int? @map("as_described_rating")
+  growthRating         Int? @map("growth_rating")
+  valueRating          Int? @map("value_rating")
+
+  // Written content
+  reviewText   String?  @map("review_text") @db.Text
+  photos       String[]
+  returnChoice Boolean? @map("return_choice")
+  outcomes     String[]
+
+  // Status & social
+  status       ReviewStatus @default(draft)
+  helpfulCount Int          @default(0) @map("helpful_count")
+
+  // Timestamps
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  submittedAt DateTime? @map("submitted_at")
+  publishedAt DateTime? @map("published_at")
+
+  // Relations
+  camp         Camp                @relation(fields: [campId], references: [id], onDelete: Restrict)
+  parent       Parent              @relation(fields: [parentId], references: [id], onDelete: Restrict)
+  booking      Booking?            @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  bookingGroup BookingGroup?       @relation(fields: [bookingGroupId], references: [id], onDelete: SetNull)
+  tags         CampReviewTag[]
+  response     CampReviewResponse?
+
+  @@index([campId])
+  @@index([parentId])
+  @@index([status])
+  @@index([bookingId])
+  @@map("camp_reviews")
+}
+
+model CampReviewTag {
+  id        String             @id @default(uuid())
+  reviewId  String             @map("review_id")
+  dimension ReviewTagDimension
+  tagValue  String             @map("tag_value")
+
+  review CampReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@index([dimension, tagValue])
+  @@map("camp_review_tags")
+}
+
+model CampReviewResponse {
+  id           String @id @default(uuid())
+  reviewId     String @unique @map("review_id")
+  campId       String @map("camp_id")
+  providerId   String @map("provider_id")
+  responseText String @map("response_text") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  review   CampReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  camp     Camp       @relation(fields: [campId], references: [id], onDelete: Restrict)
+  provider Provider   @relation(fields: [providerId], references: [id], onDelete: Restrict)
+
+  @@index([campId])
+  @@map("camp_review_responses")
 }
