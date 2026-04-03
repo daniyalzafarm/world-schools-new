@@ -17,8 +17,14 @@ import {
   WriteReviewFlowBigStars,
   WriteReviewFlowCompactStars,
 } from '@/components/reviews/write-review-flow-stars'
+import { reviewsService } from '@/services/reviews.services'
 import { useReviewsStore } from '@/stores/reviews-store'
-import type { CreateReviewPayload, ReviewTagDimension } from '@/types/reviews'
+import {
+  type CampReview,
+  type CreateReviewPayload,
+  normalizeCampReviewFromApi,
+  type ReviewTagDimension,
+} from '@/types/reviews'
 
 type StepKey = 'visit' | 'happiness' | 'safety' | 'communication' | 'dims' | 'story' | 'submit'
 
@@ -98,6 +104,45 @@ const visitSelectClassNames = {
 
 const REQUIRED_STEPS = new Set<StepKey>(['happiness', 'safety', 'communication'])
 
+function formDataFromCampReview(review: CampReview): FormData {
+  const v = review.visit ?? {}
+  const r = review.ratings ?? {}
+  const n = (x: unknown) => (typeof x === 'number' && !Number.isNaN(x) ? x : 0)
+
+  const happinessTags: string[] = []
+  const safetyTags: string[] = []
+  const communicationTags: string[] = []
+  for (const t of review.tags) {
+    if (t.dimension === 'happiness') happinessTags.push(t.tagValue)
+    else if (t.dimension === 'safety') safetyTags.push(t.tagValue)
+    else if (t.dimension === 'communication') communicationTags.push(t.tagValue)
+  }
+
+  const kidCount = Math.min(4, Math.max(1, v.kidCount ?? 1))
+  let kidAges =
+    v.kidAges && v.kidAges.length > 0 ? [...v.kidAges].slice(0, kidCount) : Array(kidCount).fill(10)
+  while (kidAges.length < kidCount) kidAges = [...kidAges, 10]
+
+  return {
+    visitMonth: v.month != null && v.month >= 1 && v.month <= 12 ? v.month : 0,
+    visitYear: v.year != null && v.year >= MIN_VISIT_YEAR ? v.year : currentYear - 1,
+    kidCount,
+    kidAges,
+    kidTags: v.kidTags ?? [],
+    happinessRating: n(r.happiness),
+    happinessTags,
+    safetyRating: n(r.safety),
+    safetyTags,
+    communicationRating: n(r.communication),
+    communicationTags,
+    asDescribedRating: n(r.asDescribed),
+    growthRating: n(r.growth),
+    valueRating: n(r.value),
+    reviewText: review.reviewText ?? '',
+    agreeDisclaimer: false,
+  }
+}
+
 const DIM_SUMMARY: { key: keyof FormData; apiKey: string; label: string }[] = [
   { key: 'happinessRating', apiKey: 'happiness', label: "Kid's Experience" },
   { key: 'safetyRating', apiKey: 'safety', label: 'Safety' },
@@ -158,32 +203,15 @@ const WriteReviewCampPage = () => {
   const params = useParams()
   const searchParams = useSearchParams()
   const campId = params.campId as string
-  const bookingGroupId = searchParams.get('bookingGroupId') ?? undefined
-  const bookingId = searchParams.get('bookingId') ?? undefined
+  const reviewId = searchParams.get('reviewId') ?? undefined
+  const bookingGroupIdFromUrl = searchParams.get('bookingGroupId') ?? undefined
+  const bookingIdFromUrl = searchParams.get('bookingId') ?? undefined
 
-  const isVerified = !!bookingId
-  const { allCamps, attended, addReview, fetchEligible } = useReviewsStore()
+  const { allCamps, attended, addReview, updateReview, fetchEligible } = useReviewsStore()
 
-  useEffect(() => {
-    void fetchEligible()
-  }, [fetchEligible])
-
-  const camp = useMemo(() => {
-    const fromAttended = attended.find(a => a.id === campId)
-    if (fromAttended) return fromAttended
-    return allCamps.find(c => c.id === campId)
-  }, [campId, attended, allCamps])
-
-  const campPhotos = camp?.photos as { url?: string; isPrimary?: boolean }[] | null | undefined
-  const campImageUrl = campPhotos?.find(p => p.isPrimary)?.url ?? campPhotos?.[0]?.url
-
-  const steps: StepKey[] = useMemo(
-    () =>
-      isVerified
-        ? ['happiness', 'safety', 'communication', 'dims', 'story', 'submit']
-        : ['visit', 'happiness', 'safety', 'communication', 'dims', 'story', 'submit'],
-    [isVerified]
-  )
+  const [loadedReview, setLoadedReview] = useState<CampReview | null>(null)
+  const [isReviewLoading, setIsReviewLoading] = useState(Boolean(reviewId))
+  const [reviewError, setReviewError] = useState<string | null>(null)
 
   const [stepIndex, setStepIndex] = useState(0)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -207,6 +235,87 @@ const WriteReviewCampPage = () => {
     reviewText: '',
     agreeDisclaimer: false,
   })
+
+  useEffect(() => {
+    void fetchEligible()
+  }, [fetchEligible])
+
+  useEffect(() => {
+    if (!reviewId) {
+      setLoadedReview(null)
+      setReviewError(null)
+      setIsReviewLoading(false)
+      return
+    }
+    let cancelled = false
+    setIsReviewLoading(true)
+    setReviewError(null)
+    void reviewsService.getById(reviewId).then(res => {
+      if (cancelled) return
+      if (!res.success) {
+        setIsReviewLoading(false)
+        const msg =
+          res.data && typeof res.data === 'object' && 'message' in res.data
+            ? String((res.data as { message?: string }).message)
+            : 'Could not load review'
+        setReviewError(msg || 'Could not load review')
+        return
+      }
+      const raw = (res.data as { review?: unknown }).review
+      if (raw == null || typeof raw !== 'object') {
+        setIsReviewLoading(false)
+        setReviewError('Invalid review response')
+        return
+      }
+      const review = normalizeCampReviewFromApi(raw)
+      if (review.campId !== campId) {
+        setIsReviewLoading(false)
+        setReviewError('This review does not match the camp in the address bar.')
+        return
+      }
+      setLoadedReview(review)
+      setForm(formDataFromCampReview(review))
+      setStepIndex(0)
+      setIsReviewLoading(false)
+      setReviewError(null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [reviewId, campId])
+
+  const effectiveBookingGroupId = bookingGroupIdFromUrl ?? loadedReview?.bookingGroupId ?? undefined
+  const effectiveBookingId = bookingIdFromUrl ?? loadedReview?.bookingId ?? undefined
+  const isVerified = !!effectiveBookingId
+
+  const camp = useMemo(() => {
+    const fromAttended = attended.find(a => a.id === campId)
+    if (fromAttended) return fromAttended
+    const fromAll = allCamps.find(c => c.id === campId)
+    if (fromAll) return fromAll
+    const campFromReview = loadedReview?.campId === campId ? loadedReview?.camp : undefined
+    if (campFromReview) {
+      return {
+        id: campFromReview.id,
+        name: campFromReview.name,
+        locationName: campFromReview.locationName ?? null,
+        photos: campFromReview.photos,
+        slug: campFromReview.slug,
+      }
+    }
+    return undefined
+  }, [campId, attended, allCamps, loadedReview])
+
+  const campPhotos = camp?.photos as { url?: string; isPrimary?: boolean }[] | null | undefined
+  const campImageUrl = campPhotos?.find(p => p.isPrimary)?.url ?? campPhotos?.[0]?.url
+
+  const steps: StepKey[] = useMemo(
+    () =>
+      isVerified
+        ? ['happiness', 'safety', 'communication', 'dims', 'story', 'submit']
+        : ['visit', 'happiness', 'safety', 'communication', 'dims', 'story', 'submit'],
+    [isVerified]
+  )
 
   const currentStep = steps[stepIndex]
   const progressPct = ((stepIndex + 1) / steps.length) * 100
@@ -280,20 +389,19 @@ const WriteReviewCampPage = () => {
       }
     }
 
-    const payload: CreateReviewPayload = {
-      campId,
-      bookingGroupId,
-      bookingId,
-      ...(isVerified
-        ? {}
-        : {
-            ...(form.visitMonth >= 1 && form.visitMonth <= 12
-              ? { visitMonth: form.visitMonth, visitYear: form.visitYear }
-              : {}),
-            kidCount: form.kidCount,
-            kidAges: form.kidAges.slice(0, form.kidCount),
-            kidTags: form.kidTags,
-          }),
+    const visitPart = isVerified
+      ? {}
+      : {
+          ...(form.visitMonth >= 1 && form.visitMonth <= 12
+            ? { visitMonth: form.visitMonth, visitYear: form.visitYear }
+            : {}),
+          kidCount: form.kidCount,
+          kidAges: form.kidAges.slice(0, form.kidCount),
+          kidTags: form.kidTags,
+        }
+
+    const bodyCommon = {
+      ...visitPart,
       happinessRating: form.happinessRating || undefined,
       safetyRating: form.safetyRating || undefined,
       communicationRating: form.communicationRating || undefined,
@@ -302,10 +410,20 @@ const WriteReviewCampPage = () => {
       valueRating: form.valueRating || undefined,
       tags,
       reviewText: form.reviewText.trim() || undefined,
-      status: 'pending',
     }
 
-    const res = await addReview(payload)
+    let res: CampReview | null = null
+    if (reviewId) {
+      res = await updateReview(reviewId, bodyCommon)
+    } else {
+      res = await addReview({
+        campId,
+        bookingGroupId: effectiveBookingGroupId,
+        bookingId: effectiveBookingId,
+        ...bodyCommon,
+        status: 'pending',
+      })
+    }
     setIsSubmitting(false)
     if (res) setShowConfirm(true)
   }
@@ -332,6 +450,33 @@ const WriteReviewCampPage = () => {
     return camp.name
   }, [camp, isVerified, form.visitMonth, form.visitYear])
 
+  if (reviewId && isReviewLoading) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
+        <p className="text-lg font-semibold text-default-900 dark:text-white">Loading review…</p>
+        <p className="mt-2 text-sm text-default-500">Fetching your saved answers.</p>
+      </div>
+    )
+  }
+
+  if (reviewId && reviewError) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
+        <p className="text-lg font-semibold text-default-900 dark:text-white">
+          Couldn&apos;t open this review
+        </p>
+        <p className="mt-2 text-sm text-default-500">{reviewError}</p>
+        <Button
+          radius="lg"
+          onPress={() => router.push('/reviews')}
+          className="mt-6 bg-default-900 px-6 py-3 text-base font-bold text-white dark:bg-white dark:text-default-900"
+        >
+          Back to my reviews
+        </Button>
+      </div>
+    )
+  }
+
   if (!camp) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
@@ -356,11 +501,14 @@ const WriteReviewCampPage = () => {
             <Check className="size-9 md:size-10" strokeWidth={3} />
           </div>
           <h1 className="mb-3 text-2xl font-extrabold leading-tight text-default-900 dark:text-white md:text-3xl">
-            Thanks for your review!
+            {reviewId ? 'Review saved' : 'Thanks for your review!'}
           </h1>
           <p className="mb-10 text-base leading-relaxed text-default-500 dark:text-slate-400">
-            Your review is now in moderation and will appear on the camp&apos;s profile within 24
-            hours. It&apos;ll help other families make the right choice.
+            {reviewId
+              ? loadedReview?.status === 'published'
+                ? 'Your changes are live on the camp profile.'
+                : 'Your updates are saved. If your review is in moderation, it will appear on the camp profile after approval.'
+              : "Your review is now in moderation and will appear on the camp's profile within 24 hours. It'll help other families make the right choice."}
           </p>
           <Button
             radius="lg"
@@ -722,7 +870,7 @@ const WriteReviewCampPage = () => {
                 className="w-full"
                 color="secondary"
               >
-                Publish review
+                {reviewId ? 'Save changes' : 'Publish review'}
               </Button>
             </>
           )}

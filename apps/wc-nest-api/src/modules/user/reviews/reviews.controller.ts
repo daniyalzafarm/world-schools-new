@@ -41,6 +41,13 @@ export class UserReviewsController {
     return ResponseUtil.success(data)
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a single review by id (must belong to current parent)' })
+  async findOne(@CurrentUser() user: any, @Param('id') id: string) {
+    const review = await this.reviewsService.findOne(user.id, id)
+    return ResponseUtil.success({ review })
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create a review (draft or submit for moderation)' })
   async create(@CurrentUser() user: any, @Body() dto: CreateReviewDto) {

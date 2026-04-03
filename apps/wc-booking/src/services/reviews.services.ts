@@ -38,6 +38,10 @@ export const reviewsService = {
     return apiClient.get<ReviewsResponse>('/user/reviews')
   },
 
+  async getById(id: string): Promise<ApiResult<{ review: CampReview }>> {
+    return apiClient.get<{ review: CampReview }>(`/user/reviews/${id}`)
+  },
+
   async getEligible(): Promise<ApiResult<EligibleResponse>> {
     return apiClient.get<EligibleResponse>('/user/reviews/eligible')
   },

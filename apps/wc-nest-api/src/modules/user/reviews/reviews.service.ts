@@ -114,6 +114,16 @@ export class UserReviewsService {
     }
   }
 
+  async findOne(userId: string, reviewId: string) {
+    const parentId = await this.getParentId(userId)
+    const review = await this.prisma.campReview.findFirst({
+      where: { id: reviewId, parentId },
+      include: REVIEW_INCLUDE,
+    })
+    if (!review) throw new NotFoundException('Review not found')
+    return this.withSasUrlsOnReviewCamp(review)
+  }
+
   async findEligible(userId: string) {
     const parentId = await this.getParentId(userId)
 
@@ -316,9 +326,6 @@ export class UserReviewsService {
     })
     if (!existing) throw new NotFoundException('Review not found')
     if (existing.parentId !== parentId) throw new ForbiddenException('Access denied')
-    if (existing.status === 'published') {
-      throw new BadRequestException('Published reviews cannot be edited')
-    }
 
     const { tags, ...fields } = dto
 
