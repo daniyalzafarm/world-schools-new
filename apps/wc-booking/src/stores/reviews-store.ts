@@ -1,6 +1,11 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import type { CampReview, CreateReviewPayload, UpdateReviewPayload } from '@/types/reviews'
+import {
+  type CampReview,
+  type CreateReviewPayload,
+  normalizeCampReviewFromApi,
+  type UpdateReviewPayload,
+} from '@/types/reviews'
 import {
   type AttendedEligible,
   type EligibleCampItem,
@@ -47,9 +52,18 @@ export const useReviewsStore = create<ReviewsStore>()(
       })
       const response = await reviewsService.getAll()
       if (response.success) {
+        const data = response.data as {
+          published?: unknown[]
+          pendingModeration?: unknown[]
+        }
+        const mapReviews = (list: unknown[] | undefined) =>
+          (list ?? [])
+            .filter((item): item is object => item != null && typeof item === 'object')
+            .map(normalizeCampReviewFromApi)
+
         set(state => {
-          state.published = (response.data as any).published ?? []
-          state.pendingModeration = (response.data as any).pendingModeration ?? []
+          state.published = mapReviews(data.published)
+          state.pendingModeration = mapReviews(data.pendingModeration)
           state.isLoading = false
         })
       } else {
@@ -83,7 +97,14 @@ export const useReviewsStore = create<ReviewsStore>()(
     addReview: async payload => {
       const response = await reviewsService.create(payload)
       if (response.success) {
-        const review = (response.data as any).review as CampReview
+        const raw = (response.data as { review?: unknown }).review
+        if (raw == null || typeof raw !== 'object') {
+          set(state => {
+            state.error = 'Invalid create review response'
+          })
+          return null
+        }
+        const review = normalizeCampReviewFromApi(raw)
         set(state => {
           if (review.status === 'published') {
             state.published.unshift(review)
@@ -102,7 +123,14 @@ export const useReviewsStore = create<ReviewsStore>()(
     updateReview: async (id, payload) => {
       const response = await reviewsService.update(id, payload)
       if (response.success) {
-        const updated = (response.data as any).review as CampReview
+        const raw = (response.data as { review?: unknown }).review
+        if (raw == null || typeof raw !== 'object') {
+          set(state => {
+            state.error = 'Invalid update review response'
+          })
+          return null
+        }
+        const updated = normalizeCampReviewFromApi(raw)
         set(state => {
           const updateList = (list: CampReview[]) => {
             const idx = list.findIndex(r => r.id === id)
