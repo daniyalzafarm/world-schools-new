@@ -2,70 +2,50 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { cn } from '@world-schools/ui-web'
-import { ArrowLeft, CheckCircle2, MapPin, Search, Star } from 'lucide-react'
-import { Input } from '@heroui/react'
+import { Button } from '@heroui/react'
+import { cn, Input } from '@world-schools/ui-web'
+import { Search } from 'lucide-react'
+import { UPCOMING_STATUSES } from '@world-schools/wc-frontend-utils'
+import { bookingGroupsService } from '@/services/booking-groups.services'
 import { useReviewsStore } from '@/stores/reviews-store'
 import type { AttendedEligible, EligibleCampItem } from '@/services/reviews.services'
+import type { ParentBookingGroupSummary } from '@/types/camp-booking'
+import { WriteReviewCampSelectCard } from '@/components/reviews/write-review-camp-select-card'
 
-type FilterTab = 'all' | 'attended'
+type FilterTab = 'all' | 'attended' | 'upcoming' | 'past'
 
-const CampCard = ({
-  camp,
-  attended,
-  onSelect,
-}: {
-  camp: EligibleCampItem | AttendedEligible
-  attended?: AttendedEligible['attended']
-  onSelect: () => void
-}) => {
-  const campPhotos = camp.photos as { url?: string; isPrimary?: boolean }[] | null
-  const imageUrl = campPhotos?.find(p => p.isPrimary)?.url ?? campPhotos?.[0]?.url
+const FILTER_TABS: { key: FilterTab; label: string }[] = [
+  { key: 'all', label: 'All Camps' },
+  { key: 'attended', label: 'Attended' },
+  { key: 'upcoming', label: 'Upcoming' },
+  { key: 'past', label: 'Past Bookings' },
+]
 
+function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div
-      onClick={onSelect}
-      className={cn(
-        'flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all',
-        'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800',
-        'hover:border-slate-400 dark:hover:border-slate-500 hover:shadow-sm'
-      )}
-    >
-      {/* Thumbnail */}
-      <div className="w-16 h-16 rounded-xl bg-slate-100 dark:bg-slate-700 shrink-0 overflow-hidden">
-        {imageUrl ? (
-          <img src={imageUrl} alt={camp.name} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-400 dark:text-slate-500 text-xl font-semibold">
-            {camp.name[0]}
-          </div>
-        )}
-      </div>
+    <div className="mb-4">
+      <h2 className="mb-1 text-base font-semibold text-default-900 dark:text-white">{title}</h2>
+      <p className="text-sm text-default-500 dark:text-slate-400">{subtitle}</p>
+    </div>
+  )
+}
 
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-slate-900 dark:text-white truncate">{camp.name}</p>
-        {camp.locationName && (
-          <div className="flex items-center gap-1 mt-0.5">
-            <MapPin size={12} className="text-slate-400 shrink-0" />
-            <span className="text-sm text-slate-500 dark:text-slate-400 truncate">
-              {camp.locationName}
-            </span>
+function CampListSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 md:grid md:grid-cols-2 md:gap-4">
+      {[0, 1].map(i => (
+        <div
+          key={i}
+          className="flex gap-3 rounded-xl border border-default-100 p-3 dark:border-slate-800 md:flex-col"
+        >
+          <div className="size-24 shrink-0 animate-pulse rounded-lg bg-default-200 dark:bg-slate-700 md:h-44 md:w-full" />
+          <div className="flex flex-1 flex-col gap-2 py-1">
+            <div className="h-4 w-3/4 max-w-xs animate-pulse rounded bg-default-200 dark:bg-slate-700" />
+            <div className="h-3 w-3/5 max-w-xs animate-pulse rounded bg-default-200 dark:bg-slate-700" />
+            <div className="h-3 w-1/2 max-w-xs animate-pulse rounded bg-default-200 dark:bg-slate-700" />
           </div>
-        )}
-        {attended && (
-          <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400">
-            <CheckCircle2 size={11} />
-            Attended{' '}
-            {new Date(attended.date).toLocaleDateString('en-GB', {
-              month: 'short',
-              year: 'numeric',
-            })}
-          </span>
-        )}
-      </div>
-
-      <Star size={16} className="text-slate-300 dark:text-slate-600 shrink-0" />
+        </div>
+      ))}
     </div>
   )
 }
@@ -75,10 +55,72 @@ const CampSelectorPage = () => {
   const { attended, allCamps, isEligibleLoading, fetchEligible } = useReviewsStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
+  const [bookingGroups, setBookingGroups] = useState<ParentBookingGroupSummary[] | null>(null)
 
   useEffect(() => {
     void fetchEligible()
+  }, [fetchEligible])
+
+  useEffect(() => {
+    void bookingGroupsService.list().then(res => {
+      if (res.success && res.data) setBookingGroups(res.data)
+      else setBookingGroups([])
+    })
   }, [])
+
+  const campById = useMemo(() => new Map(allCamps.map(c => [c.id, c])), [allCamps])
+
+  const upcomingCampItems: EligibleCampItem[] = useMemo(() => {
+    if (!bookingGroups?.length) return []
+    const groups = bookingGroups.filter(g => UPCOMING_STATUSES.includes(g.status))
+    const seen = new Set<string>()
+    const out: EligibleCampItem[] = []
+    for (const g of groups) {
+      const id = g.camp.id
+      if (seen.has(id)) continue
+      seen.add(id)
+      const full = campById.get(id)
+      if (full) {
+        out.push(full)
+      } else {
+        out.push({
+          id: g.camp.id,
+          name: g.camp.name,
+          locationName: null,
+          photos: g.camp.coverImageUrl
+            ? ([{ url: g.camp.coverImageUrl, isPrimary: true }] as unknown)
+            : undefined,
+          slug: g.camp.slug,
+          reviewCount: 0,
+          avgRating: null,
+        })
+      }
+    }
+    return out
+  }, [bookingGroups, campById])
+
+  const q = searchQuery.trim().toLowerCase()
+
+  const filteredAttended = useMemo(() => {
+    if (!q) return attended
+    return attended.filter(
+      c => c.name.toLowerCase().includes(q) || (c.locationName ?? '').toLowerCase().includes(q)
+    )
+  }, [attended, q])
+
+  const filteredAll = useMemo(() => {
+    if (!q) return allCamps
+    return allCamps.filter(
+      c => c.name.toLowerCase().includes(q) || (c.locationName ?? '').toLowerCase().includes(q)
+    )
+  }, [allCamps, q])
+
+  const filteredUpcoming = useMemo(() => {
+    if (!q) return upcomingCampItems
+    return upcomingCampItems.filter(
+      c => c.name.toLowerCase().includes(q) || (c.locationName ?? '').toLowerCase().includes(q)
+    )
+  }, [upcomingCampItems, q])
 
   const handleSelect = (campId: string, attendedData?: AttendedEligible['attended']) => {
     if (attendedData) {
@@ -92,111 +134,111 @@ const CampSelectorPage = () => {
     }
   }
 
-  const filteredAttended = useMemo(
-    () =>
-      attended.filter(
-        c =>
-          c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (c.locationName ?? '').toLowerCase().includes(searchQuery.toLowerCase())
-      ),
-    [attended, searchQuery]
-  )
+  const attendedSectionTitle =
+    activeTab === 'past'
+      ? { title: 'Past Bookings', subtitle: "All camps you've previously attended" }
+      : { title: "Camps You've Attended", subtitle: 'Based on your booking history' }
 
-  const filteredAll = useMemo(
-    () =>
-      allCamps.filter(
-        c =>
-          c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (c.locationName ?? '').toLowerCase().includes(searchQuery.toLowerCase())
-      ),
-    [allCamps, searchQuery]
-  )
+  const browseSectionTitle =
+    activeTab === 'upcoming'
+      ? { title: 'Upcoming Camps', subtitle: 'Camps you have booked' }
+      : { title: 'Browse All Camps', subtitle: 'Find any camp to review' }
 
-  const tabs: { key: FilterTab; label: string; count: number }[] = [
-    { key: 'all', label: 'All Camps', count: filteredAll.length },
-    { key: 'attended', label: 'Attended', count: filteredAttended.length },
-  ]
+  const showAttendedBlock = activeTab === 'all' || activeTab === 'attended' || activeTab === 'past'
+  const showBrowseBlock = activeTab === 'all' || activeTab === 'upcoming'
+  const browseList: EligibleCampItem[] = activeTab === 'upcoming' ? filteredUpcoming : filteredAll
+
+  const attendedVisible = showAttendedBlock && filteredAttended.length > 0
+  const browseVisible = showBrowseBlock && browseList.length > 0
+
+  const hasMatchingCards = useMemo(() => {
+    if (activeTab === 'all') {
+      return filteredAttended.length > 0 || filteredAll.length > 0
+    }
+    if (activeTab === 'attended' || activeTab === 'past') {
+      return filteredAttended.length > 0
+    }
+    if (activeTab === 'upcoming') {
+      return filteredUpcoming.length > 0
+    }
+    return false
+  }, [activeTab, filteredAll.length, filteredAttended.length, filteredUpcoming.length])
+
+  const showSearchEmpty = Boolean(q) && !isEligibleLoading && !hasMatchingCards
+
+  const showDivider = activeTab === 'all' && attendedVisible && browseVisible && !showSearchEmpty
 
   return (
-    <div className="pt-14 lg:pt-0">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <button
-          onClick={() => router.back()}
-          className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
-        >
-          <ArrowLeft size={18} className="text-slate-600 dark:text-slate-400" />
-        </button>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
+    <div className="mx-auto max-w-3xl">
+      <section className="mb-8">
+        <h2 className="mb-2 text-2xl font-bold text-default-900 dark:text-white md:text-3xl">
           Which camp do you want to review?
-        </h1>
-      </div>
+        </h2>
+        <p className="text-base leading-relaxed text-default-500 dark:text-slate-400">
+          Select a camp you&apos;ve attended to share your experience with other families.
+        </p>
+      </section>
 
-      {/* Search */}
-      <div className="mb-5">
+      <div className="relative mb-6">
         <Input
-          placeholder="Search camps by name or location…"
+          placeholder="Search camps..."
           value={searchQuery}
           onValueChange={setSearchQuery}
-          startContent={<Search size={16} className="text-slate-400 shrink-0" />}
+          startContent={<Search className="size-4 shrink-0 text-default-500" aria-hidden />}
           classNames={{
-            inputWrapper:
-              'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-none h-11',
+            inputWrapper: cn(
+              'h-12 min-h-12 rounded-xl border-default-200 bg-white py-0 shadow-none',
+              'dark:border-slate-600 dark:bg-slate-900'
+            ),
+            input: 'text-base pl-1',
           }}
         />
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1 w-fit mb-6">
-        {tabs.map(tab => (
+      <div className="-mx-1 mb-6 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {FILTER_TABS.map(tab => (
           <button
             key={tab.key}
+            type="button"
             onClick={() => setActiveTab(tab.key)}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer',
+              'cursor-pointer shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition-colors',
               activeTab === tab.key
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'border-default-900 bg-default-900 text-white dark:border-white dark:bg-white dark:text-default-900'
+                : 'border-default-200 bg-white text-default-900 hover:border-default-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white dark:hover:border-slate-400'
             )}
           >
             {tab.label}
-            <span
-              className={cn(
-                'px-1.5 py-0.5 rounded-md text-xs',
-                activeTab === tab.key
-                  ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
-                  : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-              )}
-            >
-              {tab.count}
-            </span>
           </button>
         ))}
       </div>
 
-      {/* Loading skeletons */}
-      {isEligibleLoading && (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <div
-              key={i}
-              className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse"
-            />
-          ))}
+      {isEligibleLoading ? (
+        <CampListSkeleton />
+      ) : showSearchEmpty ? (
+        <div className="px-4 py-16 text-center sm:px-6">
+          <Search className="mx-auto mb-4 size-16 text-default-300 dark:text-slate-600" />
+          <h3 className="mb-2 text-lg font-semibold text-default-900 dark:text-white">
+            No camps found
+          </h3>
+          <p className="mb-6 text-sm leading-relaxed text-default-500 dark:text-slate-400">
+            Try adjusting your search or filters to find what you&apos;re looking for.
+          </p>
+          <Button color="primary" onPress={() => setSearchQuery('')}>
+            Clear Search
+          </Button>
         </div>
-      )}
-
-      {!isEligibleLoading && (
+      ) : (
         <>
-          {/* Attended section */}
-          {(activeTab === 'all' || activeTab === 'attended') && filteredAttended.length > 0 && (
-            <div className="mb-6">
-              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">
-                Camps You&apos;ve Attended
-              </p>
-              <div className="space-y-3">
+          {showAttendedBlock && attendedVisible ? (
+            <>
+              <SectionHeader
+                title={attendedSectionTitle.title}
+                subtitle={attendedSectionTitle.subtitle}
+              />
+              <div className="mb-8 flex flex-col gap-4 md:grid md:grid-cols-2 md:gap-4">
                 {filteredAttended.map(camp => (
-                  <CampCard
+                  <WriteReviewCampSelectCard
                     key={camp.attended.bookingId}
                     camp={camp}
                     attended={camp.attended}
@@ -204,34 +246,41 @@ const CampSelectorPage = () => {
                   />
                 ))}
               </div>
-            </div>
-          )}
+            </>
+          ) : null}
 
-          {/* All camps section */}
-          {activeTab === 'all' && filteredAll.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">
-                Browse All Camps
-              </p>
-              <div className="space-y-3">
-                {filteredAll.map(camp => (
-                  <CampCard key={camp.id} camp={camp} onSelect={() => handleSelect(camp.id)} />
+          {showDivider ? (
+            <div className="my-8 h-2 bg-default-100 dark:bg-slate-800" role="presentation" />
+          ) : null}
+
+          {showBrowseBlock && browseVisible ? (
+            <>
+              <SectionHeader
+                title={browseSectionTitle.title}
+                subtitle={browseSectionTitle.subtitle}
+              />
+              <div className="flex flex-col gap-4 md:grid md:grid-cols-2 md:gap-4">
+                {browseList.map(camp => (
+                  <WriteReviewCampSelectCard
+                    key={camp.id}
+                    camp={camp}
+                    onSelect={() => handleSelect(camp.id)}
+                  />
                 ))}
               </div>
-            </div>
-          )}
+            </>
+          ) : null}
 
-          {/* Empty state */}
-          {filteredAttended.length === 0 && filteredAll.length === 0 && (
-            <div className="text-center py-16">
-              <p className="text-base font-medium text-slate-900 dark:text-white mb-1">
+          {!showSearchEmpty && !attendedVisible && !browseVisible && !isEligibleLoading ? (
+            <div className="py-16 text-center">
+              <p className="text-lg font-semibold text-default-900 dark:text-white">
                 No camps found
               </p>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Try a different search term.
+              <p className="mt-2 text-sm text-default-500 dark:text-slate-400">
+                Try a different search term or filter.
               </p>
             </div>
-          )}
+          ) : null}
         </>
       )}
     </div>

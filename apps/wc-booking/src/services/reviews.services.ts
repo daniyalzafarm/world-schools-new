@@ -12,6 +12,9 @@ export interface EligibleCampItem {
   locationName?: string | null
   photos?: unknown
   slug: string
+  /** Mean of published review dimension averages; null when there are no published reviews. */
+  avgRating?: number | null
+  reviewCount?: number
 }
 
 export interface AttendedEligible {
@@ -20,6 +23,8 @@ export interface AttendedEligible {
   locationName?: string | null
   photos?: unknown
   slug: string
+  avgRating?: number | null
+  reviewCount?: number
   attended: { date: string; bookingGroupId: string; bookingId: string }
 }
 

@@ -172,6 +172,7 @@ export interface ParentBookingGroupSummary {
   expiresAt: string | null
   updatedAt: string
   camp: {
+    id: string
     name: string
     slug: string
     coverImageUrl: string | null

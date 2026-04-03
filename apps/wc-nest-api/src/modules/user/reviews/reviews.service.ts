@@ -4,7 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { AzureStorageService } from '@world-schools/wc-utils/backend'
 import { PrismaService } from '../../../prisma/prisma.service'
+import { ConfigService } from '../../../config/config.service'
 import { CreateReviewDto } from './dto/create-review.dto'
 import { UpdateReviewDto } from './dto/update-review.dto'
 
@@ -28,7 +30,59 @@ const REVIEW_INCLUDE = {
 
 @Injectable()
 export class UserReviewsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private azureStorage: AzureStorageService | null = null
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService
+  ) {}
+
+  /** Same SAS URL rules as {@link UserCampsService.getCampBySlug} / get camp API. */
+  private getAzureStorage(): AzureStorageService {
+    if (!this.azureStorage) {
+      const config = this.configService.azureStorageConfig
+      if (!config.accountName || !config.accountKey || !config.containerName) {
+        throw new Error('Azure Storage is not configured. Please contact the administrator.')
+      }
+      this.azureStorage = new AzureStorageService(config)
+    }
+    return this.azureStorage
+  }
+
+  private async generatePhotoUrls(photos: any[]): Promise<any[]> {
+    const azureStorage = this.getAzureStorage()
+    return Promise.all(
+      photos.map(async photo => {
+        try {
+          const sasUrl = await azureStorage.generateSasUrl(photo.url, 24)
+          return {
+            ...photo,
+            url: sasUrl,
+            thumbnail: sasUrl,
+          }
+        } catch {
+          return photo
+        }
+      })
+    )
+  }
+
+  private async withSasUrlsOnCampPhotos<T extends { photos?: unknown }>(camp: T): Promise<T> {
+    const photos = camp.photos
+    if (photos && Array.isArray(photos) && (photos as any[]).length > 0) {
+      const photosWithUrls = await this.generatePhotoUrls(photos as any[])
+      return { ...camp, photos: photosWithUrls }
+    }
+    return camp
+  }
+
+  private async withSasUrlsOnReviewCamp<T extends { camp?: { photos?: unknown } | null }>(
+    review: T | null
+  ): Promise<T | null> {
+    if (!review?.camp) return review
+    const camp = await this.withSasUrlsOnCampPhotos(review.camp as { photos?: unknown })
+    return { ...review, camp }
+  }
 
   private async getParentId(userId: string): Promise<string> {
     const parent = await this.prisma.parent.findUnique({ where: { userId } })
@@ -52,7 +106,12 @@ export class UserReviewsService {
       }),
     ])
 
-    return { published, pendingModeration }
+    return {
+      published: await Promise.all(published.map(r => this.withSasUrlsOnReviewCamp(r))),
+      pendingModeration: await Promise.all(
+        pendingModeration.map(r => this.withSasUrlsOnReviewCamp(r))
+      ),
+    }
   }
 
   async findEligible(userId: string) {
@@ -98,20 +157,94 @@ export class UserReviewsService {
       orderBy: { name: 'asc' },
     })
 
-    const eligibleFromBookings = bookingsWithoutReview.map(b => ({
-      id: b.camp.id,
-      name: b.camp.name,
-      locationName: b.camp.locationName,
-      photos: b.camp.photos,
-      slug: b.camp.slug,
-      attended: {
-        date: b.endDate.toISOString(),
-        bookingGroupId: b.bookingGroupId,
-        bookingId: b.id,
-      },
-    }))
+    const campIds = [
+      ...new Set([...allCamps.map(c => c.id), ...bookingsWithoutReview.map(b => b.camp.id)]),
+    ]
+    const reviewStatsByCampId = await this.getPublishedReviewStatsForCamps(campIds)
 
-    return { attended: eligibleFromBookings, allCamps }
+    const attachStats = <T extends { id: string }>(camp: T) => {
+      const s = reviewStatsByCampId.get(camp.id)
+      return {
+        ...camp,
+        reviewCount: s?.reviewCount ?? 0,
+        avgRating: s?.avgRating ?? null,
+      }
+    }
+
+    const eligibleFromBookings = await Promise.all(
+      bookingsWithoutReview.map(b =>
+        this.withSasUrlsOnCampPhotos(
+          attachStats({
+            id: b.camp.id,
+            name: b.camp.name,
+            locationName: b.camp.locationName,
+            photos: b.camp.photos,
+            slug: b.camp.slug,
+            attended: {
+              date: b.endDate.toISOString(),
+              bookingGroupId: b.bookingGroupId,
+              bookingId: b.id,
+            },
+          })
+        )
+      )
+    )
+
+    const allCampsOut = await Promise.all(
+      allCamps.map(c => this.withSasUrlsOnCampPhotos(attachStats(c)))
+    )
+
+    return {
+      attended: eligibleFromBookings,
+      allCamps: allCampsOut,
+    }
+  }
+
+  /** Aggregated published review counts and a simple average of dimension means per camp (for list cards). */
+  private async getPublishedReviewStatsForCamps(
+    campIds: string[]
+  ): Promise<Map<string, { reviewCount: number; avgRating: number | null }>> {
+    const map = new Map<string, { reviewCount: number; avgRating: number | null }>()
+    if (campIds.length === 0) return map
+
+    const rows = await this.prisma.campReview.groupBy({
+      by: ['campId'],
+      where: { status: 'published', campId: { in: campIds } },
+      _count: { _all: true },
+      _avg: {
+        happinessRating: true,
+        safetyRating: true,
+        communicationRating: true,
+        asDescribedRating: true,
+        growthRating: true,
+        valueRating: true,
+      },
+    })
+
+    for (const row of rows) {
+      const dims = [
+        row._avg.happinessRating,
+        row._avg.safetyRating,
+        row._avg.communicationRating,
+        row._avg.asDescribedRating,
+        row._avg.growthRating,
+        row._avg.valueRating,
+      ]
+        .map(v => (v == null ? null : Number(v)))
+        .filter((v): v is number => v != null && !Number.isNaN(v))
+
+      const avgRating =
+        dims.length > 0
+          ? Math.round((dims.reduce((a, b) => a + b, 0) / dims.length) * 100) / 100
+          : null
+
+      map.set(row.campId, {
+        reviewCount: row._count._all,
+        avgRating,
+      })
+    }
+
+    return map
   }
 
   async create(userId: string, dto: CreateReviewDto) {
@@ -172,7 +305,7 @@ export class UserReviewsService {
       })
     })
 
-    return review
+    return this.withSasUrlsOnReviewCamp(review)
   }
 
   async update(userId: string, reviewId: string, dto: UpdateReviewDto) {
@@ -238,7 +371,7 @@ export class UserReviewsService {
       })
     })
 
-    return review
+    return this.withSasUrlsOnReviewCamp(review)
   }
 
   async remove(userId: string, reviewId: string) {
