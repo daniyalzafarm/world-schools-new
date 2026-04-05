@@ -66,6 +66,23 @@ const MyReviewsPage = () => {
         </Button>
       </div>
 
+      {/* Summary card */}
+      {!loading && published.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-6 py-5 mb-8 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-linear-to-br from-amber-100 to-amber-200 dark:from-amber-900/40 dark:to-amber-800/40 flex items-center justify-center shrink-0 text-2xl">
+            ⭐
+          </div>
+          <div>
+            <p className="text-xl font-semibold text-slate-900 dark:text-white">
+              You&apos;ve reviewed {published.length} camp{published.length !== 1 ? 's' : ''}
+            </p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Your reviews help other families find great camps
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Loading skeletons */}
       {loading && (
         <div className="space-y-4">
