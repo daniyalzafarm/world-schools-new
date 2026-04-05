@@ -25,6 +25,7 @@ import {
   LogOut,
   MessageCircle,
   Settings,
+  Star,
   Users,
 } from 'lucide-react'
 import { cn } from '@world-schools/ui-web'
@@ -114,6 +115,12 @@ const NAV_ITEMS: NavItem[] = [
     name: 'Messages',
     href: '/messages',
     icon: <MessageCircle size={20} />,
+    type: 'regular',
+  },
+  {
+    name: 'Reviews',
+    href: '/reviews',
+    icon: <Star size={20} />,
     type: 'regular',
   },
   {

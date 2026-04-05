@@ -929,6 +929,7 @@ export class BookingGroupsService {
           expiresAt: row.expiresAt?.toISOString() ?? null,
           updatedAt: row.updatedAt.toISOString(),
           camp: {
+            id: row.camp.id,
             name: row.camp.name,
             slug: row.camp.slug,
             coverImageUrl,
