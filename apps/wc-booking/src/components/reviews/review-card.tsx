@@ -8,6 +8,7 @@ import { cn, StarRating } from '@world-schools/ui-web'
 import { CheckCircle2, MessageSquare, Pencil, ThumbsUp } from 'lucide-react'
 import { getTagDefinition } from '@world-schools/wc-types'
 import { type CampReview, computeAvgRating, type ReviewTagDimension } from '@/types/reviews'
+import { ExpandableText } from '@/components/camp/ExpandableText'
 import { CampResponseModal } from './camp-response-modal'
 
 interface ReviewCardProps {
@@ -16,7 +17,6 @@ interface ReviewCardProps {
 
 export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
   const router = useRouter()
-  const [expanded, setExpanded] = useState(false)
   const [responseModalOpen, setResponseModalOpen] = useState(false)
 
   const avgRating = computeAvgRating(review)
@@ -38,8 +38,6 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
     : null
 
   const reviewText = review.reviewText ?? ''
-  const isLong = reviewText.length > 220
-  const displayText = isLong && !expanded ? reviewText.slice(0, 220) + '…' : reviewText
 
   // Group tags by dimension for display
   const tagsByDimension = review.tags.reduce<Record<string, string[]>>((acc, t) => {
@@ -114,21 +112,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
         </div>
 
         {/* Review text */}
-        {reviewText && (
-          <div className="mb-4">
-            <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-              {displayText}
-            </p>
-            {isLong && (
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="text-xs font-medium text-primary-600 dark:text-primary-400 mt-1 hover:underline"
-              >
-                {expanded ? 'Show less' : 'Read more'}
-              </button>
-            )}
-          </div>
-        )}
+        <ExpandableText text={reviewText} />
 
         {/* Tag highlights (first dimension that has tags) */}
         {Object.values(tagsByDimension).some(tags => tags.length > 0) && (
