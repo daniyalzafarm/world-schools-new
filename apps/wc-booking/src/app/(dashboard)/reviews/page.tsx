@@ -48,22 +48,13 @@ const MyReviewsPage = () => {
   return (
     <>
       {/* Page Header */}
-      <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white mb-1">
-            My Reviews
-          </h1>
-          <p className="text-base text-slate-500 dark:text-slate-400">
-            Manage your camp reviews and share experiences with other families.
-          </p>
-        </div>
-        <Button
-          onPress={() => router.push('/reviews/write')}
-          className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold px-5 rounded-xl h-auto py-2.5 whitespace-nowrap"
-          startContent={<PenLine size={16} />}
-        >
-          Write a Review
-        </Button>
+      <div className="mb-8">
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white mb-1">
+          My Reviews
+        </h1>
+        <p className="text-base text-slate-500 dark:text-slate-400">
+          Manage your camp reviews and share experiences with other families.
+        </p>
       </div>
 
       {/* Summary card */}
