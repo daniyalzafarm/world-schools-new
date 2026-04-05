@@ -294,8 +294,9 @@ export class UserReviewsService {
           photos: reviewFields.photos ?? [],
           returnChoice: reviewFields.returnChoice ?? null,
           outcomes: reviewFields.outcomes ?? [],
-          status: reviewFields.status,
-          submittedAt: reviewFields.status === 'pending' ? new Date() : null,
+          status: 'published',
+          submittedAt: new Date(),
+          publishedAt: new Date(),
         },
       })
 
@@ -352,9 +353,11 @@ export class UserReviewsService {
           ...(fields.photos !== undefined && { photos: fields.photos }),
           ...(fields.returnChoice !== undefined && { returnChoice: fields.returnChoice }),
           ...(fields.outcomes !== undefined && { outcomes: fields.outcomes }),
+          ...(existing.status !== 'draft' && { editedAt: new Date() }),
           ...(fields.status !== undefined && {
-            status: fields.status,
+            status: fields.status === 'pending' ? 'published' : fields.status,
             submittedAt: fields.status === 'pending' ? new Date() : existing.submittedAt,
+            ...(fields.status === 'pending' && { publishedAt: new Date() }),
           }),
         },
       })

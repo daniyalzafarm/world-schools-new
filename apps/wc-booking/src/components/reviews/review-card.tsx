@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@heroui/react'
 import { cn, StarRating } from '@world-schools/ui-web'
@@ -24,6 +25,13 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
 
   const attendedDate = review.publishedAt
     ? new Date(review.publishedAt).toLocaleDateString('en-GB', {
+        month: 'long',
+        year: 'numeric',
+      })
+    : null
+
+  const editedDate = review.editedAt
+    ? new Date(review.editedAt).toLocaleDateString('en-GB', {
         month: 'long',
         year: 'numeric',
       })
@@ -65,9 +73,12 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
 
           {/* Camp info */}
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-slate-900 dark:text-white truncate">
+            <Link
+              href={`/camps/${encodeURIComponent(review.camp.slug)}`}
+              className="font-semibold text-slate-900 dark:text-white truncate block hover:underline"
+            >
               {review.camp.name}
-            </p>
+            </Link>
             {review.camp.locationName && (
               <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
                 {review.camp.locationName}
@@ -76,6 +87,11 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
             {attendedDate && (
               <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                 Published {attendedDate}
+              </p>
+            )}
+            {editedDate && (
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                Edited {editedDate}
               </p>
             )}
             {avgRating > 0 && (
@@ -148,29 +164,31 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700">
-          {review.helpfulCount > 0 ? (
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-              <ThumbsUp size={13} />
-              <span>{review.helpfulCount} parents found this helpful</span>
-            </div>
-          ) : (
-            <div />
-          )}
+        {(review.helpfulCount || review.response) && (
+          <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700">
+            {review.helpfulCount > 0 ? (
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <ThumbsUp size={13} />
+                <span>{review.helpfulCount} parents found this helpful</span>
+              </div>
+            ) : (
+              <div />
+            )}
 
-          {review.response && (
-            <button
-              onClick={() => setResponseModalOpen(true)}
-              className={cn(
-                'flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300',
-                'hover:text-slate-900 dark:hover:text-white transition-colors'
-              )}
-            >
-              <MessageSquare size={13} />
-              <span>{review.camp.name} responded</span>
-            </button>
-          )}
-        </div>
+            {review.response && (
+              <button
+                onClick={() => setResponseModalOpen(true)}
+                className={cn(
+                  'flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300',
+                  'hover:text-slate-900 dark:hover:text-white transition-colors'
+                )}
+              >
+                <MessageSquare size={13} />
+                <span>{review.camp.name} responded</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Camp Response Modal */}

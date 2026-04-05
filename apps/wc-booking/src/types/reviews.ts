@@ -61,6 +61,7 @@ export interface CampReview {
   updatedAt: string
   submittedAt?: string | null
   publishedAt?: string | null
+  editedAt?: string | null
 }
 
 export interface EligibleCamp {

@@ -505,10 +505,8 @@ const WriteReviewCampPage = () => {
           </h1>
           <p className="mb-10 text-base leading-relaxed text-default-500 dark:text-slate-400">
             {reviewId
-              ? loadedReview?.status === 'published'
-                ? 'Your changes are live on the camp profile.'
-                : 'Your updates are saved. If your review is in moderation, it will appear on the camp profile after approval.'
-              : "Your review is now in moderation and will appear on the camp's profile within 24 hours. It'll help other families make the right choice."}
+              ? 'Your changes are live on the camp profile.'
+              : "Your review is now live on the camp's profile. It'll help other families make the right choice."}
           </p>
           <Button
             radius="lg"

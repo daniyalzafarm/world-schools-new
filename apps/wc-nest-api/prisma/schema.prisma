@@ -68,7 +68,7 @@ model User {
   statusChangedConversations Conversation[]                @relation("StatusChangedByUser")
 
   // Review Relations
-  campReviewResponses  CampReviewResponse[]
+  campReviewResponses CampReviewResponse[]
 
   // Knowledge Base Relations
   articleFeedback ArticleFeedback[]
@@ -910,12 +910,12 @@ enum CalculationType {
 /// Groups sibling bookings for a single parent; one payment flow per group.
 /// All bookings in a group share the same payment/refund lifecycle.
 model BookingGroup {
-  id         String @id @default(uuid())
+  id                 String @id @default(uuid())
   bookingGroupNumber String @unique @map("booking_group_number") @db.VarChar(32)
-  parentId   String @map("parent_id")
-  sessionId  String @map("session_id")
-  campId     String @map("camp_id")
-  providerId String @map("provider_id")
+  parentId           String @map("parent_id")
+  sessionId          String @map("session_id")
+  campId             String @map("camp_id")
+  providerId         String @map("provider_id")
 
   /// Monetary breakdown in booking currency.
   /// Sum of child line items before discounts.
@@ -948,10 +948,10 @@ model BookingGroup {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  parent   Parent    @relation(fields: [parentId], references: [id], onDelete: Restrict)
-  session  Session   @relation(fields: [sessionId], references: [id], onDelete: Restrict)
-  camp     Camp      @relation(fields: [campId], references: [id], onDelete: Restrict)
-  provider Provider  @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  parent   Parent       @relation(fields: [parentId], references: [id], onDelete: Restrict)
+  session  Session      @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  camp     Camp         @relation(fields: [campId], references: [id], onDelete: Restrict)
+  provider Provider     @relation(fields: [providerId], references: [id], onDelete: Restrict)
   bookings Booking[]
   reviews  CampReview[]
 
@@ -2148,19 +2148,19 @@ model CampReview {
   bookingId      String? @unique @map("booking_id")
 
   // Visit details (captured for public reviewers; derived from booking for verified)
-  visitMonth Int?   @map("visit_month")
-  visitYear  Int?   @map("visit_year")
-  kidCount   Int?   @default(1) @map("kid_count")
-  kidAges    Int[]  @map("kid_ages")
+  visitMonth Int?     @map("visit_month")
+  visitYear  Int?     @map("visit_year")
+  kidCount   Int?     @default(1) @map("kid_count")
+  kidAges    Int[]    @map("kid_ages")
   kidTags    String[] @map("kid_tags")
 
   // Core ratings (1–5, null = not rated)
-  happinessRating      Int? @map("happiness_rating")
-  safetyRating         Int? @map("safety_rating")
-  communicationRating  Int? @map("communication_rating")
-  asDescribedRating    Int? @map("as_described_rating")
-  growthRating         Int? @map("growth_rating")
-  valueRating          Int? @map("value_rating")
+  happinessRating     Int? @map("happiness_rating")
+  safetyRating        Int? @map("safety_rating")
+  communicationRating Int? @map("communication_rating")
+  asDescribedRating   Int? @map("as_described_rating")
+  growthRating        Int? @map("growth_rating")
+  valueRating         Int? @map("value_rating")
 
   // Written content
   reviewText   String?  @map("review_text") @db.Text
@@ -2177,6 +2177,7 @@ model CampReview {
   updatedAt   DateTime  @updatedAt @map("updated_at")
   submittedAt DateTime? @map("submitted_at")
   publishedAt DateTime? @map("published_at")
+  editedAt    DateTime? @map("edited_at")
 
   // Relations
   camp         Camp                @relation(fields: [campId], references: [id], onDelete: Restrict)
