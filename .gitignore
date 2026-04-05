@@ -60,3 +60,6 @@ static/
 graph.html
 .nx/polygraph
 .cursor
+
+# Claude Code — local user settings (project settings.json is tracked)
+.claude/settings.local.json
