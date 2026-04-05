@@ -3,12 +3,13 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Button } from '@heroui/react'
-import { cn, StarRating } from '@world-schools/ui-web'
-import { CheckCircle2, Dot, MessageSquare, Pencil, ThumbsUp } from 'lucide-react'
+import { addToast, Button } from '@heroui/react'
+import { cn, StarRating, useConfirmDialog } from '@world-schools/ui-web'
+import { CheckCircle2, Dot, MessageSquare, Pencil, ThumbsUp, Trash2 } from 'lucide-react'
 import { getTagDefinition } from '@world-schools/wc-types'
 import { type CampReview, computeAvgRating, type ReviewTagDimension } from '@/types/reviews'
 import { ExpandableText } from '@/components/camp/ExpandableText'
+import { useReviewsStore } from '@/stores/reviews-store'
 import { CampResponseModal } from './camp-response-modal'
 
 interface ReviewCardProps {
@@ -17,7 +18,29 @@ interface ReviewCardProps {
 
 export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
   const router = useRouter()
+  const { removeReview } = useReviewsStore()
+  const { confirm } = useConfirmDialog()
   const [responseModalOpen, setResponseModalOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: 'Delete review',
+      message: `Are you sure you want to delete your review of ${review.camp.name}? This cannot be undone.`,
+      confirmText: 'Delete',
+      variant: 'danger',
+    })
+    if (!ok) return
+    setIsDeleting(true)
+    const isDeleted = await removeReview(review.id)
+    if (isDeleted)
+      addToast({
+        title: 'Success',
+        description: 'Review deleted successfully',
+        color: 'success',
+      })
+    setIsDeleting(false)
+  }
 
   const avgRating = computeAvgRating(review)
   const campPhotos = review.camp.photos as { url?: string; isPrimary?: boolean }[] | null
@@ -97,15 +120,25 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
             </div>
           </div>
 
-          {/* Edit button */}
-          <Button
-            variant="flat"
-            startContent={<Pencil size={14} />}
-            className="shrink-0 self-start"
-            onPress={() => router.push(`/reviews/write/${review.campId}?reviewId=${review.id}`)}
-          >
-            Edit
-          </Button>
+          {/* Actions */}
+          <div className="flex items-center gap-2 shrink-0 self-start">
+            <Button
+              variant="flat"
+              startContent={<Pencil size={14} />}
+              onPress={() => router.push(`/reviews/write/${review.campId}?reviewId=${review.id}`)}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="flat"
+              color="danger"
+              isIconOnly
+              isLoading={isDeleting}
+              onPress={handleDelete}
+            >
+              <Trash2 size={15} />
+            </Button>
+          </div>
         </div>
 
         {avgRating > 0 && (

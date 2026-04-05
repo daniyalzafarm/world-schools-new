@@ -392,9 +392,6 @@ export class UserReviewsService {
     })
     if (!existing) throw new NotFoundException('Review not found')
     if (existing.parentId !== parentId) throw new ForbiddenException('Access denied')
-    if (existing.status !== 'draft') {
-      throw new BadRequestException('Only draft reviews can be deleted')
-    }
 
     await this.prisma.campReview.delete({ where: { id: reviewId } })
     return { message: 'Review deleted' }
