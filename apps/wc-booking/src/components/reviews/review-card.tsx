@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@heroui/react'
 import { cn, StarRating } from '@world-schools/ui-web'
-import { CheckCircle2, MessageSquare, Pencil, ThumbsUp } from 'lucide-react'
+import { CheckCircle2, Dot, MessageSquare, Pencil, ThumbsUp } from 'lucide-react'
 import { getTagDefinition } from '@world-schools/wc-types'
 import { type CampReview, computeAvgRating, type ReviewTagDimension } from '@/types/reviews'
 import { ExpandableText } from '@/components/camp/ExpandableText'
@@ -70,7 +70,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
           </div>
 
           {/* Camp info */}
-          <div className="flex-1 min-w-0">
+          <div className="flex flex-col gap-1 w-full min-w-0">
             <Link
               href={`/camps/${encodeURIComponent(review.camp.slug)}`}
               className="font-semibold text-slate-900 dark:text-white truncate block hover:underline"
@@ -82,26 +82,23 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
                 {review.camp.locationName}
               </p>
             )}
-            {attendedDate && (
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                Published {attendedDate}
-              </p>
-            )}
-            {editedDate && (
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                Edited {editedDate}
-              </p>
-            )}
-            {avgRating > 0 && (
-              <div className="mt-2">
-                <StarRating rating={avgRating} size={14} />
-              </div>
-            )}
+            <div className="flex items-center gap-1">
+              {attendedDate && (
+                <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">
+                  Published {attendedDate}
+                </p>
+              )}
+              {editedDate && <Dot className="text-slate-400" size={16} />}
+              {editedDate && (
+                <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">
+                  Edited {editedDate}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Edit button */}
           <Button
-            size="sm"
             variant="flat"
             startContent={<Pencil size={14} />}
             className="shrink-0 self-start"
@@ -110,6 +107,10 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
             Edit
           </Button>
         </div>
+
+        {avgRating > 0 && (
+          <StarRating color="yellow" className="my-2" rating={avgRating} size={14} />
+        )}
 
         {/* Review text */}
         <ExpandableText text={reviewText} />
