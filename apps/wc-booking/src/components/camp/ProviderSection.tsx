@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useMessagingStore } from '@/stores/messaging-store'
 import { ContextType } from '@world-schools/wc-frontend-utils'
-import { Button } from '@heroui/react'
+import { Button, Link } from '@heroui/react'
 
 interface ProviderSectionProps {
   provider: {
@@ -198,14 +198,17 @@ export function ProviderSection({ provider, campId, campSlug, campTitle }: Provi
           <Button onPress={handleMessageOrganizer} className="w-full" color="secondary">
             Message the camp
           </Button>
-          {totalCamps > 1 && (
-            <a
+          {/* {totalCamps > 1 && (
+            <Button
+              as={Link}
+              className="w-full"
+              color="secondary"
               href={`/providers/${provider.id}/camps`}
-              className="flex-1 bg-secondary text-white rounded-xl py-3.5 text-[14px] font-bold text-center hover:opacity-85 transition-opacity"
+              variant="solid"
             >
               View all {totalCamps} camps
-            </a>
-          )}
+            </Button>
+          )} */}
         </div>
       </div>
     </section>

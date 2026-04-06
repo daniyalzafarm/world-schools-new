@@ -56,25 +56,25 @@ export class UserCampsService {
   /**
    * Get all published camps
    */
-  async getPublishedCamps() {
+  async getPublishedCamps(search?: string) {
     const camps = await this.prisma.camp.findMany({
       where: {
         status: 'published',
+        ...(search?.trim() && {
+          name: { contains: search.trim(), mode: 'insensitive' },
+        }),
       },
-      orderBy: {
-        publishedAt: 'desc',
-      },
+      orderBy: { publishedAt: 'desc' },
+      // Limit search results to keep the response fast
+      ...(search?.trim() && { take: 15 }),
     })
 
-    // Generate SAS URLs for photos
+    // Generate SAS URL for the primary/first photo only (thumbnail for search results)
     const campsWithPhotoUrls = await Promise.all(
       camps.map(async camp => {
         if (camp.photos && Array.isArray(camp.photos) && camp.photos.length > 0) {
           const photosWithUrls = await this.generatePhotoUrls(camp.photos as any[])
-          return {
-            ...camp,
-            photos: photosWithUrls,
-          }
+          return { ...camp, photos: photosWithUrls }
         }
         return camp
       })

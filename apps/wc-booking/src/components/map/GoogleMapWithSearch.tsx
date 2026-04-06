@@ -10,7 +10,7 @@ export interface MapSelectedPlace {
   lat: number
   lng: number
   name: string
-  /** Google Maps place id (e.g. ChIJ…). When set, loads Place Details (New) and opens an info card. */
+  /** Google Maps place id — kept for backward compat, used to build a Maps link. */
   placeId?: string | null
 }
 
@@ -19,97 +19,52 @@ interface GoogleMapWithSearchProps {
   selectedPlace?: MapSelectedPlace | null
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
-function displayNameFromPlace(place: { displayName?: string | { text?: string } | null }): string {
-  const d = place.displayName
-  if (typeof d === 'string') return d
-  if (d && typeof d === 'object' && typeof d.text === 'string') return d.text
-  return ''
-}
-
-function latLngFromPlaceLocation(
-  location: google.maps.LatLng | google.maps.LatLngLiteral | null | undefined
-): { lat: number; lng: number } | null {
-  if (!location) return null
-  if (typeof (location as google.maps.LatLng).lat === 'function') {
-    const ll = location as google.maps.LatLng
-    return { lat: ll.lat(), lng: ll.lng() }
+function buildGoogleMapsUrl(place: MapSelectedPlace): string {
+  if (place.placeId?.trim()) {
+    return `https://www.google.com/maps?q=${encodeURIComponent(`place_id:${place.placeId.trim()}`)}`
   }
-  const l = location as google.maps.LatLngLiteral
-  if (typeof l.lat === 'number' && typeof l.lng === 'number') {
-    return { lat: l.lat, lng: l.lng }
-  }
-  return null
+  return `https://www.google.com/maps?q=${place.lat},${place.lng}`
 }
 
-/**
- * Fallback when Places has not returned {@link google.maps.places.Place.googleMapsURI} yet.
- * Uses `q=place_id:…` so Maps opens the place listing (search/?query_place_id often lands on generic search).
- */
-function fallbackGoogleMapsUrlFromPlaceId(placeId: string): string {
-  return `https://www.google.com/maps?q=${encodeURIComponent(`place_id:${placeId.trim()}`)}`
-}
+function createPinElement(label: string): HTMLElement {
+  const wrapper = document.createElement('div')
+  wrapper.style.cssText =
+    'display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:transform 0.2s;'
 
-/** Prefer official listing URL from Place Details; see Place.googleMapsURI in Maps JS types. */
-function resolveGoogleMapsListingUrl(place: google.maps.places.Place, placeId: string): string {
-  const fromApi = place.googleMapsURI?.trim()
-  if (fromApi) return fromApi
-  return fallbackGoogleMapsUrlFromPlaceId(placeId)
-}
+  const pill = document.createElement('div')
+  pill.textContent = label
+  pill.style.cssText =
+    'background:white;padding:5px 10px;border:1.5px solid #d1d5e1;border-radius:20px;font-size:12px;font-weight:700;color:#111827;box-shadow:0 2px 8px rgba(0,0,0,0.15);white-space:nowrap;font-family:system-ui,-apple-system,sans-serif;line-height:1.4;'
 
-function buildPlaceInfoCardHtml(
-  place: {
-    displayName?: string | { text?: string } | null
-    formattedAddress?: string | null
-    rating?: number | null
-    userRatingCount?: number | null
-    nationalPhoneNumber?: string | null
-  },
-  fallbackName: string,
-  mapsUri: string
-): string {
-  const title = displayNameFromPlace(place) || fallbackName
-  const addr = place.formattedAddress?.trim() ?? ''
-  const rating = place.rating
-  const reviews = place.userRatingCount
-  const phone = place.nationalPhoneNumber?.trim() ?? ''
+  const dot = document.createElement('div')
+  dot.style.cssText =
+    'width:8px;height:8px;background:#1E2A4A;border-radius:50%;margin-top:-2px;flex-shrink:0;'
 
-  const ratingLine =
-    typeof rating === 'number'
-      ? `<div style="font-size:13px;color:#5f6368;margin-top:4px;">★ ${rating.toFixed(1)}${typeof reviews === 'number' ? ` · ${reviews.toLocaleString()} reviews` : ''}</div>`
-      : ''
+  wrapper.appendChild(pill)
+  wrapper.appendChild(dot)
 
-  const phoneLine = phone
-    ? `<div style="font-size:13px;color:#5f6368;margin-top:6px;">${escapeHtml(phone)}</div>`
-    : ''
+  wrapper.addEventListener('mouseenter', () => {
+    pill.style.background = '#1E2A4A'
+    pill.style.color = 'white'
+    pill.style.border = 'none'
+    dot.style.background = '#45F0B5'
+    wrapper.style.transform = 'scale(1.1)'
+  })
+  wrapper.addEventListener('mouseleave', () => {
+    pill.style.background = 'white'
+    pill.style.color = '#111827'
+    pill.style.border = '1.5px solid #d1d5e1'
+    dot.style.background = '#1E2A4A'
+    wrapper.style.transform = 'scale(1)'
+  })
 
-  const linkLine = mapsUri.trim()
-    ? `<a href="${escapeHtml(mapsUri)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:10px;font-size:13px;font-weight:500;color:#1a73e8;text-decoration:none;">View on Google Maps</a>`
-    : ''
-
-  return `
-    <div style="font-family:system-ui,-apple-system,sans-serif;max-width:300px;padding:2px 4px 6px;">
-      <div style="font-weight:600;font-size:15px;color:#202124;line-height:1.3;">${escapeHtml(title)}</div>
-      ${addr ? `<div style="font-size:13px;color:#5f6368;margin-top:8px;line-height:1.4;">${escapeHtml(addr)}</div>` : ''}
-      ${ratingLine}
-      ${phoneLine}
-      ${linkLine}
-    </div>
-  `
+  return wrapper
 }
 
 export function GoogleMapWithSearch({ selectedPlace }: GoogleMapWithSearchProps) {
   const mapRef = useRef<HTMLDivElement>(null)
-  const markerRef = useRef<google.maps.Marker | null>(null)
-  const markerClickListenerRef = useRef<google.maps.MapsEventListener | null>(null)
-  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null)
+  const markerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null)
+  const popupRef = useRef<HTMLDivElement | null>(null)
   const [map, setMap] = useState<google.maps.Map | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -128,15 +83,12 @@ export function GoogleMapWithSearch({ selectedPlace }: GoogleMapWithSearchProps)
           return
         }
 
-        if (!mapRef.current) {
-          return
-        }
+        if (!mapRef.current) return
 
         const { Map } = (await google.maps.importLibrary('maps')) as google.maps.MapsLibrary
 
         if (!isMounted) return
 
-        const defaultLocation = { lat: 37.7749, lng: -122.4194 }
         const hasCoords =
           selectedPlace &&
           (selectedPlace.lat !== 0 || selectedPlace.lng !== 0) &&
@@ -145,12 +97,11 @@ export function GoogleMapWithSearch({ selectedPlace }: GoogleMapWithSearchProps)
 
         const initialCenter = hasCoords
           ? { lat: selectedPlace!.lat, lng: selectedPlace!.lng }
-          : defaultLocation
-        const initialZoom = hasCoords || selectedPlace?.placeId ? 14 : 12
+          : { lat: 46, lng: 8 }
 
         const mapInstance = new Map(mapRef.current, {
           center: initialCenter,
-          zoom: initialZoom,
+          zoom: hasCoords ? 14 : 6,
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
@@ -180,134 +131,98 @@ export function GoogleMapWithSearch({ selectedPlace }: GoogleMapWithSearchProps)
     }
   }, [])
 
-  // Marker + optional Place Details card
+  // Place marker
   useEffect(() => {
     if (!map || !selectedPlace) return
 
     let cancelled = false
 
-    const cleanupMarkerAndInfo = () => {
-      infoWindowRef.current?.close()
-      infoWindowRef.current = null
-      if (markerClickListenerRef.current) {
-        google.maps.event.removeListener(markerClickListenerRef.current)
-        markerClickListenerRef.current = null
+    const cleanup = () => {
+      if (popupRef.current) {
+        popupRef.current.remove()
+        popupRef.current = null
       }
       if (markerRef.current) {
-        markerRef.current.setMap(null)
+        markerRef.current.map = null
         markerRef.current = null
       }
     }
 
-    /** Classic default marker (teardrop) + optional click to reopen InfoWindow. */
-    const createMarker = (
-      lat: number,
-      lng: number,
-      title: string,
-      infoWindow: google.maps.InfoWindow | null
-    ): google.maps.Marker => {
-      const marker = new google.maps.Marker({
-        position: { lat, lng },
-        map,
-        title,
-        optimized: true,
-      })
-      if (infoWindow) {
-        markerClickListenerRef.current = marker.addListener('click', () => {
-          infoWindow.open({ map, anchor: marker })
-        })
-      }
-      return marker
-    }
-
-    const addSimpleMarker = (lat: number, lng: number, title: string) => {
-      if (cancelled) return
-      const marker = createMarker(lat, lng, title, null)
-      markerRef.current = marker
-      map.setCenter({ lat, lng })
-      map.setZoom(15)
-    }
-
     const run = async () => {
-      cleanupMarkerAndInfo()
+      cleanup()
 
-      const placeId = selectedPlace.placeId?.trim()
       const hasCoords =
         (selectedPlace.lat !== 0 || selectedPlace.lng !== 0) &&
         !Number.isNaN(selectedPlace.lat) &&
         !Number.isNaN(selectedPlace.lng)
 
-      if (placeId) {
-        try {
-          const { Place } = (await google.maps.importLibrary('places')) as google.maps.PlacesLibrary
-          const place = new Place({ id: placeId })
-          await place.fetchFields({
-            fields: [
-              'displayName',
-              'formattedAddress',
-              'location',
-              'rating',
-              'userRatingCount',
-              'nationalPhoneNumber',
-              // Official Maps URL for this place (capital URI — not `googleMapsUri`)
-              'googleMapsURI',
-            ],
-          })
+      if (!hasCoords) return
 
-          if (cancelled) return
+      const { AdvancedMarkerElement } = (await google.maps.importLibrary(
+        'marker'
+      )) as google.maps.MarkerLibrary
 
-          const pos = latLngFromPlaceLocation(place.location)
-          const lat = pos?.lat ?? (hasCoords ? selectedPlace.lat : null)
-          const lng = pos?.lng ?? (hasCoords ? selectedPlace.lng : null)
+      if (cancelled) return
 
-          if (lat == null || lng == null) {
-            if (hasCoords) {
-              addSimpleMarker(selectedPlace.lat, selectedPlace.lng, selectedPlace.name)
-            }
-            return
-          }
+      const mapsUrl = buildGoogleMapsUrl(selectedPlace)
 
-          map.setCenter({ lat, lng })
-          map.setZoom(16)
+      // Build a custom popup div anchored above the pill
+      const popup = document.createElement('div')
+      popup.style.cssText =
+        'position:absolute;display:none;flex-direction:column;align-items:center;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);z-index:10;pointer-events:auto;'
+      const card = document.createElement('div')
+      card.style.cssText =
+        'background:#1E2A4A;border-radius:14px;padding:12px 16px;min-width:160px;max-width:240px;box-shadow:0 4px 16px rgba(0,0,0,0.22);white-space:nowrap;'
+      card.innerHTML = `
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+          <div style="font-family:system-ui,-apple-system,sans-serif;font-weight:700;font-size:14px;color:#fff;line-height:1.4;">${selectedPlace.name}</div>
+          <button data-popup-close style="background:none;border:none;cursor:pointer;padding:0;line-height:1;color:rgba(255,255,255,0.6);font-size:16px;flex-shrink:0;margin-top:1px;">✕</button>
+        </div>
+        <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
+           style="font-family:system-ui,-apple-system,sans-serif;display:inline-block;margin-top:8px;font-size:12px;font-weight:600;color:#45F0B5;text-decoration:none;">
+          View on Google Maps →
+        </a>`
+      // Small caret pointing down
+      const caret = document.createElement('div')
+      caret.style.cssText =
+        'width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:8px solid #1E2A4A;'
+      popup.appendChild(card)
+      popup.appendChild(caret)
 
-          if (cancelled) return
+      const pinEl = createPinElement(selectedPlace.name)
+      pinEl.style.position = 'relative'
+      pinEl.appendChild(popup)
+      popupRef.current = popup
 
-          const mapsUri = resolveGoogleMapsListingUrl(place, placeId)
-          const html = buildPlaceInfoCardHtml(place, selectedPlace.name, mapsUri)
-          const iw = new google.maps.InfoWindow({ content: html, maxWidth: 320 })
-          infoWindowRef.current = iw
-
-          const marker = createMarker(
-            lat,
-            lng,
-            displayNameFromPlace(place) || selectedPlace.name,
-            iw
-          )
-          markerRef.current = marker
-          iw.open({ map, anchor: marker })
-        } catch (err) {
-          console.error('Place Details (New) failed:', err)
-          if (hasCoords) {
-            addSimpleMarker(selectedPlace.lat, selectedPlace.lng, selectedPlace.name)
-          }
+      let popupOpen = false
+      pinEl.addEventListener('click', e => {
+        const target = e.target as HTMLElement
+        if (target.closest('[data-popup-close]')) {
+          popupOpen = false
+          popup.style.display = 'none'
+          return
         }
-        return
-      }
+        popupOpen = !popupOpen
+        popup.style.display = popupOpen ? 'flex' : 'none'
+      })
 
-      if (hasCoords) {
-        try {
-          addSimpleMarker(selectedPlace.lat, selectedPlace.lng, selectedPlace.name)
-        } catch (err) {
-          console.error('Error creating marker:', err)
-        }
-      }
+      const marker = new AdvancedMarkerElement({
+        position: { lat: selectedPlace.lat, lng: selectedPlace.lng },
+        map,
+        content: pinEl,
+        title: selectedPlace.name,
+      })
+      markerRef.current = marker
+
+      map.setCenter({ lat: selectedPlace.lat, lng: selectedPlace.lng })
+      map.setZoom(15)
     }
 
     void run()
 
     return () => {
       cancelled = true
-      cleanupMarkerAndInfo()
+      cleanup()
     }
   }, [map, selectedPlace?.lat, selectedPlace?.lng, selectedPlace?.name, selectedPlace?.placeId])
 

@@ -31,3 +31,14 @@ export async function getCampReviews(campId: string): Promise<CampReviewsData> {
   if (!response.success) throw new Error((response.data as any).message)
   return response.data as CampReviewsData
 }
+
+/**
+ * Search published camps by name (public endpoint - no auth required)
+ */
+export async function searchCamps(query: string): Promise<Camp[]> {
+  const response = await apiClient.get<{ camps: Camp[] }>(
+    `/user/camps?search=${encodeURIComponent(query)}`
+  )
+  if (!response.success) throw new Error((response.data as any).message)
+  return (response.data as any).camps
+}

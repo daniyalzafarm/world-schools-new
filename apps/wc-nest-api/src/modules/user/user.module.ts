@@ -5,6 +5,7 @@ import { UserCampsModule } from './camps/camps.module'
 import { UserMessagingModule } from './messaging/user-messaging.module'
 import { UserBookingGroupsModule } from './booking-groups/booking-groups.module'
 import { UserReviewsModule } from './reviews/reviews.module'
+import { UserWishlistsModule } from './wishlists/wishlists.module'
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { UserReviewsModule } from './reviews/reviews.module'
     UserBookingGroupsModule,
     UserMessagingModule,
     UserReviewsModule,
+    UserWishlistsModule,
   ],
 })
 export class UserModule {}

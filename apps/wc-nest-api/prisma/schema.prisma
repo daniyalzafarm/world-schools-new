@@ -87,6 +87,9 @@ model User {
   supportTicketAssignmentTo      SupportTicketAssignmentHistory[] @relation("SupportTicketAssignmentToUser")
   supportTicketSatisfactionBy    SupportTicket[]                  @relation("SupportTicketSatisfactionBy")
 
+  // Wishlist Relations
+  wishlistShares WishlistShare[]
+
   @@map("users")
 }
 
@@ -273,6 +276,7 @@ model Parent {
   bookings      Booking[]
   bookingGroups BookingGroup[]
   reviews       CampReview[]
+  wishlists     Wishlist[]
 
   @@index([userId])
   @@map("parents")
@@ -322,10 +326,85 @@ model Children {
   bookings       Booking[]
   childInterests ChildInterest[]
   childSkills    ChildSkill[]
+  wishlists      WishlistChild[]
 
   @@index([parentId])
   @@index([archived])
   @@map("children")
+}
+
+// ============================================
+// Wishlists
+// ============================================
+
+model Wishlist {
+  id                   String   @id @default(uuid())
+  parentId             String   @map("parent_id")
+  name                 String   @db.VarChar(120)
+  icon                 String?  @db.VarChar(10)
+  shareToken           String?  @unique @map("share_token")
+  isLinkSharingEnabled Boolean  @default(false) @map("is_link_sharing_enabled")
+  archived             Boolean  @default(false)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  parent   Parent          @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  items    WishlistItem[]
+  children WishlistChild[]
+  shares   WishlistShare[]
+
+  @@index([parentId])
+  @@index([shareToken])
+  @@map("wishlists")
+}
+
+model WishlistChild {
+  id         String   @id @default(uuid())
+  wishlistId String   @map("wishlist_id")
+  childId    String   @map("child_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  child    Children @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([wishlistId, childId])
+  @@index([wishlistId])
+  @@map("wishlist_children")
+}
+
+model WishlistItem {
+  id         String   @id @default(uuid())
+  wishlistId String   @map("wishlist_id")
+  campId     String   @map("camp_id")
+  sessionId  String?  @map("session_id")
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  camp     Camp     @relation(fields: [campId], references: [id], onDelete: Cascade)
+  session  Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@unique([wishlistId, campId])
+  @@index([wishlistId])
+  @@map("wishlist_items")
+}
+
+model WishlistShare {
+  id         String            @id @default(uuid())
+  wishlistId String            @map("wishlist_id")
+  email      String
+  userId     String?           @map("user_id")
+  role       WishlistShareRole @default(viewer)
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+
+  wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([wishlistId, email])
+  @@index([email])
+  @@map("wishlist_shares")
 }
 
 // ============================================
@@ -602,6 +681,7 @@ model Camp {
   eligibilityRequirements CampEligibilityRequirement[]
   reviews                 CampReview[]
   reviewResponses         CampReviewResponse[]
+  wishlistItems           WishlistItem[]
 
   @@index([providerId])
   @@index([status])
@@ -871,6 +951,13 @@ enum CampStatus {
   archived
 }
 
+enum WishlistShareRole {
+  viewer
+  editor
+
+  @@map("wishlist_share_role")
+}
+
 enum SessionDayType {
   full_day
   half_day
@@ -1006,6 +1093,7 @@ model Session {
   bookings       Booking[]
   bookingGroups  BookingGroup[]
   supportTickets SupportTicket[]
+  wishlistItems  WishlistItem[]
 
   @@index([campId])
   @@index([status])

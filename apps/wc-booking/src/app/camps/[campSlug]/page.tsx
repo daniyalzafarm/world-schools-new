@@ -29,6 +29,7 @@ import { CampStatsBar } from '@/components/camp/CampStatsBar'
 import { FaqSection } from '@/components/camp/FaqSection'
 import { AccordionGroup } from '@/components/camp/AccordionGroup'
 import { SessionsModal } from '@/components/camp/SessionsModal'
+import { AddToWishlistModal } from '@/components/wishlists/modals/add-to-wishlist-modal'
 import { ReviewsSection } from '@/components/camp/ReviewsSection'
 import { CampSidebar } from '@/components/camp/CampSidebar'
 import { MobileStickyFooter } from '@/components/camp/MobileStickyFooter'
@@ -261,7 +262,15 @@ export default function CampPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <CampPageTopbar suppressed={innerNavReplacesTopbar} />
+      <CampPageTopbar
+        suppressed={innerNavReplacesTopbar}
+        camp={{
+          id: camp.id,
+          name: camp.name,
+          thumbnail: primaryPhotoUrl,
+          locationName: camp.locationName ?? null,
+        }}
+      />
       {/* ── 1. Hero Gallery ─────────────────────────────────────────── */}
       <div id="gallery">
         {/* Mobile — module-02 Variant C: single photo + count badge */}
@@ -352,7 +361,16 @@ export default function CampPage() {
       </div>
 
       {/* ── 2. Inner Nav (fixed; visible only after gallery scrolls past) ─ */}
-      <InnerPageNav links={navLinks} visible={innerNavReplacesTopbar} />
+      <InnerPageNav
+        links={navLinks}
+        visible={innerNavReplacesTopbar}
+        camp={{
+          id: camp.id,
+          name: camp.name,
+          thumbnail: primaryPhotoUrl,
+          locationName: camp.locationName ?? null,
+        }}
+      />
 
       {/* ── Page body: content + sidebar ─────────────────────────────── */}
       <div className="max-w-screen-2xl mx-auto px-5 sm:px-8 lg:px-32 pb-32 lg:pb-20">
@@ -749,6 +767,9 @@ export default function CampPage() {
           />
         </div>
       </div>
+
+      {/* ── Wishlist modal ─────────────────────────────────────────── */}
+      <AddToWishlistModal skipSuccessView />
 
       {/* ── Sessions modal ─────────────────────────────────────────── */}
       <SessionsModal

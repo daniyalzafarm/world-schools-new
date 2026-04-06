@@ -383,7 +383,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           {/* Navigation */}
-          <nav className="p-3 space-y-1 overflow-x-hidden flex-1 overflow-y-auto min-h-0">
+          <nav className="p-3 space-y-1 overflow-x-hidden">
             {NAV_ITEMS.map(item => {
               // Fix active state logic to prevent multiple items being active
               // Home should only be active on exact root path

@@ -30,6 +30,9 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
   const { isInitialized, isAuthenticated } = useAuthStore()
   const pathname = usePathname()
   const isChildDetailRoute = pathname?.startsWith('/children/')
+  const isWishlistDetailRoute =
+    !!pathname && pathname.startsWith('/wishlists/') && pathname !== '/wishlists'
+  const needsOverflowHidden = isChildDetailRoute || isWishlistDetailRoute
 
   // Handle responsive behavior
   useEffect(() => {
@@ -50,8 +53,12 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
     }
     if (!isAuthenticated) {
       return (
-        <main className="min-h-screen flex-1 overflow-auto bg-white dark:bg-slate-900">
-          <div className="relative h-full">{children}</div>
+        <main
+          className={`h-screen bg-white dark:bg-slate-900 ${
+            needsOverflowHidden ? 'overflow-hidden' : 'overflow-auto'
+          }`}
+        >
+          <div className="h-full">{children}</div>
         </main>
       )
     }
@@ -63,7 +70,7 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
           <MobileHeader menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
           <main
             className={`flex-1 bg-white dark:bg-slate-900 ${
-              isChildDetailRoute ? 'overflow-hidden' : 'overflow-auto'
+              needsOverflowHidden ? 'overflow-hidden' : 'overflow-auto'
             }`}
           >
             <div className="relative h-full pt-14 lg:pt-0">{children}</div>
@@ -84,7 +91,7 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
 
           <main
             className={`flex-1 bg-white dark:bg-slate-900 ${
-              isChildDetailRoute ? 'overflow-hidden' : 'overflow-auto'
+              needsOverflowHidden ? 'overflow-hidden' : 'overflow-auto'
             }`}
           >
             <div className="relative h-full pt-14 lg:pt-0">{children}</div>

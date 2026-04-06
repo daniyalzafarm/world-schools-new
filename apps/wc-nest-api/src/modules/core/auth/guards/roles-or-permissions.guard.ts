@@ -2,12 +2,24 @@ import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@
 import { Reflector } from '@nestjs/core'
 import { ROLES_KEY } from '../decorators/roles.decorator'
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator'
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator'
 
 @Injectable()
 export class RolesOrPermissionsGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    // Public endpoints bypass all role/permission checks.
+    // JwtAuthGuard skips token validation for @Public() routes which means
+    // request.user is never set — so role checks must be skipped too.
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ])
+    if (isPublic) {
+      return true
+    }
+
     const requiredRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),

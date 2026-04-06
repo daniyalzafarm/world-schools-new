@@ -124,7 +124,7 @@ export function GoogleMapsLoader({ children, apiKey }: GoogleMapsLoaderProps) {
 
   if (!loaded) {
     return (
-      <div className="flex min-h-[200px] items-center justify-center bg-gray-50 rounded-xl">
+      <div className="flex w-full h-full min-h-[200px] items-center justify-center bg-gray-50 rounded-xl">
         <div className="flex flex-col items-center gap-3">
           <Spinner size="lg" />
           <div className="text-sm text-gray-500">Loading Google Maps...</div>

@@ -19,8 +19,8 @@ export class UserCampsController {
     summary: 'Get all published camps',
     description: 'Retrieve all published camps for public viewing',
   })
-  async getPublishedCamps() {
-    const camps = await this.campsService.getPublishedCamps()
+  async getPublishedCamps(@Query('search') search?: string) {
+    const camps = await this.campsService.getPublishedCamps(search)
     return ResponseUtil.success({ camps })
   }
 

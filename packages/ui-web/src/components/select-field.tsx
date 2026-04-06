@@ -62,7 +62,7 @@ export function SelectField({
       // pr-10 keeps label from sitting under the absolute selector icon when trigger is w-fit.
       trigger: cn(
         !fullWidth && 'w-fit min-w-0 ps-3 pe-10',
-        'rounded-lg bg-white capitalize',
+        'cursor-pointer rounded-lg bg-white capitalize',
         'border border-gray-200',
         'hover:border-gray-300',
         'aria-expanded:border-primary!',

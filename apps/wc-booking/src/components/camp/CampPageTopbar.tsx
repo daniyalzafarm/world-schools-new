@@ -9,13 +9,22 @@ import { cn } from '@world-schools/ui-web'
 import { CampNavDrawer } from '@/components/camp/CampNavDrawer'
 import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
+import { WishlistHeartButton } from '@/components/wishlists/WishlistHeartButton'
+
+type WishlistCampInfo = {
+  id: string
+  name: string
+  thumbnail: string | null
+  locationName: string | null
+}
 
 type CampPageTopbarProps = {
   /** When true, header is hidden (e.g. camp profile inner nav replaces it after scrolling past gallery). */
   suppressed?: boolean
+  camp?: WishlistCampInfo
 }
 
-export function CampPageTopbar({ suppressed = false }: CampPageTopbarProps) {
+export function CampPageTopbar({ suppressed = false, camp }: CampPageTopbarProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const { isAuthenticated, isInitialized } = useAuthStore()
 
@@ -54,6 +63,15 @@ export function CampPageTopbar({ suppressed = false }: CampPageTopbarProps) {
                 Sign up
               </Button>
             </div>
+          ) : null}
+          {isInitialized && isAuthenticated && camp ? (
+            <WishlistHeartButton
+              className="ml-auto"
+              campId={camp.id}
+              campName={camp.name}
+              thumbnail={camp.thumbnail}
+              locationName={camp.locationName}
+            />
           ) : null}
         </div>
       </header>

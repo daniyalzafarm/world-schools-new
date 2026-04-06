@@ -1,17 +1,28 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { ScrollShadow } from '@heroui/react'
 import { cn } from '@world-schools/ui-web'
+import { useAuthStore } from '@/stores/auth-store'
+import { WishlistHeartButton } from '@/components/wishlists/WishlistHeartButton'
 
 interface NavLink {
   href: string
   label: string
 }
 
+interface WishlistCampInfo {
+  id: string
+  name: string
+  thumbnail: string | null
+  locationName: string | null
+}
+
 interface InnerPageNavProps {
   links: NavLink[]
   /** When false, bar is off-screen (main topbar stays visible). Matches model-B: show after gallery scrolls past. */
   visible: boolean
+  camp?: WishlistCampInfo
 }
 
 function getStickyHeaderOffsetPx() {
@@ -19,9 +30,10 @@ function getStickyHeaderOffsetPx() {
   return window.matchMedia('(min-width: 768px)').matches ? 64 : 56
 }
 
-export function InnerPageNav({ links, visible }: InnerPageNavProps) {
+export function InnerPageNav({ links, visible, camp }: InnerPageNavProps) {
   const [activeSection, setActiveSection] = useState('')
   const observerRef = useRef<IntersectionObserver | null>(null)
+  const { isAuthenticated } = useAuthStore()
 
   useEffect(() => {
     const topPx = getStickyHeaderOffsetPx()
@@ -68,14 +80,18 @@ export function InnerPageNav({ links, visible }: InnerPageNavProps) {
       aria-hidden={!visible || undefined}
     >
       <div className="mx-auto flex h-14 max-w-screen-2xl items-stretch px-5 sm:px-8 lg:px-32 md:h-16">
-        <div className="scrollbar-hide -mx-5 flex min-h-0 min-w-0 flex-1 gap-0 overflow-x-auto sm:-mx-8 lg:mx-0">
+        <ScrollShadow
+          orientation="horizontal"
+          hideScrollBar
+          className="px-6 md:px-8 lg:px-0 flex min-h-0 min-w-0 flex-1 gap-0 overflow-x-auto sm:-mx-8 lg:mx-0"
+        >
           {links.map(link => (
             <a
               key={link.href}
               href={link.href}
               onClick={e => scrollToSection(link.href, e)}
               className={cn(
-                'flex shrink-0 items-center border-b-2 px-4 font-semibold whitespace-nowrap transition-all',
+                'flex shrink-0 items-center text-sm border-b-2 px-4 font-semibold whitespace-nowrap transition-all',
                 activeSection === link.href
                   ? 'border-primary font-semibold text-gray-900'
                   : 'border-transparent text-gray-500 hover:text-gray-900'
@@ -84,7 +100,17 @@ export function InnerPageNav({ links, visible }: InnerPageNavProps) {
               {link.label}
             </a>
           ))}
-        </div>
+        </ScrollShadow>
+        {isAuthenticated && camp && (
+          <div className="flex shrink-0 items-center pl-3">
+            <WishlistHeartButton
+              campId={camp.id}
+              campName={camp.name}
+              thumbnail={camp.thumbnail}
+              locationName={camp.locationName}
+            />
+          </div>
+        )}
       </div>
     </div>
   )
