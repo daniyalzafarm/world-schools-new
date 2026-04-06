@@ -18,16 +18,6 @@ const editorSections: EditorSection[] = [
   { id: 'audience', label: 'Audience', path: 'audience', category: 'CAMP OVERVIEW' },
   { id: 'photos', label: 'Photos & Media', path: 'photos', category: 'CAMP OVERVIEW' },
 
-  // SESSIONS & BOOKING
-  { id: 'sessions', label: 'Sessions', path: 'sessions', category: 'SESSIONS & BOOKING' },
-  {
-    id: 'whats-included',
-    label: "What's Included",
-    path: 'whats-included',
-    category: 'SESSIONS & BOOKING',
-  },
-  { id: 'addons', label: 'Optional Add-ons', path: 'addons', category: 'SESSIONS & BOOKING' },
-
   // PROGRAM & ACTIVITIES
   { id: 'camp-focus', label: 'Camp Focus', path: 'camp-focus', category: 'PROGRAM & ACTIVITIES' },
   { id: 'programs', label: 'Programs', path: 'programs', category: 'PROGRAM & ACTIVITIES' },
@@ -95,6 +85,16 @@ const editorSections: EditorSection[] = [
     activityKey: 'excursions',
   },
 
+  // SESSIONS & BOOKING
+  { id: 'sessions', label: 'Sessions', path: 'sessions', category: 'SESSIONS & BOOKING' },
+  {
+    id: 'whats-included',
+    label: "What's Included",
+    path: 'whats-included',
+    category: 'SESSIONS & BOOKING',
+  },
+  { id: 'addons', label: 'Optional Add-ons', path: 'addons', category: 'SESSIONS & BOOKING' },
+
   // ELIGIBILITY & BOOKING
   {
     id: 'skill-requirements',
@@ -116,6 +116,13 @@ const editorSections: EditorSection[] = [
     label: 'Daily Schedule',
     path: 'daily-schedule',
     category: 'ACCOMMODATION & CARE',
+  },
+  // SAFETY & POLICIES
+  {
+    id: 'safety-policies',
+    label: 'Safety & Policies',
+    path: 'safety-policies',
+    category: 'SAFETY & POLICIES',
   },
 
   // LOCATION & LOGISTICS

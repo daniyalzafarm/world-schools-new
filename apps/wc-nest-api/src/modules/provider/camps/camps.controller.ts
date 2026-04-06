@@ -39,6 +39,7 @@ import {
   UpdateMealsDto,
   UpdatePhotosDto,
   UpdateReligionDto,
+  UpdateSafetyPoliciesDto,
   UpdateSportsDto,
   UpdateWaterDto,
   UpdateWhatsIncludedDto,
@@ -607,6 +608,19 @@ export class CampsController {
   ) {
     const providerId = await this.getProviderIdForUser(user)
     const camp = await this.campsService.updateCampStatus(campId, providerId, dto)
+    return ResponseUtil.success({ camp })
+  }
+
+  @Patch(':id/safety-policies')
+  @Permissions('camps.update')
+  @HttpCode(HttpStatus.OK)
+  async updateSafetyPolicies(
+    @Param('id') campId: string,
+    @CurrentUser() user: any,
+    @Body() dto: UpdateSafetyPoliciesDto
+  ) {
+    const providerId = await this.getProviderIdForUser(user)
+    const camp = await this.campsService.updateSafetyPolicies(campId, providerId, dto)
     return ResponseUtil.success({ camp })
   }
 

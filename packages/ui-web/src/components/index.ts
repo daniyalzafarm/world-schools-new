@@ -22,6 +22,14 @@ export { RadioButton } from './radio-button'
 export { CheckboxButton } from './checkbox-button'
 export { LanguageChip } from './language-chip'
 export { EmojiPicker } from './emoji-picker'
+export { LucideIconPicker } from './lucide-icon-picker'
+export {
+  IconRenderer,
+  type IconValue,
+  type LucideIcon,
+  type EmojiIcon,
+  type CustomIcon,
+} from './icon-renderer'
 export { RichTextEditor } from './rich-text-editor'
 export { CurrencyInput } from './currency-input'
 export { DayOfWeekSelector } from './day-of-week-selector'

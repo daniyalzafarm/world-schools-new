@@ -15,27 +15,21 @@ export function Logo({ size = 'md', showText = true, className }: LogoProps) {
   const router = useRouter()
 
   const iconSizeClasses = {
-    sm: 'h-8',
+    sm: 'h-6',
     md: 'h-8',
     lg: 'h-10',
   }
 
-  const textLogoSizeClasses = {
-    sm: 'h-5',
-    md: 'h-5',
-    lg: 'h-8',
+  const textSizeClasses = {
+    sm: 'text-lg',
+    md: 'text-xl',
+    lg: 'text-2xl',
   }
 
   const iconSizes = {
-    sm: 32,
+    sm: 30,
     md: 32,
     lg: 36,
-  }
-
-  const textLogoSizes = {
-    sm: { width: 80, height: 16 },
-    md: { width: 120, height: 22 },
-    lg: { width: 150, height: 24 },
   }
 
   return (
@@ -59,14 +53,14 @@ export function Logo({ size = 'md', showText = true, className }: LogoProps) {
 
       {/* Logo Text */}
       {showText && (
-        <Image
-          src="/assets/world-camps-dark.png"
-          alt="World Camps"
-          width={textLogoSizes[size].width}
-          height={textLogoSizes[size].height}
-          className={cn('object-contain mt-1', textLogoSizeClasses[size])}
-          style={{ width: 'auto' }}
-        />
+        <p
+          className={cn(
+            'font-bold tracking-tight text-secondary text-nowrap',
+            textSizeClasses[size]
+          )}
+        >
+          World Camps
+        </p>
       )}
     </div>
   )

@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { cn } from '@world-schools/ui-web'
 
 interface NavLink {
   href: string
@@ -9,64 +10,80 @@ interface NavLink {
 
 interface InnerPageNavProps {
   links: NavLink[]
+  /** When false, bar is off-screen (main topbar stays visible). Matches model-B: show after gallery scrolls past. */
+  visible: boolean
 }
 
-export function InnerPageNav({ links }: InnerPageNavProps) {
+function getStickyHeaderOffsetPx() {
+  if (typeof window === 'undefined') return 64
+  return window.matchMedia('(min-width: 768px)').matches ? 64 : 56
+}
+
+export function InnerPageNav({ links, visible }: InnerPageNavProps) {
   const [activeSection, setActiveSection] = useState('')
+  const observerRef = useRef<IntersectionObserver | null>(null)
 
   useEffect(() => {
-    const handleScroll = () => {
-      const sections = links.map(link => document.querySelector(link.href))
-      const scrollPosition = window.scrollY + 100
-
-      for (let i = sections.length - 1; i >= 0; i--) {
-        const section = sections[i]
-        if (section) {
-          const sectionTop = (section as HTMLElement).offsetTop
-          if (scrollPosition >= sectionTop) {
-            setActiveSection(links[i].href)
-            break
+    const topPx = getStickyHeaderOffsetPx()
+    observerRef.current = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const id = `#${entry.target.id}`
+            setActiveSection(id)
           }
-        }
+        })
+      },
+      {
+        rootMargin: `-${topPx}px 0px -55% 0px`,
+        threshold: 0,
       }
-    }
+    )
 
-    window.addEventListener('scroll', handleScroll)
-    handleScroll()
+    links.forEach(link => {
+      const el = document.querySelector(link.href)
+      if (el) observerRef.current?.observe(el)
+    })
 
-    return () => window.removeEventListener('scroll', handleScroll)
+    return () => observerRef.current?.disconnect()
   }, [links])
 
   const scrollToSection = (href: string, e: React.MouseEvent) => {
     e.preventDefault()
     const element = document.querySelector(href)
     if (element) {
-      const offset = 80
-      const elementPosition = (element as HTMLElement).offsetTop - offset
+      const offset = getStickyHeaderOffsetPx()
+      const elementPosition =
+        (element as HTMLElement).getBoundingClientRect().top + window.scrollY - offset
       window.scrollTo({ top: elementPosition, behavior: 'smooth' })
     }
   }
 
   return (
-    <div className="sticky top-0 bg-white border-b border-gray-200 z-50">
-      <div className="max-w-screen-2xl mx-auto px-5 md:px-20 lg:px-32">
-        <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide py-2.5">
-          <div className="flex gap-1 overflow-x-auto scrollbar-hide flex-1">
-            {links.map(link => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={e => scrollToSection(link.href, e)}
-                className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all ${
-                  activeSection === link.href
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
-                }`}
-              >
-                {link.label}
-              </a>
-            ))}
-          </div>
+    <div
+      className={cn(
+        'fixed inset-x-0 top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur transition-[transform,opacity] duration-[250ms] ease-in-out',
+        visible ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-full opacity-0'
+      )}
+      aria-hidden={!visible || undefined}
+    >
+      <div className="mx-auto flex h-14 max-w-screen-2xl items-stretch px-5 sm:px-8 lg:px-32 md:h-16">
+        <div className="scrollbar-hide -mx-5 flex min-h-0 min-w-0 flex-1 gap-0 overflow-x-auto sm:-mx-8 lg:mx-0">
+          {links.map(link => (
+            <a
+              key={link.href}
+              href={link.href}
+              onClick={e => scrollToSection(link.href, e)}
+              className={cn(
+                'flex shrink-0 items-center border-b-2 px-4 font-semibold whitespace-nowrap transition-all',
+                activeSection === link.href
+                  ? 'border-primary font-semibold text-gray-900'
+                  : 'border-transparent text-gray-500 hover:text-gray-900'
+              )}
+            >
+              {link.label}
+            </a>
+          ))}
         </div>
       </div>
     </div>

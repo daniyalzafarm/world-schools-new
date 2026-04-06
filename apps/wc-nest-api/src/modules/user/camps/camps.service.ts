@@ -134,6 +134,12 @@ export class UserCampsService {
             { startDate: 'asc' }, // then by start date
           ],
         },
+        campFocusRecord: {
+          include: {
+            activity: { select: { id: true, name: true, emoji: true, slug: true } },
+            category: { select: { id: true, name: true, emoji: true, slug: true } },
+          },
+        },
         provider: {
           select: {
             id: true,
@@ -147,6 +153,14 @@ export class UserCampsService {
             email: true,
             website: true,
             yearFounded: true,
+            description: true,
+            trustScore: true,
+            approvalStatus: true,
+            _count: {
+              select: {
+                camps: { where: { status: 'published' } },
+              },
+            },
             googleBusinessProfile: {
               select: {
                 businessName: true,
@@ -162,6 +176,10 @@ export class UserCampsService {
                 currency: true,
                 cancellationPolicy: true,
                 cancellationPolicyCustom: true,
+                depositRequired: true,
+                depositType: true,
+                depositPercentage: true,
+                depositFixedAmount: true,
               },
             },
           },
@@ -180,17 +198,47 @@ export class UserCampsService {
       campWithPhotos = { ...camp, photos: photosWithUrls }
     }
 
-    // Transform sessions to convert Decimal fields to numbers
+    // Compute bookedCount per session in a single grouped query
+    const sessionIds = (camp.sessions || []).map(s => s.id)
+    const bookingCounts =
+      sessionIds.length > 0
+        ? await this.prisma.booking.groupBy({
+            by: ['sessionId'],
+            where: {
+              sessionId: { in: sessionIds },
+              bookingGroup: {
+                status: { notIn: ['draft', 'declined', 'expired', 'cancelled'] },
+              },
+            },
+            _count: { id: true },
+          })
+        : []
+
+    const countMap = Object.fromEntries(bookingCounts.map(r => [r.sessionId, r._count.id]))
+
+    // Transform sessions: convert Decimals, normalize JSON keys, attach bookedCount
     const transformedSessions = (camp.sessions || []).map(session => ({
       ...session,
-      price:
-        session.price !== null && session.price !== undefined
-          ? Number(session.price)
-          : session.price,
+      price: session.price != null ? Number(session.price) : session.price,
+      bookedCount: countMap[session.id] ?? 0,
+      ageGroupPrices: Array.isArray(session.ageGroupPrices)
+        ? (session.ageGroupPrices as any[]).map(agp => ({
+            ageGroupId: agp.age_group_id ?? agp.ageGroupId,
+            price: agp.price,
+          }))
+        : null,
+      ageGroupSpots: Array.isArray(session.ageGroupSpots)
+        ? (session.ageGroupSpots as any[]).map(ags => ({
+            ageGroupId: ags.age_group_id ?? ags.ageGroupId,
+            spots: ags.spots,
+          }))
+        : null,
     }))
 
     return {
       ...campWithPhotos,
+      locationLat: camp.locationLat != null ? Number(camp.locationLat) : null,
+      locationLng: camp.locationLng != null ? Number(camp.locationLng) : null,
       sessions: transformedSessions,
     }
   }
@@ -256,5 +304,103 @@ export class UserCampsService {
       minAge: item.addOn.minAge,
       maxAge: item.addOn.maxAge,
     }))
+  }
+
+  async getCampReviews(campId: string) {
+    const camp = await this.prisma.camp.findFirst({
+      where: { id: campId, status: 'published' },
+      select: { id: true },
+    })
+    if (!camp) throw new NotFoundException('Camp not found')
+
+    const reviews = await this.prisma.campReview.findMany({
+      where: { campId, status: 'published' },
+      orderBy: { publishedAt: 'desc' },
+      include: {
+        parent: {
+          select: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                city: true,
+                country: true,
+              },
+            },
+          },
+        },
+        tags: {
+          select: { id: true, dimension: true, tagValue: true },
+        },
+      },
+    })
+
+    // Compute per-dimension averages across all published reviews
+    const agg = await this.prisma.campReview.aggregate({
+      where: { campId, status: 'published' },
+      _avg: {
+        happinessRating: true,
+        safetyRating: true,
+        communicationRating: true,
+        asDescribedRating: true,
+        growthRating: true,
+        valueRating: true,
+      },
+      _count: { _all: true },
+    })
+
+    const round1 = (v: number | null) => (v != null ? Math.round(v * 10) / 10 : null)
+
+    const categoryScores = {
+      happiness: round1(agg._avg.happinessRating as unknown as number | null),
+      safety: round1(agg._avg.safetyRating as unknown as number | null),
+      communication: round1(agg._avg.communicationRating as unknown as number | null),
+      asDescribed: round1(agg._avg.asDescribedRating as unknown as number | null),
+      growth: round1(agg._avg.growthRating as unknown as number | null),
+      value: round1(agg._avg.valueRating as unknown as number | null),
+    }
+
+    const allDims = Object.values(categoryScores).filter((v): v is number => v != null)
+    const overallRating =
+      allDims.length > 0
+        ? Math.round((allDims.reduce((a, b) => a + b, 0) / allDims.length) * 10) / 10
+        : null
+
+    const mappedReviews = reviews.map(r => ({
+      id: r.id,
+      rating: (() => {
+        const dims = [
+          r.happinessRating,
+          r.safetyRating,
+          r.communicationRating,
+          r.asDescribedRating,
+          r.growthRating,
+          r.valueRating,
+        ].filter((v): v is number => v != null)
+        return dims.length > 0
+          ? Math.round((dims.reduce((a, b) => a + b, 0) / dims.length) * 10) / 10
+          : null
+      })(),
+      reviewText: r.reviewText,
+      publishedAt: r.publishedAt?.toISOString() ?? null,
+      visitMonth: r.visitMonth,
+      visitYear: r.visitYear,
+      kidAges: r.kidAges,
+      kidTags: r.kidTags,
+      tags: r.tags.map(t => t.tagValue),
+      reviewer: {
+        firstName: r.parent.user.firstName,
+        lastName: r.parent.user.lastName,
+        city: r.parent.user.city,
+        country: r.parent.user.country,
+      },
+    }))
+
+    return {
+      totalReviews: agg._count._all,
+      overallRating,
+      categoryScores,
+      reviews: mappedReviews,
+    }
   }
 }

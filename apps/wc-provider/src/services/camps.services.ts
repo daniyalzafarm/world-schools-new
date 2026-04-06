@@ -377,3 +377,16 @@ export const putCampEligibility = async (
   const data = (response.data as any)?.data ?? response.data
   return Array.isArray(data?.items) ? data : { items: data?.items ?? [] }
 }
+
+export const updateSafetyPolicies = async (
+  campId: string,
+  safetySupervision: any,
+  screenPolicy: any
+): Promise<Camp> => {
+  const response = await apiClient.patch<{ camp: Camp }>(
+    `/provider/camps/${campId}/safety-policies`,
+    { safetySupervision, screenPolicy }
+  )
+  if (!response.success) throw new Error((response.data as any).message)
+  return (response.data as any).camp
+}

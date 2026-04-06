@@ -5,47 +5,56 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import {
   CAMPUS_SETTING,
   CAMPUS_SIZE,
-  ContextType,
-  PREDEFINED_DIETARY_OPTIONS,
   PREDEFINED_FACILITIES,
 } from '@world-schools/wc-frontend-utils'
-import { getCampBySlug } from '@/services/camps.services'
-import type { ActivityItem, Camp, MetaCard } from '@/types/camps'
+import { Button } from '@heroui/react'
+import { CircleCheck, Images, MapPin, Star } from 'lucide-react'
+import { cn, StarRating } from '@world-schools/ui-web'
+import { getCampBySlug, getCampReviews } from '@/services/camps.services'
+import { campAddOnsService } from '@/services/camp-addons.services'
+import type { Camp } from '@/types/camps'
 import type { Session } from '@/types/sessions'
+import type { CampBookingAddOn } from '@/types/camp-booking'
+import type { CampReviewsData } from '@/types/reviews'
 import config from '@/config/config'
 import { InnerPageNav } from '@/components/camp/InnerPageNav'
-import { SectionHeader, SectionSubheader } from '@/components/camp/SectionHeader'
 import { ExpandableText } from '@/components/camp/ExpandableText'
 import { IncludedGrid } from '@/components/camp/IncludedGrid'
-import { DailySchedule } from '@/components/camp/DailySchedule'
-import { WeeklySchedule } from '@/components/camp/WeeklySchedule'
-import { SafetyCard } from '@/components/camp/SafetyCard'
-import { ActivitySection } from '@/components/camp/ActivitySection'
-import { ActivityGrid } from '@/components/camp/ActivityGrid'
+import { CampActivitiesSection } from '@/components/camp/CampActivitiesSection'
 import { PhotoGalleryDrawer } from '@/components/camp/PhotoGalleryDrawer'
 import { SessionsSection } from '@/components/camp/SessionsSection'
 import { CancellationPolicySection } from '@/components/camp/CancellationPolicySection'
 import { ProviderSection } from '@/components/camp/ProviderSection'
+import { CampStatsBar } from '@/components/camp/CampStatsBar'
+import { FaqSection } from '@/components/camp/FaqSection'
+import { AccordionGroup } from '@/components/camp/AccordionGroup'
+import { SessionsModal } from '@/components/camp/SessionsModal'
+import { ReviewsSection } from '@/components/camp/ReviewsSection'
+import { CampSidebar } from '@/components/camp/CampSidebar'
+import { MobileStickyFooter } from '@/components/camp/MobileStickyFooter'
+import { SafetyCard } from '@/components/camp/SafetyCard'
 import { GoogleMapsLoader } from '@/components/map/GoogleMapsLoader'
 import { GoogleMapWithSearch } from '@/components/map/GoogleMapWithSearch'
+import { getSkillLevelLabel } from '@/utils/activity-transformers'
 import {
-  getCoachingTypeLabel,
-  getSkillLevelLabel,
-  getTeachingApproachLabel,
-  transformAcademics,
-  transformAdventureActivities,
-  transformArtsAndCrafts,
-  transformEnvironmentalActivities,
-  transformExcursionsTrips,
-  transformLanguagePrograms,
-  transformReligionPrograms,
-  transformSportsActivities,
-  transformWaterActivities,
-} from '@/utils/activity-transformers'
-import { Button } from '@heroui/react'
-import { formatCurrency } from '@/utils/currency'
-import { useAuth } from '@/hooks/use-auth'
-import { useMessagingStore } from '@/stores/messaging-store'
+  buildActivitiesFaq,
+  buildAgesFaq,
+  buildCancellationFaq,
+  buildIncludedFaq,
+  buildMealsFaq,
+  buildTransportFaq,
+  buildTypeFaq,
+} from '@/utils/faq-builders'
+import { CampPageTopbar } from '@/components/camp/CampPageTopbar'
+
+const PREDEFINED_TRANSPORT = [
+  { id: 'airport-pickup', name: 'Airport Pickup', icon: '✈️' },
+  { id: 'bus-service', name: 'Bus Service', icon: '🚌' },
+  { id: 'train-station', name: 'Train Station Pickup', icon: '🚂' },
+  { id: 'shuttle', name: 'Shuttle Service', icon: '🚐' },
+  { id: 'private-transfer', name: 'Private Transfer', icon: '🚗' },
+  { id: 'group-transport', name: 'Group Transport', icon: '🚌' },
+]
 
 export default function CampPage() {
   const params = useParams()
@@ -58,12 +67,17 @@ export default function CampPage() {
   const [error, setError] = useState<string | null>(null)
   const [isGalleryOpen, setIsGalleryOpen] = useState(false)
   const [galleryPhotoIndex, setGalleryPhotoIndex] = useState(-1)
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null)
+  const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false)
+  const [addOns, setAddOns] = useState<CampBookingAddOn[]>([])
+  const [campReviews, setCampReviews] = useState<CampReviewsData | null>(null)
+  const [innerNavReplacesTopbar, setInnerNavReplacesTopbar] = useState(false)
 
   useEffect(() => {
+    if (!campSlug) return
     const fetchCamp = async () => {
       try {
         setIsLoading(true)
-        // Extract preview token from URL if present
         const previewToken = searchParams.get('preview') || undefined
         const campData = await getCampBySlug(campSlug, previewToken)
         setCamp(campData)
@@ -74,20 +88,61 @@ export default function CampPage() {
         setIsLoading(false)
       }
     }
-
-    if (campSlug) {
-      fetchCamp().catch(error => {
-        console.error('Failed to fetch camp:', error)
-      })
-    }
+    fetchCamp().catch(console.error)
   }, [campSlug, searchParams])
+
+  // Fetch add-ons after camp loads
+  useEffect(() => {
+    if (!camp?.id) return
+    campAddOnsService
+      .getByCampId(camp.id)
+      .then(res => {
+        if (res.success && Array.isArray(res.data)) setAddOns(res.data)
+      })
+      .catch(() => {})
+  }, [camp?.id])
+
+  // Fetch camp reviews after camp loads (used in header + reviews section)
+  useEffect(() => {
+    if (!camp?.id) return
+    getCampReviews(camp.id)
+      .then(setCampReviews)
+      .catch(() => {})
+  }, [camp?.id])
+
+  // Camp profile: after gallery clears the top of the viewport, inner nav replaces main topbar (model B).
+  useEffect(() => {
+    if (!camp) {
+      setInnerNavReplacesTopbar(false)
+      return
+    }
+    const gallery = document.getElementById('gallery')
+    if (!gallery) return
+
+    const tick = () => {
+      setInnerNavReplacesTopbar(gallery.getBoundingClientRect().bottom <= 0)
+    }
+    tick()
+    window.addEventListener('scroll', tick, { passive: true })
+    window.addEventListener('resize', tick)
+    const ro = new ResizeObserver(tick)
+    ro.observe(gallery)
+    return () => {
+      window.removeEventListener('scroll', tick)
+      window.removeEventListener('resize', tick)
+      ro.disconnect()
+    }
+  }, [camp])
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading camp details...</p>
+      <div className="flex min-h-screen flex-col bg-white">
+        <CampPageTopbar />
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-gray-900" />
+            <p className="mt-4 text-gray-600">Loading camp details...</p>
+          </div>
         </div>
       </div>
     )
@@ -95,32 +150,26 @@ export default function CampPage() {
 
   if (error || !camp) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Camp Not Found</h1>
-          <p className="text-gray-600">{error || 'The camp you are looking for does not exist.'}</p>
-          <Button onPress={() => router.push('/')} className="mt-4" color="primary" size="lg">
-            Go Home
-          </Button>
+      <div className="flex min-h-screen flex-col bg-white">
+        <CampPageTopbar />
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center">
+            <h1 className="mb-2 text-2xl font-bold text-gray-900">Camp Not Found</h1>
+            <p className="text-gray-600">
+              {error || 'The camp you are looking for does not exist.'}
+            </p>
+            <Button onPress={() => router.push('/')} className="mt-4" color="primary" size="lg">
+              Go Home
+            </Button>
+          </div>
         </div>
       </div>
     )
   }
 
-  const getAgeRangeText = () => {
-    if (!camp.ageGroups || camp.ageGroups.length === 0) return 'All ages'
-    const minAge = Math.min(...camp.ageGroups.map(ag => ag.min))
-    const maxAge = Math.max(...camp.ageGroups.map(ag => ag.max))
-    return `Ages ${minAge}-${maxAge}`
-  }
-
   const getImageUrl = (url: string) => {
     if (!url) return ''
-    // If URL is already absolute, return as is
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url
-    }
-    // Otherwise, prepend the storage URL
+    if (url.startsWith('http://') || url.startsWith('https://')) return url
     const storageUrl = config.app.storageUrl.endsWith('/')
       ? config.app.storageUrl
       : `${config.app.storageUrl}/`
@@ -130,52 +179,118 @@ export default function CampPage() {
   const primaryPhoto = camp.photos?.find(p => p.isPrimary)?.url || camp.photos?.[0]?.url
   const primaryPhotoUrl = primaryPhoto ? getImageUrl(primaryPhoto) : null
 
-  // Navigation links - dynamically build based on available data
+  const sessions = camp.sessions ?? []
+  const activeSessions = sessions.filter(s => s.status === 'published')
+  const currency = camp.provider?.settings?.currency || 'USD'
+
+  // Derive primary activity from campFocusRecord (authoritative) or campFocus (fallback)
+  const primaryActivity =
+    camp.campFocusRecord?.activity ??
+    (camp.campFocus?.primaryFocus
+      ? {
+          id: '',
+          name: camp.campFocus.primaryFocus.activityName,
+          emoji: camp.campFocus.primaryFocus.icon,
+          slug: '',
+        }
+      : null)
+
+  // Auto-generated descriptive H2
+  const campLabel = [camp.type, primaryActivity?.name?.toLowerCase(), 'camp']
+    .filter(Boolean)
+    .join(' ')
+  const locationParts =
+    camp.locationAddress
+      ?.split(',')
+      .map((p: string) => p.trim())
+      .filter(Boolean) ?? []
+  const locationLabel = locationParts.at(-2) ?? locationParts.at(-1) ?? ''
+  const descriptiveH2 = locationLabel
+    ? `${campLabel.charAt(0).toUpperCase()}${campLabel.slice(1)} in ${locationLabel}`
+    : `${campLabel.charAt(0).toUpperCase()}${campLabel.slice(1)}`
+
+  const hasCampReviews = (campReviews?.totalReviews ?? 0) > 0
+  const gbpRating = camp.provider?.googleBusinessProfile?.rating
+  const gbpReviewsCount = camp.provider?.googleBusinessProfile?.reviewsCount
+  const hasGbpReviews = (gbpReviewsCount ?? 0) > 0
+  const headerRating = hasCampReviews
+    ? campReviews!.overallRating
+    : hasGbpReviews && gbpRating != null
+      ? Number(gbpRating)
+      : null
+  const headerReviewsCount = hasCampReviews
+    ? campReviews!.totalReviews
+    : hasGbpReviews
+      ? gbpReviewsCount!
+      : null
+  const headerAddress = camp.locationAddress || ''
+  const isVerifiedProvider = camp.provider?.approvalStatus === 'approved'
+  const headerTrustScore = camp.provider?.trustScore
+  const statsLevelLabel = getSkillLevelLabel(camp.sports?.skillLevel) ?? null
+  const focusStatEmoji =
+    primaryActivity?.emoji?.trim() || camp.campFocusRecord?.category?.emoji?.trim() || undefined
+
+  // Auto-generated FAQ
+  const faqItems = [
+    buildAgesFaq(camp.ageGroups ?? []),
+    buildTypeFaq(camp.type),
+    buildActivitiesFaq(camp.campFocus),
+    buildIncludedFaq(camp.whatsIncluded),
+    buildMealsFaq(camp.meals),
+    buildCancellationFaq(
+      camp.provider?.settings?.cancellationPolicy,
+      camp.provider?.settings?.cancellationPolicyCustom
+    ),
+    buildTransportFaq(addOns, currency),
+  ].filter(Boolean) as { question: string; answer: string }[]
+
+  // Navigation links per target section order
   const navLinks = [
-    { href: '#photos', label: 'Photos' },
     { href: '#about', label: 'About' },
-    camp.activities && camp.activities.length > 0
-      ? { href: '#activities', label: 'Activities' }
-      : null,
-    camp.scheduleType && (camp.dailySchedule || camp.weeklySchedule)
-      ? { href: '#schedule', label: 'Schedule' }
-      : null,
-    camp.meals ? { href: '#meals', label: 'Meals' } : null,
-    camp.sessions && camp.sessions.length > 0
-      ? { href: '#sessions', label: 'Dates & Pricing' }
-      : null,
-    camp.campusFacilities ? { href: '#campus', label: 'Location' } : null,
+    camp.whatsIncluded ? { href: '#included', label: "What's Included" } : null,
+    activeSessions.length > 0 ? { href: '#sessions', label: 'Dates & Pricing' } : null,
+    camp.activities?.length ? { href: '#activities', label: 'Activities' } : null,
+    { href: '#reviews', label: 'Reviews' },
     camp.safetySupervision ? { href: '#safety', label: 'Safety' } : null,
-    camp.locationCampus || camp.gettingThere ? { href: '#location', label: 'Location' } : null,
+    { href: '#location', label: 'Location' },
+    camp.provider ? { href: '#organizer', label: 'Organizer' } : null,
+    faqItems.length > 0 ? { href: '#faq', label: 'FAQ' } : null,
   ].filter(Boolean) as { href: string; label: string }[]
+
+  const isAnyModalOpen = isSessionsModalOpen || isGalleryOpen
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Inner Page Navigation */}
-      <InnerPageNav links={navLinks} />
-
-      {/* Hero Section */}
-      <div id="photos">
-        {/* Mobile Hero Image */}
-        <div className="block lg:hidden relative w-full h-96 bg-gray-200">
+      <CampPageTopbar suppressed={innerNavReplacesTopbar} />
+      {/* ── 1. Hero Gallery ─────────────────────────────────────────── */}
+      <div id="gallery">
+        {/* Mobile — module-02 Variant C: single photo + count badge */}
+        <div className="block sm:hidden relative w-full h-[240px] overflow-hidden bg-gray-200">
           <img
             src={primaryPhotoUrl || '/placeholder-camp.jpg'}
             alt={camp.name}
             className="h-full w-full object-cover"
+            onClick={() => {
+              if (camp.photos?.length) {
+                setGalleryPhotoIndex(0)
+                setIsGalleryOpen(true)
+              }
+            }}
           />
-          <div className="absolute bottom-4 right-4 bg-black/75 text-white px-3 py-1.5 rounded-2xl text-xs font-medium">
-            1/{camp.photos?.length ?? 1}
-          </div>
+          {camp.photos && camp.photos.length > 1 && (
+            <div className="absolute bottom-3 right-3 rounded-full bg-black/50 px-3 py-1 text-xs font-medium text-white">
+              1 / {camp.photos.length} photos
+            </div>
+          )}
         </div>
 
-        {/* Desktop Hero Grid */}
-        <div className="hidden lg:block max-w-screen-2xl mx-auto px-20 xl:px-32 mt-6 mb-10">
-          <div className="grid grid-cols-4 grid-rows-2 gap-2 h-[480px] rounded-xl overflow-hidden relative">
-            {/* Primary Image - Index 0 */}
+        {/* sm+ — 5-photo grid; aspect-ratio fixed so proportions match at every breakpoint */}
+        <div className="mx-auto mt-4 mb-8 hidden max-w-screen-2xl px-5 sm:block sm:px-8 lg:mt-6 lg:mb-10 lg:px-8 xl:px-32">
+          <div className="relative grid w-full grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-xl aspect-2/1">
             <div
-              className="col-span-2 row-span-2 bg-gray-200 cursor-pointer group relative overflow-hidden"
+              className="group relative col-span-2 row-span-2 cursor-pointer overflow-hidden bg-gray-300"
               onClick={() => {
-                if (camp.photos && camp.photos.length > 0) {
+                if (camp.photos?.length) {
                   setGalleryPhotoIndex(0)
                   setIsGalleryOpen(true)
                 }
@@ -184,15 +299,14 @@ export default function CampPage() {
               <img
                 src={primaryPhotoUrl || '/placeholder-camp.jpg'}
                 alt={camp.name}
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                className="h-full w-full object-cover transition-transform group-hover:scale-105"
               />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
+              <div className="pointer-events-none absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
             </div>
-            {/* Thumbnail Images - Indices 1-4 */}
-            {camp.photos?.slice(1, 5).map((photo, index) => (
+            {(camp.photos ?? []).slice(1, 5).map((photo, index) => (
               <div
                 key={photo.id}
-                className="bg-gray-200 cursor-pointer group relative overflow-hidden"
+                className="group cursor-pointer overflow-hidden bg-gray-200"
                 onClick={() => {
                   setGalleryPhotoIndex(index + 1)
                   setIsGalleryOpen(true)
@@ -201,20 +315,15 @@ export default function CampPage() {
                 <img
                   src={getImageUrl(photo.url)}
                   alt={`${camp.name} ${index + 2}`}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
               </div>
             ))}
-            {(!camp.photos || camp.photos.length < 5) &&
-              Array.from({ length: 5 - (camp.photos?.length ?? 1) }).map((_, i) => (
-                <div
-                  key={`placeholder-${i}`}
-                  className="bg-gray-200 flex items-center justify-center text-gray-400 text-sm"
-                >
-                  Image {(camp.photos?.length ?? 1) + i + 1}
-                </div>
-              ))}
+            {Array.from({
+              length: Math.max(0, 4 - (camp.photos ?? []).slice(1, 5).length),
+            }).map((_, i) => (
+              <div key={`ph-${i}`} className="bg-gray-200" />
+            ))}
             {camp.photos && camp.photos.length > 0 && (
               <div className="absolute bottom-5 right-5 z-10">
                 <PhotoGalleryDrawer
@@ -225,14 +334,14 @@ export default function CampPage() {
                   initialLightboxIndex={galleryPhotoIndex}
                   trigger={
                     <Button
-                      className="bg-white text-gray-900"
+                      className="h-auto min-w-0 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-md"
                       onPress={() => {
                         setGalleryPhotoIndex(-1)
                         setIsGalleryOpen(true)
                       }}
-                      startContent={<span>🖼️</span>}
+                      startContent={<Images size={15} className="shrink-0" aria-hidden />}
                     >
-                      Show all photos
+                      Show all {camp.photos.length} photos
                     </Button>
                   }
                 />
@@ -242,924 +351,452 @@ export default function CampPage() {
         </div>
       </div>
 
-      {/* Content Wrapper */}
-      <div className="max-w-screen-2xl mx-auto px-5 md:px-20 lg:px-32 pb-20">
-        <div className="lg:grid lg:grid-cols-[1fr_420px] lg:gap-24">
-          {/* Main Content */}
+      {/* ── 2. Inner Nav (fixed; visible only after gallery scrolls past) ─ */}
+      <InnerPageNav links={navLinks} visible={innerNavReplacesTopbar} />
+
+      {/* ── Page body: content + sidebar ─────────────────────────────── */}
+      <div className="max-w-screen-2xl mx-auto px-5 sm:px-8 lg:px-32 pb-32 lg:pb-20">
+        <div className="lg:grid lg:grid-cols-[1fr_400px] lg:gap-16 xl:gap-24">
+          {/* ── Left: Main content column ──────────────────────────── */}
           <div className="min-w-0">
-            <CampContent camp={camp} getAgeRangeText={getAgeRangeText} />
-          </div>
+            {/* ── 3. About ──────────────────────────────────────────── */}
+            <section id="about" className="mb-10 scroll-mt-14 pt-6 md:mb-12 md:scroll-mt-16">
+              {/* Module 01 — camp title */}
+              <h1 className="mb-2 text-[26px] leading-tight font-bold text-gray-900 sm:text-3xl lg:text-[36px]">
+                {camp.name}
+              </h1>
 
-          {/* Booking Sidebar - Desktop Only */}
-          <div className="hidden lg:block">
-            <BookingSidebar camp={camp} />
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Sticky Footer */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-300 px-5 py-4 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] z-40">
-        <div className="flex justify-between items-center">
-          <div className="flex flex-col gap-0.5">
-            <div className="flex items-baseline gap-1">
-              <span className="text-sm text-gray-500">From</span>
-              <span className="text-2xl font-bold text-gray-900">€830</span>
-              <span className="text-sm text-gray-500">/week</span>
-            </div>
-            <span className="text-xs text-gray-500">Jun 15 - Aug 20</span>
-          </div>
-          <button
-            className="px-8 py-3.5 bg-primary text-gray-900 rounded-lg text-base font-semibold hover:bg-primary-300 transition-colors whitespace-nowrap"
-            onClick={() => router.push(`/camps/${camp.slug}/book`)}
-          >
-            Reserve
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Camp Content Component
-function CampContent({ camp, getAgeRangeText }: { camp: Camp; getAgeRangeText: () => string }) {
-  return (
-    <>
-      {/* Camp Header */}
-      <div id="about" className="mb-8 pt-6">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">{camp.name}</h1>
-
-        <div className="flex flex-wrap items-center gap-3 text-base text-gray-500 mb-4">
-          <div className="flex items-center gap-1.5">
-            <span className="text-base">⭐</span>
-            <span className="font-semibold text-gray-900">4.9</span>
-            <span>(127 reviews)</span>
-          </div>
-          <span>•</span>
-          <span>{camp.locationName || 'Location TBD'}</span>
-        </div>
-      </div>
-
-      {/* About This Camp */}
-      <div className="mb-12 pb-8 border-b border-gray-300">
-        <SectionHeader title="About This Camp" className="mb-4" />
-
-        {/* Tags Row */}
-        <div className="flex flex-wrap items-center gap-3 text-sm mb-4">
-          {/* Gender Tag */}
-          <span className="px-3 py-1.5 bg-gray-100 rounded-full font-medium text-gray-900">
-            {camp.gender === 'coed' && '🧑‍🤝‍🧑 Co-Education'}
-            {camp.gender === 'boys' && '👦 Boys Only'}
-            {camp.gender === 'girls' && '👧 Girls Only'}
-          </span>
-
-          {/* Age Range Tag */}
-          <span className="px-3 py-1.5 bg-gray-100 rounded-full font-medium text-gray-900">
-            👶 {getAgeRangeText()}
-          </span>
-
-          {/* Camp Type Tag */}
-          <span className="px-3 py-1.5 bg-gray-100 rounded-full font-medium text-gray-900">
-            {camp.type === 'day' ? '☀️ Day Camp' : '⛺ Sleepaway Camp'}
-          </span>
-
-          {/* Camp Focus Tag - Only show if primaryFocus exists */}
-          {camp.campFocus?.primaryFocus && (
-            <span className="px-3 py-1.5 bg-gray-100 rounded-full font-medium text-gray-900">
-              {camp.campFocus.primaryFocus.icon} {camp.campFocus.primaryFocus.activityName} Focus
-            </span>
-          )}
-        </div>
-
-        {camp.description && <ExpandableText text={camp.description} maxLines={4} />}
-      </div>
-
-      {/* What's Included */}
-      {camp.whatsIncluded && (
-        <div id="included" className="mb-12 pb-8 border-b border-gray-300">
-          <SectionHeader title="What's Included" className="mb-6" />
-          <IncludedGrid
-            items={[
-              ...(camp.whatsIncluded.manual || []),
-              ...(camp.whatsIncluded.autoGenerated || []),
-            ].filter(item => item.isSelected)}
-          />
-        </div>
-      )}
-
-      {/* Activities Section */}
-      <div id="activities" className="mb-12 pb-8 border-b border-gray-300">
-        <SectionHeader title="Activities" className="mb-6" />
-        <ActivitySections camp={camp} />
-      </div>
-
-      {/* Schedule Section - Daily or Weekly */}
-      {camp.scheduleType && (camp.dailySchedule || camp.weeklySchedule) && (
-        <div id="schedule" className="mb-12 pb-8 border-b border-gray-300">
-          <SectionHeader
-            title={camp.scheduleType === 'daily' ? 'A Day at Camp' : 'Weekly Schedule'}
-            icon="📅"
-            className="mb-6"
-          />
-
-          {camp.scheduleType === 'daily' && camp.dailySchedule?.timeSlots && (
-            <DailySchedule schedule={camp.dailySchedule.timeSlots} />
-          )}
-
-          {camp.scheduleType === 'weekly' && camp.weeklySchedule && (
-            <WeeklySchedule schedule={camp.weeklySchedule} />
-          )}
-
-          {/* Empty state */}
-          {camp.scheduleType === 'daily' && !camp.dailySchedule?.timeSlots?.length && (
-            <p className="text-base text-gray-500">No daily schedule available yet.</p>
-          )}
-        </div>
-      )}
-
-      {/* Meals */}
-      {camp.meals && (
-        <div id="meals" className="mb-12 pb-8 border-b border-gray-300">
-          <SectionHeader title="Meals" icon="🍽️" className="mb-6" />
-
-          {/* Meals Description */}
-          {camp.meals.description && (
-            <p className="text-base text-gray-500 mb-6">{camp.meals.description}</p>
-          )}
-
-          {/* Dietary Options */}
-          {camp.meals.dietaryOptions && camp.meals.dietaryOptions.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Dietary Options</h3>
-              <ActivityGrid
-                activities={camp.meals.dietaryOptions
-                  .map((optionId: string) => {
-                    const option = PREDEFINED_DIETARY_OPTIONS.find(opt => opt.id === optionId)
-                    return option ? { id: option.id, name: option.name, icon: option.icon } : null
-                  })
-                  .filter((item): item is ActivityItem => item !== null)}
-                mobileCount={4}
-                desktopCount={8}
-              />
-            </div>
-          )}
-
-          {/* Legacy meals items (if any) */}
-          {camp.meals.items && camp.meals.items.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {camp.meals.items.map((meal: any, index: number) => (
-                <div key={index} className="bg-gray-100 rounded-xl p-4">
-                  <div className="text-2xl mb-2">{meal.icon}</div>
-                  <div className="text-base font-semibold text-gray-900">{meal.name}</div>
-                  {meal.description && (
-                    <div className="text-sm text-gray-500 mt-1">{meal.description}</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Sessions - Dates & Pricing */}
-      {camp.sessions && camp.sessions.length > 0 && (
-        <div id="sessions" className="mb-12 pb-8 border-b border-gray-300">
-          <SessionsSection
-            sessions={camp.sessions}
-            sessionType={camp.sessionType}
-            campName={camp.name}
-            currency={camp.provider?.settings?.currency || 'USD'}
-          />
-        </div>
-      )}
-
-      {/* Cancellation Policy */}
-      {camp.provider?.settings?.cancellationPolicy && (
-        <div id="cancellation-policy">
-          <CancellationPolicySection
-            policy={camp.provider.settings.cancellationPolicy as any}
-            customPolicy={camp.provider.settings.cancellationPolicyCustom}
-          />
-        </div>
-      )}
-
-      {/* Screen Time Policy */}
-      {camp.screenPolicy && (
-        <div id="screen-policy" className="mb-12 pb-8 border-b border-gray-300">
-          <SectionHeader title="Screen Time Policy" icon="📱" className="mb-6" />
-          {camp.screenPolicy.description && (
-            <p className="text-base text-gray-900">{camp.screenPolicy.description}</p>
-          )}
-        </div>
-      )}
-
-      {/* Safety & Supervision */}
-      {camp.safetySupervision && (
-        <div id="safety" className="mb-12 pb-8 border-b border-gray-300">
-          <SectionHeader title="Safety & Supervision" icon="🛡️" className="mb-6" />
-          {camp.safetySupervision.description && (
-            <p className="text-base text-gray-500 mb-6">{camp.safetySupervision.description}</p>
-          )}
-          <SafetyCard ratios={camp.safetySupervision.ratios} items={camp.safetySupervision.items} />
-        </div>
-      )}
-
-      {/* Location & Campus */}
-      {camp.campusFacilities && (
-        <div id="campus" className="mb-12 pb-8 border-b border-gray-300">
-          <SectionHeader title="Location & Campus" icon="🏫" className="mb-6" />
-
-          {/* Google Map */}
-          {(camp.locationLat && camp.locationLng) || camp.locationPlaceId ? (
-            <div className="mb-6">
-              <GoogleMapsLoader apiKey={config.maps.googleApiKey}>
-                <div className="h-[400px] w-full rounded-xl overflow-hidden border border-gray-300">
-                  <GoogleMapWithSearch
-                    selectedPlace={{
-                      lat:
-                        camp.locationLat != null
-                          ? typeof camp.locationLat === 'string'
-                            ? parseFloat(camp.locationLat)
-                            : camp.locationLat
-                          : 0,
-                      lng:
-                        camp.locationLng != null
-                          ? typeof camp.locationLng === 'string'
-                            ? parseFloat(camp.locationLng)
-                            : camp.locationLng
-                          : 0,
-                      name: camp.locationName || camp.name,
-                      placeId: camp.locationPlaceId ?? null,
-                    }}
-                  />
-                </div>
-              </GoogleMapsLoader>
-            </div>
-          ) : null}
-
-          {/* Location Information */}
-          {(camp.locationName || camp.locationAddress) && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-xl">
-              {camp.locationName && (
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{camp.locationName}</h3>
-              )}
-              {camp.locationAddress && (
-                <p className="text-base text-gray-500">{camp.locationAddress}</p>
-              )}
-            </div>
-          )}
-
-          {/* Campus Description */}
-          {camp.campusFacilities.description && (
-            <div className="mb-6">
-              <p className="text-base text-gray-500">{camp.campusFacilities.description}</p>
-            </div>
-          )}
-
-          {/* Campus Size and Setting */}
-          {(camp.campusFacilities.campusSize || camp.campusFacilities.campusSetting) && (
-            <div className="mb-6 flex flex-wrap gap-3">
-              {camp.campusFacilities.campusSize && (
-                <div className="px-4 py-2 bg-gray-100 rounded-lg">
-                  <span className="text-sm font-medium text-gray-900">
-                    {CAMPUS_SIZE.find(s => s.value === camp.campusFacilities?.campusSize)?.label ||
-                      camp.campusFacilities.campusSize}
-                  </span>
-                  <span className="text-sm text-gray-500 ml-2">
-                    (
-                    {
-                      CAMPUS_SIZE.find(s => s.value === camp.campusFacilities?.campusSize)
-                        ?.description
-                    }
-                    )
-                  </span>
-                </div>
-              )}
-              {camp.campusFacilities.campusSetting && (
-                <div className="px-4 py-2 bg-gray-100 rounded-lg">
-                  <span className="text-sm font-medium text-gray-900">
-                    {CAMPUS_SETTING.find(s => s.value === camp.campusFacilities?.campusSetting)
-                      ?.label || camp.campusFacilities.campusSetting}
-                  </span>
-                  <span className="text-sm text-gray-500 ml-2">
-                    (
-                    {
-                      CAMPUS_SETTING.find(s => s.value === camp.campusFacilities?.campusSetting)
-                        ?.description
-                    }
-                    )
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Campus Facilities */}
-          {camp.campusFacilities.selectedFacilities &&
-            camp.campusFacilities.selectedFacilities.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Campus Facilities</h3>
-                <ActivityGrid
-                  activities={camp.campusFacilities.selectedFacilities
-                    .map((facilityId: string) => {
-                      const facility = PREDEFINED_FACILITIES.find(f => f.id === facilityId)
-                      return facility
-                        ? { id: facility.id, name: facility.name, icon: facility.icon }
-                        : null
-                    })
-                    .filter((item): item is ActivityItem => item !== null)}
-                  mobileCount={4}
-                  desktopCount={8}
-                />
-              </div>
-            )}
-        </div>
-      )}
-
-      {/* Location & Getting There */}
-      {(camp.locationCampus || camp.gettingThere) && (
-        <div id="location" className="mb-12 pb-8 border-b border-gray-300">
-          <SectionHeader title="Location & Getting There" icon="📍" className="mb-6" />
-
-          {camp.locationCampus?.description && (
-            <div className="mb-6">
-              <SectionSubheader title="Campus" className="mb-3" />
-              <p className="text-base text-gray-500">{camp.locationCampus.description}</p>
-            </div>
-          )}
-
-          {camp.gettingThere?.options && (
-            <div>
-              <SectionSubheader title="Getting There" className="mb-3" />
-              <div className="space-y-3">
-                {camp.gettingThere.options.map((option: any, index: number) => (
-                  <div key={index} className="flex items-start gap-3 p-4 bg-gray-100 rounded-xl">
-                    <span className="text-2xl">{option.icon}</span>
-                    <div className="flex-1">
-                      <div className="text-base font-semibold text-gray-900 mb-1">
-                        {option.name}
-                      </div>
-                      {option.description && (
-                        <div className="text-sm text-gray-500">{option.description}</div>
+              {/* Meta — module-01: two lines, rating row + location row */}
+              {(headerRating != null ||
+                isVerifiedProvider ||
+                headerTrustScore != null ||
+                headerAddress) && (
+                <div className="mb-4 flex flex-col gap-y-1.5 text-base text-gray-600 md:mb-5">
+                  {(headerRating != null || isVerifiedProvider || headerTrustScore != null) && (
+                    <div className="flex flex-wrap items-center gap-2 text-[15px]">
+                      {headerRating != null && (
+                        <span className="flex items-center gap-1">
+                          <StarRating
+                            rating={headerRating}
+                            showRating={false}
+                            color="yellow"
+                            size={16}
+                          />
+                          <span className="font-bold text-gray-900">{headerRating.toFixed(1)}</span>
+                        </span>
+                      )}
+                      {headerRating != null && !!headerReviewsCount && (
+                        <>
+                          <span className="text-gray-500">·</span>
+                          <a
+                            href="#reviews"
+                            className="underline underline-offset-2 hover:text-gray-900"
+                          >
+                            {headerReviewsCount} reviews
+                          </a>
+                        </>
+                      )}
+                      {isVerifiedProvider && (
+                        <>
+                          {headerRating != null && <span className="text-gray-500">·</span>}
+                          <span className="inline-flex items-center gap-0.5 text-sm font-bold text-primary-700">
+                            <CircleCheck size={16} />
+                            Verified
+                          </span>
+                        </>
+                      )}
+                      {headerTrustScore != null && (
+                        <>
+                          {/* {(headerRating != null || isVerifiedProvider) && (
+                            <span className="text-gray-500">·</span>
+                          )}
+                          <span className="inline-flex items-center gap-1 text-sm text-gray-600">
+                            🛡
+                            <span>
+                              Trust score{' '}
+                              <span className="underline underline-offset-2">
+                                {headerTrustScore}/100
+                              </span>
+                            </span>
+                          </span> */}
+                        </>
                       )}
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+                  )}
 
-      {/* Provider/Organizer Information */}
-      {camp.provider && (
-        <div id="provider">
-          <ProviderSection
-            provider={camp.provider}
-            campId={camp.id}
-            campSlug={camp.slug}
-            campTitle={camp.name}
-          />
-        </div>
-      )}
-
-      {/* Accommodation */}
-      {camp.accommodation && camp.type === 'residential' && (
-        <div id="accommodation" className="mb-12 pb-8 border-b border-gray-300">
-          <SectionHeader title="Accommodation" icon="🏠" className="mb-6" />
-          {camp.accommodation.description && (
-            <p className="text-base text-gray-500 mb-6">{camp.accommodation.description}</p>
-          )}
-          {camp.accommodation.items && camp.accommodation.items.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {camp.accommodation.items.map((item: any, index: number) => (
-                <div key={index} className="flex items-start gap-3">
-                  <span className="text-primary text-lg font-bold shrink-0 mt-0.5">✓</span>
-                  <span className="text-base text-gray-900">{item}</span>
+                  {headerAddress && (
+                    <div className="flex flex-wrap items-center gap-2 text-[15px]">
+                      <MapPin size={16} />
+                      <span>{headerAddress}</span>
+                      <span className="text-gray-500">·</span>
+                      <a
+                        href="#location"
+                        className="text-secondary-700 underline underline-offset-2 hover:text-primary-600"
+                      >
+                        Show on map
+                      </a>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+              )}
 
-      {/* Coming Soon Notice */}
-      <div className="mt-12 p-6 bg-blue-50 border border-blue-200 rounded-lg">
-        <h3 className="text-lg font-semibold text-blue-900 mb-2">Booking Coming Soon</h3>
-        <p className="text-blue-700">
-          We're working on adding dates, pricing, and booking functionality. Check back soon!
-        </p>
-      </div>
-    </>
-  )
-}
-
-// Booking Sidebar Component
-function BookingSidebar({ camp }: { camp: Camp }) {
-  const router = useRouter()
-  const { isAuthenticated, user } = useAuth()
-  const { setDraftConversation } = useMessagingStore()
-  const [selectedSession, setSelectedSession] = useState<Session | null>(null)
-
-  const sessions = camp.sessions ?? []
-  const activeSessions = sessions.filter(s => s.status === 'published')
-  const currency = camp.provider?.settings?.currency || 'USD'
-
-  /**
-   * Handle message organizer button click
-   * - If not authenticated: redirect to login with return URL
-   * - If authenticated: create/get conversation and navigate to messages
-   */
-  const handleMessageOrganizer = () => {
-    // Check if user is authenticated
-    if (!isAuthenticated || !user) {
-      // Redirect to login with return URL
-      const returnUrl = `/camps/${camp.slug}`
-      router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`)
-      return
-    }
-
-    // Check if camp has a provider
-    if (!camp.provider?.id) {
-      console.error('Camp does not have a provider')
-      alert('Unable to start conversation. Provider information is missing.')
-      return
-    }
-
-    // ✅ WhatsApp Web pattern: Save draft conversation metadata
-    setDraftConversation({
-      providerId: camp.provider.id,
-      providerName: camp.provider.legalCompanyName || 'Provider',
-      participantType: 'provider',
-      contextType: ContextType.CAMP,
-      contextId: camp.id,
-      contextName: camp.name, // Use 'name' instead of 'title'
-    })
-
-    // Navigate to /messages (not /messages/new or /messages/:id)
-    router.push('/messages')
-  }
-
-  // Calculate minimum price from sessions
-  const getMinPrice = () => {
-    if (activeSessions.length === 0) return null
-
-    const prices = activeSessions.map(session => {
-      if (session.pricingType === 'single' && session.price !== undefined) {
-        return session.price
-      } else if (
-        session.pricingType === 'age_group' &&
-        session.ageGroupPrices &&
-        session.ageGroupPrices.length > 0
-      ) {
-        return Math.min(...session.ageGroupPrices.map(agp => agp.price))
-      }
-      return 0
-    })
-
-    return Math.min(...prices)
-  }
-
-  const minPrice = getMinPrice()
-
-  // Get up to 3 sessions to display
-  const displayedSessions = activeSessions.slice(0, 3)
-
-  // Determine badge for each session
-  const getSessionBadge = (session: Session, index: number) => {
-    const spotsLeft = session.totalSpots ?? null
-
-    // LAST SPOTS - if 5 or fewer spots left
-    if (spotsLeft !== null && spotsLeft <= 5) {
-      return { text: 'LAST SPOTS', icon: '🔥', color: 'border-red-500 text-red-700 bg-red-50' }
-    }
-
-    // NEXT AVAILABLE - first session
-    if (index === 0) {
-      return {
-        text: 'NEXT AVAILABLE',
-        icon: '🚀',
-        color: 'border-teal-500 text-teal-700 bg-teal-50',
-      }
-    }
-
-    // MOST POPULAR - second session
-    if (index === 1) {
-      return {
-        text: 'MOST POPULAR',
-        icon: '⭐',
-        color: 'border-yellow-500 text-yellow-700 bg-yellow-50',
-      }
-    }
-
-    return null
-  }
-
-  // Handle session selection
-  const handleSessionClick = (session: Session) => {
-    if (selectedSession?.id === session.id) {
-      setSelectedSession(null) // Deselect if clicking the same session
-    } else {
-      setSelectedSession(session)
-    }
-  }
-
-  // Get selected session price
-  const getSelectedPrice = () => {
-    if (!selectedSession) return null
-    if (selectedSession.pricingType === 'single' && selectedSession.price !== undefined) {
-      return selectedSession.price
-    } else if (
-      selectedSession.pricingType === 'age_group' &&
-      selectedSession.ageGroupPrices &&
-      selectedSession.ageGroupPrices.length > 0
-    ) {
-      return Math.min(...selectedSession.ageGroupPrices.map(agp => agp.price))
-    }
-    return 0
-  }
-
-  // Get selected session date range
-  const getSelectedDateRange = () => {
-    if (!selectedSession) return null
-
-    const formatDate = (dateString: string) => {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    }
-
-    const endDate = new Date(selectedSession.endDate)
-    const year = endDate.getFullYear()
-    return `${formatDate(selectedSession.startDate)} - ${formatDate(selectedSession.endDate)}, ${year}`
-  }
-
-  const selectedPrice = getSelectedPrice()
-  const selectedDateRange = getSelectedDateRange()
-
-  return (
-    <div className="sticky top-24">
-      <div className="border border-gray-300 rounded-xl p-6 shadow-lg">
-        {/* Price Header - Dynamic based on selection */}
-        {!selectedSession && minPrice !== null && (
-          <div className="mb-6 pb-6 border-b border-gray-200">
-            <div className="flex items-baseline gap-1">
-              <span className="text-sm text-gray-600">From</span>
-              <span className="text-3xl font-bold text-gray-900">
-                {formatCurrency(minPrice, currency)}
-              </span>
-              <span className="text-base text-gray-500">/week</span>
-            </div>
-          </div>
-        )}
-
-        {selectedSession && selectedPrice !== null && (
-          <div className="mb-6 pb-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <span className="text-3xl font-bold text-gray-900">
-                {formatCurrency(selectedPrice, currency)}
-              </span>
-              <span className="text-sm text-gray-600">{selectedDateRange}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Sessions List */}
-        {displayedSessions.length > 0 && (
-          <div className="space-y-4 mb-6">
-            {displayedSessions.map((session, index) => (
-              <SidebarSessionCard
-                key={session.id}
-                session={session}
-                badge={getSessionBadge(session, index)}
-                isSelected={selectedSession?.id === session.id}
-                onClick={() => handleSessionClick(session)}
-                currency={currency}
+              <CampStatsBar
+                gender={camp.gender}
+                ageGroups={camp.ageGroups ?? []}
+                primaryFocus={primaryActivity ? { activityName: primaryActivity.name } : null}
+                focusEmoji={focusStatEmoji}
+                campType={camp.type}
+                levelLabel={statsLevelLabel}
+                className="mb-6"
               />
-            ))}
+
+              {/* Subtitle / descriptive line (camp-specific; not in static mock) */}
+              <h2 className="mb-3 text-lg font-bold md:mb-4 md:text-xl">{descriptiveH2}</h2>
+              {camp.description && <ExpandableText text={camp.description} maxLines={4} />}
+            </section>
+
+            {/* ── 4. What's Included ────────────────────────────────── */}
+            {camp.whatsIncluded && (
+              <section
+                id="included"
+                className="mb-10 scroll-mt-14 border-t border-gray-200 pt-10 md:mb-12 md:scroll-mt-16 md:pt-12"
+              >
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">
+                  What&apos;s Included
+                </h2>
+                <IncludedGrid
+                  items={[
+                    ...(camp.whatsIncluded.manual || []),
+                    ...(camp.whatsIncluded.autoGenerated || []),
+                  ].filter(item => item.isSelected)}
+                />
+              </section>
+            )}
+
+            {/* ── 5. Dates & Pricing ────────────────────────────────── */}
+            <SessionsSection
+              sessions={activeSessions}
+              sessionType={camp.sessionType}
+              campName={camp.name}
+              currency={currency}
+              ageGroups={camp.ageGroups}
+              campType={camp.type}
+              campSlug={camp.slug}
+              selectedSession={selectedSession}
+              onSelectSession={setSelectedSession}
+              onOpenSessionsModal={() => setIsSessionsModalOpen(true)}
+            />
+
+            {/* ── 6. Activities ─────────────────────────────────────── */}
+            {camp.activities && camp.activities.length > 0 && (
+              <section
+                id="activities"
+                className="mb-10 scroll-mt-14 border-t border-gray-200 pt-10 md:mb-12 md:scroll-mt-16 md:pt-12"
+              >
+                <CampActivitiesSection camp={camp} />
+              </section>
+            )}
+
+            {/* ── 7. Reviews ────────────────────────────────────────── */}
+            <ReviewsSection
+              campId={camp.id}
+              campName={camp.provider?.googleBusinessProfile?.businessName || camp.name}
+              initialData={campReviews ?? undefined}
+            />
+
+            {/* ── 8. Safety & Supervision ───────────────────────────── */}
+            {camp.safetySupervision &&
+              (camp.safetySupervision.staffRatios?.length ||
+                camp.safetySupervision.items?.length ||
+                camp.safetySupervision.description) && (
+                <section
+                  id="safety"
+                  className="mb-10 scroll-mt-14 border-t border-gray-200 pt-10 md:mb-12 md:scroll-mt-16 md:pt-12"
+                >
+                  <div className="flex items-center gap-2.5 mb-6">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="w-[26px] h-[26px] shrink-0 text-gray-900"
+                    >
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                    <h2 className="text-xl md:text-2xl font-bold text-gray-900">
+                      Safety &amp; Supervision
+                    </h2>
+                  </div>
+                  <SafetyCard
+                    ratios={camp.safetySupervision.staffRatios?.map((r: any) => ({
+                      label: r.label,
+                      ratio: r.value,
+                    }))}
+                    items={camp.safetySupervision.items}
+                    description={camp.safetySupervision.description}
+                  />
+                </section>
+              )}
+
+            {/* ── 9. Accordion Group (Meals / Schedule / Screen Policy / Add-ons) */}
+            <AccordionGroup
+              meals={camp.meals}
+              scheduleType={camp.scheduleType}
+              dailySchedule={camp.dailySchedule}
+              weeklySchedule={camp.weeklySchedule}
+              screenPolicy={camp.screenPolicy}
+              addOns={addOns}
+            />
+
+            {/* ── 10. Cancellation Policy ───────────────────────────── */}
+            {camp.provider?.settings?.cancellationPolicy && (
+              <CancellationPolicySection
+                policy={camp.provider.settings.cancellationPolicy as any}
+                customPolicy={camp.provider.settings.cancellationPolicyCustom}
+                depositRequired={camp.provider.settings.depositRequired}
+                depositType={camp.provider.settings.depositType}
+                depositPercentage={camp.provider.settings.depositPercentage ?? undefined}
+                depositFixedAmount={camp.provider.settings.depositFixedAmount ?? undefined}
+                currency={currency}
+                selectedSession={selectedSession}
+              />
+            )}
+
+            {/* ── 11. Location & Campus ─────────────────────────────── */}
+            <section id="location" className="mb-10 scroll-mt-14 md:mb-12 md:scroll-mt-16">
+              <h2 className="text-[clamp(18px,3vw,24px)] font-bold text-gray-900 mb-6">
+                Location &amp; campus
+              </h2>
+
+              {/* Campus size + setting pills */}
+              {camp.campusFacilities &&
+                (camp.campusFacilities.campusSize || camp.campusFacilities.campusSetting) && (
+                  <div className="flex flex-wrap gap-2 mb-7">
+                    {camp.campusFacilities.campusSize && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-[13px] text-gray-700">
+                        🏕️{' '}
+                        {CAMPUS_SIZE.find(s => s.value === camp.campusFacilities?.campusSize)
+                          ?.label || camp.campusFacilities.campusSize}
+                      </span>
+                    )}
+                    {camp.campusFacilities.campusSetting && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-[13px] text-gray-700">
+                        🌿{' '}
+                        {CAMPUS_SETTING.find(s => s.value === camp.campusFacilities?.campusSetting)
+                          ?.label || camp.campusFacilities.campusSetting}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+              {/* Campus facilities */}
+              {camp.campusFacilities?.selectedFacilities?.length ? (
+                <div className="mb-7">
+                  <p className="text-[13px] font-bold uppercase tracking-[0.06em] text-gray-500 mb-[14px]">
+                    Campus facilities
+                  </p>
+                  <div
+                    className="grid gap-3"
+                    style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}
+                  >
+                    {camp.campusFacilities.selectedFacilities.map((id: string) => {
+                      const f = PREDEFINED_FACILITIES.find(f => f.id === id)
+                      if (!f) return null
+                      return (
+                        <div key={id} className="flex items-center gap-2 text-[14px] text-gray-700">
+                          <span className="text-[18px] shrink-0">{f.icon}</span>
+                          {f.name}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Map */}
+              {(camp.locationLat && camp.locationLng) || camp.locationPlaceId ? (
+                <GoogleMapsLoader apiKey={config.maps.googleApiKey}>
+                  <div className="h-[220px] w-full rounded-2xl overflow-hidden border border-gray-200 mb-2.5">
+                    <GoogleMapWithSearch
+                      selectedPlace={{
+                        lat: camp.locationLat != null ? Number(camp.locationLat) : 0,
+                        lng: camp.locationLng != null ? Number(camp.locationLng) : 0,
+                        name: camp.locationName || camp.name,
+                        placeId: camp.locationPlaceId ?? null,
+                      }}
+                    />
+                  </div>
+                </GoogleMapsLoader>
+              ) : null}
+
+              {/* Address + See full map link */}
+              {camp.locationAddress && (
+                <p className="text-[14px] text-gray-500 mb-1">{camp.locationAddress}</p>
+              )}
+              {(camp.locationLat && camp.locationLng) || camp.locationAddress ? (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(camp.locationAddress || `${camp.locationLat},${camp.locationLng}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[14px] font-semibold text-secondary inline-flex items-center gap-1 mb-7"
+                >
+                  See full map
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M2 7h10M7 2l5 5-5 5" />
+                  </svg>
+                </a>
+              ) : null}
+
+              {/* Getting there */}
+              {(() => {
+                const gt = camp.gettingThere as any
+                const selectedIds: string[] = gt?.selectedTransport ?? []
+                const overallDescription: string = gt?.description ?? ''
+                const transportDetails: Record<
+                  string,
+                  { description?: string; moreInfoUrl?: string }
+                > = gt?.transportDetails ?? {}
+                const transportItems = selectedIds
+                  .map(id => PREDEFINED_TRANSPORT.find(t => t.id === id))
+                  .filter(Boolean) as (typeof PREDEFINED_TRANSPORT)[number][]
+                if (!transportItems.length && !overallDescription) return null
+                return (
+                  <>
+                    <p className="text-[13px] font-bold uppercase tracking-[0.06em] text-gray-500 mb-0">
+                      Getting there
+                    </p>
+                    {overallDescription && (
+                      <p className="text-[14px] text-gray-500 mt-3 mb-1 leading-relaxed">
+                        {overallDescription}
+                      </p>
+                    )}
+                    {transportItems.length > 0 && (
+                      <div>
+                        {transportItems.map(item => {
+                          const detail = transportDetails[item.id] ?? {}
+                          return (
+                            <div
+                              key={item.id}
+                              className="flex items-center gap-4 py-4 border-b border-gray-100 last:border-b-0"
+                            >
+                              <span className="text-[22px] shrink-0 w-10 text-center">
+                                {item.icon}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-[15px] font-semibold text-gray-900 mb-0.5">
+                                  {item.name}
+                                </div>
+                                {detail.description && (
+                                  <div className="text-[14px] text-gray-500">
+                                    {detail.description}
+                                  </div>
+                                )}
+                              </div>
+                              {detail.moreInfoUrl && (
+                                <a
+                                  href={detail.moreInfoUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[14px] font-medium text-secondary whitespace-nowrap shrink-0 hover:underline"
+                                >
+                                  More info
+                                </a>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+            </section>
+
+            {/* ── 12. About the Organizer ───────────────────────────── */}
+            {camp.provider && (
+              <ProviderSection
+                provider={camp.provider}
+                campId={camp.id}
+                campSlug={camp.slug}
+                campTitle={camp.name}
+              />
+            )}
+
+            {/* ── 13. FAQ ───────────────────────────────────────────── */}
+            <FaqSection items={faqItems} />
           </div>
-        )}
 
-        {/* View All Sessions Link */}
-        {activeSessions.length > 3 && (
-          <div className="mb-6 text-center">
-            <a
-              href="#sessions"
-              className="text-sm font-semibold text-gray-900 hover:underline inline-flex items-center gap-1"
-            >
-              View all {activeSessions.length} sessions →
-            </a>
-          </div>
-        )}
-
-        {/* Dynamic Button - Check Availability or Reserve Now */}
-        <Button
-          color="primary"
-          size="lg"
-          className="w-full font-semibold"
-          onPress={() => {
-            if (selectedSession) {
-              router.push(
-                `/camps/${camp.slug}/book?sessionId=${encodeURIComponent(selectedSession.id)}`
-              )
-            } else {
-              // No session selected: start booking flow at Step 1.
-              router.push(`/camps/${camp.slug}/book`)
-            }
-          }}
-        >
-          {selectedSession ? 'Reserve' : 'Check availability'}
-        </Button>
-
-        {/* Questions Section */}
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-center text-sm text-gray-600 mb-3">Questions?</p>
-          <Button
-            variant="bordered"
-            size="lg"
-            color="secondary"
-            className="w-full"
-            onPress={handleMessageOrganizer}
-          >
-            Message organizer
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Sidebar Session Card Component
-interface SidebarSessionCardProps {
-  session: Session
-  badge: { text: string; icon: string; color: string } | null
-  isSelected: boolean
-  onClick: () => void
-  currency?: string
-}
-
-function SidebarSessionCard({
-  session,
-  badge,
-  isSelected,
-  onClick,
-  currency = 'USD',
-}: SidebarSessionCardProps) {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  }
-
-  const formatDateRange = (start: string, end: string) => {
-    const endDate = new Date(end)
-    const year = endDate.getFullYear()
-
-    return `${formatDate(start)} - ${formatDate(end)}, ${year}`
-  }
-
-  const calculateDuration = (start: string, end: string) => {
-    const startDate = new Date(start)
-    const endDate = new Date(end)
-    const durationDays = Math.ceil(
-      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-    )
-    const weeks = Math.floor(durationDays / 7)
-    const days = durationDays % 7
-
-    if (weeks > 0 && days === 0) {
-      return `${weeks} week${weeks > 1 ? 's' : ''}`
-    } else if (weeks > 0) {
-      return `${weeks} week${weeks > 1 ? 's' : ''}`
-    } else {
-      return `${durationDays} day${durationDays > 1 ? 's' : ''}`
-    }
-  }
-
-  const getSpotsLeftText = () => {
-    const capacity = session.totalSpots
-    if (capacity === null || capacity === undefined) return null
-
-    if (capacity <= 5) {
-      return `Only ${capacity} left`
-    } else {
-      return `${capacity} spots left`
-    }
-  }
-
-  const getPrice = () => {
-    if (session.pricingType === 'single' && session.price !== undefined) {
-      return session.price
-    } else if (
-      session.pricingType === 'age_group' &&
-      session.ageGroupPrices &&
-      session.ageGroupPrices.length > 0
-    ) {
-      return Math.min(...session.ageGroupPrices.map(agp => agp.price))
-    }
-    return 0
-  }
-
-  const getDateRange = () => {
-    return formatDateRange(session.startDate, session.endDate)
-  }
-
-  const getDuration = () => {
-    return calculateDuration(session.startDate, session.endDate)
-  }
-
-  const spotsLeftText = getSpotsLeftText()
-  const duration = getDuration()
-
-  return (
-    <div
-      className={`relative border-2 rounded-lg p-4 transition-all cursor-pointer ${
-        isSelected
-          ? 'border-primary bg-primary/5'
-          : 'border-gray-200 hover:border-gray-300 bg-white'
-      }`}
-      onClick={onClick}
-    >
-      {/* Badge - Positioned on the border */}
-      {badge && (
-        <div
-          className={`absolute -top-3 left-3 inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold border ${badge.color}`}
-        >
-          <span>{badge.icon}</span>
-          <span>{badge.text}</span>
-        </div>
-      )}
-
-      {/* Session Name and Price */}
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="text-base font-semibold text-gray-900 flex-1">{session.name}</h3>
-        <div className="text-right ml-3">
-          <div className="text-lg font-bold text-gray-900">
-            {formatCurrency(getPrice(), currency)}
-          </div>
-        </div>
-      </div>
-
-      {/* Date Range */}
-      <p className="text-sm text-gray-600 mb-1">{getDateRange()}</p>
-
-      {/* Duration, Spots Left */}
-      <div className="text-sm text-gray-600">
-        {duration && <span>{duration}</span>}
-        {duration && spotsLeftText && <span> • </span>}
-        {spotsLeftText && <span className="font-medium">{spotsLeftText}</span>}
-      </div>
-    </div>
-  )
-}
-
-// Helper function to build meta cards for sports
-function getSportsMetaCards(sports: any): MetaCard[] {
-  const cards: MetaCard[] = []
-
-  if (sports.skillLevel) {
-    const label = getSkillLevelLabel(sports.skillLevel)
-    if (label) {
-      cards.push({ label: 'Skill Level', value: label })
-    }
-  }
-
-  if (sports.coachingType) {
-    const label = getCoachingTypeLabel(sports.coachingType)
-    if (label) {
-      cards.push({ label: 'Coaching Type', value: label })
-    }
-  }
-
-  return cards
-}
-
-// Helper function to build meta cards for academics
-function getAcademicsMetaCards(academics: any): MetaCard[] {
-  const cards: MetaCard[] = []
-
-  if (academics.teachingApproach) {
-    const label = getTeachingApproachLabel(academics.teachingApproach)
-    if (label) {
-      cards.push({ label: 'Teaching Approach', value: label })
-    }
-  }
-
-  return cards
-}
-
-// Activity Sections Component
-function ActivitySections({ camp }: { camp: Camp }) {
-  const activityConfig: Record<
-    string,
-    {
-      title: string
-      icon: string
-      dataField: string
-      transformData: (data: any) => any
-      getMetaCards?: (data: any) => MetaCard[]
-      getBadges?: (data: any) => string[]
-    }
-  > = {
-    sports: {
-      title: 'Sports',
-      icon: '⚽',
-      dataField: 'sportsActivities',
-      transformData: transformSportsActivities,
-      getMetaCards: getSportsMetaCards,
-      getBadges: (data: any) => data.badges || [],
-    },
-    languages: {
-      title: 'Languages',
-      icon: '🗣️',
-      dataField: 'languagePrograms',
-      transformData: transformLanguagePrograms,
-    },
-    academics: {
-      title: 'Academics',
-      icon: '📚',
-      dataField: 'academics',
-      transformData: transformAcademics,
-      getMetaCards: getAcademicsMetaCards,
-      getBadges: (data: any) => data.badges || [],
-    },
-    adventure: {
-      title: 'Adventure Activities',
-      icon: '🧗',
-      dataField: 'adventureActivities',
-      transformData: transformAdventureActivities,
-    },
-    arts: {
-      title: 'Arts & Crafts',
-      icon: '🎨',
-      dataField: 'artsAndCrafts',
-      transformData: transformArtsAndCrafts,
-    },
-    water: {
-      title: 'Water Activities',
-      icon: '🏊',
-      dataField: 'waterActivities',
-      transformData: transformWaterActivities,
-    },
-    excursions: {
-      title: 'Excursions & Trips',
-      icon: '🚌',
-      dataField: 'excursionsTrips',
-      transformData: transformExcursionsTrips,
-    },
-    // Handle both 'environment' and 'environmental' from backend
-    environment: {
-      title: 'Environmental Activities',
-      icon: '🌱',
-      dataField: 'environmentalActivities',
-      transformData: transformEnvironmentalActivities,
-    },
-    environmental: {
-      title: 'Environmental Activities',
-      icon: '🌱',
-      dataField: 'environmentalActivities',
-      transformData: transformEnvironmentalActivities,
-    },
-    religion: {
-      title: 'Religion',
-      icon: '🕊️',
-      dataField: 'religionPrograms',
-      transformData: transformReligionPrograms,
-    },
-  }
-
-  return (
-    <div className="space-y-8">
-      {camp.activities?.map(activityType => {
-        const config = activityConfig[activityType]
-        if (!config) return null
-
-        // Get activity data from the correct field
-        const activityData = (camp as any)[config.dataField]
-        if (!activityData) return null
-
-        // Transform the data to get ActivityItem[] with icons
-        const items = config.transformData(activityData)
-
-        // Build meta cards if function exists
-        const metaCards = config.getMetaCards ? config.getMetaCards(activityData) : undefined
-
-        // Build badges if function exists
-        const badges = config.getBadges ? config.getBadges(activityData) : undefined
-
-        return (
-          <ActivitySection
-            key={activityType}
-            title={config.title}
-            icon={config.icon}
-            description={activityData.description}
-            metaCards={metaCards}
-            badges={badges}
-            items={items}
-            totalCount={items.length}
+          {/* ── Right: Sticky sidebar (desktop only) ─────────────── */}
+          <CampSidebar
+            camp={camp}
+            sessions={activeSessions}
+            currency={currency}
+            selectedSession={selectedSession}
+            onSessionSelect={setSelectedSession}
+            onOpenSessionsModal={() => setIsSessionsModalOpen(true)}
           />
-        )
-      })}
-      {(!camp.activities || camp.activities.length === 0) && (
-        <p className="text-base text-gray-500">No activities listed yet.</p>
-      )}
+        </div>
+      </div>
+
+      {/* ── Sessions modal ─────────────────────────────────────────── */}
+      <SessionsModal
+        isOpen={isSessionsModalOpen}
+        sessions={activeSessions}
+        campName={camp.name}
+        currency={currency}
+        campAgeGroups={camp.ageGroups ?? []}
+        campType={camp.type}
+        campSlug={camp.slug}
+        onClose={() => setIsSessionsModalOpen(false)}
+        onSessionSelect={session => {
+          setSelectedSession(session)
+          setIsSessionsModalOpen(false)
+        }}
+      />
+
+      {/* ── Mobile sticky footer ───────────────────────────────────── */}
+      <MobileStickyFooter
+        sessions={activeSessions}
+        currency={currency}
+        campSlug={camp.slug}
+        campType={camp.type}
+        selectedSession={selectedSession}
+        onOpenSessionsModal={() => setIsSessionsModalOpen(true)}
+        isAnyModalOpen={isAnyModalOpen}
+      />
     </div>
+  )
+}
+
+// ─── Module 01 — header rating stars (amber, 14px) ───────────────────────────
+
+function HeaderRatingStars({ rating }: { rating: number }) {
+  const rounded = Math.min(5, Math.max(0, Math.round(rating)))
+  return (
+    <span className="-space-x-0.5 flex items-center text-amber-500" aria-hidden>
+      {[1, 2, 3, 4, 5].map(i => (
+        <Star
+          key={i}
+          size={14}
+          className={cn(
+            'shrink-0',
+            i <= rounded ? 'fill-amber-500 stroke-amber-500' : 'fill-transparent stroke-amber-500'
+          )}
+          strokeWidth={1.5}
+        />
+      ))}
+    </span>
   )
 }

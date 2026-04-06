@@ -183,6 +183,44 @@ export function normalizeCampReviewFromApi(raw: unknown): CampReview {
   }
 }
 
+// ─── Public camp reviews (camp profile page) ─────────────────────────────────
+
+export interface PublicReviewer {
+  firstName: string | null
+  lastName: string | null
+  city: string | null
+  country: string | null
+}
+
+export interface PublicCampReview {
+  id: string
+  rating: number | null
+  reviewText: string | null
+  publishedAt: string | null
+  visitMonth: number | null
+  visitYear: number | null
+  kidAges: number[]
+  kidTags: string[]
+  tags: string[]
+  reviewer: PublicReviewer
+}
+
+export interface CampReviewCategoryScores {
+  happiness: number | null
+  safety: number | null
+  communication: number | null
+  asDescribed: number | null
+  growth: number | null
+  value: number | null
+}
+
+export interface CampReviewsData {
+  totalReviews: number
+  overallRating: number | null
+  categoryScores: CampReviewCategoryScores
+  reviews: PublicCampReview[]
+}
+
 // Compute overall average rating from a CampReview
 export function computeAvgRating(review: CampReview): number {
   const ratings = review.ratings ?? {}

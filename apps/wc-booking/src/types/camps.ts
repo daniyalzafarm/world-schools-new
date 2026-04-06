@@ -8,6 +8,7 @@ export type CampStatus = 'draft' | 'published' | 'archived'
 export type SessionType = 'flexible' | 'fixed'
 
 export interface AgeGroup {
+  id?: string
   min: number
   max: number
 }
@@ -26,6 +27,8 @@ export interface ActivityItem {
   id: string
   name: string
   icon: string
+  photoUrl?: string
+  subtitle?: string
 }
 
 // Program Meta Card Interface
@@ -171,8 +174,18 @@ export interface Camp {
   accommodation?: any
   gettingThere?: any
   campFocus?: any
-  screenPolicy?: any
-  safetySupervision?: any
+  campFocusRecord?: {
+    activity: { id: string; name: string; emoji?: string | null; slug: string }
+    category: { id: string; name: string; emoji?: string | null; slug: string }
+  } | null
+  screenPolicy?: {
+    description: string
+  } | null
+  safetySupervision?: {
+    staffRatios?: { label: string; value: string }[]
+    items?: string[]
+    description?: string
+  } | null
   sessionType?: SessionType | null
 
   // Relations
@@ -188,6 +201,12 @@ export interface Camp {
     email?: string
     website?: string
     yearFounded?: number
+    description?: string
+    trustScore?: number | null
+    approvalStatus?: string
+    responseRate?: number | null
+    avgReplyTimeMinutes?: number | null
+    _count?: { camps: number }
     googleBusinessProfile?: {
       businessName: string
       formattedAddress: string
@@ -200,6 +219,10 @@ export interface Camp {
       currency: string
       cancellationPolicy: string
       cancellationPolicyCustom?: any
+      depositRequired?: boolean
+      depositType?: string | null
+      depositPercentage?: number | null
+      depositFixedAmount?: number | null
     }
   }
   sessions?: Session[]

@@ -578,6 +578,8 @@ model Camp {
   accommodation           Json? // {type, rooms, amenities}
   gettingThere            Json? // {directions, transportation}
   campFocus               Json? // {primaryFocus: {activityId, activityName, categoryId, categoryName, icon}, description, philosophy, learningApproach}
+  safetySupervision       Json? @map("safety_supervision") // {staffRatios?: {label, value}[], items?: string[], description?: string}
+  screenPolicy            Json? @map("screen_policy") // {description: string}
 
   // Publishing
   status      CampStatus @default(draft)

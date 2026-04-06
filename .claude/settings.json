@@ -6,6 +6,7 @@
       "Edit(*)",
       "Write(*)",
 
+      "Bash(sed -n:*)",
       "Bash(ls:*)",
       "Bash(cat:*)",
       "Bash(find:*)",

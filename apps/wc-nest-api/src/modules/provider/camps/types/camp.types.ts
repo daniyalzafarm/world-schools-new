@@ -51,9 +51,10 @@ export interface Accommodation {
 }
 
 export interface GettingThere {
-  directions: string
-  transportation: string[]
   description?: string
+  transportIncluded?: string
+  pickupLocations?: string
+  selectedTransport?: string[]
 }
 
 export interface PrimaryFocus {

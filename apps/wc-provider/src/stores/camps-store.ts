@@ -318,6 +318,13 @@ export const useCampsStore = create<CampsState>((set, get) => ({
         case 'camp-focus':
           camp = await campsService.updateCampFocus(campId, data.campFocus)
           break
+        case 'safety-policies':
+          camp = await campsService.updateSafetyPolicies(
+            campId,
+            data.safetySupervision,
+            data.screenPolicy
+          )
+          break
         default:
           throw new Error(`Unknown section: ${section}`)
       }

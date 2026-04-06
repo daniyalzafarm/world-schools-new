@@ -51,9 +51,10 @@ export interface Accommodation {
 }
 
 export interface GettingThere {
-  directions: string
-  transportation: string[]
   description?: string
+  transportIncluded?: string
+  pickupLocations?: string
+  selectedTransport?: string[]
 }
 
 export interface PrimaryFocus {
@@ -112,6 +113,14 @@ export interface Camp {
   accommodation?: Accommodation
   gettingThere?: GettingThere
   campFocus?: CampFocus
+  safetySupervision?: {
+    description?: string
+    staffRatios?: { label: string; value: string }[]
+    items?: string[]
+  } | null
+  screenPolicy?: {
+    description: string
+  } | null
   sessionType?: 'flexible' | 'fixed' | null
   currency?: string // Currency code (e.g., 'USD', 'EUR', 'GBP')
   status: CampStatus

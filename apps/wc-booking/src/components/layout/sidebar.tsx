@@ -27,6 +27,7 @@ import {
   Settings,
   Star,
   Users,
+  X,
 } from 'lucide-react'
 import { cn } from '@world-schools/ui-web'
 
@@ -75,9 +76,11 @@ const useSidebarExpansion = (onToggleCollapse: () => void) => {
 interface SidebarProps {
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
+  /** Embedded in camp public drawer (authenticated only): full-width labels, no collapse rail */
+  variant?: 'layout' | 'camp-drawer'
 }
 
-interface NavItem {
+export interface NavItem {
   name: string
   href?: string
   icon: React.ReactNode
@@ -86,7 +89,7 @@ interface NavItem {
   type?: string
 }
 
-const NAV_ITEMS: NavItem[] = [
+export const NAV_ITEMS: NavItem[] = [
   {
     name: 'Home',
     href: '/',
@@ -144,10 +147,15 @@ const NAV_ITEMS: NavItem[] = [
   },
 ]
 
-export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  sidebarOpen,
+  setSidebarOpen,
+  variant = 'layout',
+}) => {
   const router = useRouter()
   const pathname = usePathname()
   const { user, logout } = useAuthStore()
+  const isCampDrawer = variant === 'camp-drawer'
 
   // Collapsed state is managed locally within the sidebar
   const [isCollapsed, setIsCollapsed] = React.useState(false) // Start expanded
@@ -256,6 +264,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
 
   // Listen for sidebar collapse event from settings page
   React.useEffect(() => {
+    if (isCampDrawer) return
     const handleCollapseEvent = () => {
       // Only collapse if not already collapsed
       if (!isCollapsed) {
@@ -269,7 +278,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
     return () => {
       eventBus.$off('sidebar:collapse', 'sidebar-component')
     }
-  }, [isCollapsed, setIsManuallyExpanded])
+  }, [isCampDrawer, isCollapsed, setIsManuallyExpanded])
 
   const toggleSection = (sectionName: string) => {
     setExpandedSections(prev => ({ ...prev, [sectionName]: !prev[sectionName] }))
@@ -301,11 +310,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
         router.push(item.href)
       }
 
-      // For mobile view, close the sidebar after navigation
+      // For mobile view or camp drawer, close after navigation
       if (sidebarOpen) setSidebarOpen(false)
     },
     [isCollapsed, router, sidebarOpen, setSidebarOpen]
   )
+
+  const drawerCollapsed = isCampDrawer ? false : isCollapsed
 
   const userInitials = user
     ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || 'WC'
@@ -314,8 +325,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
 
   return (
     <>
-      {/* Mobile overlay */}
-      {sidebarOpen && (
+      {/* Mobile overlay (main layout only; camp drawer supplies its own) */}
+      {sidebarOpen && !isCampDrawer && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-10 lg:hidden transition-opacity duration-100"
           onClick={() => setSidebarOpen(false)}
@@ -326,32 +337,53 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
       <aside
         ref={asideRef}
         className={cn(
-          'h-full bg-white dark:bg-gray-900 backdrop-blur-md z-40',
-          'border-r border-default-200 dark:border-gray-700',
-          'fixed lg:static z-20',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-          'transition-all duration-300 ease-in-out',
-          isCollapsed ? 'w-16' : 'w-64'
+          'h-full bg-white dark:bg-gray-900 backdrop-blur-md',
+          isCampDrawer
+            ? 'relative z-auto w-full translate-x-0 border-0 shadow-none'
+            : cn(
+                'z-40 border-r border-default-200 dark:border-gray-700',
+                'fixed lg:static z-20',
+                sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+                'transition-all duration-300 ease-in-out',
+                isCollapsed ? 'w-16' : 'w-64'
+              )
         )}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        onMouseMove={handleMouseMove}
+        onMouseEnter={isCampDrawer ? undefined : handleMouseEnter}
+        onMouseLeave={isCampDrawer ? undefined : handleMouseLeave}
+        onMouseMove={isCampDrawer ? undefined : handleMouseMove}
       >
         <div className="flex h-full flex-col">
           {/* Logo section */}
-          <div className={cn('pt-4 pb-2', !isCollapsed ? 'px-4' : 'px-4')}>
+          <div className={cn('pt-4 pb-2', !drawerCollapsed ? 'px-4' : 'px-4')}>
             <div className="flex items-center justify-between gap-2 whitespace-nowrap overflow-hidden">
-              <div className={cn('flex w-full', 'justify-start')}>
-                <div className="shrink-0">
-                  <Logo size={'md'} showText={!isCollapsed} />
+              <div
+                className={cn(
+                  'flex min-w-0',
+                  isCampDrawer ? 'flex-1 justify-start' : 'w-full justify-start'
+                )}
+              >
+                <div className="shrink-0 min-w-0">
+                  <Logo size={'md'} showText={!drawerCollapsed} />
                 </div>
               </div>
+              {isCampDrawer && (
+                <Button
+                  type="button"
+                  isIconOnly
+                  variant="light"
+                  radius="full"
+                  aria-label="Close menu"
+                  className="shrink-0 text-gray-900"
+                  onPress={() => setSidebarOpen(false)}
+                >
+                  <X size={22} />
+                </Button>
+              )}
             </div>
           </div>
 
           {/* Navigation */}
-          <nav className="p-3 space-y-1 overflow-x-hidden">
-            {/* Main Navigation Items */}
+          <nav className="p-3 space-y-1 overflow-x-hidden flex-1 overflow-y-auto min-h-0">
             {NAV_ITEMS.map(item => {
               // Fix active state logic to prevent multiple items being active
               // Home should only be active on exact root path
@@ -389,7 +421,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                         item.icon
                       )}
                     </span>
-                    {!isCollapsed && (
+                    {!drawerCollapsed && (
                       <>
                         <span className="ml-3 flex-1 text-sm font-medium">{item.name}</span>
                         {isCollapsible && (
@@ -402,7 +434,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                   </div>
 
                   {/* Children items */}
-                  {hasChildren && isExpanded && !isCollapsed && (
+                  {hasChildren && isExpanded && !drawerCollapsed && (
                     <div className="ml-6 mt-1 space-y-1">
                       {item.children!.map(child => {
                         const childIsActive = child.href ? pathname.startsWith(child.href) : false
@@ -442,7 +474,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                 </div>
               )
 
-              return isCollapsed ? (
+              return drawerCollapsed ? (
                 <Tooltip
                   key={item.name}
                   content={item.name}
@@ -459,16 +491,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
           </nav>
 
           {/* Clickable area for sidebar toggle */}
-          <div
-            className={cn(
-              'flex-1',
-              (isManuallyExpanded || isHovered) &&
-                (isManuallyExpanded ? 'cursor-w-resize' : 'cursor-e-resize')
-            )}
-            onClick={isManuallyExpanded || isHovered ? handleClickableAreaClick : undefined}
-          />
+          {!isCampDrawer && (
+            <div
+              className={cn(
+                'flex-1',
+                (isManuallyExpanded || isHovered) &&
+                  (isManuallyExpanded ? 'cursor-w-resize' : 'cursor-e-resize')
+              )}
+              onClick={isManuallyExpanded || isHovered ? handleClickableAreaClick : undefined}
+            />
+          )}
 
-          {/* User Section */}
           <div
             ref={userSectionRef}
             className="p-4 border-t border-default-200 dark:border-gray-700 shadow-[0_-24px_16px_-2px_rgba(249,249,249,0.8)] dark:shadow-[0_-24px_16px_-2px_rgba(17,24,39,0.8)]"
@@ -476,7 +509,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
             <div
               className={cn(
                 'flex',
-                isCollapsed ? 'flex-col items-center gap-2' : 'items-center gap-2'
+                drawerCollapsed ? 'flex-col items-center gap-2' : 'items-center gap-2'
               )}
             >
               <Dropdown placement="right-end">
@@ -484,13 +517,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                   <div
                     className={cn(
                       'cursor-pointer flex items-center gap-3 hover:bg-default-100 dark:hover:bg-gray-800/50 rounded-lg p-2',
-                      !isCollapsed && 'flex-1 min-w-0'
+                      !drawerCollapsed && 'flex-1 min-w-0'
                     )}
                   >
                     <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
                       <span className="text-secondary text-sm font-semibold">{userInitials}</span>
                     </div>
-                    {!isCollapsed && (
+                    {!drawerCollapsed && (
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
                           {userFullName}
@@ -505,9 +538,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                   onAction={key => {
                     if (key === 'account') {
                       router.push('/account')
+                      if (isCampDrawer) setSidebarOpen(false)
                     } else if (key === 'logout') {
                       logout().catch(e => console.error(e))
                       router.push('/auth/signin')
+                      if (isCampDrawer) setSidebarOpen(false)
                     }
                   }}
                 >
@@ -537,30 +572,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                   </DropdownItem>
                 </DropdownMenu>
               </Dropdown>
-              <Tooltip
-                content={
-                  isCollapsed ? 'Expand' : !isManuallyExpanded ? 'Keep expanded' : 'Collapse'
-                }
-                placement="right"
-                delay={100}
-                closeDelay={0}
-              >
-                <Button
-                  onPress={handleArrowToggle}
-                  variant="light"
-                  isIconOnly
-                  size="sm"
-                  className="min-w-8 w-8 h-8 shrink-0"
+              {!isCampDrawer && (
+                <Tooltip
+                  content={
+                    isCollapsed ? 'Expand' : !isManuallyExpanded ? 'Keep expanded' : 'Collapse'
+                  }
+                  placement="right"
+                  delay={100}
+                  closeDelay={0}
                 >
-                  <ArrowLeftToLine
-                    size={20}
-                    className={cn(
-                      'transition-transform duration-100',
-                      (isCollapsed || !isManuallyExpanded) && 'rotate-180'
-                    )}
-                  />
-                </Button>
-              </Tooltip>
+                  <Button
+                    onPress={handleArrowToggle}
+                    variant="light"
+                    isIconOnly
+                    size="sm"
+                    className="min-w-8 w-8 h-8 shrink-0"
+                  >
+                    <ArrowLeftToLine
+                      size={20}
+                      className={cn(
+                        'transition-transform duration-100',
+                        (isCollapsed || !isManuallyExpanded) && 'rotate-180'
+                      )}
+                    />
+                  </Button>
+                </Tooltip>
+              )}
             </div>
           </div>
         </div>

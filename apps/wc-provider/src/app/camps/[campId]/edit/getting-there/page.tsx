@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Radio, RadioGroup } from '@heroui/react'
+import { Checkbox, Radio, RadioGroup } from '@heroui/react'
 import { Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
-import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
 import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import {
   PICKUP_LOCATIONS,
@@ -14,12 +13,18 @@ import {
 } from '../../../../../constants/getting-there-activities'
 
 const MAX_DESCRIPTION_LENGTH = 1200
+const MAX_TRANSPORT_DESC_LENGTH = 300
+
+interface TransportDetail {
+  description?: string
+}
 
 interface GettingThereData {
   description: string
   transportIncluded: string
   pickupLocations: string
   selectedTransport: string[]
+  transportDetails: Record<string, TransportDetail>
 }
 
 export default function GettingThereEditorPage() {
@@ -34,6 +39,7 @@ export default function GettingThereEditorPage() {
     transportIncluded: 'some',
     pickupLocations: 'single',
     selectedTransport: [],
+    transportDetails: {},
   })
 
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
@@ -42,23 +48,23 @@ export default function GettingThereEditorPage() {
   const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    // Redirect if not a residential camp
     if (currentCamp && currentCamp.type !== 'residential') {
       router.push(`/camps/${campId}/edit/basic-info`)
       return
     }
 
     if (currentCamp?.gettingThere) {
+      const gt = currentCamp.gettingThere as any
       setGettingThereData({
-        description: currentCamp.gettingThere.description || '',
-        transportIncluded: (currentCamp.gettingThere as any).transportIncluded || 'some',
-        pickupLocations: (currentCamp.gettingThere as any).pickupLocations || 'single',
-        selectedTransport: (currentCamp.gettingThere as any).selectedTransport || [],
+        description: gt.description || '',
+        transportIncluded: gt.transportIncluded || 'some',
+        pickupLocations: gt.pickupLocations || 'single',
+        selectedTransport: gt.selectedTransport || [],
+        transportDetails: gt.transportDetails || {},
       })
     }
   }, [currentCamp, campId, router])
 
-  // Cleanup on unmount - clear pending auto-save state
   useEffect(() => {
     return () => {
       useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
@@ -68,12 +74,9 @@ export default function GettingThereEditorPage() {
   const triggerAutoSave = (updatedData: GettingThereData) => {
     setHasUnsavedChanges(true)
 
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
+    if (saveTimeout) clearTimeout(saveTimeout)
 
     setAutoSaveStatus('saving')
-    // Update store to indicate pending auto-save (debounce period)
     useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
 
     const timeout = setTimeout(async () => {
@@ -115,20 +118,44 @@ export default function GettingThereEditorPage() {
   }
 
   const toggleTransport = (transportId: string) => {
+    const isSelected = gettingThereData.selectedTransport.includes(transportId)
+    const nextSelected = isSelected
+      ? gettingThereData.selectedTransport.filter(id => id !== transportId)
+      : [...gettingThereData.selectedTransport, transportId]
+
+    // Remove details when deselecting
+    const nextDetails = { ...gettingThereData.transportDetails }
+    if (isSelected) delete nextDetails[transportId]
+
     const updated = {
       ...gettingThereData,
-      selectedTransport: gettingThereData.selectedTransport.includes(transportId)
-        ? gettingThereData.selectedTransport.filter(id => id !== transportId)
-        : [...gettingThereData.selectedTransport, transportId],
+      selectedTransport: nextSelected,
+      transportDetails: nextDetails,
     }
     setGettingThereData(updated)
     triggerAutoSave(updated)
   }
 
-  // Don't render if not residential
-  if (currentCamp && currentCamp.type !== 'residential') {
-    return null
+  const handleTransportDetailChange = (
+    transportId: string,
+    field: keyof TransportDetail,
+    value: string
+  ) => {
+    const updated = {
+      ...gettingThereData,
+      transportDetails: {
+        ...gettingThereData.transportDetails,
+        [transportId]: {
+          ...gettingThereData.transportDetails[transportId],
+          [field]: value,
+        },
+      },
+    }
+    setGettingThereData(updated)
+    triggerAutoSave(updated)
   }
+
+  if (currentCamp && currentCamp.type !== 'residential') return null
 
   return (
     <div>
@@ -166,9 +193,7 @@ export default function GettingThereEditorPage() {
           <RadioGroup
             value={gettingThereData.transportIncluded}
             onValueChange={handleTransportIncludedChange}
-            classNames={{
-              wrapper: 'flex flex-row flex-wrap gap-3',
-            }}
+            classNames={{ wrapper: 'flex flex-row flex-wrap gap-3' }}
           >
             {TRANSPORT_INCLUDED.map(option => (
               <Radio
@@ -200,9 +225,7 @@ export default function GettingThereEditorPage() {
           <RadioGroup
             value={gettingThereData.pickupLocations}
             onValueChange={handlePickupLocationsChange}
-            classNames={{
-              wrapper: 'flex flex-row flex-wrap gap-3',
-            }}
+            classNames={{ wrapper: 'flex flex-row flex-wrap gap-3' }}
           >
             {PICKUP_LOCATIONS.map(location => (
               <Radio
@@ -224,12 +247,13 @@ export default function GettingThereEditorPage() {
           </RadioGroup>
         </div>
 
+        {/* Transportation Options — vertical list */}
         <div className="form-group">
           <div className="mb-2.5 flex items-start justify-between">
             <div>
               <label className="text-sm font-medium text-foreground">Transportation Options</label>
               <p className="mt-1 text-sm leading-normal text-default-500">
-                Select all transportation options available
+                Select all transportation options available and add details for each
               </p>
             </div>
             <span className="rounded-full bg-default-100 px-3 py-1 text-xs font-medium text-default-700">
@@ -237,11 +261,55 @@ export default function GettingThereEditorPage() {
             </span>
           </div>
 
-          <ActivityGrid
-            activities={PREDEFINED_TRANSPORT}
-            selectedActivities={gettingThereData.selectedTransport}
-            onToggle={toggleTransport}
-          />
+          <div className="divide-y divide-default-100 rounded-xl border border-default-200">
+            {PREDEFINED_TRANSPORT.map(transport => {
+              const isSelected = gettingThereData.selectedTransport.includes(transport.id)
+              const detail = gettingThereData.transportDetails[transport.id] ?? {}
+
+              return (
+                <div key={transport.id}>
+                  {/* Row toggle */}
+                  <div
+                    onClick={() => toggleTransport(transport.id)}
+                    className={[
+                      'flex w-full cursor-pointer items-center gap-3 px-4 py-3.5 transition-colors',
+                      isSelected ? 'bg-primary/5' : 'hover:bg-default-50',
+                    ].join(' ')}
+                  >
+                    <Checkbox
+                      isSelected={isSelected}
+                      onValueChange={() => toggleTransport(transport.id)}
+                      classNames={{ wrapper: 'group-data-[selected=true]:border-primary' }}
+                      onClick={e => e.stopPropagation()}
+                    />
+
+                    <span className="text-xl shrink-0">{transport.icon}</span>
+
+                    <span className="flex-1 text-sm font-medium text-foreground">
+                      {transport.name}
+                    </span>
+                  </div>
+
+                  {/* Expanded inputs */}
+                  {isSelected && (
+                    <div className="border-t border-default-100 bg-default-50 px-4 pb-4 pt-3 space-y-3">
+                      <Textarea
+                        label="Description"
+                        placeholder={`Describe ${transport.name.toLowerCase()} details, timings, meeting points...`}
+                        value={detail.description ?? ''}
+                        onChange={e =>
+                          handleTransportDetailChange(transport.id, 'description', e.target.value)
+                        }
+                        minRows={2}
+                        maxLength={MAX_TRANSPORT_DESC_LENGTH}
+                        showCharacterCount
+                      />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>

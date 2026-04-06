@@ -549,12 +549,11 @@ class GettingThereDataDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  selectedOptions?: string[]
+  selectedTransport?: string[]
 
   @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  customOptions?: string[]
+  @IsObject()
+  transportDetails?: Record<string, { description?: string }>
 }
 
 export class UpdateGettingThereDto {
@@ -615,4 +614,50 @@ export class UpdateCampFocusDto {
 export class UpdateCampStatusDto {
   @IsEnum(['draft', 'published', 'archived'])
   status: 'draft' | 'published' | 'archived'
+}
+
+// ─── Safety & Policies (combined) ────────────────────────────────────────────
+
+class StaffRatioDto {
+  @IsString()
+  label: string
+
+  @IsString()
+  value: string
+}
+
+class SafetySupervisionDataDto {
+  @IsOptional()
+  @IsString()
+  description?: string
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => StaffRatioDto)
+  staffRatios?: StaffRatioDto[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  items?: string[]
+}
+
+class ScreenPolicyDataDto {
+  @IsString()
+  description: string
+}
+
+export class UpdateSafetyPoliciesDto {
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => SafetySupervisionDataDto)
+  safetySupervision?: SafetySupervisionDataDto | null
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => ScreenPolicyDataDto)
+  screenPolicy?: ScreenPolicyDataDto | null
 }

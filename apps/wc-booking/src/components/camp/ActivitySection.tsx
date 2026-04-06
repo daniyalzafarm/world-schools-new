@@ -5,6 +5,7 @@ import { ExpandableText } from './ExpandableText'
 import { ProgramMetaCards } from './ProgramMetaCards'
 import { ProgramBadges } from './ProgramBadges'
 import { ActivityGrid } from './ActivityGrid'
+import { ExcursionCardGrid } from './ExcursionCardGrid'
 
 interface ActivitySectionProps {
   title: string
@@ -14,42 +15,58 @@ interface ActivitySectionProps {
   badges?: string[]
   items?: ActivityItem[]
   totalCount?: number
+  compact?: boolean
+  expandAll?: boolean
   className?: string
 }
 
 export function ActivitySection({
   title,
-  icon,
   description,
   metaCards,
   badges,
   items,
   totalCount,
+  compact = false,
+  expandAll = false,
   className = '',
 }: ActivitySectionProps) {
   return (
-    <div className={`pb-6 border-b border-gray-200 last:border-0 ${className}`}>
+    <div className={`py-6 border-b border-gray-200 last:border-0 first:pt-0 ${className}`}>
       {/* Section Title */}
-      <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-        {icon && <span>{icon}</span>}
+      <h3 className={`font-bold text-gray-900 mb-3 ${compact ? 'text-base' : 'text-lg'}`}>
         {title}
       </h3>
 
       {/* Description */}
-      {description && <ExpandableText text={description} maxLines={4} className="mb-4" />}
+      {description &&
+        (expandAll ? (
+          <p className="mb-3 text-base text-gray-700">{description}</p>
+        ) : (
+          <ExpandableText text={description} maxLines={compact ? 2 : 4} className="mb-3" />
+        ))}
 
-      {/* Program Meta Cards */}
-      {metaCards && metaCards.length > 0 && <ProgramMetaCards cards={metaCards} />}
+      {/* Program Meta Cards — only on non-compact */}
+      {!compact && metaCards && metaCards.length > 0 && <ProgramMetaCards cards={metaCards} />}
 
-      {/* Program Badges */}
-      {badges && badges.length > 0 && <ProgramBadges badges={badges} />}
+      {/* Program Badges — only on non-compact */}
+      {!compact && badges && badges.length > 0 && <ProgramBadges badges={badges} />}
 
-      {/* Activities Grid */}
-      {items && items.length > 0 ? (
-        <ActivityGrid activities={items} totalCount={totalCount} mobileCount={4} desktopCount={6} />
-      ) : (
-        <p className="text-sm text-gray-500">No specific activities listed.</p>
-      )}
+      {/* Activities — excursion cards when photos present, grid otherwise */}
+      {items &&
+        items.length > 0 &&
+        (items.some(i => i.photoUrl) ? (
+          <ExcursionCardGrid items={items} showCaptions />
+        ) : (
+          <ActivityGrid
+            activities={items}
+            totalCount={totalCount}
+            compact={compact}
+            pill={expandAll}
+            mobileCount={expandAll ? 999 : compact ? 6 : 4}
+            desktopCount={expandAll ? 999 : compact ? 9 : 8}
+          />
+        ))}
     </div>
   )
 }

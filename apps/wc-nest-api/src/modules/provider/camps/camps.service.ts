@@ -25,6 +25,7 @@ import {
   UpdateMealsDto,
   UpdatePhotosDto,
   UpdateReligionDto,
+  UpdateSafetyPoliciesDto,
   UpdateSportsDto,
   UpdateWaterDto,
   UpdateWhatsIncludedDto,
@@ -761,9 +762,7 @@ export class CampsService {
 
     // Validate structured data
     if (dto.gettingThere) {
-      this.validateActivityData(dto.gettingThere, 'transport')
-      this.validateArrayField(dto.gettingThere.selectedOptions, 'selectedOptions')
-      this.validateArrayField(dto.gettingThere.customOptions, 'customOptions')
+      this.validateArrayField(dto.gettingThere.selectedTransport, 'selectedTransport')
     }
 
     const camp = await this.prisma.camp.update({
@@ -1247,5 +1246,22 @@ export class CampsService {
     })
 
     return token
+  }
+
+  /**
+   * Update safety & policies (combined safety supervision + screen policy)
+   */
+  async updateSafetyPolicies(campId: string, providerId: string, dto: UpdateSafetyPoliciesDto) {
+    await this.verifyCampOwnership(campId, providerId)
+
+    const camp = await this.prisma.camp.update({
+      where: { id: campId },
+      data: {
+        safetySupervision: dto.safetySupervision as any,
+        screenPolicy: dto.screenPolicy as any,
+      },
+    })
+
+    return camp
   }
 }

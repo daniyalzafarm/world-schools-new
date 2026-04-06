@@ -64,4 +64,16 @@ export class UserCampsController {
     const addOns = await this.campsService.getCampAddOns(campId)
     return ResponseUtil.success(addOns)
   }
+
+  @Public()
+  @Get(':campId/reviews')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get published reviews for a camp',
+    description: 'Retrieve published reviews with aggregated scores for a specific published camp',
+  })
+  async getCampReviews(@Param('campId') campId: string) {
+    const data = await this.campsService.getCampReviews(campId)
+    return ResponseUtil.success(data)
+  }
 }
