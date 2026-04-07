@@ -232,12 +232,14 @@ model Provider {
   providerAgreementAcceptedAt DateTime? @map("provider_agreement_accepted_at")
   providerAgreementVersion    String?   @map("provider_agreement_version")
 
+  gbpId String? @unique @map("gbp_id")
+
   // Relations
   owner                 User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   approvedByAdmin       User?                  @relation("ApprovedProviders", fields: [approvedByAdminId], references: [id])
   reviewedByUser        User?                  @relation("ReviewedApplications", fields: [applicationReviewedBy], references: [id])
   roles                 Role[]
-  googleBusinessProfile GoogleBusinessProfile?
+  googleBusinessProfile GoogleBusinessProfile? @relation(fields: [gbpId], references: [id], onDelete: SetNull)
   settings              ProviderSettings?
   verificationDocuments VerificationDocument[]
   camps                 Camp[]
@@ -510,8 +512,7 @@ model UserSession {
 // ============================================
 
 model GoogleBusinessProfile {
-  id         String @id @default(uuid())
-  providerId String @unique @map("provider_id")
+  id String @id @default(uuid())
 
   // Google Places Data
   placeId          String @unique @map("place_id")
@@ -544,7 +545,9 @@ model GoogleBusinessProfile {
   fetchedAt DateTime @default(now()) @map("fetched_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  // Back-relations
+  provider Provider?
+  camps    Camp[]
 
   @@index([placeId])
   @@map("google_business_profiles")
@@ -626,6 +629,7 @@ model Camp {
   locationAddress String?      @map("location_address") @db.Text
   locationLat     Decimal?     @map("location_lat") @db.Decimal(10, 8)
   locationLng     Decimal?     @map("location_lng") @db.Decimal(11, 8)
+  gbpId           String?      @map("gbp_id")
 
   // Audience (Step 2 - Wizard & Editor)
   ageGroups Json // [{min: 6, max: 17}, ...]
@@ -657,8 +661,8 @@ model Camp {
   accommodation           Json? // {type, rooms, amenities}
   gettingThere            Json? // {directions, transportation}
   campFocus               Json? // {primaryFocus: {activityId, activityName, categoryId, categoryName, icon}, description, philosophy, learningApproach}
-  safetySupervision       Json? @map("safety_supervision") // {staffRatios?: {label, value}[], items?: string[], description?: string}
-  screenPolicy            Json? @map("screen_policy") // {description: string}
+  safetySupervision       Json?   @map("safety_supervision") // {staffRatios?: {label, value}[], items?: string[], description?: string}
+  screenPolicy            Json?   @map("screen_policy") // {description: string}
 
   // Publishing
   status      CampStatus @default(draft)
@@ -670,6 +674,7 @@ model Camp {
 
   // Relations
   provider                Provider                     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  googleBusinessProfile   GoogleBusinessProfile?       @relation(fields: [gbpId], references: [id], onDelete: SetNull)
   campAddOns              CampAddOn[]
   sessions                Session[]
   globalDiscounts         GlobalDiscount[]
@@ -684,6 +689,7 @@ model Camp {
   wishlistItems           WishlistItem[]
 
   @@index([providerId])
+  @@index([gbpId])
   @@index([status])
   @@index([slug])
   @@map("camps")

@@ -180,7 +180,6 @@ function WishlistMapContent({ items, onPinClick }: WishlistMapPanelProps) {
         m.map = null
       })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemsKey])
 
   return <div ref={mapRef} className="h-full w-full" />

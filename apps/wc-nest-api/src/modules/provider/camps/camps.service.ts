@@ -32,6 +32,7 @@ import {
 } from './dto/update-camp.dto'
 import { UpdateCampAddOnsDto } from './dto/update-camp-addons.dto'
 import { PhotoUploadService } from './services/photo-upload.service'
+import { GoogleBusinessService } from '../onboarding/services/google-business.service'
 import { GetCampsFiltersDto } from './dto/get-camps-filters.dto'
 import {
   PutCampEligibilityDto,
@@ -46,7 +47,8 @@ export class CampsService {
     private readonly prisma: PrismaService,
     private readonly photoUploadService: PhotoUploadService,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly googleBusinessService: GoogleBusinessService
   ) {}
 
   /**
@@ -68,7 +70,14 @@ export class CampsService {
     }
 
     // Prepare location data
-    let locationData = {
+    let locationData: {
+      locationPlaceId?: string
+      locationName?: string
+      locationAddress?: string
+      locationLat?: number
+      locationLng?: number
+      gbpId?: string
+    } = {
       locationPlaceId: dto.locationPlaceId,
       locationName: dto.locationName,
       locationAddress: dto.locationAddress,
@@ -78,9 +87,11 @@ export class CampsService {
 
     // If using provider location, populate from Google Business Profile
     if (dto.locationType === 'provider') {
-      const googleProfile = await this.prisma.googleBusinessProfile.findUnique({
-        where: { providerId },
+      const provider = await this.prisma.provider.findUnique({
+        where: { id: providerId },
+        select: { gbpId: true, googleBusinessProfile: true },
       })
+      const googleProfile = provider?.googleBusinessProfile
 
       if (googleProfile) {
         locationData = {
@@ -89,7 +100,16 @@ export class CampsService {
           locationAddress: googleProfile.formattedAddress,
           locationLat: Number(googleProfile.lat),
           locationLng: Number(googleProfile.lng),
+          gbpId: provider.gbpId ?? undefined,
         }
+      }
+    }
+
+    // If using a different location, find or create a GBP record for the selected venue
+    if (dto.locationType === 'different' && dto.locationPlaceId) {
+      const gbp = await this.googleBusinessService.findOrCreateGbp(dto.locationPlaceId)
+      if (gbp) {
+        locationData.gbpId = gbp.id
       }
     }
 
@@ -424,9 +444,11 @@ export class CampsService {
 
     // If changing to provider location, populate from Google Business Profile
     if (dto.locationType === 'provider') {
-      const googleProfile = await this.prisma.googleBusinessProfile.findUnique({
-        where: { providerId },
+      const provider = await this.prisma.provider.findUnique({
+        where: { id: providerId },
+        select: { gbpId: true, googleBusinessProfile: true },
       })
+      const googleProfile = provider?.googleBusinessProfile
 
       if (googleProfile) {
         updateData.locationPlaceId = googleProfile.placeId
@@ -434,7 +456,19 @@ export class CampsService {
         updateData.locationAddress = googleProfile.formattedAddress
         updateData.locationLat = Number(googleProfile.lat)
         updateData.locationLng = Number(googleProfile.lng)
+        updateData.gbpId = provider.gbpId ?? null
       }
+    }
+
+    // If changing to a different location, find or create a GBP record for the selected venue
+    if (dto.locationType === 'different' && dto.locationPlaceId) {
+      const gbp = await this.googleBusinessService.findOrCreateGbp(dto.locationPlaceId)
+      updateData.gbpId = gbp?.id ?? null
+    }
+
+    // If switching to different location without a venue yet, clear any previous GBP link
+    if (dto.locationType === 'different' && !dto.locationPlaceId) {
+      updateData.gbpId = null
     }
 
     const camp = await this.prisma.camp.update({

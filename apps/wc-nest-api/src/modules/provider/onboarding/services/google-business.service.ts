@@ -29,15 +29,12 @@ export class GoogleBusinessService {
    * Get saved Google Business Profile for a provider
    */
   async getBusinessProfile(providerId: string): Promise<any> {
-    const profile = await this.prisma.googleBusinessProfile.findUnique({
-      where: { providerId },
+    const provider = await this.prisma.provider.findUnique({
+      where: { id: providerId },
+      select: { googleBusinessProfile: true },
     })
 
-    if (!profile) {
-      return null
-    }
-
-    return profile
+    return provider?.googleBusinessProfile ?? null
   }
 
   /**
@@ -168,7 +165,7 @@ export class GoogleBusinessService {
     })
 
     // If the business is already linked to a different provider, throw an error
-    if (existingProfile && existingProfile.providerId !== providerId) {
+    if (existingProfile?.provider && existingProfile.provider.id !== providerId) {
       throw new ConflictException(
         'This business is already registered with another provider. Please select a different business or contact support if you believe this is an error.'
       )
@@ -182,56 +179,38 @@ export class GoogleBusinessService {
 
     // Use Prisma transaction to save both Google Business Profile and Provider legal info
     const result = await this.prisma.$transaction(async prisma => {
-      // Save Google Business Profile
+      // Save Google Business Profile (upsert by placeId — independent of provider)
+      const gbpData = {
+        businessName: businessData.name,
+        formattedAddress: businessData.formatted_address,
+        streetNumber: addressComponents.streetNumber,
+        streetName: addressComponents.streetName,
+        city: addressComponents.city,
+        state: addressComponents.state,
+        postalCode: addressComponents.postalCode,
+        country: addressComponents.country,
+        lat: businessData.geometry?.location?.lat || 0,
+        lng: businessData.geometry?.location?.lng || 0,
+        rating: businessData.rating,
+        reviewsCount: businessData.user_ratings_total,
+        phone: businessData.formatted_phone_number,
+        website: businessData.website,
+        photos: businessData.photos?.map((photo: any) => this.getPhotoUrl(photo.photo_reference)),
+        types: businessData.types,
+        dataRaw: businessData,
+      }
+
       const profile = await prisma.googleBusinessProfile.upsert({
-        where: { providerId },
-        create: {
-          providerId,
-          placeId: businessData.place_id,
-          businessName: businessData.name,
-          formattedAddress: businessData.formatted_address,
-          streetNumber: addressComponents.streetNumber,
-          streetName: addressComponents.streetName,
-          city: addressComponents.city,
-          state: addressComponents.state,
-          postalCode: addressComponents.postalCode,
-          country: addressComponents.country,
-          lat: businessData.geometry?.location?.lat || 0,
-          lng: businessData.geometry?.location?.lng || 0,
-          rating: businessData.rating,
-          reviewsCount: businessData.user_ratings_total,
-          phone: businessData.formatted_phone_number,
-          website: businessData.website,
-          photos: businessData.photos?.map((photo: any) => this.getPhotoUrl(photo.photo_reference)),
-          types: businessData.types,
-          dataRaw: businessData,
-        },
-        update: {
-          placeId: businessData.place_id,
-          businessName: businessData.name,
-          formattedAddress: businessData.formatted_address,
-          streetNumber: addressComponents.streetNumber,
-          streetName: addressComponents.streetName,
-          city: addressComponents.city,
-          state: addressComponents.state,
-          postalCode: addressComponents.postalCode,
-          country: addressComponents.country,
-          lat: businessData.geometry?.location?.lat || 0,
-          lng: businessData.geometry?.location?.lng || 0,
-          rating: businessData.rating,
-          reviewsCount: businessData.user_ratings_total,
-          phone: businessData.formatted_phone_number,
-          website: businessData.website,
-          photos: businessData.photos?.map((photo: any) => this.getPhotoUrl(photo.photo_reference)),
-          types: businessData.types,
-          dataRaw: businessData,
-        },
+        where: { placeId: businessData.place_id },
+        create: { placeId: businessData.place_id, ...gbpData },
+        update: gbpData,
       })
 
-      // Update Provider with legal business information
+      // Update Provider with legal business information and link the GBP
       await prisma.provider.update({
         where: { id: providerId },
         data: {
+          gbpId: profile.id,
           legalCompanyName: legalInfo.legalCompanyName,
           legalStreetAddress: legalInfo.legalStreetAddress,
           legalAptSuite: legalInfo.legalAptSuite,
@@ -267,6 +246,61 @@ export class GoogleBusinessService {
     })
 
     return result
+  }
+
+  /**
+   * Find an existing GBP by placeId, or create one by fetching details from Google Places API.
+   * Used when a camp selects a "different location" venue.
+   */
+  async findOrCreateGbp(placeId: string): Promise<{ id: string } | null> {
+    const existing = await this.prisma.googleBusinessProfile.findUnique({
+      where: { placeId },
+      select: { id: true },
+    })
+
+    if (existing) {
+      return existing
+    }
+
+    if (!this.googlePlacesApiKey) {
+      this.logger.warn('Cannot create GBP for camp location: Google Places API key not configured')
+      return null
+    }
+
+    try {
+      const businessData = await this.fetchBusinessDetails(placeId)
+      const addressComponents = this.parseAddressComponents(businessData.address_components || [])
+
+      const profile = await this.prisma.googleBusinessProfile.create({
+        data: {
+          placeId: businessData.place_id,
+          businessName: businessData.name,
+          formattedAddress: businessData.formatted_address,
+          streetNumber: addressComponents.streetNumber,
+          streetName: addressComponents.streetName,
+          city: addressComponents.city,
+          state: addressComponents.state,
+          postalCode: addressComponents.postalCode,
+          country: addressComponents.country,
+          lat: businessData.geometry?.location?.lat || 0,
+          lng: businessData.geometry?.location?.lng || 0,
+          rating: businessData.rating,
+          reviewsCount: businessData.user_ratings_total,
+          phone: businessData.formatted_phone_number,
+          website: businessData.website,
+          photos: businessData.photos?.map((photo: any) => this.getPhotoUrl(photo.photo_reference)),
+          types: businessData.types,
+          dataRaw: businessData,
+        },
+        select: { id: true },
+      })
+
+      return profile
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      this.logger.warn(`Could not create GBP for camp location placeId=${placeId}: ${errorMessage}`)
+      return null
+    }
   }
 
   /**

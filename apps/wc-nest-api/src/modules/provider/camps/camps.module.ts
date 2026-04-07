@@ -6,11 +6,13 @@ import { ConfigService } from '../../../config/config.service'
 import { CampsController } from './camps.controller'
 import { CampsService } from './camps.service'
 import { PhotoUploadService } from './services/photo-upload.service'
+import { OnboardingModule } from '../onboarding/onboarding.module'
 
 @Module({
   imports: [
     PrismaModule,
     ConfigModule,
+    OnboardingModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
