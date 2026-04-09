@@ -23,6 +23,7 @@ import { Request, Response } from 'express'
 import { parseDuration } from '@world-schools/wc-utils'
 import { AuthService } from '../../core/auth/auth.service'
 import { PrismaService } from '../../../prisma/prisma.service'
+import { RedisService } from '../../redis/redis.service'
 import { Public } from '../../core/auth/decorators/public.decorator'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 import { RegisterProviderDto } from './dto/register.dto'
@@ -51,6 +52,7 @@ export class ProviderAuthController {
     private readonly authService: AuthService,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly redisService: RedisService,
     private readonly emailVerificationService: EmailVerificationService,
     private readonly passwordResetService: PasswordResetService,
     private readonly twoFactorAuthService: TwoFactorAuthService,
@@ -237,6 +239,94 @@ export class ProviderAuthController {
   }
 
   @Public()
+  @Post('impersonate/exchange')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Exchange superadmin impersonation token',
+    description:
+      'Exchange a short-lived impersonation token (issued by the superadmin) for provider JWT tokens. Token is single-use and expires in 60 seconds.',
+  })
+  async exchangeImpersonationToken(
+    @Body() body: { token: string },
+    @Res({ passthrough: true }) response: Response
+  ) {
+    if (!body.token) {
+      throw new BadRequestException('Impersonation token is required')
+    }
+
+    // Retrieve and immediately delete the token (single-use)
+    const redisKey = `impersonate:${body.token}`
+    const raw = await this.redisService.get(redisKey)
+
+    if (!raw) {
+      throw new UnauthorizedException('Invalid or expired impersonation token')
+    }
+
+    await this.redisService.del(redisKey)
+
+    let tokenData: {
+      superadminId: string
+      superadminEmail: string
+      superadminName: string
+      providerOwnerId: string
+      providerId: string
+    }
+
+    try {
+      tokenData = JSON.parse(raw)
+    } catch {
+      throw new UnauthorizedException('Invalid impersonation token data')
+    }
+
+    const { superadminId, superadminEmail, superadminName, providerOwnerId, providerId } = tokenData
+
+    // Fetch the provider owner user with full roles/permissions
+    const user = await this.authService.validateUser(providerOwnerId)
+
+    if (!user) {
+      throw new UnauthorizedException('Provider owner user not found')
+    }
+
+    const impersonatedBy = { id: superadminId, email: superadminEmail, name: superadminName }
+
+    // Generate provider JWT with impersonation claims embedded
+    const appTokens = this.authService.generateTokensFromUser(
+      user,
+      'provider',
+      undefined,
+      impersonatedBy,
+      providerId
+    )
+
+    const isProduction = this.configService.getNodeEnv() === 'production'
+
+    response.cookie('wc_provider_access_token', appTokens.accessToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+    })
+
+    response.cookie('wc_provider_refresh_token', appTokens.refreshToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+    })
+
+    if (this.configService.jwtConfig.authUsingRequest) {
+      response.setHeader('x-access-token', appTokens.accessToken)
+      response.setHeader('x-refresh-token', appTokens.refreshToken)
+    }
+
+    return ResponseUtil.success({
+      user,
+      isImpersonated: true,
+      impersonatedBy,
+    })
+  }
+
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -415,10 +505,11 @@ export class ProviderAuthController {
     description: 'Get the profile of the currently authenticated provider user',
   })
   async getProfile(@CurrentUser() user: any) {
-    // Verify user has Provider Admin role or provider-specific role
-    const hasProviderRole = user.roles?.some(
-      (role: any) => role.name === 'Provider Admin' || role.providerId !== null
-    )
+    // Impersonated sessions bypass the role check — the JWT was issued by a superadmin
+    // and the JWT strategy has already validated and enriched the user with Provider Admin permissions
+    const hasProviderRole =
+      !!user.impersonatedBy ||
+      user.roles?.some((role: any) => role.name === 'Provider Admin' || role.providerId !== null)
 
     if (!hasProviderRole) {
       throw new UnauthorizedException(
@@ -504,8 +595,13 @@ export class ProviderAuthController {
         name: ur.role.name,
         providerId: ur.role.providerId,
       })),
-      permissions: user.permissions || [], // Use permissions from JWT payload
+      permissions: user.permissions || [], // Use permissions from JWT payload (overridden for impersonated sessions)
       ownedProvider: dbUser.ownedProvider,
+      // Include impersonation context when the session was initiated by a superadmin
+      ...(user.impersonatedBy && {
+        isImpersonated: true,
+        impersonatedBy: user.impersonatedBy,
+      }),
     }
 
     return ResponseUtil.success(fullUser)

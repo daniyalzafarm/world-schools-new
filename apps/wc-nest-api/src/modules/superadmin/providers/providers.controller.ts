@@ -5,6 +5,7 @@ import { CreateProviderDto } from './dto/create-provider.dto'
 import { UpdateProviderDto } from './dto/update-provider.dto'
 import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
 import { Permissions } from '../../core/auth/decorators/permissions.decorator'
+import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 import { ResponseUtil } from '../../../common/utils/response.util'
 
 @ApiTags('SuperAdmin Providers')
@@ -34,6 +35,18 @@ export class SuperAdminProvidersController {
   async findAll() {
     const providers = await this.providersService.findAll()
     return ResponseUtil.success(providers)
+  }
+
+  @Get(':id/detail')
+  @Permissions('providers.read')
+  @ApiOperation({
+    summary: 'Get provider detail with stats',
+    description:
+      'Retrieve a provider with operational stats, camps, recent bookings, and verification documents',
+  })
+  async getDetail(@Param('id') id: string) {
+    const provider = await this.providersService.getDetail(id)
+    return ResponseUtil.success(provider)
   }
 
   @Get(':id')
@@ -66,6 +79,18 @@ export class SuperAdminProvidersController {
   })
   async remove(@Param('id') id: string) {
     const result = await this.providersService.remove(id)
+    return ResponseUtil.success(result)
+  }
+
+  @Post(':id/impersonate')
+  @Permissions('providers.read')
+  @ApiOperation({
+    summary: 'Generate impersonation token for provider',
+    description:
+      'Generate a short-lived single-use token that allows the superadmin to log into the provider app as the provider owner. Token expires in 60 seconds.',
+  })
+  async impersonate(@Param('id') id: string, @CurrentUser() user: any) {
+    const result = await this.providersService.generateImpersonationToken(id, user)
     return ResponseUtil.success(result)
   }
 }

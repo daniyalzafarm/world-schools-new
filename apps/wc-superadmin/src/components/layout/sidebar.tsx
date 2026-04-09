@@ -121,7 +121,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     name: 'All Providers',
-    href: '/all-providers',
+    href: '/providers',
     icon: <Building size={20} />,
     type: 'regular',
     permission: 'providers.read',
@@ -460,7 +460,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
 
               // Get dynamic badge count for Provider Requests / Support Tickets
               const badgeCount =
-                item.name === 'Provider Requests' && underReviewCount > 0
+                item.name === 'All Providers' && underReviewCount > 0
                   ? underReviewCount
                   : item.name === 'Support Tickets' && openTicketCount > 0
                     ? openTicketCount

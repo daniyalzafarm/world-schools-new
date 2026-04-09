@@ -40,7 +40,7 @@ export const ROUTES: RouteConfig[] = [
     label: 'Roles',
   },
   {
-    path: '/all-providers',
+    path: '/providers',
     permission: 'providers.read',
     label: 'All Providers',
   },

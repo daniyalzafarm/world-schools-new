@@ -31,6 +31,13 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
         return
       }
 
+      // Impersonated sessions bypass onboarding — superadmins have full access regardless of
+      // the provider's approval or onboarding completion status
+      if ((user as any).isImpersonated) {
+        setIsChecking(false)
+        return
+      }
+
       // Fetch onboarding status
       await fetchStatus()
       setIsChecking(false)

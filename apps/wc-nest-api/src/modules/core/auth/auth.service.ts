@@ -408,7 +408,9 @@ export class AuthService {
   generateTokensFromUser(
     user: any,
     app?: 'superadmin' | 'provider' | 'user',
-    sessionId?: string
+    sessionId?: string,
+    impersonatedBy?: { id: string; email: string; name: string },
+    impersonationProviderId?: string
   ): {
     accessToken: string
     refreshToken: string
@@ -417,8 +419,10 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
-      app, // Include app-specific claim for token isolation
-      sessionId, // Include sessionId for session management
+      app,
+      sessionId,
+      ...(impersonatedBy && { impersonatedBy }),
+      ...(impersonationProviderId && { impersonationProviderId }),
     }
 
     const tokens = this.generateTokens(payload)
@@ -428,5 +432,17 @@ export class AuthService {
       refreshToken: tokens.refresh_token,
       expiresIn: tokens.expiresIn,
     }
+  }
+
+  async getProviderAdminPermissions(providerId: string): Promise<string[]> {
+    const role = await this.prisma.role.findFirst({
+      where: { providerId, isSystemRole: true, name: 'Provider Admin' },
+      include: {
+        permissions: {
+          include: { permission: true },
+        },
+      },
+    })
+    return role?.permissions.map((p: any) => p.permission.name) ?? []
   }
 }

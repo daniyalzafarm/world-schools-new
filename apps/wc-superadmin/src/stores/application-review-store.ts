@@ -35,6 +35,13 @@ interface ApplicationReviewState {
   }
   filters: ApplicationFilters
   underReviewCount: number
+  tabCounts: {
+    all: number
+    pendingReview: number
+    approved: number
+    rejected: number
+    suspended: number
+  }
   isLoading: boolean
   error: string | null
 }
@@ -50,6 +57,7 @@ interface ApplicationReviewStore extends ApplicationReviewState {
   reviewDocument: (documentId: string, data: ReviewDocumentRequest) => Promise<void>
   fetchPendingDocuments: () => Promise<void>
   fetchUnderReviewCount: () => Promise<void>
+  fetchTabCounts: () => Promise<void>
   setPage: (page: number) => void
   setLimit: (limit: number) => void
   setFilters: (filters: Partial<ApplicationFilters>) => void
@@ -70,6 +78,13 @@ const initialState: ApplicationReviewState = {
   },
   filters: {},
   underReviewCount: 0,
+  tabCounts: {
+    all: 0,
+    pendingReview: 0,
+    approved: 0,
+    rejected: 0,
+    suspended: 0,
+  },
   isLoading: false,
   error: null,
 }
@@ -299,6 +314,32 @@ export const useApplicationReviewStore = create<ApplicationReviewStore>()(
         } catch (error: any) {
           // Silently fail - don't update error state for badge count
           console.error('Failed to fetch under review count:', error)
+        }
+      },
+
+      fetchTabCounts: async () => {
+        try {
+          const baseQuery = { page: 1, limit: 1, sortBy: 'createdAt', sortOrder: 'desc' as const }
+          const [allRes, pendingRes, approvedRes, rejectedRes, suspendedRes] = await Promise.all([
+            applicationReviewService.getApplications(baseQuery),
+            applicationReviewService.getApplications({ ...baseQuery, status: 'under_review' }),
+            applicationReviewService.getApplications({ ...baseQuery, status: 'approved' }),
+            applicationReviewService.getApplications({ ...baseQuery, status: 'rejected' }),
+            applicationReviewService.getApplications({ ...baseQuery, status: 'suspended' }),
+          ])
+
+          set(draft => {
+            draft.tabCounts = {
+              all: allRes.total,
+              pendingReview: pendingRes.total,
+              approved: approvedRes.total,
+              rejected: rejectedRes.total,
+              suspended: suspendedRes.total,
+            }
+          })
+        } catch (error: any) {
+          // Silently fail — tab counts are non-critical
+          console.error('Failed to fetch tab counts:', error)
         }
       },
 

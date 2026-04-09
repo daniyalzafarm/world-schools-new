@@ -36,8 +36,9 @@ export function ProtectedRoute({
     checkRoleFn = isProviderAdmin
     requireRoleValue = 'Provider Admin'
   } else if (requireProviderRole) {
-    // Check if user has any provider-specific role
-    checkRoleFn = isAuthorizedProviderUser
+    // Impersonated sessions are always authorized — the superadmin has been granted access
+    // via a server-issued JWT. This handles admin-created providers that may have no DB roles.
+    checkRoleFn = user => isAuthorizedProviderUser(user) || !!(user as any)?.isImpersonated
     requireRoleValue = 'provider-role'
   }
 

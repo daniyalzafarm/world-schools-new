@@ -71,6 +71,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid token')
     }
 
-    return user
+    // For impersonated sessions, override the user's permissions with the Provider Admin
+    // system role permissions for the given provider. This ensures the superadmin always has
+    // full provider app access regardless of the provider owner's current role configuration.
+    if (payload.impersonatedBy && payload.impersonationProviderId) {
+      const adminPermissions = await this.authService.getProviderAdminPermissions(
+        payload.impersonationProviderId
+      )
+      return {
+        ...user,
+        permissions: adminPermissions.length > 0 ? adminPermissions : (user.permissions ?? []),
+        sessionId: payload.sessionId,
+        impersonatedBy: payload.impersonatedBy,
+      }
+    }
+
+    return { ...user, sessionId: payload.sessionId }
   }
 }

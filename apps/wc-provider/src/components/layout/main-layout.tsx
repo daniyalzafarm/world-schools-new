@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
+import { Button } from '@heroui/react'
 
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { RouteGuard } from '@/components/auth/route-guard'
@@ -8,6 +9,7 @@ import { OnboardingGuard } from '@/components/auth/onboarding-guard'
 import { Sidebar } from '@/components/layout/sidebar'
 import { MobileHeader } from '@/components/layout/mobile-header'
 import { useAuthStore } from '@/stores/auth-store'
+import config from '@/config/config'
 
 interface MainLayoutProps {
   children: React.ReactNode
@@ -28,7 +30,17 @@ function LoadingScreen() {
 
 export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { isInitialized, isAuthenticated } = useAuthStore()
+  const { isInitialized, isAuthenticated, user, logout } = useAuthStore()
+
+  const isImpersonated = !!(user as any)?.isImpersonated
+  const impersonatedBy = (user as any)?.impersonatedBy as
+    | { id: string; email: string; name: string }
+    | undefined
+
+  const handleExitImpersonation = useCallback(async () => {
+    await logout()
+    window.location.href = config.app.superadminAppUrl
+  }, [logout])
 
   // Handle responsive behavior
   useEffect(() => {
@@ -71,7 +83,22 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
     <ProtectedRoute requireAuth requireProviderRole>
       <RouteGuard>
         <OnboardingGuard>
-          <div className="flex h-screen bg-white dark:bg-gray-900">
+          {/* Superadmin impersonation banner — fixed at top, visible across all routes */}
+          {isImpersonated && (
+            <div className="fixed inset-x-0 top-0 z-9999 flex items-center gap-4 bg-secondary-500 px-4 py-2 text-sm font-medium text-white shadow-md">
+              <span>
+                SuperAdmin view — acting on behalf of this provider account
+                {impersonatedBy?.name ? ` · ${impersonatedBy.name}` : ''}
+              </span>
+              <Button size="sm" color="primary" onPress={() => void handleExitImpersonation()}>
+                Exit
+              </Button>
+            </div>
+          )}
+
+          <div
+            className={`flex h-screen bg-white dark:bg-gray-900 ${isImpersonated ? 'pt-10' : ''}`}
+          >
             {/* Sidebar */}
             <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
