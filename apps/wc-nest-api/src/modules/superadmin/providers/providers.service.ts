@@ -13,7 +13,7 @@ import { UpdateProviderDto } from './dto/update-provider.dto'
 import { parseProviderCsvRow, validateProviderCsvRow } from './providers-csv.helpers'
 
 export interface ImportRowError {
-  row: number
+  column: number
   email: string
   reason: string
 }
@@ -306,26 +306,38 @@ export class SuperAdminProvidersService {
     fileBuffer: Buffer,
     adminUser: { id: string; email: string; firstName?: string; lastName?: string }
   ): Promise<ImportProvidersResult> {
-    // Parse CSV
-    let rows: Record<string, string>[]
+    // Parse CSV — column-oriented format: first column = field key, each subsequent column = one provider
+    let rawRows: string[][]
     try {
-      rows = parse(fileBuffer, {
-        columns: true,
+      rawRows = parse(fileBuffer, {
+        columns: false,
         skip_empty_lines: true,
         trim: true,
         bom: true,
-      }) as Record<string, string>[]
+      }) as string[][]
     } catch {
       throw new Error('Failed to parse CSV file. Please ensure it is a valid CSV.')
     }
 
-    if (rows.length === 0) {
+    // Transpose: each raw row is [fieldKey, providerValue0, providerValue1, ...]
+    const numProviders = rawRows.length > 0 ? rawRows[0].length - 1 : 0
+
+    if (numProviders === 0) {
       return { imported: 0, failed: 0, errors: [] }
     }
 
-    if (rows.length > 500) {
-      throw new Error('CSV file exceeds the 500-row limit. Please split into smaller files.')
+    if (numProviders > 500) {
+      throw new Error('CSV file exceeds the 500-provider limit. Please split into smaller files.')
     }
+
+    const rows: Record<string, string>[] = Array.from({ length: numProviders }, (_, p) => {
+      const record: Record<string, string> = {}
+      for (const rawRow of rawRows) {
+        const key = rawRow[0] ?? ''
+        record[key] = rawRow[p + 1] ?? ''
+      }
+      return record
+    })
 
     // Find the Provider Admin system role once
     const providerAdminRole = await this.prisma.role.findFirst({
@@ -346,7 +358,7 @@ export class SuperAdminProvidersService {
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
-      const rowNum = i + 2 // 1-indexed + header row
+      const rowNum = i + 2 // 1-indexed; column 1 = field keys, column 2 = first provider
       const email = row['email']?.trim() ?? ''
 
       try {
@@ -478,13 +490,15 @@ export class SuperAdminProvidersService {
           tempPassword,
           loginUrl,
         }).catch(err => {
-          this.logger.warn(`Row ${rowNum}: Failed to send welcome email to ${parsed.email}: ${err}`)
+          this.logger.warn(
+            `Column ${rowNum}: Failed to send welcome email to ${parsed.email}: ${err}`
+          )
         })
 
         imported++
       } catch (error) {
         const reason = error instanceof Error ? error.message : 'Unknown error'
-        errors.push({ row: rowNum, email, reason })
+        errors.push({ column: rowNum, email, reason })
       }
     }
 

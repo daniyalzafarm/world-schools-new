@@ -2,7 +2,7 @@ import apiClient from '../utils/api-client'
 import type { ProviderDetail } from '../types/providers'
 
 export interface ImportRowError {
-  row: number
+  column: number
   email: string
   reason: string
 }

@@ -95,13 +95,13 @@ export function ImportProvidersModal({ isOpen, onClose, onSuccess }: Props) {
   }
 
   const downloadTemplate = () => {
-    const headers = PROVIDER_IMPORT_COLUMNS.map(c => c.key).join(',')
-    const exampleRow = PROVIDER_IMPORT_COLUMNS.map(c => {
-      // Wrap in quotes if the example contains a comma
+    // Column-oriented format: each row is "fieldKey,exampleValue"
+    const lines = PROVIDER_IMPORT_COLUMNS.map(c => {
       const val = c.example
-      return val.includes(',') ? `"${val}"` : val
-    }).join(',')
-    const csv = `${headers}\n${exampleRow}\n`
+      const escaped = val.includes(',') ? `"${val}"` : val
+      return `${c.key},${escaped}`
+    })
+    const csv = lines.join('\n') + '\n'
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -171,7 +171,7 @@ export function ImportProvidersModal({ isOpen, onClose, onSuccess }: Props) {
                 description={
                   selectedFile
                     ? 'Click to replace file'
-                    : `.csv only · max ${MAX_FILE_SIZE_MB} MB · max 500 rows`
+                    : `.csv only · max ${MAX_FILE_SIZE_MB} MB · max 500 providers`
                 }
                 maxSize={MAX_FILE_SIZE_MB}
                 onFileSelect={handleFileSelect}
@@ -282,7 +282,8 @@ export function ImportProvidersModal({ isOpen, onClose, onSuccess }: Props) {
                   </p>
                   {result.failed > 0 && (
                     <p className="text-sm text-default-600">
-                      {result.failed} row{result.failed !== 1 ? 's' : ''} failed — see details below
+                      {result.failed} provider{result.failed !== 1 ? 's' : ''} failed — see details
+                      below
                     </p>
                   )}
                 </div>
@@ -297,15 +298,15 @@ export function ImportProvidersModal({ isOpen, onClose, onSuccess }: Props) {
                     removeWrapper={false}
                   >
                     <TableHeader>
-                      <TableColumn>ROW</TableColumn>
+                      <TableColumn>COLUMN</TableColumn>
                       <TableColumn>EMAIL</TableColumn>
                       <TableColumn>REASON</TableColumn>
                     </TableHeader>
                     <TableBody items={result.errors}>
                       {err => (
-                        <TableRow key={`${err.row}-${err.email}`}>
+                        <TableRow key={`${err.column}-${err.email}`}>
                           <TableCell>
-                            <span className="text-sm text-default-500">#{err.row}</span>
+                            <span className="text-sm text-default-500">#{err.column}</span>
                           </TableCell>
                           <TableCell>
                             <span className="text-sm">{err.email || '—'}</span>
