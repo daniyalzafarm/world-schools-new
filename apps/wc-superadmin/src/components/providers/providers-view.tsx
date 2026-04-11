@@ -18,12 +18,13 @@ import {
   TableRow,
   Tabs,
 } from '@heroui/react'
-import { Check, Eye, FilterX, LogIn, Search } from 'lucide-react'
+import { Check, Eye, FilterX, LogIn, Search, Upload } from 'lucide-react'
 import { Input, useDebounce } from '@world-schools/ui-web'
 import { useApplicationReviewStore } from '@/stores/application-review-store'
 import { providersService } from '@/services/providers.services'
 import config from '@/config/config'
 import type { ApplicationListItem, ApprovalStatus } from '@/types/application-review'
+import { ImportProvidersModal } from './import-providers-modal'
 
 type AllProvidersTab = 'all' | 'pending-review' | 'approved' | 'rejected' | 'suspended'
 
@@ -113,6 +114,7 @@ export function AllProvidersView() {
   const [searchInput, setSearchInput] = useState('')
   const [approvingId, setApprovingId] = useState<string | null>(null)
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const hasInitialized = useRef(false)
 
   const debouncedSearch = useDebounce(searchInput, 500)
@@ -258,7 +260,7 @@ export function AllProvidersView() {
         </div>
 
         {/* Filter bar */}
-        <div className="flex flex-wrap items-end gap-4 border-b border-default-200 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 border-b border-default-200 px-4 py-3">
           <Input
             aria-label="Search providers"
             placeholder="Search by business name, email, or legal name…"
@@ -272,14 +274,32 @@ export function AllProvidersView() {
           {hasActiveFilters && (
             <Button
               variant="flat"
-              className="ml-auto shrink-0"
+              className="shrink-0"
               startContent={<FilterX className="h-4 w-4" />}
               onPress={handleClearFilters}
             >
               Clear filters
             </Button>
           )}
+          <Button
+            variant="flat"
+            color="primary"
+            className="ml-auto shrink-0"
+            startContent={<Upload className="h-4 w-4" />}
+            onPress={() => setIsImportModalOpen(true)}
+          >
+            Import Providers
+          </Button>
         </div>
+
+        <ImportProvidersModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => {
+            void fetchApplications()
+            void fetchTabCounts()
+          }}
+        />
 
         {/* Table */}
         <Table

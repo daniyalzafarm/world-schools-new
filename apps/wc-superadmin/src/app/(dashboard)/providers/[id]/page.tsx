@@ -155,10 +155,7 @@ export default function ProviderDetailPage() {
       <div className="space-y-6">
         {/* Breadcrumb */}
         <Breadcrumb
-          items={[
-            { label: 'All Providers', href: '/providers' },
-            { label: detail.businessName },
-          ]}
+          items={[{ label: 'All Providers', href: '/providers' }, { label: detail.businessName }]}
         />
 
         {/* Profile Header Card */}

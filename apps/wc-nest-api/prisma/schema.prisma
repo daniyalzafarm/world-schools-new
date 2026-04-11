@@ -181,6 +181,7 @@ model RolePermission {
 model Provider {
   id                 String   @id @default(uuid())
   ownerId            String   @unique @map("owner_id")
+  gbpId              String?  @unique @map("gbp_id")
   legalCompanyName   String?  @map("legal_company_name")
   legalStreetAddress String?  @map("legal_street_address")
   legalAptSuite      String?  @map("legal_apt_suite")
@@ -231,8 +232,6 @@ model Provider {
   termsVersion                String?   @map("terms_version")
   providerAgreementAcceptedAt DateTime? @map("provider_agreement_accepted_at")
   providerAgreementVersion    String?   @map("provider_agreement_version")
-
-  gbpId String? @unique @map("gbp_id")
 
   // Relations
   owner                 User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)

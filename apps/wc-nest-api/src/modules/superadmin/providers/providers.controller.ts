@@ -1,5 +1,18 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common'
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common'
+import { FileInterceptor } from '@nestjs/platform-express'
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { SuperAdminProvidersService } from './providers.service'
 import { CreateProviderDto } from './dto/create-provider.dto'
 import { UpdateProviderDto } from './dto/update-provider.dto'
@@ -79,6 +92,38 @@ export class SuperAdminProvidersController {
   })
   async remove(@Param('id') id: string) {
     const result = await this.providersService.remove(id)
+    return ResponseUtil.success(result)
+  }
+
+  @Post('import')
+  @Permissions('providers.create')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Bulk import providers from CSV',
+    description:
+      'Upload a CSV file to create multiple provider accounts at once. Each row creates a user, provider, and sends a welcome email with temporary credentials. Max 500 rows, 5 MB.',
+  })
+  async importProviders(@UploadedFile() file: Express.Multer.File, @CurrentUser() user: any) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded')
+    }
+
+    const isCsv =
+      file.mimetype === 'text/csv' ||
+      file.mimetype === 'application/vnd.ms-excel' ||
+      file.originalname.toLowerCase().endsWith('.csv')
+
+    if (!isCsv) {
+      throw new BadRequestException('Only CSV files are accepted')
+    }
+
+    const maxBytes = 5 * 1024 * 1024 // 5 MB
+    if (file.size > maxBytes) {
+      throw new BadRequestException('File size exceeds the 5 MB limit')
+    }
+
+    const result = await this.providersService.importFromCsv(file.buffer, user)
     return ResponseUtil.success(result)
   }
 

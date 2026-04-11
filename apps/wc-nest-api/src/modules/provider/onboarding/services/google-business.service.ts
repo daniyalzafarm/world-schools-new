@@ -130,6 +130,54 @@ export class GoogleBusinessService {
   }
 
   /**
+   * Fetches fresh data from Google Places API and upserts the GBP record.
+   * Always calls Google — every invocation gets up-to-date data.
+   *
+   * This is the single source of truth for GBP persistence — used by saveBusinessProfile,
+   * findOrCreateGbp, and the provider CSV import flow.
+   */
+  async resolveGbp(placeId: string) {
+    if (!this.googlePlacesApiKey) {
+      throw new BadRequestException('Google Places API is not configured')
+    }
+
+    const businessData = await this.fetchBusinessDetails(placeId)
+    const addr = this.parseAddressComponents(businessData.address_components || [])
+
+    return this.prisma.googleBusinessProfile.upsert({
+      where: { placeId },
+      create: { placeId: businessData.place_id, ...this.buildGbpData(businessData, addr) },
+      update: this.buildGbpData(businessData, addr),
+    })
+  }
+
+  /**
+   * Maps a Google Places API response + parsed address into the GBP database payload.
+   * Used by resolveGbp for both create and update paths.
+   */
+  private buildGbpData(businessData: any, addr: ReturnType<typeof this.parseAddressComponents>) {
+    return {
+      businessName: businessData.name,
+      formattedAddress: businessData.formatted_address,
+      streetNumber: addr.streetNumber,
+      streetName: addr.streetName,
+      city: addr.city,
+      state: addr.state,
+      postalCode: addr.postalCode,
+      country: addr.country,
+      lat: businessData.geometry?.location?.lat || 0,
+      lng: businessData.geometry?.location?.lng || 0,
+      rating: businessData.rating,
+      reviewsCount: businessData.user_ratings_total,
+      phone: businessData.formatted_phone_number,
+      website: businessData.website,
+      photos: businessData.photos?.map((photo: any) => this.getPhotoUrl(photo.photo_reference)),
+      types: businessData.types,
+      dataRaw: businessData,
+    }
+  }
+
+  /**
    * Save Google Business Profile and Legal Business Information to database
    */
   async saveBusinessProfile(
@@ -154,59 +202,20 @@ export class GoogleBusinessService {
     // Check if this placeId is already linked to a different provider
     const existingProfile = await this.prisma.googleBusinessProfile.findUnique({
       where: { placeId },
-      include: {
-        provider: {
-          select: {
-            id: true,
-            legalCompanyName: true,
-          },
-        },
-      },
+      include: { provider: { select: { id: true, legalCompanyName: true } } },
     })
 
-    // If the business is already linked to a different provider, throw an error
     if (existingProfile?.provider && existingProfile.provider.id !== providerId) {
       throw new ConflictException(
         'This business is already registered with another provider. Please select a different business or contact support if you believe this is an error.'
       )
     }
 
-    // Fetch business details from Google Places API
-    const businessData = await this.fetchBusinessDetails(placeId)
+    // Resolve GBP record (cache hit returns stored data; cache miss fetches from Google and persists)
+    const profile = await this.resolveGbp(placeId)
 
-    // Parse address components
-    const addressComponents = this.parseAddressComponents(businessData.address_components || [])
-
-    // Use Prisma transaction to save both Google Business Profile and Provider legal info
-    const result = await this.prisma.$transaction(async prisma => {
-      // Save Google Business Profile (upsert by placeId — independent of provider)
-      const gbpData = {
-        businessName: businessData.name,
-        formattedAddress: businessData.formatted_address,
-        streetNumber: addressComponents.streetNumber,
-        streetName: addressComponents.streetName,
-        city: addressComponents.city,
-        state: addressComponents.state,
-        postalCode: addressComponents.postalCode,
-        country: addressComponents.country,
-        lat: businessData.geometry?.location?.lat || 0,
-        lng: businessData.geometry?.location?.lng || 0,
-        rating: businessData.rating,
-        reviewsCount: businessData.user_ratings_total,
-        phone: businessData.formatted_phone_number,
-        website: businessData.website,
-        photos: businessData.photos?.map((photo: any) => this.getPhotoUrl(photo.photo_reference)),
-        types: businessData.types,
-        dataRaw: businessData,
-      }
-
-      const profile = await prisma.googleBusinessProfile.upsert({
-        where: { placeId: businessData.place_id },
-        create: { placeId: businessData.place_id, ...gbpData },
-        update: gbpData,
-      })
-
-      // Update Provider with legal business information and link the GBP
+    // Link GBP to provider + update legal info + upsert ProviderSettings — all in one transaction
+    await this.prisma.$transaction(async prisma => {
       await prisma.provider.update({
         where: { id: providerId },
         data: {
@@ -225,8 +234,6 @@ export class GoogleBusinessService {
         },
       })
 
-      // Save currency and timezone to ProviderSettings
-      // These fields are required in the DTO, so they will always have values
       await prisma.providerSettings.upsert({
         where: { providerId },
         create: {
@@ -241,11 +248,9 @@ export class GoogleBusinessService {
           timezone: legalInfo.timezone,
         },
       })
-
-      return profile
     })
 
-    return result
+    return profile
   }
 
   /**
@@ -253,49 +258,14 @@ export class GoogleBusinessService {
    * Used when a camp selects a "different location" venue.
    */
   async findOrCreateGbp(placeId: string): Promise<{ id: string } | null> {
-    const existing = await this.prisma.googleBusinessProfile.findUnique({
-      where: { placeId },
-      select: { id: true },
-    })
-
-    if (existing) {
-      return existing
-    }
-
     if (!this.googlePlacesApiKey) {
       this.logger.warn('Cannot create GBP for camp location: Google Places API key not configured')
       return null
     }
 
     try {
-      const businessData = await this.fetchBusinessDetails(placeId)
-      const addressComponents = this.parseAddressComponents(businessData.address_components || [])
-
-      const profile = await this.prisma.googleBusinessProfile.create({
-        data: {
-          placeId: businessData.place_id,
-          businessName: businessData.name,
-          formattedAddress: businessData.formatted_address,
-          streetNumber: addressComponents.streetNumber,
-          streetName: addressComponents.streetName,
-          city: addressComponents.city,
-          state: addressComponents.state,
-          postalCode: addressComponents.postalCode,
-          country: addressComponents.country,
-          lat: businessData.geometry?.location?.lat || 0,
-          lng: businessData.geometry?.location?.lng || 0,
-          rating: businessData.rating,
-          reviewsCount: businessData.user_ratings_total,
-          phone: businessData.formatted_phone_number,
-          website: businessData.website,
-          photos: businessData.photos?.map((photo: any) => this.getPhotoUrl(photo.photo_reference)),
-          types: businessData.types,
-          dataRaw: businessData,
-        },
-        select: { id: true },
-      })
-
-      return profile
+      const profile = await this.resolveGbp(placeId)
+      return { id: profile.id }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       this.logger.warn(`Could not create GBP for camp location placeId=${placeId}: ${errorMessage}`)

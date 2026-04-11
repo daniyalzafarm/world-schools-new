@@ -476,6 +476,49 @@ export class EmailTemplateService {
   }
 
   /**
+   * Get welcome email template for provider accounts created via admin import
+   */
+  getProviderImportWelcomeTemplate(params: {
+    firstName: string
+    email: string
+    tempPassword: string
+    loginUrl: string
+  }): string {
+    const content = `
+      <div class="email-header">
+        <div class="logo">World-Camps</div>
+        <h1>Welcome to World-Camps!</h1>
+      </div>
+      <div class="email-body">
+        <h2>Your provider account has been created</h2>
+        <p>Hi ${params.firstName},</p>
+        <p>A World-Camps administrator has created a provider account for you. You can now log in to the provider portal and start setting up your camp profile.</p>
+
+        <div class="info-box">
+          <p style="margin: 0;"><strong>Your login credentials:</strong></p>
+          <p style="margin: 8px 0 0 0;"><strong>Email:</strong> ${params.email}</p>
+          <p style="margin: 4px 0 0 0;"><strong>Temporary Password:</strong> <code style="background: #e5e5e5; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${params.tempPassword}</code></p>
+        </div>
+
+        <div class="warning-box">
+          <p style="margin: 0;"><strong>Important:</strong> Please change your password after your first login for security.</p>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="${params.loginUrl}" class="button">Access Your Dashboard</a>
+        </div>
+
+        <div class="divider"></div>
+        <p class="text-secondary" style="font-size: 14px;">If you have any questions, contact us at <a href="mailto:providers@world-camps.com" style="color: ${this.colors.primary};">providers@world-camps.com</a></p>
+      </div>
+      <div class="email-footer">
+        <p>&copy; ${new Date().getFullYear()} World-Camps. All rights reserved.</p>
+      </div>
+    `
+    return this.getBaseTemplate(content)
+  }
+
+  /**
    * Get login verification template for 2FA
    */
   getLoginVerificationTemplate(code: string, expiryMinutes: number, userName: string): string {

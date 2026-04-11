@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from 'react'
 import { Spinner } from '@heroui/react'
+import { cn } from '../utils/cn'
 
 interface DocumentDropzoneProps {
   /**
@@ -114,7 +115,7 @@ export const DocumentDropzone: React.FC<DocumentDropzoneProps> = ({
   maxSize = 10,
   icon = '📄',
   title = 'Drag document here or click to browse',
-  description = 'PDF or images only, max 10MB',
+  description = `PDF or images only, max ${maxSize}MB`,
   className,
   style,
   variant = 'default',
@@ -138,6 +139,13 @@ export const DocumentDropzone: React.FC<DocumentDropzoneProps> = ({
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    // Only reset when leaving the dropzone entirely, not when entering a child element
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false)
+    }
+  }
+
+  const handleDragEnd = () => {
     setIsDragOver(false)
   }
 
@@ -186,16 +194,6 @@ export const DocumentDropzone: React.FC<DocumentDropzoneProps> = ({
 
   // Determine layout classes based on variant
   const isCompact = variant === 'compact'
-  const baseClasses = `
-    cursor-pointer rounded-lg border-2 border-dashed text-center transition-all
-    ${
-      isDragOver
-        ? 'border-primary bg-primary/10'
-        : 'border-default-200 hover:border-primary hover:bg-primary/5'
-    }
-    ${isDisabled || isUploading ? 'cursor-not-allowed opacity-50' : ''}
-  `
-  const layoutClasses = isCompact ? 'flex items-center justify-center' : 'rounded-xl px-6 py-12'
 
   return (
     <>
@@ -204,8 +202,17 @@ export const DocumentDropzone: React.FC<DocumentDropzoneProps> = ({
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
+        onDragEnd={handleDragEnd}
         onDrop={handleDrop}
-        className={`${baseClasses} ${layoutClasses} ${className || ''}`}
+        className={cn(
+          'cursor-pointer rounded-lg border-2 border-dashed text-center transition-all',
+          isDragOver
+            ? 'border-primary bg-primary/10'
+            : 'border-default-200 hover:border-primary hover:bg-primary/5',
+          (isDisabled || isUploading) && 'cursor-not-allowed opacity-50',
+          isCompact ? 'flex items-center justify-center' : 'rounded-xl px-6 py-12',
+          className
+        )}
         style={style}
       >
         {isUploading ? (

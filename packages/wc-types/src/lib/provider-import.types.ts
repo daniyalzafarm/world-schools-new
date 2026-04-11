@@ -1,0 +1,177 @@
+export interface ProviderImportColumn {
+  key: string
+  label: string
+  description: string
+  required: boolean
+  type: 'string' | 'number' | 'boolean' | 'enum'
+  options?: string[]
+  example: string
+}
+
+export const PROVIDER_IMPORT_COLUMNS: ProviderImportColumn[] = [
+  {
+    key: 'email',
+    label: 'Email',
+    description: 'Provider owner email address',
+    required: true,
+    type: 'string',
+    example: 'john@example.com',
+  },
+  {
+    key: 'firstName',
+    label: 'First Name',
+    description: 'Contact person first name',
+    required: true,
+    type: 'string',
+    example: 'John',
+  },
+  {
+    key: 'lastName',
+    label: 'Last Name',
+    description: 'Contact person last name',
+    required: true,
+    type: 'string',
+    example: 'Smith',
+  },
+  {
+    key: 'jobTitle',
+    label: 'Job Title',
+    description: 'Contact role (e.g. Director, Owner)',
+    required: true,
+    type: 'string',
+    example: 'Director',
+  },
+  {
+    key: 'phoneNumber',
+    label: 'Phone Number',
+    description: 'Contact phone in E.164 format',
+    required: true,
+    type: 'string',
+    example: '+14155552671',
+  },
+  {
+    key: 'googlePlaceId',
+    label: 'Google Place ID',
+    description:
+      'Fetches business name, address, and location automatically from Google',
+    required: false,
+    type: 'string',
+    example: 'ChIJN1t_tDeuEmsRUsoyG83frY4',
+  },
+  {
+    key: 'legalCompanyName',
+    label: 'Legal Company Name',
+    description: 'Overrides the name fetched from Google if provided',
+    required: false,
+    type: 'string',
+    example: 'Smith Summer Camps LLC',
+  },
+  {
+    key: 'yearFounded',
+    label: 'Year Founded',
+    description: 'Year the business was established',
+    required: false,
+    type: 'number',
+    example: '2005',
+  },
+  {
+    key: 'currency',
+    label: 'Currency',
+    description: 'ISO 4217 currency code (defaults to USD)',
+    required: false,
+    type: 'string',
+    example: 'USD',
+  },
+  {
+    key: 'timezone',
+    label: 'Timezone',
+    description: 'IANA timezone (defaults to America/New_York)',
+    required: false,
+    type: 'string',
+    example: 'America/New_York',
+  },
+  {
+    key: 'providerPhone',
+    label: 'Business Phone',
+    description: 'Business phone number (distinct from contact phone)',
+    required: false,
+    type: 'string',
+    example: '+14155559999',
+  },
+  {
+    key: 'providerEmail',
+    label: 'Business Email',
+    description: 'Public-facing business email',
+    required: false,
+    type: 'string',
+    example: 'info@smithcamps.com',
+  },
+  {
+    key: 'website',
+    label: 'Website',
+    description: 'Business website URL',
+    required: false,
+    type: 'string',
+    example: 'https://smithcamps.com',
+  },
+  {
+    key: 'description',
+    label: 'Description',
+    description: 'Camp description (100–300 characters)',
+    required: false,
+    type: 'string',
+    example:
+      'Award-winning summer camp offering STEM, arts, and outdoor adventures for ages 8-16.',
+  },
+  {
+    key: 'campTypes',
+    label: 'Camp Types',
+    description: 'Type of camps offered',
+    required: false,
+    type: 'enum',
+    options: ['day', 'overnight', 'day,overnight'],
+    example: 'day,overnight',
+  },
+  {
+    key: 'depositRequired',
+    label: 'Deposit Required',
+    description: 'Whether a booking deposit is required',
+    required: false,
+    type: 'boolean',
+    example: 'true',
+  },
+  {
+    key: 'depositType',
+    label: 'Deposit Type',
+    description: 'How the deposit is calculated',
+    required: false,
+    type: 'enum',
+    options: ['percentage', 'fixed'],
+    example: 'percentage',
+  },
+  {
+    key: 'depositPercentage',
+    label: 'Deposit Percentage',
+    description: 'Deposit percentage (1–100), when depositType is percentage',
+    required: false,
+    type: 'number',
+    example: '20',
+  },
+  {
+    key: 'depositFixedAmount',
+    label: 'Deposit Amount',
+    description: 'Fixed deposit amount, when depositType is fixed',
+    required: false,
+    type: 'number',
+    example: '150.00',
+  },
+  {
+    key: 'cancellationPolicy',
+    label: 'Cancellation Policy',
+    description: 'Refund policy applied to bookings',
+    required: false,
+    type: 'enum',
+    options: ['flexible', 'moderate', 'strict'],
+    example: 'moderate',
+  },
+]
