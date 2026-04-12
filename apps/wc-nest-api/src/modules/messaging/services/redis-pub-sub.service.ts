@@ -1,26 +1,22 @@
-import {
-  Injectable,
-  Logger,
-  OnApplicationBootstrap,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common'
+import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common'
 import { ModuleRef } from '@nestjs/core'
 import { RedisService } from '../../redis/redis.service'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { WebSocketService } from '../../websocket/websocket.service'
-import Redis from 'ioredis'
+import { WebSocketRedisService } from '../../websocket/websocket-redis.service'
 import { Server } from 'socket.io'
 
 /**
  * Redis Pub/Sub Service for real-time messaging
- * Handles publishing and subscribing to Redis channels for cross-replica communication
+ * Handles publishing and subscribing to Redis channels for cross-replica communication.
+ *
+ * Redis connections are no longer created here — they are provided by
+ * WebSocketRedisService (injected), which keeps the total connection count at 2
+ * per application instance instead of the previous 4+.
  */
 @Injectable()
-export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnApplicationBootstrap {
+export class RedisPubSubService implements OnModuleInit, OnApplicationBootstrap {
   private readonly logger = new Logger(RedisPubSubService.name)
-  private publisher: Redis | null = null
-  private subscriber: Redis | null = null
   private server: Server | null = null
   private isInitialized = false
   private conversationsService: any
@@ -30,59 +26,25 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
     private redisService: RedisService,
     private prisma: PrismaService,
     private moduleRef: ModuleRef,
-    private wsService: WebSocketService
+    private wsService: WebSocketService,
+    private wsRedis: WebSocketRedisService
   ) {}
 
   async onModuleInit() {
     try {
       // Lazy-load services to avoid circular dependency
-      // These services are needed for cache invalidation handlers
       const { ConversationsService } = await import('./conversations.service')
       const { MessagesService } = await import('./messages.service')
       this.conversationsService = this.moduleRef.get(ConversationsService, { strict: false })
       this.messagesService = this.moduleRef.get(MessagesService, { strict: false })
 
-      // Get Redis URL from environment
-      const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
-
       this.logger.log('Initializing Redis Pub/Sub...')
 
-      // Create separate connections for publisher and subscriber
-      // This is required by Redis - same connection cannot be used for both
-      this.publisher = new Redis(redisUrl, {
-        retryStrategy: times => {
-          const delay = Math.min(times * 50, 2000)
-          this.logger.warn(`Publisher retry attempt ${times}, delay: ${delay}ms`)
-          return delay
-        },
-        maxRetriesPerRequest: 3,
-        enableReadyCheck: true,
-      })
-
-      this.subscriber = new Redis(redisUrl, {
-        retryStrategy: times => {
-          const delay = Math.min(times * 50, 2000)
-          this.logger.warn(`Subscriber retry attempt ${times}, delay: ${delay}ms`)
-          return delay
-        },
-        maxRetriesPerRequest: null, // Subscriber should never timeout
-        enableReadyCheck: true,
-      })
-
-      // Set up error handlers
-      this.publisher.on('error', err => {
-        this.logger.error('Publisher error:', err)
-      })
-
-      this.subscriber.on('error', err => {
-        this.logger.error('Subscriber error:', err)
-      })
-
-      // Subscribe to all messaging channels
+      // Subscribe to all messaging channels using the shared subscriber connection
       await this.subscribeToChannels()
 
-      // Set up message handler
-      this.subscriber.on('message', (channel, message) => {
+      // Set up message handler on the shared subscriber
+      this.wsRedis.getSubscriber().on('message', (channel, message) => {
         this.handleRedisMessage(channel, message).catch(err => {
           this.logger.error('Message error:', err)
         })
@@ -100,10 +62,6 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
    * Called after all modules are initialized and gateways have run afterInit().
    * At this point, GlobalWebSocketGateway has already called wsService.setServer(),
    * so we can safely grab the server reference for broadcasting.
-   *
-   * This replaces the old pattern where MessagingGateway.afterInit() called
-   * redisPubSub.setServer(server) directly — which broke when the legacy
-   * gateway was deleted in Phase E.
    */
   onApplicationBootstrap() {
     const server = this.wsService.getServer()
@@ -118,28 +76,12 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
     }
   }
 
-  async onModuleDestroy() {
-    this.logger.log('Shutting down Redis Pub/Sub...')
-
-    if (this.subscriber) {
-      await this.subscriber.quit()
-    }
-
-    if (this.publisher) {
-      await this.publisher.quit()
-    }
-
-    this.logger.log('Redis Pub/Sub connections closed')
-  }
+  // onModuleDestroy removed — Redis connections are managed by WebSocketRedisService
 
   /**
    * Subscribe to all messaging-related channels
    */
   private async subscribeToChannels() {
-    if (!this.subscriber) {
-      throw new Error('Subscriber not initialized')
-    }
-
     const channels = [
       'messages:new',
       'messages:updated',
@@ -154,14 +96,14 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
       // Support ticket events
       'ticket:statusUpdated',
       'ticket:assigned',
-      'conversations:new', // ✅ NEW: Real-time conversation creation events
-      // ✅ NEW: Cache invalidation channels
+      'conversations:new',
+      // Cache invalidation channels
       'cache:invalidate:conversations',
       'cache:invalidate:messages',
       'cache:invalidate:metrics',
     ]
 
-    await this.subscriber.subscribe(...channels)
+    await this.wsRedis.getSubscriber().subscribe(...channels)
     this.logger.log(`Subscribed to ${channels.length} Redis channels`)
   }
 
@@ -169,20 +111,13 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
    * Publish a message to a Redis channel
    */
   async publishMessage(channel: string, data: any): Promise<boolean> {
-    if (!this.isInitialized || !this.publisher) {
+    if (!this.isInitialized) {
       this.logger.warn('Publisher not ready, skipping publish')
       return false
     }
-
-    try {
-      const payload = JSON.stringify(data)
-      await this.publisher.publish(channel, payload)
-      this.logger.debug(`Published to ${channel}:`, data)
-      return true
-    } catch (error) {
-      this.logger.error(`Failed to publish to ${channel}:`, error)
-      return false
-    }
+    const ok = await this.wsRedis.publishTo(channel, data)
+    if (ok) this.logger.debug(`Published to ${channel}:`, data)
+    return ok
   }
 
   /**
@@ -202,7 +137,11 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
         case 'messages:new': {
           // ✅ Broadcast to participant user rooms (not just conversation room)
           // This ensures users receive message:new even for conversations they haven't joined
-          const messagePayload = { message: data.message || data }
+          // Include tempId so clients can deduplicate against optimistic messages
+          const messagePayload = {
+            message: data.message || data,
+            ...(data.tempId ? { tempId: data.tempId as string } : {}),
+          }
 
           // Broadcast to direct participants (sender already excluded in payload)
           if (data.recipientUserIds && Array.isArray(data.recipientUserIds)) {
@@ -222,9 +161,11 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
             }
           }
 
-          // For support tickets (USER_SUPERADMIN/PROVIDER_SUPERADMIN), only the requester is in
-          // participants, so superadmin users never receive via user rooms. Broadcast to the
-          // conversation room so admins who joined when viewing the ticket receive the message.
+          // Broadcast to the conversation room for non-participant viewers
+          // (e.g. superadmin agents viewing a support ticket via join_conversation).
+          // These users are not in recipientUserIds so this is the only delivery path for them.
+          // Users who receive via both their user room and the conversation room are handled
+          // by frontend deduplication (message ID check in the messaging store).
           if (data.conversationId) {
             this.server
               .to(`conversation:${data.conversationId}`)
@@ -243,46 +184,24 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
           break
 
         case 'typing:events':
-          // Broadcast typing events to all participants EXCEPT the sender
-          // This prevents users from seeing their own typing indicator
-          // Note: The sender is already excluded in the same replica via client.broadcast.to()
-          // This handles cross-replica broadcasting (when sender is on a different server)
-          if (data.userId && data.socketId) {
-            // Get all sockets in the conversation room
-            const room = `conversation:${data.conversationId}`
-            const socketsInRoom = await this.server.in(room).fetchSockets()
-
-            this.logger.debug(
-              `[Typing Events] Room: ${room}, Total sockets: ${socketsInRoom.length}, Typing userId: ${data.userId}, Sender socketId: ${data.socketId}`
-            )
-
-            // Emit to each socket except the one with the sender's socketId
-            // (In cross-replica scenarios, the socketId won't match any local socket, so all will receive)
-            let emittedCount = 0
-            for (const socket of socketsInRoom) {
-              // Skip if this is the sender's socket (shouldn't happen in cross-replica, but defensive)
-              if (socket.id !== data.socketId) {
-                socket.emit(data.event, data)
-                emittedCount++
-                this.logger.debug(`[Typing Events] Emitted to socket ${socket.id}`)
-              } else {
-                this.logger.debug(`[Typing Events] Skipped sender socket ${socket.id}`)
-              }
-            }
-
-            this.logger.debug(
-              `[Typing Events] Emitted to ${emittedCount} out of ${socketsInRoom.length} sockets`
-            )
+          // Broadcast typing events to the conversation room, excluding the sender's user room.
+          // server.to(room).except(`user:${userId}`) is O(1) via the Redis adapter and avoids
+          // the O(n) fetchSockets() call that was blocking the event loop for large conversations.
+          if (data.userId) {
+            this.server
+              .to(`conversation:${data.conversationId}`)
+              .except(`user:${data.userId}`)
+              .emit(data.event, data)
           } else {
-            // Fallback: broadcast to all if userId/socketId is missing (shouldn't happen)
-            this.logger.warn('[Typing Events] userId or socketId is missing, broadcasting to all')
+            // Fallback: broadcast to all if userId is missing (shouldn't happen in practice)
+            this.logger.warn('[Typing Events] userId is missing, broadcasting to all in room')
             this.server.to(`conversation:${data.conversationId}`).emit(data.event, data)
           }
           break
 
         case 'presence:updates':
-          // Broadcast presence updates to all connected clients
-          this.server.emit('presence:update', data)
+          // Presence updates are now delivered directly in MessagingWebSocketHandler
+          // via targeted subscriber sets — no server-wide broadcast needed here.
           break
 
         case 'reactions:added':
@@ -306,15 +225,31 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
           this.server.to(`conversation:${data.conversationId}`).emit('conversation:assigned', data)
           break
 
-        case 'ticket:statusUpdated':
-          // Broadcast ticket status updates to all connected clients interested in tickets
-          this.server.emit('ticket:statusUpdated', data)
+        case 'ticket:statusUpdated': {
+          // Targeted delivery — only the requester and assigned staff member receive this.
+          // Replaces the previous server.emit() O(n) broadcast.
+          const statusTargets = new Set<string>()
+          if (data.requesterUserId) statusTargets.add(data.requesterUserId)
+          if (data.assignedToUserId) statusTargets.add(data.assignedToUserId)
+          if (data.changedByUserId) statusTargets.add(data.changedByUserId)
+          for (const userId of statusTargets) {
+            this.server.to(`user:${userId}`).emit('ticket:statusUpdated', data)
+          }
           break
+        }
 
-        case 'ticket:assigned':
-          // Broadcast ticket assignment updates to all connected clients interested in tickets
-          this.server.emit('ticket:assigned', data)
+        case 'ticket:assigned': {
+          // Targeted delivery — requester, new assignee, old assignee, and assigner.
+          const assignTargets = new Set<string>()
+          if (data.requesterUserId) assignTargets.add(data.requesterUserId)
+          if (data.assignedToUserId) assignTargets.add(data.assignedToUserId)
+          if (data.assignedByUserId) assignTargets.add(data.assignedByUserId)
+          if (data.fromAssigneeUserId) assignTargets.add(data.fromAssigneeUserId)
+          for (const userId of assignTargets) {
+            this.server.to(`user:${userId}`).emit('ticket:assigned', data)
+          }
           break
+        }
 
         case 'conversations:new':
           // ✅ NEW: Broadcast new conversation to provider users or specific users
@@ -355,21 +290,7 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
    * Check if pub/sub is ready
    */
   isReady(): boolean {
-    return this.isInitialized && !!this.publisher && !!this.subscriber
-  }
-
-  /**
-   * Get subscriber client for advanced operations
-   */
-  getSubscriber(): Redis | null {
-    return this.subscriber
-  }
-
-  /**
-   * Get publisher client for advanced operations
-   */
-  getPublisher(): Redis | null {
-    return this.publisher
+    return this.isInitialized
   }
 
   /**
@@ -433,18 +354,21 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
   }) {
     this.logger.debug(`Invalidating conversation cache for ${data.userIds.length} users`)
 
-    // Invalidate cache for specified users
-    for (const userId of data.userIds) {
-      await this.conversationsService.invalidateConversationCache(userId)
-    }
+    // Collect all unique user IDs to invalidate (deduplicating across direct + provider users)
+    const allUserIds = new Set<string>(data.userIds)
 
-    // If providerId specified, invalidate cache for all provider users
+    // If providerId specified, also invalidate cache for all provider users
     if (data.providerId) {
       const providerUsers = await this.getProviderUsers(data.providerId)
-      for (const user of providerUsers) {
-        await this.conversationsService.invalidateConversationCache(user.id)
-      }
+      providerUsers.forEach(u => allUserIds.add(u.id))
     }
+
+    // Invalidate all caches in parallel instead of sequentially
+    await Promise.all(
+      Array.from(allUserIds).map(userId =>
+        this.conversationsService.invalidateConversationCache(userId)
+      )
+    )
   }
 
   /**
@@ -465,11 +389,25 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
   }
 
   /**
-   * ✅ NEW: Get all active users for a provider organization
-   * Users are related to providers through roles (UserRole -> Role -> Provider)
-   * ✅ PUBLIC: Called from MessagesService and ConversationsService for local cache invalidation
+   * Get all active users for a provider organization.
+   * Result is cached in Redis for 60 seconds to avoid repeated DB queries on every
+   * message broadcast for USER_PROVIDER conversations.
+   *
+   * ✅ PUBLIC: Called from MessagesService and ConversationsService for cache invalidation.
    */
   async getProviderUsers(providerId: string): Promise<{ id: string }[]> {
+    const cacheKey = `provider:users:${providerId}`
+
+    // Return cached result if available
+    const cached = await this.redisService.get(cacheKey)
+    if (cached) {
+      try {
+        return JSON.parse(cached) as { id: string }[]
+      } catch {
+        // Corrupted cache entry — fall through to DB query
+      }
+    }
+
     // Find all users who have roles associated with this provider
     const users = await this.prisma.user.findMany({
       where: {
@@ -494,6 +432,17 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy, OnAppl
       users.push({ id: provider.ownerId })
     }
 
+    // Cache for 60 seconds — short enough to reflect membership changes promptly
+    await this.redisService.setex(cacheKey, 60, JSON.stringify(users))
+
     return users
+  }
+
+  /**
+   * Invalidate the provider users cache when membership changes.
+   * Call this whenever a user is added to or removed from a provider.
+   */
+  async invalidateProviderUsersCache(providerId: string): Promise<void> {
+    await this.redisService.del(`provider:users:${providerId}`)
   }
 }

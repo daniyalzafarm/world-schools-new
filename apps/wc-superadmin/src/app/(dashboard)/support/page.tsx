@@ -28,6 +28,7 @@ import { PageSlot } from '@/components/layout/page-slot'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePermissions } from '@/hooks/use-permissions'
 import { supportTicketsService } from '@/services/support-tickets.services'
+import { WsClientEvent, WsServerEvent } from '@world-schools/wc-types'
 import { globalWsService } from '@/lib/websocket-instance'
 import type {
   ListTicketsParams,
@@ -332,8 +333,8 @@ export default function SupportTicketsPage() {
       )
     }
 
-    const unsubStatus = ws.on('ticket:statusUpdated', handleTicketStatusUpdated)
-    const unsubAssigned = ws.on('ticket:assigned', handleTicketAssigned)
+    const unsubStatus = ws.on(WsServerEvent.TicketStatusUpdated, handleTicketStatusUpdated)
+    const unsubAssigned = ws.on(WsServerEvent.TicketAssigned, handleTicketAssigned)
 
     return () => {
       unsubStatus()
@@ -344,9 +345,13 @@ export default function SupportTicketsPage() {
   // Join conversation room when viewing a ticket inline so we receive message:new when requester replies
   useEffect(() => {
     if (!selectedTicket?.conversationId || !globalWsService.isConnected()) return
-    globalWsService.emit('join_conversation', { conversationId: selectedTicket.conversationId })
+    globalWsService.emit(WsClientEvent.JoinConversation, {
+      conversationId: selectedTicket.conversationId,
+    })
     return () => {
-      globalWsService.emit('leave_conversation', { conversationId: selectedTicket.conversationId })
+      globalWsService.emit(WsClientEvent.LeaveConversation, {
+        conversationId: selectedTicket.conversationId,
+      })
     }
   }, [selectedTicket?.conversationId])
 
@@ -363,13 +368,13 @@ export default function SupportTicketsPage() {
 
       // Mark incoming messages as delivered immediately when panel is open
       if (user?.id && msg?.senderId && msg.senderId !== user.id) {
-        globalWsService.emit('message:delivered', {
+        globalWsService.emit(WsClientEvent.MessageDelivered, {
           messageId: msg.id,
           conversationId: selectedTicket.conversationId,
         })
       }
     }
-    const unsub = globalWsService.on('message:new', handleNewMessage)
+    const unsub = globalWsService.on(WsServerEvent.MessageNew, handleNewMessage)
     return () => unsub()
   }, [selectedTicketId, selectedTicket?.conversationId, user?.id])
 
@@ -415,8 +420,11 @@ export default function SupportTicketsPage() {
       )
     }
 
-    const unsubDelivered = globalWsService.on('receipt:delivered', handleDeliveredReceipt)
-    const unsubRead = globalWsService.on('receipt:read', handleReadReceipt)
+    const unsubDelivered = globalWsService.on(
+      WsServerEvent.ReceiptDelivered,
+      handleDeliveredReceipt
+    )
+    const unsubRead = globalWsService.on(WsServerEvent.ReceiptRead, handleReadReceipt)
 
     return () => {
       unsubDelivered()
@@ -459,7 +467,7 @@ export default function SupportTicketsPage() {
               .filter(m => m.senderId !== user.id && !m.deliveredAt)
               .slice(-20)
             for (const m of undeliveredIncoming) {
-              globalWsService.emit('message:delivered', {
+              globalWsService.emit(WsClientEvent.MessageDelivered, {
                 messageId: m.id,
                 conversationId: selectedTicket.conversationId,
               })

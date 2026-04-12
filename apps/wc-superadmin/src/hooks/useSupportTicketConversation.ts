@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { WsClientEvent, WsServerEvent } from '@world-schools/wc-types'
 import { globalWsService } from '@/lib/websocket-instance'
 import { supportTicketsService } from '@/services/support-tickets.services'
 import { useAuthStore } from '@/stores/auth-store'
@@ -76,9 +77,11 @@ export function useSupportTicketConversation({ ticketId }: UseSupportTicketConve
   // Join conversation room when viewing a ticket so we receive message:new when requester replies
   useEffect(() => {
     if (!ticket?.conversationId || !globalWsService.isConnected()) return
-    globalWsService.emit('join_conversation', { conversationId: ticket.conversationId })
+    globalWsService.emit(WsClientEvent.JoinConversation, { conversationId: ticket.conversationId })
     return () => {
-      globalWsService.emit('leave_conversation', { conversationId: ticket.conversationId })
+      globalWsService.emit(WsClientEvent.LeaveConversation, {
+        conversationId: ticket.conversationId,
+      })
     }
   }, [ticket?.conversationId])
 
@@ -89,7 +92,7 @@ export function useSupportTicketConversation({ ticketId }: UseSupportTicketConve
     if (!globalWsService.isConnected()) return
 
     for (const messageId of undeliveredIncomingIds) {
-      globalWsService.emit('message:delivered', {
+      globalWsService.emit(WsClientEvent.MessageDelivered, {
         messageId,
         conversationId: ticket.conversationId,
       })
@@ -116,7 +119,10 @@ export function useSupportTicketConversation({ ticketId }: UseSupportTicketConve
         msg.senderId &&
         msg.senderId !== currentUserId
       ) {
-        ws.emit('message:delivered', { messageId: msg.id, conversationId: ticket.conversationId })
+        ws.emit(WsClientEvent.MessageDelivered, {
+          messageId: msg.id,
+          conversationId: ticket.conversationId,
+        })
       }
 
       // Play sound when requester sends (not our own message)
@@ -201,11 +207,11 @@ export function useSupportTicketConversation({ ticketId }: UseSupportTicketConve
       setTicket(prev => (prev ? { ...prev, assignedAt: data.assignedAt ?? prev.assignedAt } : prev))
     }
 
-    const unsubMessage = ws.on('message:new', handleNewMessage)
-    const unsubDelivered = ws.on('receipt:delivered', handleDeliveredReceipt)
-    const unsubRead = ws.on('receipt:read', handleReadReceipt)
-    const unsubStatus = ws.on('ticket:statusUpdated', handleTicketStatusUpdated)
-    const unsubAssigned = ws.on('ticket:assigned', handleTicketAssigned)
+    const unsubMessage = ws.on(WsServerEvent.MessageNew, handleNewMessage)
+    const unsubDelivered = ws.on(WsServerEvent.ReceiptDelivered, handleDeliveredReceipt)
+    const unsubRead = ws.on(WsServerEvent.ReceiptRead, handleReadReceipt)
+    const unsubStatus = ws.on(WsServerEvent.TicketStatusUpdated, handleTicketStatusUpdated)
+    const unsubAssigned = ws.on(WsServerEvent.TicketAssigned, handleTicketAssigned)
 
     return () => {
       unsubMessage()

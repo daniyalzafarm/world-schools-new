@@ -604,7 +604,11 @@ export class UserAuthController {
       response.setHeader('x-refresh-token', appTokens.refreshToken)
     }
 
-    return ResponseUtil.success({ user: result.user, expiresIn: appTokens.expiresIn })
+    return ResponseUtil.success({
+      user: result.user,
+      expiresIn: appTokens.expiresIn,
+      accessToken: appTokens.accessToken,
+    })
   }
 
   @Get('profile')

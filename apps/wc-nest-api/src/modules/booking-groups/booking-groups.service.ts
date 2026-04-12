@@ -5,6 +5,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { WsInternalEvent } from '../websocket/ws-internal-events'
 import { AzureStorageService } from '@world-schools/wc-utils/backend'
 import { ConfigService } from '../../config/config.service'
 import {
@@ -29,7 +31,8 @@ export class BookingGroupsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-    private readonly profilePhotoService: ProfilePhotoService
+    private readonly profilePhotoService: ProfilePhotoService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   /** Same SAS URL generation as user/provider GET profile (`ProfilePhotoService.generatePhotoUrl`). */
@@ -1629,7 +1632,14 @@ export class BookingGroupsService {
 
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
       where: { parentId: parent.id, ...bookingGroupWhereByRef(bookingGroupId) },
-      select: { id: true, status: true },
+      select: {
+        id: true,
+        status: true,
+        bookingGroupNumber: true,
+        providerId: true,
+        expiresAt: true,
+        camp: { select: { name: true } },
+      },
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
     if (bookingGroup.status !== 'draft') {
@@ -1644,6 +1654,17 @@ export class BookingGroupsService {
       },
       select: { id: true, status: true },
     })
+
+    // Notify provider users of a new booking request
+    this.eventEmitter.emit(WsInternalEvent.BookingRequestSubmitted, {
+      bookingGroupId: bookingGroup.id,
+      bookingGroupNumber: bookingGroup.bookingGroupNumber,
+      parentUserId: userId,
+      providerId: bookingGroup.providerId,
+      campName: bookingGroup.camp.name,
+      requestExpiresAt: bookingGroup.expiresAt?.toISOString(),
+    })
+
     return { bookingGroupId: updated.id, status: updated.status }
   }
 
@@ -1674,7 +1695,14 @@ export class BookingGroupsService {
   async acceptForProvider(providerId: string, bookingGroupId: string, providerNote?: string) {
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
       where: { providerId, ...bookingGroupWhereByRef(bookingGroupId) },
-      select: { id: true, status: true },
+      select: {
+        id: true,
+        status: true,
+        bookingGroupNumber: true,
+        parentId: true,
+        camp: { select: { name: true } },
+        parent: { select: { userId: true } },
+      },
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
     if (bookingGroup.status !== 'request') {
@@ -1699,13 +1727,31 @@ export class BookingGroupsService {
       })
     })
 
+    this.eventEmitter.emit(WsInternalEvent.BookingStatusChanged, {
+      bookingGroupId: bookingGroup.id,
+      bookingGroupNumber: bookingGroup.bookingGroupNumber,
+      newStatus: 'accepted',
+      previousStatus: 'request',
+      parentUserId: bookingGroup.parent.userId,
+      providerId,
+      campName: bookingGroup.camp.name,
+      respondedAt: now.toISOString(),
+    })
+
     return { bookingGroupId: bookingGroup.id, status: 'accepted' }
   }
 
   async declineForProvider(providerId: string, bookingGroupId: string, providerNote?: string) {
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
       where: { providerId, ...bookingGroupWhereByRef(bookingGroupId) },
-      select: { id: true, status: true },
+      select: {
+        id: true,
+        status: true,
+        bookingGroupNumber: true,
+        parentId: true,
+        camp: { select: { name: true } },
+        parent: { select: { userId: true } },
+      },
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
     if (bookingGroup.status !== 'request') {
@@ -1728,6 +1774,17 @@ export class BookingGroupsService {
           providerNote: providerNote ?? null,
         },
       })
+    })
+
+    this.eventEmitter.emit(WsInternalEvent.BookingStatusChanged, {
+      bookingGroupId: bookingGroup.id,
+      bookingGroupNumber: bookingGroup.bookingGroupNumber,
+      newStatus: 'declined',
+      previousStatus: 'request',
+      parentUserId: bookingGroup.parent.userId,
+      providerId,
+      campName: bookingGroup.camp.name,
+      respondedAt: now.toISOString(),
     })
 
     return { bookingGroupId: bookingGroup.id, status: 'declined' }

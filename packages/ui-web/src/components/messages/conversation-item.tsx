@@ -138,6 +138,11 @@ export function ConversationItem({
             <BellOff size={16} className="text-secondary dark:text-gray-400" />
           )}
           {conversation.pinned && <Pin size={16} className="text-secondary dark:text-gray-400" />}
+          {(conversation.unreadCount ?? 0) > 0 && (
+            <span className="ml-auto bg-primary-500 text-white text-xs font-medium rounded-full px-1.5 py-0.5 min-w-5 text-center leading-none">
+              {(conversation.unreadCount ?? 0) > 99 ? '99+' : conversation.unreadCount}
+            </span>
+          )}
           {showActions && isHovered && (
             <Dropdown placement="bottom-end">
               <DropdownTrigger>

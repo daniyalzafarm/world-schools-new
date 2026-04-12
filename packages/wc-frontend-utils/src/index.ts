@@ -66,3 +66,28 @@ export * from './lib/kb/help'
 
 // Booking group labels, formatting, journey (parent + provider apps)
 export * from './lib/booking-group-display'
+
+// Browser notification hook (shared across wc-* apps)
+export {
+  useNotifications,
+  type BrowserNotificationOptions,
+} from './lib/notifications/use-notifications'
+
+// Support ticket conversation WebSocket hook (shared core for wc-booking + wc-provider)
+export {
+  useSupportConversationMessages,
+  type SupportMessage,
+} from './lib/messaging/hooks/use-support-conversation-messages'
+
+// Notifications page (shared hook + UI across all wc-* apps)
+export {
+  useNotificationsPage,
+  type NotificationFilter,
+  type UseNotificationsPageOptions,
+  type UseNotificationsPageResult,
+  type NotificationsPageResponse,
+} from './lib/notifications/use-notifications-page'
+export {
+  NotificationsPageContent,
+  type NotificationsPageContentProps,
+} from './lib/notifications/notifications-page-content'

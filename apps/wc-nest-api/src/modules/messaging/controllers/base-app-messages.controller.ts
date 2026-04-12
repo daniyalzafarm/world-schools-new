@@ -11,6 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common'
+import { SenderType } from '../../../generated/client/client'
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 import { MessageAccessGuard } from '../guards/message-access.guard'
@@ -51,6 +52,11 @@ export abstract class BaseAppMessagesController {
     this.logger = new Logger(loggerContext)
   }
 
+  /** Subclasses override to enforce the correct sender type for their app */
+  protected get appSenderType(): SenderType | null {
+    return null
+  }
+
   @Post()
   @UseGuards(RateLimitGuard)
   @HttpCode(HttpStatus.CREATED)
@@ -66,6 +72,9 @@ export abstract class BaseAppMessagesController {
   async sendMessage(@Body() sendDto: SendMessageDto, @CurrentUser('id') currentUserId: string) {
     this.logger.log(`Sending message in conversation ${sendDto.conversationId}`)
     sendDto.senderId = currentUserId
+    if (this.appSenderType !== null) {
+      sendDto.senderType = this.appSenderType
+    }
     const message = await this.messagesService.sendMessage(sendDto)
     return { success: true, message: 'Message sent successfully', data: message }
   }

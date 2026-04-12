@@ -12,6 +12,7 @@ import { ProviderSupportTicketConversationsController } from './controllers/prov
 import { SupportTicketsService } from './services/support-tickets.service'
 import { SupportTicketConversationService } from './services/support-ticket-conversation.service'
 import { SupportTicketSlaService } from './services/support-ticket-sla.service'
+import { SlaBreachMonitorService } from './services/sla-breach-monitor.service'
 
 @Module({
   imports: [PrismaModule, ConfigModule, AuthModule, MessagingModule],
@@ -23,7 +24,12 @@ import { SupportTicketSlaService } from './services/support-ticket-sla.service'
     ProviderSupportTicketsController,
     ProviderSupportTicketConversationsController,
   ],
-  providers: [SupportTicketsService, SupportTicketConversationService, SupportTicketSlaService],
+  providers: [
+    SupportTicketsService,
+    SupportTicketConversationService,
+    SupportTicketSlaService,
+    SlaBreachMonitorService,
+  ],
   exports: [SupportTicketsService, SupportTicketConversationService, SupportTicketSlaService],
 })
 export class SupportTicketsModule {}

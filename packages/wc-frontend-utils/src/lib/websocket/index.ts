@@ -17,3 +17,6 @@ export { WebSocketProvider, type WebSocketProviderProps } from './websocket-cont
 
 // React hook
 export { useWebSocket } from './use-websocket'
+
+// In-app notification WebSocket hook
+export { useWsNotifications } from './use-ws-notifications'

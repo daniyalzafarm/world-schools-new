@@ -2,6 +2,7 @@ import { Controller } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { MessagesService } from '../../messaging/services/messages.service'
 import { BaseAppMessagesController } from '../../messaging/controllers/base-app-messages.controller'
+import { SenderType } from '../../../generated/client/client'
 
 /**
  * User Messages Controller
@@ -15,5 +16,9 @@ import { BaseAppMessagesController } from '../../messaging/controllers/base-app-
 export class UserMessagesController extends BaseAppMessagesController {
   constructor(messagesService: MessagesService) {
     super(messagesService, UserMessagesController.name)
+  }
+
+  protected override get appSenderType(): SenderType {
+    return SenderType.USER
   }
 }

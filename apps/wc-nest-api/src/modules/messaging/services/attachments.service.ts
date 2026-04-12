@@ -248,6 +248,33 @@ export class AttachmentsService {
   }
 
   /**
+   * Delete an orphaned attachment (no message linked) without user ownership check.
+   * Used by the attachment cleanup cron job.
+   */
+  async deleteOrphanAttachment(attachmentId: string): Promise<void> {
+    const attachment = await this.prisma.messageAttachment.findUnique({
+      where: { id: attachmentId },
+    })
+
+    if (!attachment) return
+
+    const blobName = this.getBlobName(attachment.storageUrl)
+    if (blobName) {
+      try {
+        await this.getAzureStorage().deleteFile(blobName)
+      } catch (err) {
+        this.logger.warn(
+          `Failed to delete blob ${blobName} for orphan attachment ${attachmentId}:`,
+          err
+        )
+      }
+    }
+
+    await this.prisma.messageAttachment.delete({ where: { id: attachmentId } })
+    this.logger.log(`Orphaned attachment cleaned up: ${attachmentId}`)
+  }
+
+  /**
    * Get a signed CDN URL for an attachment
    */
   async getAttachmentUrl(attachmentId: string, expiryHours = 24, userId?: string): Promise<string> {

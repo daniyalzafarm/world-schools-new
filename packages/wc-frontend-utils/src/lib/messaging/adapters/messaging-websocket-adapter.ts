@@ -18,6 +18,7 @@
  * ```
  */
 
+import { WsClientEvent, WsServerEvent } from '@world-schools/wc-types'
 import type { GlobalWebSocketService } from '../../websocket/create-websocket-service'
 
 export interface MessagingWebSocketAdapter {
@@ -76,7 +77,7 @@ export function createMessagingWebSocketAdapter(
       tempId: string,
       options?: { attachmentIds?: string[] }
     ) {
-      wsService.emit('send_message', {
+      wsService.emit(WsClientEvent.SendMessage, {
         conversationId,
         content,
         tempId,
@@ -85,78 +86,82 @@ export function createMessagingWebSocketAdapter(
     },
 
     joinConversation(conversationId: string) {
-      wsService.emit('join_conversation', { conversationId })
+      wsService.emit(WsClientEvent.JoinConversation, { conversationId })
     },
 
     leaveConversation(conversationId: string) {
-      wsService.emit('leave_conversation', { conversationId })
+      wsService.emit(WsClientEvent.LeaveConversation, { conversationId })
     },
 
     onMessageCreated(handler: (data: any) => void) {
-      return wsService.on('message:created', handler)
+      return wsService.on(WsServerEvent.MessageCreated, handler)
     },
 
     onMessageNew(handler: (data: any) => void) {
-      return wsService.on('message:new', handler)
+      return wsService.on(WsServerEvent.MessageNew, handler)
     },
 
     onMessageError(handler: (data: any) => void) {
-      return wsService.on('message:error', handler)
+      return wsService.on(WsServerEvent.MessageError, handler)
     },
 
     isConnected() {
       return wsService.isConnected()
     },
 
-    // Typing indicators (Phase D)
+    // Typing indicators
     startTyping(conversationId: string) {
-      wsService.emit('typing:start', { conversationId })
+      wsService.emit(WsClientEvent.TypingStart, { conversationId })
     },
 
     stopTyping(conversationId: string) {
-      wsService.emit('typing:stop', { conversationId })
+      wsService.emit(WsClientEvent.TypingStop, { conversationId })
     },
 
     onTypingStart(handler: (data: any) => void) {
-      return wsService.on('typing:start', handler)
+      return wsService.on(WsServerEvent.TypingStart, handler)
     },
 
     onTypingStop(handler: (data: any) => void) {
-      return wsService.on('typing:stop', handler)
+      return wsService.on(WsServerEvent.TypingStop, handler)
     },
 
-    // Presence (Phase D)
+    // Presence
     updatePresence(status: 'online' | 'away' | 'offline') {
-      wsService.emit('presence:update', { status })
+      wsService.emit(WsClientEvent.PresenceUpdate, { status })
     },
 
     onPresenceUpdate(handler: (data: any) => void) {
-      return wsService.on('presence:update', handler)
+      return wsService.on(WsServerEvent.PresenceUpdate, handler)
     },
 
-    // Receipts (Phase D)
+    // Receipts
     markAsRead(messageId: string, conversationId: string) {
-      wsService.emit('message:read', { messageId, conversationId })
+      wsService.emit(WsClientEvent.MessageRead, { messageId, conversationId })
     },
 
     markAsDelivered(messageId: string, conversationId: string, deliveryLatencyMs?: number) {
-      wsService.emit('message:delivered', { messageId, conversationId, deliveryLatencyMs })
+      wsService.emit(WsClientEvent.MessageDelivered, {
+        messageId,
+        conversationId,
+        deliveryLatencyMs,
+      })
     },
 
     onReadReceipt(handler: (data: any) => void) {
-      return wsService.on('receipt:read', handler)
+      return wsService.on(WsServerEvent.ReceiptRead, handler)
     },
 
     onDeliveredReceipt(handler: (data: any) => void) {
-      return wsService.on('receipt:delivered', handler)
+      return wsService.on(WsServerEvent.ReceiptDelivered, handler)
     },
 
     // Conversation events
     onConversationNew(handler: (data: any) => void) {
-      return wsService.on('conversation:new', handler)
+      return wsService.on(WsServerEvent.ConversationNew, handler)
     },
 
-    // Connection lifecycle (Phase E)
+    // Connection lifecycle
     onConnected(handler: () => void) {
       return wsService.on('connection:established', handler)
     },

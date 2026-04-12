@@ -60,12 +60,12 @@ export function useTypingIndicator(conversationId: string | null) {
       clearTimeout(typingTimeoutRef.current)
     }
 
-    // Set new auto-stop timeout (5 seconds)
+    // Capture id at the moment the timeout is set — prevents stale-closure
+    // issues if conversationId changes before the timeout fires.
+    const capturedId = conversationId
     typingTimeoutRef.current = setTimeout(() => {
-      if (conversationId) {
-        stopTyping(conversationId)
-        isTypingRef.current = false
-      }
+      stopTyping(capturedId)
+      isTypingRef.current = false
     }, AUTO_STOP_TIMEOUT)
   }, [conversationId, startTyping, stopTyping])
 

@@ -4,6 +4,7 @@ import { ConfigModule } from '../../config/config.module'
 import { ConfigService } from '../../config/config.service'
 import { GlobalWebSocketGateway } from './websocket.gateway'
 import { WebSocketService } from './websocket.service'
+import { WebSocketRedisService } from './websocket-redis.service'
 
 /**
  * Global WebSocket Module
@@ -12,6 +13,10 @@ import { WebSocketService } from './websocket.service'
  * Domain-specific modules (messaging, notifications, presence)
  * import this module and register event handlers to process
  * WebSocket events routed via EventEmitter2.
+ *
+ * WebSocketRedisService owns the two shared Redis connections used by:
+ *  - The Socket.io Redis adapter (cross-replica broadcasting)
+ *  - RedisPubSubService (application-level pub/sub channels)
  */
 @Module({
   imports: [
@@ -28,7 +33,7 @@ import { WebSocketService } from './websocket.service'
       }),
     }),
   ],
-  providers: [GlobalWebSocketGateway, WebSocketService],
-  exports: [WebSocketService],
+  providers: [GlobalWebSocketGateway, WebSocketService, WebSocketRedisService],
+  exports: [WebSocketService, WebSocketRedisService],
 })
 export class WebSocketModule {}

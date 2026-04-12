@@ -16,6 +16,8 @@ export interface SendMessageDto {
   priority?: MessagePriority
   scheduledFor?: Date
   idempotencyKey: string
+  /** Client-generated temp ID for optimistic update correlation */
+  tempId?: string
 }
 
 export interface GetMessagesDto {

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { EventEmitterModule } from '@nestjs/event-emitter'
+import { ScheduleModule } from '@nestjs/schedule'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 
@@ -23,6 +24,7 @@ import { ProviderModule } from '../modules/provider/provider.module'
 import { UserModule } from '../modules/user/user.module'
 import { KbModule } from '../modules/kb/kb.module'
 import { CatalogueModule } from '../modules/catalogue/catalogue.module'
+import { NotificationsModule } from '../modules/notifications/notifications.module'
 
 @Module({
   imports: [
@@ -30,7 +32,13 @@ import { CatalogueModule } from '../modules/catalogue/catalogue.module'
     ConfigModule,
     PrismaModule,
     CommonModule,
-    EventEmitterModule.forRoot(),
+    EventEmitterModule.forRoot({
+      // Raise the listener limit per event to surface any unintended accumulation early.
+      // Default Node.js limit is 10; 20 gives headroom for all @OnEvent handlers while
+      // still triggering a warning if something registers listeners unexpectedly.
+      maxListeners: 20,
+    }),
+    ScheduleModule.forRoot(),
 
     // Feature modules
     AuthModule,
@@ -47,6 +55,7 @@ import { CatalogueModule } from '../modules/catalogue/catalogue.module'
     UserModule,
     KbModule,
     CatalogueModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

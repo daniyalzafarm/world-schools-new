@@ -50,6 +50,8 @@ export interface GetMessagesDto {
   limit?: number
   cursor?: string
   direction?: 'before' | 'after'
+  /** AbortSignal for cancelling in-flight requests — stripped from query params */
+  signal?: AbortSignal
 }
 
 /**

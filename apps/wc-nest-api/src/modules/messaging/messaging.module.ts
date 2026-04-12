@@ -1,4 +1,4 @@
-import { Logger, Module, OnModuleInit } from '@nestjs/common'
+import { Logger, Module, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
 import { PrismaModule } from '../../prisma/prisma.module'
@@ -15,6 +15,7 @@ import { RedisPubSubService } from './services/redis-pub-sub.service'
 import { PresenceService } from './services/presence.service'
 import { TypingService } from './services/typing.service'
 import { AttachmentsService } from './services/attachments.service'
+import { AttachmentCleanupService } from './services/attachment-cleanup.service'
 import { GdprService } from './services/gdpr.service'
 import { ReportsService } from './services/reports.service'
 import { SanitizationService } from './services/sanitization.service'
@@ -66,6 +67,7 @@ import { WsJwtGuard } from '../core/auth/guards/ws-jwt.guard'
 
     // Attachment service
     AttachmentsService,
+    AttachmentCleanupService,
 
     // Security & Compliance services
     SanitizationService,
@@ -101,8 +103,9 @@ import { WsJwtGuard } from '../core/auth/guards/ws-jwt.guard'
     ReportsService,
   ],
 })
-export class MessagingModule implements OnModuleInit {
+export class MessagingModule implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MessagingModule.name)
+  private cacheMetricsInterval: ReturnType<typeof setInterval> | null = null
 
   constructor(private readonly conversationsService: ConversationsService) {}
 
@@ -111,8 +114,8 @@ export class MessagingModule implements OnModuleInit {
     this.logger.log('Initializing messaging module...')
     await this.conversationsService.warmCache()
 
-    // ✅ PHASE 5 FIX: Monitor cache size every 5 minutes
-    setInterval(
+    // Monitor cache size every 5 minutes
+    this.cacheMetricsInterval = setInterval(
       async () => {
         try {
           const metrics = await this.conversationsService.getCacheMetrics()
@@ -130,5 +133,12 @@ export class MessagingModule implements OnModuleInit {
       },
       5 * 60 * 1000
     ) // Every 5 minutes
+  }
+
+  onModuleDestroy() {
+    if (this.cacheMetricsInterval) {
+      clearInterval(this.cacheMetricsInterval)
+      this.cacheMetricsInterval = null
+    }
   }
 }

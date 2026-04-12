@@ -20,6 +20,7 @@
  * ```
  */
 
+import { WsClientEvent, WsServerEvent } from '@world-schools/wc-types'
 import { io, Socket } from 'socket.io-client'
 
 export interface GlobalWebSocketConfig {
@@ -60,6 +61,13 @@ export interface GlobalWebSocketConfig {
    * When true, connect() will not require getAuthToken() to return a token.
    */
   withCredentials?: boolean
+
+  /**
+   * Identifies which frontend app is connecting ('user', 'provider', 'superadmin').
+   * Sent in the handshake auth so the server can select the correct cookie
+   * when multiple app cookies are present in the same browser profile.
+   */
+  clientApp?: string
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,12 +99,17 @@ export function createGlobalWebSocketService(
     onError,
     debug = false,
     withCredentials = false,
+    clientApp,
   } = config
 
   let socket: Socket | null = null
   const eventHandlers = new Map<string, Set<EventHandler>>()
   let reconnectAttempts = 0
-  const maxReconnectAttempts = 5
+
+  // Buffer for events emitted before the socket is connected.
+  // Flushed on 'connect'. Capped to avoid unbounded growth during long disconnects.
+  const MAX_PENDING = 20
+  const pendingEmits: Array<{ event: string; data: unknown }> = []
 
   const log = (...args: any[]) => {
     if (debug) {
@@ -127,18 +140,31 @@ export function createGlobalWebSocketService(
       log('Connecting to WebSocket server:', url)
 
       socket = io(url, {
-        auth: token ? { token } : {},
+        auth: {
+          ...(token ? { token } : {}),
+          ...(clientApp ? { clientApp } : {}),
+        },
         withCredentials,
         reconnection: true,
         reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        reconnectionAttempts: maxReconnectAttempts,
+        reconnectionDelayMax: 30000, // Exponential back-off cap at 30s (was 5s)
+        randomizationFactor: 0.5, // Jitter: prevents thundering-herd on mass reconnect
+        reconnectionAttempts: Infinity, // Never permanently give up (was 5)
       })
 
       socket.on('connect', () => {
         log('✅ WebSocket connected')
         reconnectAttempts = 0
         onConnect?.()
+
+        // Flush any events that were emitted before the socket was ready
+        if (pendingEmits.length > 0) {
+          log(`Flushing ${pendingEmits.length} pending emit(s)`)
+          const toFlush = pendingEmits.splice(0)
+          for (const pending of toFlush) {
+            socket?.emit(pending.event, pending.data)
+          }
+        }
 
         // Emit local event
         eventHandlers.get('connection:established')?.forEach(h => h({}))
@@ -157,9 +183,28 @@ export function createGlobalWebSocketService(
         reconnectAttempts++
         onError?.(error)
 
-        if (reconnectAttempts >= maxReconnectAttempts) {
-          eventHandlers.get('connection:failed')?.forEach(h => h({ error }))
-        }
+        // Notify UI of reconnection attempt count — allows showing a banner
+        // without permanently giving up (connection:failed no longer fires)
+        eventHandlers
+          .get('connection:reconnecting')
+          ?.forEach(h => h({ attempt: reconnectAttempts, error }))
+      })
+
+      // Application-level heartbeat: auto-respond to server pings to refresh presence TTL
+      socket.on(WsServerEvent.HeartbeatPing, () => {
+        socket?.emit(WsClientEvent.HeartbeatPong, {})
+      })
+
+      // Auth lifecycle: token is about to expire — re-emit as local event so app can refresh
+      socket.on(WsServerEvent.AuthTokenExpiring, (data: { expiresInMs: number }) => {
+        log('⚠️ Auth token expiring, notifying app to refresh:', data)
+        eventHandlers.get('connection:auth_expiring')?.forEach(h => h(data))
+      })
+
+      // Auth lifecycle: token has expired / session terminated by server
+      socket.on(WsServerEvent.AuthExpired, () => {
+        log('🔒 Auth expired, session terminated by server')
+        eventHandlers.get('connection:auth_expired')?.forEach(h => h({}))
       })
 
       // Register all existing event handlers with the new socket
@@ -202,7 +247,14 @@ export function createGlobalWebSocketService(
 
     emit(event: string, data: any) {
       if (!socket?.connected) {
-        logError('Cannot emit event, WebSocket not connected:', event)
+        // Queue the event to be sent once the socket connects.
+        // Drop the oldest entry if the buffer is full to prevent memory growth.
+        if (pendingEmits.length >= MAX_PENDING) {
+          const dropped = pendingEmits.shift()
+          log('Pending emit buffer full, dropping oldest:', dropped?.event)
+        }
+        pendingEmits.push({ event, data })
+        log('Queued pending emit (socket not connected):', event)
         return
       }
 

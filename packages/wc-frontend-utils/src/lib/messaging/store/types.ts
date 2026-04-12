@@ -190,9 +190,11 @@ export interface MessagingActions {
 
   // Messages
   /**
-   * Fetch messages for a conversation (initial load)
+   * Fetch messages for a conversation (initial load).
+   * Pass an AbortSignal to cancel the in-flight request when the component
+   * unmounts or the active conversation changes.
    */
-  fetchMessages: (conversationId: string) => Promise<void>
+  fetchMessages: (conversationId: string, signal?: AbortSignal) => Promise<void>
 
   /**
    * Load older messages for a conversation (cursor-based pagination)

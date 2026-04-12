@@ -95,6 +95,33 @@ export default function MessagesPage() {
   // Get active conversation messages
   const activeMessages = activeConversationId ? storeMessages[activeConversationId] || [] : []
 
+  // Fetch messages for the active conversation, aborting any stale in-flight request
+  // when the user switches conversations or navigates away from the page.
+  useEffect(() => {
+    if (!activeConversationId) return
+    const controller = new AbortController()
+    void fetchMessages(activeConversationId, controller.signal)
+    return () => controller.abort()
+  }, [activeConversationId, fetchMessages])
+
+  // Deselect the active conversation when navigating away from this page.
+  // Without this, the stale selection persists in the store and the user
+  // comes back to a pre-selected (possibly stale) conversation.
+  useEffect(() => {
+    return () => {
+      setActiveConversation(null)
+    }
+  }, [setActiveConversation])
+
+  // Deselect the active conversation on Escape key press (WhatsApp-like behaviour).
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActiveConversation(null)
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [setActiveConversation])
+
   // Clear rate limit cooldown after retryAfter seconds
   useEffect(() => {
     if (rateLimitRetryAfter == null || rateLimitRetryAfter <= 0) return
@@ -125,7 +152,7 @@ export default function MessagesPage() {
     return {
       id: msg.id,
       text: msg.content,
-      isUser: msg.senderId === user?.id,
+      isUser: msg.senderId === user?.id && msg.senderType !== 'PROVIDER',
       timestamp: msg.sentAt,
       status: msg.status as MessageStatus,
       isTransferRequest: msg.type === 'TRANSFER_REQUEST',
@@ -294,7 +321,6 @@ export default function MessagesPage() {
   // Handle conversation selection
   const handleSelectConversation = (conversationId: string) => {
     setActiveConversation(conversationId)
-    // fetchMessages is called automatically by setActiveConversation
   }
 
   // Listen for conversation selection events from the sidebar

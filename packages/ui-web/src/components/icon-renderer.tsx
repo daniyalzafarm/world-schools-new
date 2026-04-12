@@ -25,13 +25,7 @@ export function IconRenderer({ icon, size = 20, className }: IconRendererProps) 
   }
 
   if (icon.type === 'custom') {
-    return (
-      <span
-        className={className}
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: icon.svg }}
-      />
-    )
+    return <span className={className} dangerouslySetInnerHTML={{ __html: icon.svg }} />
   }
 
   return null

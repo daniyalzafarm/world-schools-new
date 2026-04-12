@@ -519,6 +519,9 @@ export class SupportTicketsService {
         closedAt: response.closedAt,
         updatedAt: response.updatedAt,
         changedByUserId: currentUserId,
+        // Targeting: deliver only to the requester and assigned staff, not all sockets
+        requesterUserId: updated.requesterUser?.id ?? null,
+        assignedToUserId: updated.assignedTo?.id ?? null,
       })
       .catch(err => {
         this.logger.error('Failed to publish ticket status update event', err)
@@ -568,6 +571,9 @@ export class SupportTicketsService {
         assignedToUserId: toAssigneeUserId,
         assignedByUserId: currentUserId,
         assignedAt: response.assignedAt,
+        // Targeting: deliver to requester, new assignee, and old assignee (if any)
+        requesterUserId: updated.requesterUser?.id ?? null,
+        fromAssigneeUserId: fromAssigneeUserId,
       })
       .catch(err => {
         this.logger.error('Failed to publish ticket assignment event', err)

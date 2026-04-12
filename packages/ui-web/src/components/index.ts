@@ -37,6 +37,14 @@ export { DocumentDropzone } from './document-dropzone'
 export { TagSelectField } from './tag-select-field'
 export { IconTagSelectField, type IconTagItem } from './icon-tag-select-field'
 
+// Notification components
+export {
+  NotificationBadge,
+  NotificationDot,
+  type NotificationBadgeProps,
+  type NotificationDotProps,
+} from './notification-badge'
+
 // Messages components
 export { ChatInput } from './messages/chat-input'
 export { MessageBubble } from './messages/message-bubble'

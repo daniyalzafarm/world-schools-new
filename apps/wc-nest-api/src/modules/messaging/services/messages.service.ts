@@ -14,6 +14,7 @@ import { ConversationsService } from './conversations.service'
 import { AttachmentsService } from './attachments.service'
 import {
   ContentType,
+  ContextType,
   ConversationType,
   DeletionType,
   MessagePriority,
@@ -83,10 +84,12 @@ export class MessagesService {
       priority = MessagePriority.NORMAL,
       scheduledFor,
       idempotencyKey,
+      tempId,
     } = dto
 
-    // Check idempotency - prevent duplicate sends
-    const cacheKey = `message:idempotency:${idempotencyKey}`
+    // Check idempotency - prevent duplicate sends.
+    // Key is scoped to conversationId to prevent cross-conversation key collisions.
+    const cacheKey = `message:idempotency:${conversationId}:${idempotencyKey}`
     const existing = await this.redis.get(cacheKey)
     if (existing) {
       this.logger.debug(`Idempotency hit for key: ${idempotencyKey}`)
@@ -211,32 +214,32 @@ export class MessagesService {
           })
         }
 
+        // Fetch conversation once for auto-assign + support ticket checks
+        const conv = await tx.conversation.findUnique({
+          where: { id: conversationId },
+          select: { assignedToId: true, type: true, contextType: true },
+        })
+
         // Auto-assign conversation if this is first provider reply
         // This ensures provider conversations are automatically assigned to the first provider who responds
-        if (senderType === SenderType.PROVIDER) {
-          const conversation = await tx.conversation.findUnique({
+        if (
+          senderType === SenderType.PROVIDER &&
+          conv &&
+          !conv.assignedToId &&
+          conv.type === ConversationType.USER_PROVIDER
+        ) {
+          await tx.conversation.update({
             where: { id: conversationId },
-            select: { assignedToId: true, type: true },
+            data: {
+              assignedToId: senderId,
+              assignedBy: senderId,
+              assignedAt: new Date(),
+            },
           })
-
-          if (
-            conversation &&
-            !conversation.assignedToId &&
-            conversation.type === ConversationType.USER_PROVIDER
-          ) {
-            await tx.conversation.update({
-              where: { id: conversationId },
-              data: {
-                assignedToId: senderId,
-                assignedBy: senderId,
-                assignedAt: new Date(),
-              },
-            })
-            wasAutoAssigned = true
-            this.logger.log(
-              `Auto-assigned conversation ${conversationId} to provider ${senderId} on first reply`
-            )
-          }
+          wasAutoAssigned = true
+          this.logger.log(
+            `Auto-assigned conversation ${conversationId} to provider ${senderId} on first reply`
+          )
         }
 
         // Update conversation last message and metrics
@@ -260,6 +263,19 @@ export class MessagesService {
             unreadCount: { increment: 1 },
           },
         })
+
+        // Set firstRespondedAt on linked support ticket for the first non-requester reply.
+        // Atomic with message creation so SLA timestamps are always consistent.
+        if (conv?.contextType === ContextType.SUPPORT_TICKET) {
+          await tx.supportTicket.updateMany({
+            where: {
+              conversationId,
+              firstRespondedAt: null,
+              createdByUserId: { not: senderId },
+            },
+            data: { firstRespondedAt: new Date() },
+          })
+        }
 
         return msg
       })
@@ -295,28 +311,29 @@ export class MessagesService {
         throw new NotFoundException('Conversation not found')
       }
 
-      // ✅ PHASE 2 FIX: Invalidate conversation cache for all participants
+      // Invalidate conversation cache for all direct participants in parallel
       const participantUserIds = conversation.participants.map(p => p.userId)
-      for (const userId of participantUserIds) {
-        await this.conversationsService.invalidateConversationCache(userId)
-      }
+      await Promise.all(
+        participantUserIds.map(uid => this.conversationsService.invalidateConversationCache(uid))
+      )
 
-      // ✅ PHASE 2 FIX: For provider conversations, invalidate provider users' cache
+      // For provider conversations, also invalidate provider org users in parallel.
+      // The cross-replica pub/sub broadcast below covers all other replicas;
+      // the Promise.all here covers the current replica immediately.
       const metadata = conversation.metadata as { providerId?: string } | null
       if (conversation.type === ConversationType.USER_PROVIDER && metadata?.providerId) {
-        // ✅ LOCAL invalidation for provider users on current replica
         const providerUsers = await this.redisPubSub.getProviderUsers(metadata.providerId)
-        for (const providerUser of providerUsers) {
-          await this.conversationsService.invalidateConversationCache(providerUser.id)
-        }
+        await Promise.all(
+          providerUsers.map(u => this.conversationsService.invalidateConversationCache(u.id))
+        )
 
-        // ✅ Broadcast to all replicas to invalidate provider users' cache
+        // Broadcast to all replicas
         await this.redisPubSub.publishMessage('cache:invalidate:conversations', {
           userIds: participantUserIds,
           providerId: metadata.providerId,
         })
       } else {
-        // Broadcast to all replicas to invalidate participants' cache
+        // Broadcast to all replicas
         await this.redisPubSub.publishMessage('cache:invalidate:conversations', {
           userIds: participantUserIds,
         })
@@ -369,6 +386,8 @@ export class MessagesService {
           recipientUserIds: participantUserIds.filter(id => id !== senderId),
           providerId: metadata?.providerId,
           senderId,
+          // tempId for optimistic update deduplication on the sender's conversation room subscription
+          tempId,
           // Track delivery latency for monitoring
           publishedAt: new Date().toISOString(),
           latencyMs: Date.now() - publishStartTime,
@@ -499,6 +518,7 @@ export class MessagesService {
       senderType,
       content: data.content,
       idempotencyKey: data.tempId,
+      tempId: data.tempId,
       ...(data.attachmentIds?.length ? { attachmentIds: data.attachmentIds } : {}),
     })
   }
@@ -673,20 +693,23 @@ export class MessagesService {
         select: { createdAt: true, id: true },
       })
 
-      if (cursorMessage) {
-        where.OR = [
-          {
-            createdAt:
-              direction === 'before'
-                ? { lt: cursorMessage.createdAt }
-                : { gt: cursorMessage.createdAt },
-          },
-          {
-            createdAt: cursorMessage.createdAt,
-            id: direction === 'before' ? { lt: cursor } : { gt: cursor },
-          },
-        ]
+      if (!cursorMessage) {
+        // Cursor message was deleted. Signal the client to reset to page 1.
+        throw new BadRequestException('CURSOR_NOT_FOUND')
       }
+
+      where.OR = [
+        {
+          createdAt:
+            direction === 'before'
+              ? { lt: cursorMessage.createdAt }
+              : { gt: cursorMessage.createdAt },
+        },
+        {
+          createdAt: cursorMessage.createdAt,
+          id: direction === 'before' ? { lt: cursor } : { gt: cursor },
+        },
+      ]
     }
 
     // Fetch one extra message to determine if there are more

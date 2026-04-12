@@ -124,8 +124,10 @@ export function createMessagesService(config: MessagesServiceConfig): MessagesSe
    * @returns API response with paginated messages
    */
   const getMessages = async (dto: GetMessagesDto) => {
+    const { signal, ...params } = dto
     return await apiClient.get<PaginatedMessagesResponseDto>(endpointPrefix, {
-      params: dto,
+      params,
+      signal,
     })
   }
 

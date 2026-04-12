@@ -131,6 +131,8 @@ export class ConversationsService {
               senderType: SenderType.USER,
               content: initialMessage,
               contentType: 'TEXT',
+              status: 'SENT',
+              sentAt: new Date(),
             },
           },
         }),
@@ -145,6 +147,21 @@ export class ConversationsService {
         lastMessage: true,
       },
     })
+
+    // Update lastMessageId for the initial message (inline create bypasses sendMessage())
+    if (initialMessage) {
+      const initialMsg = await this.prisma.message.findFirst({
+        where: { conversationId: conversation.id },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      })
+      if (initialMsg) {
+        await this.prisma.conversation.update({
+          where: { id: conversation.id },
+          data: { lastMessageId: initialMsg.id },
+        })
+      }
+    }
 
     // ✅ PHASE 2 FIX: Collect all users whose cache needs invalidation
     const userIdsToInvalidate: string[] = [userId]
@@ -618,53 +635,55 @@ export class ConversationsService {
   }
 
   /**
-   * Mark all messages in a conversation as read
+   * Mark all messages in a conversation as read.
+   * All three DB operations run inside a single transaction to prevent
+   * unread count corruption if the process crashes between steps.
    */
   async markAllAsRead(conversationId: string, userId: string) {
-    // Get all unread messages
-    const unreadMessages = await this.prisma.message.findMany({
-      where: {
-        conversationId,
-        senderId: { not: userId },
-        readReceipts: {
-          none: {
-            userId,
-          },
+    let markedCount = 0
+
+    await this.prisma.$transaction(async tx => {
+      // Step 1: find all messages the user hasn't read yet (excluding their own)
+      const unreadMessages = await tx.message.findMany({
+        where: {
+          conversationId,
+          senderId: { not: userId },
+          readReceipts: { none: { userId } },
         },
-      },
-      select: { id: true },
+        select: { id: true },
+      })
+
+      if (unreadMessages.length === 0) return
+
+      // Step 2: create read receipts atomically
+      await tx.messageReadReceipt.createMany({
+        data: unreadMessages.map(msg => ({ messageId: msg.id, userId })),
+        skipDuplicates: true,
+      })
+
+      // Step 3: reset participant unread counter atomically
+      await tx.conversationParticipant.update({
+        where: { conversationId_userId: { conversationId, userId } },
+        data: { unreadCount: 0 },
+      })
+
+      markedCount = unreadMessages.length
     })
 
-    if (unreadMessages.length === 0) {
+    if (markedCount === 0) {
       return { markedAsRead: 0 }
     }
 
-    // Create read receipts for all unread messages
-    await this.prisma.messageReadReceipt.createMany({
-      data: unreadMessages.map(msg => ({
-        messageId: msg.id,
-        userId,
-      })),
-      skipDuplicates: true,
-    })
+    // Invalidate cache outside the transaction — a cache miss is acceptable;
+    // a failed cache invalidation must never roll back committed read receipts.
+    try {
+      await this.invalidateConversationCache(userId)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      this.logger.warn(`Cache invalidation failed after markAllAsRead: ${msg}`)
+    }
 
-    // Reset unread count for participant
-    await this.prisma.conversationParticipant.update({
-      where: {
-        conversationId_userId: {
-          conversationId,
-          userId,
-        },
-      },
-      data: {
-        unreadCount: 0,
-      },
-    })
-
-    // Invalidate cache
-    await this.invalidateConversationCache(userId)
-
-    return { markedAsRead: unreadMessages.length }
+    return { markedAsRead: markedCount }
   }
 
   /**

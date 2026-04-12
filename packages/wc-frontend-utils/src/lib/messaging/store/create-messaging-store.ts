@@ -136,6 +136,11 @@ export function createMessagingStore(config: MessagingStoreConfig) {
   // "in the app" (connected), not only when they open a specific thread.
   const joinedConversations = new Set<string>()
 
+  // Collects every WebSocket unsubscribe function returned by messagingWebSocket.on*() calls
+  // inside initialize(). Cleared by cleanup() to prevent listener accumulation across
+  // login/logout cycles (each cycle would otherwise double the handler count).
+  const wsUnsubscribers: Array<() => void> = []
+
   const ensureJoined = (conversationId: string) => {
     if (!conversationId) return
     if (!featureFlags.WEBSOCKET_MESSAGES) return
@@ -199,23 +204,27 @@ export function createMessagingStore(config: MessagingStoreConfig) {
 
         try {
           // Set up global WebSocket adapter connection tracking
-          messagingWebSocket.onConnected(() => {
-            log('WebSocket connected - updating isConnected state')
-            set(draft => {
-              draft.isConnected = true
-            })
+          wsUnsubscribers.push(
+            messagingWebSocket.onConnected(() => {
+              log('WebSocket connected - updating isConnected state')
+              set(draft => {
+                draft.isConnected = true
+              })
 
-            // Join rooms for all known conversations so messages can be delivered
-            // while the user is simply online in the app.
-            joinAllKnownConversations()
-          })
-
-          messagingWebSocket.onDisconnected(() => {
-            log('WebSocket disconnected - updating isConnected state')
-            set(draft => {
-              draft.isConnected = false
+              // Join rooms for all known conversations so messages can be delivered
+              // while the user is simply online in the app.
+              joinAllKnownConversations()
             })
-          })
+          )
+
+          wsUnsubscribers.push(
+            messagingWebSocket.onDisconnected(() => {
+              log('WebSocket disconnected - updating isConnected state')
+              set(draft => {
+                draft.isConnected = false
+              })
+            })
+          )
 
           // Set initial connection state
           set(draft => {
@@ -228,174 +237,202 @@ export function createMessagingStore(config: MessagingStoreConfig) {
 
             // Handle message confirmation from server (sender only)
             // Replaces optimistic message with real server-confirmed message
-            messagingWebSocket.onMessageCreated(
-              (data: { message: MessageResponseDto; tempId: string }) => {
-                log('Received message:created confirmation:', data.tempId, '->', data.message.id)
+            wsUnsubscribers.push(
+              messagingWebSocket.onMessageCreated(
+                (data: { message: MessageResponseDto; tempId: string }) => {
+                  log('Received message:created confirmation:', data.tempId, '->', data.message.id)
 
-                set(draft => {
-                  const conversationId = data.message.conversationId
-                  const messages = draft.messages[conversationId]
-                  if (messages) {
-                    const optimisticIndex = messages.findIndex(m => m.id === data.tempId)
-                    const realMessageIndex = messages.findIndex(m => m.id === data.message.id)
+                  set(draft => {
+                    const conversationId = data.message.conversationId
+                    const messages = draft.messages[conversationId]
+                    if (messages) {
+                      const optimisticIndex = messages.findIndex(m => m.id === data.tempId)
+                      const realMessageIndex = messages.findIndex(m => m.id === data.message.id)
 
-                    // If real message already exists (from message:new broadcast), remove optimistic
-                    if (realMessageIndex !== -1) {
-                      if (optimisticIndex !== -1) {
-                        messages.splice(optimisticIndex, 1)
+                      // If real message already exists (from message:new broadcast), remove optimistic
+                      if (realMessageIndex !== -1) {
+                        if (optimisticIndex !== -1) {
+                          messages.splice(optimisticIndex, 1)
+                        }
+                      } else if (optimisticIndex !== -1) {
+                        // Replace optimistic message with real message
+                        messages[optimisticIndex] = data.message
+                      } else {
+                        // Edge case: optimistic not found, add the real message
+                        messages.push(data.message)
                       }
-                    } else if (optimisticIndex !== -1) {
-                      // Replace optimistic message with real message
-                      messages[optimisticIndex] = data.message
-                    } else {
-                      // Edge case: optimistic not found, add the real message
-                      messages.push(data.message)
                     }
-                  }
 
-                  // Remove from pending messages and clear rate limit cooldown on success
-                  draft.pendingMessages = draft.pendingMessages.filter(m => m.id !== data.tempId)
-                  draft.rateLimitRetryAfter = null
-                })
-              }
+                    // Remove from pending messages and clear rate limit cooldown on success
+                    draft.pendingMessages = draft.pendingMessages.filter(m => m.id !== data.tempId)
+                    draft.rateLimitRetryAfter = null
+                  })
+                }
+              )
             )
 
             // Handle message errors from server
             // Marks optimistic message as FAILED and moves to failedMessages
-            messagingWebSocket.onMessageError((data: { tempId: string; error: string }) => {
-              log('Received message:error for:', data.tempId, 'Error:', data.error)
+            wsUnsubscribers.push(
+              messagingWebSocket.onMessageError((data: { tempId: string; error: string }) => {
+                log('Received message:error for:', data.tempId, 'Error:', data.error)
 
-              set(draft => {
-                // Find the optimistic message across all conversations
-                for (const conversationId in draft.messages) {
-                  const messages = draft.messages[conversationId]
-                  const optimisticIndex = messages.findIndex(m => m.id === data.tempId)
-                  if (optimisticIndex !== -1) {
-                    const optimistic = messages[optimisticIndex]
-                    const failedMessage: FailedMessage = {
-                      id: data.tempId,
-                      conversationId,
-                      senderId: (optimistic as any).senderId || '',
-                      senderType: (optimistic as any).senderType || 'USER',
-                      content: (optimistic as any).content || '',
-                      status: 'FAILED',
-                      sentAt: (optimistic as any).sentAt || new Date(),
-                      isOptimistic: true,
-                      idempotencyKey: (optimistic as any).idempotencyKey || data.tempId,
-                      error: data.error,
-                      retryCount: 0,
-                      lastRetryAt: null,
+                set(draft => {
+                  // Find the optimistic message across all conversations
+                  for (const conversationId in draft.messages) {
+                    const messages = draft.messages[conversationId]
+                    const optimisticIndex = messages.findIndex(m => m.id === data.tempId)
+                    if (optimisticIndex !== -1) {
+                      const optimistic = messages[optimisticIndex]
+                      const failedMessage: FailedMessage = {
+                        id: data.tempId,
+                        conversationId,
+                        senderId: (optimistic as any).senderId || '',
+                        senderType: (optimistic as any).senderType || 'USER',
+                        content: (optimistic as any).content || '',
+                        status: 'FAILED',
+                        sentAt: (optimistic as any).sentAt || new Date(),
+                        isOptimistic: true,
+                        idempotencyKey: (optimistic as any).idempotencyKey || data.tempId,
+                        error: data.error,
+                        retryCount: 0,
+                        lastRetryAt: null,
+                      }
+                      messages[optimisticIndex] = failedMessage as unknown as MessageResponseDto
+                      draft.failedMessages.push(failedMessage)
+                      break
                     }
-                    messages[optimisticIndex] = failedMessage as unknown as MessageResponseDto
-                    draft.failedMessages.push(failedMessage)
-                    break
                   }
-                }
 
-                // Remove from pending messages
-                draft.pendingMessages = draft.pendingMessages.filter(m => m.id !== data.tempId)
+                  // Remove from pending messages
+                  draft.pendingMessages = draft.pendingMessages.filter(m => m.id !== data.tempId)
+                })
               })
-            })
+            )
 
             // Handle new messages from other users via global WebSocket
-            // (Deduplication is already handled in addMessage)
-            messagingWebSocket.onMessageNew((data: { message: MessageResponseDto }) => {
-              log('Received message:new via global WebSocket:', data.message.id)
-              get().addMessage(data.message)
+            wsUnsubscribers.push(
+              messagingWebSocket.onMessageNew(
+                (data: { message: MessageResponseDto; tempId?: string }) => {
+                  log('Received message:new via global WebSocket:', data.message.id)
 
-              // Immediately mark incoming message as delivered (best-practice messaging UX)
-              // Only for messages not sent by us.
-              const currentUserId = getCurrentUserId?.() ?? null
-              if (currentUserId && data.message.senderId !== currentUserId) {
-                void get().markAsDelivered(data.message.conversationId, data.message.id)
-              }
-            })
+                  // Replace an optimistic (SENDING) message by tempId if present,
+                  // otherwise fall through to addMessage (deduplication by real id).
+                  if (data.tempId) {
+                    set(draft => {
+                      const msgs = draft.messages[data.message.conversationId]
+                      if (msgs) {
+                        const optimisticIndex = msgs.findIndex(
+                          m => (m as any).idempotencyKey === data.tempId || m.id === data.tempId
+                        )
+                        if (optimisticIndex !== -1) {
+                          msgs.splice(optimisticIndex, 1, data.message)
+                          return
+                        }
+                      }
+                      // No optimistic match — add normally (dedup by real id)
+                      if (!msgs) {
+                        draft.messages[data.message.conversationId] = [data.message]
+                      } else if (!msgs.some(m => m.id === data.message.id)) {
+                        msgs.push(data.message)
+                      }
+                    })
+                  } else {
+                    get().addMessage(data.message)
+                  }
+
+                  // Immediately mark incoming message as delivered (best-practice messaging UX)
+                  // Only for messages not sent by us.
+                  const currentUserId = getCurrentUserId?.() ?? null
+                  if (currentUserId && data.message.senderId !== currentUserId) {
+                    void get().markAsDelivered(data.message.conversationId, data.message.id)
+                  }
+                }
+              )
+            )
           }
 
           // Phase D: Set up global WebSocket adapter event listeners for typing/presence/receipts
           if (featureFlags.WEBSOCKET_MESSAGES) {
             log('Setting up global WebSocket adapter typing/presence/receipt listeners')
 
-            messagingWebSocket.onTypingStart(data => {
-              log('Received typing:start via global WebSocket:', data)
-              set(draft => {
-                if (!draft.typingUsers[data.conversationId]) {
-                  draft.typingUsers[data.conversationId] = []
-                }
-                if (!draft.typingUsers[data.conversationId].includes(data.userId)) {
-                  draft.typingUsers[data.conversationId].push(data.userId)
-                }
-              })
-            })
-
-            messagingWebSocket.onTypingStop(data => {
-              log('Received typing:stop via global WebSocket:', data)
-              set(draft => {
-                if (draft.typingUsers[data.conversationId]) {
-                  draft.typingUsers[data.conversationId] = draft.typingUsers[
-                    data.conversationId
-                  ].filter(id => id !== data.userId)
-                }
-              })
-            })
-
-            messagingWebSocket.onPresenceUpdate(data => {
-              log('Received presence:update via global WebSocket:', data)
-              set(draft => {
-                const statusMap: Record<string, PresenceStatus> = {
-                  online: PresenceStatus.ONLINE,
-                  away: PresenceStatus.AWAY,
-                  offline: PresenceStatus.OFFLINE,
-                  ONLINE: PresenceStatus.ONLINE,
-                  AWAY: PresenceStatus.AWAY,
-                  OFFLINE: PresenceStatus.OFFLINE,
-                }
-                draft.userPresence[data.userId] = statusMap[data.status] || PresenceStatus.OFFLINE
-              })
-            })
-
-            messagingWebSocket.onReadReceipt(data => {
-              log('Received receipt:read via global WebSocket:', data)
-              set(draft => {
-                if (data.conversationId && draft.messages[data.conversationId]) {
-                  const message = draft.messages[data.conversationId].find(
-                    m => m.id === data.messageId
-                  )
-                  if (message) {
-                    message.status = MessageStatus.READ
+            wsUnsubscribers.push(
+              messagingWebSocket.onTypingStart(data => {
+                log('Received typing:start via global WebSocket:', data)
+                set(draft => {
+                  if (!draft.typingUsers[data.conversationId]) {
+                    draft.typingUsers[data.conversationId] = []
                   }
-                } else {
-                  // Fallback: search all conversations
-                  for (const conversationId in draft.messages) {
-                    const message = draft.messages[conversationId].find(
+                  if (!draft.typingUsers[data.conversationId].includes(data.userId)) {
+                    draft.typingUsers[data.conversationId].push(data.userId)
+                  }
+                })
+              })
+            )
+
+            wsUnsubscribers.push(
+              messagingWebSocket.onTypingStop(data => {
+                log('Received typing:stop via global WebSocket:', data)
+                set(draft => {
+                  if (draft.typingUsers[data.conversationId]) {
+                    draft.typingUsers[data.conversationId] = draft.typingUsers[
+                      data.conversationId
+                    ].filter(id => id !== data.userId)
+                  }
+                })
+              })
+            )
+
+            wsUnsubscribers.push(
+              messagingWebSocket.onPresenceUpdate(data => {
+                log('Received presence:update via global WebSocket:', data)
+                set(draft => {
+                  const statusMap: Record<string, PresenceStatus> = {
+                    online: PresenceStatus.ONLINE,
+                    away: PresenceStatus.AWAY,
+                    offline: PresenceStatus.OFFLINE,
+                    ONLINE: PresenceStatus.ONLINE,
+                    AWAY: PresenceStatus.AWAY,
+                    OFFLINE: PresenceStatus.OFFLINE,
+                  }
+                  draft.userPresence[data.userId] = statusMap[data.status] || PresenceStatus.OFFLINE
+                })
+              })
+            )
+
+            wsUnsubscribers.push(
+              messagingWebSocket.onReadReceipt(data => {
+                log('Received receipt:read via global WebSocket:', data)
+                set(draft => {
+                  if (data.conversationId && draft.messages[data.conversationId]) {
+                    const message = draft.messages[data.conversationId].find(
                       m => m.id === data.messageId
                     )
                     if (message) {
                       message.status = MessageStatus.READ
-                      break
+                    }
+                  } else {
+                    // Fallback: search all conversations
+                    for (const conversationId in draft.messages) {
+                      const message = draft.messages[conversationId].find(
+                        m => m.id === data.messageId
+                      )
+                      if (message) {
+                        message.status = MessageStatus.READ
+                        break
+                      }
                     }
                   }
-                }
+                })
               })
-            })
+            )
 
-            messagingWebSocket.onDeliveredReceipt(data => {
-              log('Received receipt:delivered via global WebSocket:', data)
-              set(draft => {
-                if (data.conversationId && draft.messages[data.conversationId]) {
-                  const message = draft.messages[data.conversationId].find(
-                    m => m.id === data.messageId
-                  )
-                  if (message && message.status !== MessageStatus.READ) {
-                    message.status = MessageStatus.DELIVERED
-                    if ('deliveredAt' in data && data.deliveredAt) {
-                      ;(message as any).deliveredAt = new Date(data.deliveredAt)
-                    }
-                  }
-                } else {
-                  // Fallback: search all conversations
-                  for (const conversationId in draft.messages) {
-                    const message = draft.messages[conversationId].find(
+            wsUnsubscribers.push(
+              messagingWebSocket.onDeliveredReceipt(data => {
+                log('Received receipt:delivered via global WebSocket:', data)
+                set(draft => {
+                  if (data.conversationId && draft.messages[data.conversationId]) {
+                    const message = draft.messages[data.conversationId].find(
                       m => m.id === data.messageId
                     )
                     if (message && message.status !== MessageStatus.READ) {
@@ -403,12 +440,25 @@ export function createMessagingStore(config: MessagingStoreConfig) {
                       if ('deliveredAt' in data && data.deliveredAt) {
                         ;(message as any).deliveredAt = new Date(data.deliveredAt)
                       }
-                      break
+                    }
+                  } else {
+                    // Fallback: search all conversations
+                    for (const conversationId in draft.messages) {
+                      const message = draft.messages[conversationId].find(
+                        m => m.id === data.messageId
+                      )
+                      if (message && message.status !== MessageStatus.READ) {
+                        message.status = MessageStatus.DELIVERED
+                        if ('deliveredAt' in data && data.deliveredAt) {
+                          ;(message as any).deliveredAt = new Date(data.deliveredAt)
+                        }
+                        break
+                      }
                     }
                   }
-                }
+                })
               })
-            })
+            )
           }
 
           // ── NEW CONVERSATION notifications (always active) ─────────────
@@ -417,21 +467,23 @@ export function createMessagingStore(config: MessagingStoreConfig) {
           // broadcasts a `conversation:new` event to our user room.
           // This listener adds the conversation to our list in real-time so the
           // user does not need to refresh the page.
-          messagingWebSocket.onConversationNew(
-            (data: { conversation: ConversationResponseDto }) => {
-              log('Received conversation:new via global WebSocket:', data.conversation?.id)
-              if (!data.conversation?.id) return
+          wsUnsubscribers.push(
+            messagingWebSocket.onConversationNew(
+              (data: { conversation: ConversationResponseDto }) => {
+                log('Received conversation:new via global WebSocket:', data.conversation?.id)
+                if (!data.conversation?.id) return
 
-              set(draft => {
-                // Deduplicate: only add if not already in the list
-                const exists = draft.conversations.some(c => c.id === data.conversation.id)
-                if (!exists) {
-                  // Prepend so the new conversation appears at the top
-                  draft.conversations.unshift(data.conversation)
-                  log('Added new conversation to list:', data.conversation.id)
-                }
-              })
-            }
+                set(draft => {
+                  // Deduplicate: only add if not already in the list
+                  const exists = draft.conversations.some(c => c.id === data.conversation.id)
+                  if (!exists) {
+                    // Prepend so the new conversation appears at the top
+                    draft.conversations.unshift(data.conversation)
+                    log('Added new conversation to list:', data.conversation.id)
+                  }
+                })
+              }
+            )
           )
 
           // Phase 3.2: Initialize message queue for offline support
@@ -440,25 +492,27 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             messageQueue.load()
 
             // Listen for connection restoration to process queue
-            messagingWebSocket.onConnected(() => {
-              if (messagingWebSocket.isConnected() && messageQueue.size > 0) {
-                log(`Processing ${messageQueue.size} queued messages after reconnection`)
-                void messageQueue.processQueue((conversationId, content, tempId) => {
-                  messagingWebSocket.sendMessage(conversationId, content, tempId)
+            wsUnsubscribers.push(
+              messagingWebSocket.onConnected(() => {
+                if (messagingWebSocket.isConnected() && messageQueue.size > 0) {
+                  log(`Processing ${messageQueue.size} queued messages after reconnection`)
+                  void messageQueue.processQueue((conversationId, content, tempId) => {
+                    messagingWebSocket.sendMessage(conversationId, content, tempId)
 
-                  // Update queued message status back to SENDING
-                  set(draft => {
-                    for (const convId in draft.messages) {
-                      const msg = draft.messages[convId].find(m => m.id === tempId)
-                      if (msg) {
-                        ;(msg as any).status = 'SENDING'
-                        break
+                    // Update queued message status back to SENDING
+                    set(draft => {
+                      for (const convId in draft.messages) {
+                        const msg = draft.messages[convId].find(m => m.id === tempId)
+                        if (msg) {
+                          ;(msg as any).status = 'SENDING'
+                          break
+                        }
                       }
-                    }
+                    })
                   })
-                })
-              }
-            })
+                }
+              })
+            )
           }
 
           // Mark as initialized
@@ -481,6 +535,11 @@ export function createMessagingStore(config: MessagingStoreConfig) {
 
       cleanup: () => {
         log('Cleaning up messaging store...')
+
+        // Unsubscribe all WebSocket event listeners registered during initialize().
+        // This prevents listener accumulation across login/logout cycles.
+        wsUnsubscribers.forEach(unsub => unsub())
+        wsUnsubscribers.length = 0
 
         // Leave any rooms we joined
         if (featureFlags.WEBSOCKET_MESSAGES && messagingWebSocket.isConnected()) {
@@ -664,10 +723,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
           }
         }
 
-        // Fetch messages for the new conversation (only when actually switching)
-        if (conversationId) {
-          get().fetchMessages(conversationId)
-        }
+        // Note: message fetching is handled by the page-level useEffect with an AbortController
       },
 
       updateConversation: (conversationId, updates) => {
@@ -698,7 +754,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
       },
 
       // Messages
-      fetchMessages: async conversationId => {
+      fetchMessages: async (conversationId, signal) => {
         log('Fetching messages for conversation:', conversationId)
 
         set(draft => {
@@ -710,6 +766,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
           const response = await messagesService.getMessages({
             conversationId,
             limit: 50,
+            signal,
           })
 
           if (!response.success) {
@@ -742,6 +799,21 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             nextCursor: paginatedResponse.nextCursor,
           })
         } catch (error: any) {
+          // Swallow abort/cancel errors — the fetch was intentionally cancelled.
+          // Also handle the case where the API client wraps the Axios CanceledError into a
+          // plain Error with message 'canceled', losing the original name in the process.
+          // `signal?.aborted` is the definitive check when name/message checks are ambiguous.
+          if (
+            error?.name === 'AbortError' ||
+            error?.name === 'CanceledError' ||
+            error?.message === 'canceled' ||
+            signal?.aborted
+          ) {
+            set(draft => {
+              draft.isLoadingMessages[conversationId] = false
+            })
+            return
+          }
           logError('Failed to fetch messages:', error)
           set(draft => {
             draft.isLoadingMessages[conversationId] = false
@@ -799,10 +871,27 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             hasMore: paginatedResponse?.hasMore,
           })
         } catch (error: unknown) {
-          logError('Failed to load older messages:', error)
-          set(draft => {
-            draft.isLoadingMoreMessages[conversationId] = false
-          })
+          // If the cursor message was deleted (e.g. moderation), the server returns
+          // CURSOR_NOT_FOUND. Reset to page 1 instead of showing a blank error.
+          const isCursorGone =
+            error instanceof Error &&
+            (error.message.includes('CURSOR_NOT_FOUND') || error.message.includes('400'))
+
+          if (isCursorGone) {
+            logError('Cursor message deleted — resetting to page 1 for:', conversationId)
+            set(draft => {
+              draft.messagesNextCursor[conversationId] = null
+              draft.messagesHasMore[conversationId] = false
+              draft.isLoadingMoreMessages[conversationId] = false
+            })
+            // Fetch fresh first page
+            get().fetchMessages(conversationId)
+          } else {
+            logError('Failed to load older messages:', error)
+            set(draft => {
+              draft.isLoadingMoreMessages[conversationId] = false
+            })
+          }
         }
       },
 
