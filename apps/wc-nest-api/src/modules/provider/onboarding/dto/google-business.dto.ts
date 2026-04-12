@@ -154,6 +154,74 @@ export class SaveGoogleBusinessProfileDto {
   timezone: string
 }
 
+export class UpdateCompanyDetailsDto {
+  @ApiProperty({ description: 'Legal company name', example: 'Summer Adventures Inc.' })
+  @IsString()
+  @IsNotEmpty()
+  legalCompanyName: string
+
+  @ApiProperty({ description: 'Legal street address', example: '123 Main Street' })
+  @IsString()
+  @IsNotEmpty()
+  legalStreetAddress: string
+
+  @ApiProperty({ description: 'Legal apartment/suite number', required: false })
+  @IsOptional()
+  @IsString()
+  legalAptSuite?: string
+
+  @ApiProperty({ description: 'Legal city', example: 'Toronto' })
+  @IsString()
+  @IsNotEmpty()
+  legalCity: string
+
+  @ApiProperty({ description: 'Legal state/province', example: 'Ontario' })
+  @IsString()
+  @IsNotEmpty()
+  legalStateProvince: string
+
+  @ApiProperty({ description: 'Legal postal code', example: 'M5H 2N2' })
+  @IsString()
+  @IsNotEmpty()
+  legalPostalCode: string
+
+  @ApiProperty({ description: 'Legal country', example: 'Canada' })
+  @IsString()
+  @IsNotEmpty()
+  legalCountry: string
+
+  @ApiProperty({ description: 'Year founded', example: 2010, minimum: 1800, maximum: 2100 })
+  @IsInt()
+  @Min(1800)
+  @Max(2100)
+  yearFounded: number
+
+  @ApiProperty({ description: 'Provider phone number', required: false })
+  @IsOptional()
+  @IsString()
+  providerPhone?: string
+
+  @ApiProperty({ description: 'Provider email address', required: false })
+  @IsOptional()
+  @IsString()
+  providerEmail?: string
+
+  @ApiProperty({ description: 'Provider website URL', required: false })
+  @IsOptional()
+  @IsString()
+  website?: string
+
+  @ApiProperty({ description: 'Currency code (ISO 4217)', example: 'USD' })
+  @IsString()
+  @IsNotEmpty()
+  currency: string
+
+  @ApiProperty({ description: 'Timezone (IANA timezone)', example: 'America/New_York' })
+  @IsString()
+  @IsNotEmpty()
+  timezone: string
+}
+
 export class GoogleBusinessSearchResultDto {
   @ApiProperty({ description: 'Google Place ID' })
   placeId: string

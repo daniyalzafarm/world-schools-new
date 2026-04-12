@@ -3,6 +3,7 @@ import { PrismaService } from '../../../../prisma/prisma.service'
 import { SaveContactInfoDto } from '../dto/contact-info.dto'
 import { SaveCampInfoDto } from '../dto/camp-info.dto'
 import { OnboardingStatusDto } from '../dto/onboarding-status.dto'
+import { UpdateCompanyDetailsDto } from '../dto/google-business.dto'
 import { TrustScoreService } from './trust-score.service'
 import {
   CURRENT_PROVIDER_AGREEMENT_VERSION,
@@ -157,6 +158,46 @@ export class OnboardingService {
       currency: provider.settings?.currency || null,
       timezone: provider.settings?.timezone || null,
     }
+  }
+
+  /**
+   * Update company details (legal info + provider settings) without touching the GBP.
+   * Used by the account page for providers who may not have a linked Google Business Profile.
+   */
+  async updateCompanyDetails(providerId: string, dto: UpdateCompanyDetailsDto): Promise<void> {
+    await this.prisma.$transaction(async prisma => {
+      await prisma.provider.update({
+        where: { id: providerId },
+        data: {
+          legalCompanyName: dto.legalCompanyName,
+          legalStreetAddress: dto.legalStreetAddress,
+          legalAptSuite: dto.legalAptSuite,
+          legalCity: dto.legalCity,
+          legalStateProvince: dto.legalStateProvince,
+          legalPostalCode: dto.legalPostalCode,
+          legalCountry: dto.legalCountry,
+          yearFounded: dto.yearFounded,
+          phone: dto.providerPhone,
+          email: dto.providerEmail,
+          website: dto.website,
+        },
+      })
+
+      await prisma.providerSettings.upsert({
+        where: { providerId },
+        create: {
+          providerId,
+          currency: dto.currency,
+          timezone: dto.timezone,
+          depositRequired: false,
+          cancellationPolicy: 'moderate',
+        },
+        update: {
+          currency: dto.currency,
+          timezone: dto.timezone,
+        },
+      })
+    })
   }
 
   /**
@@ -556,6 +597,26 @@ export class OnboardingService {
       data: {
         onboardingCurrentStep: step,
       },
+    })
+  }
+
+  /**
+   * Get provider logo blob name
+   */
+  async getProviderLogoUrl(providerId: string): Promise<{ logoUrl: string | null } | null> {
+    return this.prisma.provider.findUnique({
+      where: { id: providerId },
+      select: { logoUrl: true },
+    })
+  }
+
+  /**
+   * Update provider logo URL (blob name) in database
+   */
+  async updateProviderLogoUrl(providerId: string, logoUrl: string | null): Promise<void> {
+    await this.prisma.provider.update({
+      where: { id: providerId },
+      data: { logoUrl },
     })
   }
 

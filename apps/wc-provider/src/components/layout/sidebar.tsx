@@ -99,14 +99,6 @@ const NAV_ITEMS: NavItem[] = [
     // No permission required - available to all authenticated users
   },
   {
-    name: 'Booking Requests',
-    href: '/booking-requests',
-    icon: <ClipboardList size={20} />,
-    badge: 3,
-    type: 'regular',
-    // No permission required - available to all authenticated users
-  },
-  {
     name: 'Bookings',
     href: '/bookings',
     icon: <Calendar size={20} />,

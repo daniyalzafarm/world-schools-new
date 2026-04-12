@@ -20,6 +20,7 @@ interface ProviderSectionProps {
     description?: string
     trustScore?: number | null
     approvalStatus?: string
+    logoUrl?: string | null
     responseRate?: number | null
     avgReplyTimeMinutes?: number | null
     _count?: { camps: number }
@@ -80,6 +81,7 @@ export function ProviderSection({ provider, campId, campSlug, campTitle }: Provi
     legalCountry,
     yearFounded,
     approvalStatus,
+    logoUrl,
     responseRate,
     avgReplyTimeMinutes,
     _count,
@@ -123,11 +125,21 @@ export function ProviderSection({ provider, campId, campSlug, campTitle }: Provi
       <div className="border border-gray-200 rounded-2xl overflow-hidden">
         {/* ── Header ────────────────────────────────────────────────── */}
         <div className="flex items-start gap-3.5 px-5 pt-5 pb-4 border-b border-gray-100">
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center text-[15px] font-bold text-white shrink-0"
-            style={{ background: getAvatarGradient(displayName) }}
-          >
-            {getInitials(displayName)}
+          <div className="w-12 h-12 rounded-full border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center shrink-0">
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={`${displayName} logo`}
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center text-[15px] font-bold text-white"
+                style={{ background: getAvatarGradient(displayName) }}
+              >
+                {getInitials(displayName)}
+              </div>
+            )}
           </div>
 
           <div className="flex-1 min-w-0">

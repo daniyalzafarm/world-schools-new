@@ -204,6 +204,7 @@ export interface Camp {
     description?: string
     trustScore?: number | null
     approvalStatus?: string
+    logoUrl?: string | null
     responseRate?: number | null
     avgReplyTimeMinutes?: number | null
     _count?: { camps: number }

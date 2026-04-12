@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Request,
   UploadedFile,
@@ -24,9 +25,10 @@ import { ProviderSettingsService } from './services/provider-settings.service'
 import { DepositSettingsService } from './services/deposit-settings.service'
 import { DocumentProcessingService } from './services/document-processing.service'
 import { TrustScoreService } from './services/trust-score.service'
+import { ProviderLogoService } from './services/provider-logo.service'
 
 // DTOs
-import { SaveGoogleBusinessProfileDto } from './dto/google-business.dto'
+import { SaveGoogleBusinessProfileDto, UpdateCompanyDetailsDto } from './dto/google-business.dto'
 import { SaveContactInfoDto } from './dto/contact-info.dto'
 import { SaveCampInfoDto } from './dto/camp-info.dto'
 import { SaveProviderSettingsDto } from './dto/provider-settings.dto'
@@ -44,7 +46,8 @@ export class OnboardingController {
     private readonly providerSettingsService: ProviderSettingsService,
     private readonly depositSettingsService: DepositSettingsService,
     private readonly documentProcessingService: DocumentProcessingService,
-    private readonly trustScoreService: TrustScoreService
+    private readonly trustScoreService: TrustScoreService,
+    private readonly providerLogoService: ProviderLogoService
   ) {}
 
   /**
@@ -120,6 +123,22 @@ export class OnboardingController {
     await this.trustScoreService.updateTrustScore(providerId)
 
     return ResponseUtil.success(profile)
+  }
+
+  /**
+   * Update company details without touching the Google Business Profile.
+   * Used by the account page — works for both onboarded and CSV-imported providers.
+   */
+  @Patch('find-your-camp/legal-info')
+  @Roles('Provider Admin')
+  @ApiOperation({
+    summary: 'Update company legal details without changing the Google Business Profile',
+  })
+  async updateCompanyDetails(@Request() req: any, @Body() dto: UpdateCompanyDetailsDto) {
+    const providerId = req.user.providerId
+    await this.onboardingService.updateCompanyDetails(providerId, dto)
+    await this.trustScoreService.updateTrustScore(providerId)
+    return ResponseUtil.success(null)
   }
 
   /**
@@ -335,6 +354,64 @@ export class OnboardingController {
     await this.trustScoreService.updateTrustScore(providerId)
 
     return ResponseUtil.success(settings)
+  }
+
+  /**
+   * Provider Logo: Get current logo URL
+   */
+  @Get('logo')
+  @Roles('Provider Admin')
+  @ApiOperation({ summary: 'Get provider logo URL' })
+  async getProviderLogo(@Request() req: any) {
+    const providerId = req.user.providerId
+    const provider = await this.onboardingService.getProviderLogoUrl(providerId)
+    const logoUrl = provider?.logoUrl
+      ? await this.providerLogoService.generateLogoUrl(provider.logoUrl)
+      : null
+    return ResponseUtil.success({ logoUrl })
+  }
+
+  /**
+   * Provider Logo: Upload logo
+   */
+  @Patch('logo')
+  @Roles('Provider Admin')
+  @UseInterceptors(FileInterceptor('logo'))
+  @ApiOperation({ summary: 'Upload provider logo' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        logo: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  async uploadProviderLogo(
+    @Request() req: any,
+    @UploadedFile() file: { buffer: Buffer; originalname: string; mimetype: string; size: number }
+  ) {
+    const providerId = req.user.providerId
+    const uploadResult = await this.providerLogoService.uploadLogo(providerId, file)
+    await this.onboardingService.updateProviderLogoUrl(providerId, uploadResult.url)
+    const sasUrl = await this.providerLogoService.generateLogoUrl(uploadResult.url)
+    return ResponseUtil.success({ logoUrl: sasUrl })
+  }
+
+  /**
+   * Provider Logo: Delete logo
+   */
+  @Delete('logo')
+  @Roles('Provider Admin')
+  @ApiOperation({ summary: 'Delete provider logo' })
+  async deleteProviderLogo(@Request() req: any) {
+    const providerId = req.user.providerId
+    const provider = await this.onboardingService.getProviderLogoUrl(providerId)
+    if (provider?.logoUrl) {
+      await this.providerLogoService.deleteLogo(provider.logoUrl)
+    }
+    await this.onboardingService.updateProviderLogoUrl(providerId, null)
+    return ResponseUtil.success({ logoUrl: null })
   }
 
   /**

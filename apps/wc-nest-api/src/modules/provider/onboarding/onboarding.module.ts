@@ -6,6 +6,7 @@ import { ProviderSettingsService } from './services/provider-settings.service'
 import { DepositSettingsService } from './services/deposit-settings.service'
 import { DocumentProcessingService } from './services/document-processing.service'
 import { TrustScoreService } from './services/trust-score.service'
+import { ProviderLogoService } from './services/provider-logo.service'
 import { PrismaModule } from '../../../prisma/prisma.module'
 import { ConfigModule } from '../../../config/config.module'
 import { AuthModule } from '../../core/auth/auth.module'
@@ -21,6 +22,7 @@ import { EmailTemplatesModule } from '../../common/email-templates/email-templat
     DepositSettingsService,
     DocumentProcessingService,
     TrustScoreService,
+    ProviderLogoService,
   ],
   exports: [
     OnboardingService,
@@ -29,6 +31,7 @@ import { EmailTemplatesModule } from '../../common/email-templates/email-templat
     DepositSettingsService,
     DocumentProcessingService,
     TrustScoreService,
+    ProviderLogoService,
   ],
 })
 export class OnboardingModule {}

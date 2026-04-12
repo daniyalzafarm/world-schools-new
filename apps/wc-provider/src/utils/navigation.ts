@@ -25,11 +25,6 @@ export const ROUTES: RouteConfig[] = [
     // No permission required - available to all
   },
   {
-    path: '/booking-requests',
-    label: 'Booking Requests',
-    // No permission required - available to all
-  },
-  {
     path: '/bookings',
     label: 'Bookings',
     // No permission required - available to all

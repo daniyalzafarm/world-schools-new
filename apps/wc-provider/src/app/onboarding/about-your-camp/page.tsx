@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Spinner } from '@heroui/react'
+import { addToast, Spinner } from '@heroui/react'
 import { Textarea } from '@world-schools/ui-web'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
@@ -10,12 +10,15 @@ import { OnboardingFooter } from '../../../components/onboarding/OnboardingFoote
 import { TrustScoreBadge } from '../../../components/onboarding/TrustScoreBadge'
 import { canAccessStep, getNextAccessibleStep } from '../../../utils/onboarding-access'
 import { onboardingService } from '../../../services/onboarding.services'
+import { ProviderLogoSection } from '../../../components/account/provider-logo-section'
 
 export default function OnboardingStep3Page() {
   const router = useRouter()
   const { status, isLoading, saveCampInfo } = useOnboardingStore()
   const [description, setDescription] = useState('')
   const [campTypes, setCampTypes] = useState<string[]>([])
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
 
   // Track original data and changes
   const [originalDescription, setOriginalDescription] = useState('')
@@ -28,19 +31,90 @@ export default function OnboardingStep3Page() {
   // Check if onboarding is completed (read-only mode)
   const isReadOnly = status?.isCompleted ?? false
 
-  // Load saved camp info
+  // Load saved camp info and logo
   useEffect(() => {
     const loadCampInfo = async () => {
-      const response = await onboardingService.getCampInfo()
-      if (response.success && response.data) {
-        setDescription(response.data.description)
-        setCampTypes(response.data.campTypes)
-        setOriginalDescription(response.data.description)
-        setOriginalCampTypes(response.data.campTypes)
+      const [campResponse, logoResponse] = await Promise.all([
+        onboardingService.getCampInfo(),
+        onboardingService.getProviderLogo(),
+      ])
+      if (campResponse.success && campResponse.data) {
+        setDescription(campResponse.data.description)
+        setCampTypes(campResponse.data.campTypes)
+        setOriginalDescription(campResponse.data.description)
+        setOriginalCampTypes(campResponse.data.campTypes)
+      }
+      if (logoResponse.success) {
+        setLogoUrl(logoResponse.data?.logoUrl ?? null)
       }
     }
     void loadCampInfo()
   }, [])
+
+  const handleLogoChange = async (file: File) => {
+    const maxSize = 5 * 1024 * 1024
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+
+    if (!allowedTypes.includes(file.type)) {
+      addToast({
+        title: 'Invalid file type',
+        description: 'Please upload a JPG, PNG, or WebP image',
+        color: 'danger',
+      })
+      return
+    }
+
+    if (file.size > maxSize) {
+      addToast({
+        title: 'File too large',
+        description: 'Please upload an image smaller than 5MB',
+        color: 'danger',
+      })
+      return
+    }
+
+    setIsUploadingLogo(true)
+    try {
+      const result = await onboardingService.uploadProviderLogo(file)
+      if (result.success && result.data) {
+        setLogoUrl(result.data.logoUrl)
+        addToast({
+          title: 'Success',
+          description: 'Logo uploaded successfully',
+          color: 'success',
+        })
+      }
+    } catch {
+      addToast({
+        title: 'Upload failed',
+        description: 'Failed to upload logo. Please try again.',
+        color: 'danger',
+      })
+    } finally {
+      setIsUploadingLogo(false)
+    }
+  }
+
+  const handleLogoRemove = async () => {
+    setIsUploadingLogo(true)
+    try {
+      await onboardingService.deleteProviderLogo()
+      setLogoUrl(null)
+      addToast({
+        title: 'Success',
+        description: 'Logo removed successfully',
+        color: 'success',
+      })
+    } catch {
+      addToast({
+        title: 'Removal failed',
+        description: 'Failed to remove logo. Please try again.',
+        color: 'danger',
+      })
+    } finally {
+      setIsUploadingLogo(false)
+    }
+  }
 
   // Detect form changes
   useEffect(() => {
@@ -141,6 +215,13 @@ export default function OnboardingStep3Page() {
 
         {/* Form */}
         <div className="flex flex-col gap-8">
+          {/* Company Logo */}
+          <ProviderLogoSection
+            logoUrl={logoUrl}
+            onLogoChange={isReadOnly ? undefined : handleLogoChange}
+            onLogoRemove={isReadOnly ? undefined : handleLogoRemove}
+          />
+
           {/* Brief Description */}
           <div className="flex flex-col gap-4">
             <h2 className="text-xl font-semibold text-foreground">

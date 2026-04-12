@@ -156,6 +156,7 @@ export class UserCampsService {
             description: true,
             trustScore: true,
             approvalStatus: true,
+            logoUrl: true,
             _count: {
               select: {
                 camps: { where: { status: 'published' } },
@@ -196,6 +197,20 @@ export class UserCampsService {
     if (camp.photos && Array.isArray(camp.photos) && camp.photos.length > 0) {
       const photosWithUrls = await this.generatePhotoUrls(camp.photos as any[])
       campWithPhotos = { ...camp, photos: photosWithUrls }
+    }
+
+    // Generate SAS URL for provider logo if it exists
+    if (campWithPhotos.provider?.logoUrl) {
+      try {
+        const azureStorage = this.getAzureStorage()
+        const logoSasUrl = await azureStorage.generateSasUrl(campWithPhotos.provider.logoUrl, 24)
+        campWithPhotos = {
+          ...campWithPhotos,
+          provider: { ...campWithPhotos.provider, logoUrl: logoSasUrl },
+        }
+      } catch {
+        // Fall back to the blob name if SAS URL generation fails
+      }
     }
 
     // Compute bookedCount per session in a single grouped query

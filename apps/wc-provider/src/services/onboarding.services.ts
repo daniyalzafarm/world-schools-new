@@ -3,6 +3,7 @@ import type {
   ContactInfo,
   GoogleBusinessProfile,
   GoogleBusinessSearchResult,
+  LegalBusinessInfo,
   OnboardingStatus,
   ProviderSettings,
   SaveDepositSettingsRequest,
@@ -53,6 +54,14 @@ export const onboardingService = {
       '/provider/onboarding/find-your-camp/save',
       request
     )
+  },
+
+  /**
+   * Update company details without changing the Google Business Profile.
+   * Works for both onboarded and CSV-imported providers (no placeId required).
+   */
+  async updateCompanyDetails(data: LegalBusinessInfo): Promise<ApiResult<null>> {
+    return await apiClient.patch<null>('/provider/onboarding/find-your-camp/legal-info', data)
   },
 
   /**
@@ -225,5 +234,33 @@ export const onboardingService = {
     return await apiClient.get<{ score: number; breakdown: any }>(
       '/provider/onboarding/trust-score/breakdown'
     )
+  },
+
+  /**
+   * Get provider logo URL
+   */
+  async getProviderLogo(): Promise<ApiResult<{ logoUrl: string | null }>> {
+    return await apiClient.get<{ logoUrl: string | null }>('/provider/onboarding/logo')
+  },
+
+  /**
+   * Upload provider logo
+   */
+  async uploadProviderLogo(file: File): Promise<ApiResult<{ logoUrl: string }>> {
+    const formData = new FormData()
+    formData.append('logo', file)
+
+    return await apiClient.patch<{ logoUrl: string }>('/provider/onboarding/logo', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+  },
+
+  /**
+   * Delete provider logo
+   */
+  async deleteProviderLogo(): Promise<ApiResult<void>> {
+    return await apiClient.del('/provider/onboarding/logo')
   },
 }

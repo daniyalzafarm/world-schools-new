@@ -3,7 +3,8 @@
 import React from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@world-schools/ui-web'
-import { Bell, Building2, Home, Lock, Phone, Settings, Shield, User } from 'lucide-react'
+import { Bell, Building2, Home, Lock, Phone, Shield, User } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
 
 interface AccountSidebarProps {
   sidebarOpen: boolean
@@ -76,6 +77,22 @@ const navigationSections: NavigationSection[] = [
 export const AccountSidebar: React.FC<AccountSidebarProps> = ({ sidebarOpen, setSidebarOpen }) => {
   const router = useRouter()
   const pathname = usePathname()
+  const { isProviderAdmin } = useAuth()
+
+  const businessInfoSection: NavigationSection = {
+    title: 'Business Information',
+    items: [
+      {
+        name: 'Company Details',
+        href: '/account/business/company-details',
+        icon: <Building2 size={20} />,
+      },
+    ],
+  }
+
+  const sections = isProviderAdmin
+    ? [...navigationSections, businessInfoSection]
+    : navigationSections
 
   const handleNavigation = (href: string) => {
     router.push(href)
@@ -115,7 +132,7 @@ export const AccountSidebar: React.FC<AccountSidebarProps> = ({ sidebarOpen, set
           </div>
 
           <nav className="flex-1 overflow-y-auto px-3 pb-6">
-            {navigationSections.map((section, sectionIndex) => (
+            {sections.map((section, sectionIndex) => (
               <div key={sectionIndex} className="mb-2">
                 {section.title && (
                   <div className="px-3 py-5 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
