@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import {
+  Button,
   Card,
   CardBody,
   Chip,
@@ -16,7 +17,17 @@ import {
   TableRow,
   Tabs,
 } from '@heroui/react'
-import { Building, ExternalLink, FileText, Mail, MapPin, Phone, Shield, Star } from 'lucide-react'
+import {
+  Building,
+  ExternalLink,
+  FileText,
+  Mail,
+  MapPin,
+  Phone,
+  Shield,
+  Star,
+  Upload,
+} from 'lucide-react'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { PageSlot } from '@/components/layout/page-slot'
 import { useProvidersStore } from '@/stores/providers-store'
@@ -113,6 +124,7 @@ const getCampStatusColor = (status: string) => {
 
 export default function ProviderDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const providerId = params.id as string
 
   const { detail, isLoading, error, fetchDetail, clearDetail } = useProvidersStore()
@@ -155,7 +167,10 @@ export default function ProviderDetailPage() {
       <div className="space-y-6">
         {/* Breadcrumb */}
         <Breadcrumb
-          items={[{ label: 'All Providers', href: '/providers' }, { label: detail.businessName }]}
+          items={[
+            { label: 'All Providers', href: '/providers' },
+            { label: detail.legalCompanyName ?? detail.businessName },
+          ]}
         />
 
         {/* Profile Header Card */}
@@ -164,13 +179,15 @@ export default function ProviderDetailPage() {
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
               {/* Avatar */}
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-white">
-                {getInitials(detail.businessName)}
+                {getInitials(detail.legalCompanyName ?? detail.businessName)}
               </div>
 
               {/* Main info */}
               <div className="flex-1 space-y-3">
                 <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="text-2xl font-bold text-foreground">{detail.businessName}</h1>
+                  <h1 className="text-2xl font-bold text-foreground">
+                    {detail.legalCompanyName ?? detail.businessName}
+                  </h1>
                   <Chip size="sm" color={getStatusColor(detail.approvalStatus)} variant="flat">
                     {getStatusLabel(detail.approvalStatus)}
                   </Chip>
@@ -292,12 +309,28 @@ export default function ProviderDetailPage() {
                 </div>
               </Tab>
 
-              <Tab
-                key="camps"
-                title={`Camps (${detail._count.camps})`}
-                isDisabled={detail._count.camps === 0}
-              >
-                <p className="text-sm text-default-500">Full camps view coming soon.</p>
+              <Tab key="camps" title={`Camps (${detail._count.camps})`}>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-default-500">
+                      {detail._count.camps === 0
+                        ? 'No camps yet. Import camps to get started.'
+                        : `${detail._count.camps} camp${detail._count.camps !== 1 ? 's' : ''} for this provider.`}
+                    </p>
+                    <Button
+                      size="sm"
+                      color="primary"
+                      variant="flat"
+                      startContent={<Upload className="h-4 w-4" />}
+                      onPress={() => router.push(`/providers/${providerId}/import-camps`)}
+                    >
+                      Import Camps
+                    </Button>
+                  </div>
+                  {detail.camps.length > 0 && (
+                    <CampsCard camps={detail.camps} providerId={providerId} />
+                  )}
+                </div>
               </Tab>
 
               <Tab
@@ -379,7 +412,9 @@ function ContactInfoCard({ detail }: { detail: ProviderDetail }) {
   )
 }
 
-function CampsCard({ camps }: { camps: ProviderCampSummary[] }) {
+function CampsCard({ camps, providerId }: { camps: ProviderCampSummary[]; providerId?: string }) {
+  const router = useRouter()
+
   return (
     <Card shadow="none" className="border border-default-200">
       <CardBody className="p-4 space-y-3">
@@ -395,6 +430,19 @@ function CampsCard({ camps }: { camps: ProviderCampSummary[] }) {
                 <div className="text-xs text-default-400 capitalize">{camp.type}</div>
               </div>
               <div className="flex items-center gap-4 shrink-0 text-center text-sm">
+                {providerId && (
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    color="primary"
+                    startContent={<Upload className="h-3.5 w-3.5" />}
+                    onPress={() =>
+                      router.push(`/providers/${providerId}/camps/${camp.id}/import-sessions`)
+                    }
+                  >
+                    Import Sessions
+                  </Button>
+                )}
                 <div>
                   <div className="font-semibold text-foreground">{camp._count.sessions}</div>
                   <div className="text-xs text-default-400">Sessions</div>

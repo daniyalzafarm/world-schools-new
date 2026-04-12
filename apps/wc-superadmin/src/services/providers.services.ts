@@ -13,6 +13,30 @@ export interface ImportProvidersResult {
   errors: ImportRowError[]
 }
 
+export interface ImportCampRowError {
+  column: number
+  name: string
+  reason: string
+}
+
+export interface ImportCampsResult {
+  imported: number
+  failed: number
+  errors: ImportCampRowError[]
+}
+
+export interface ImportSessionRowError {
+  column: number
+  name: string
+  reason: string
+}
+
+export interface ImportSessionsResult {
+  imported: number
+  failed: number
+  errors: ImportSessionRowError[]
+}
+
 export const providersService = {
   async getDetail(id: string): Promise<ProviderDetail> {
     const response = await apiClient.get<ProviderDetail>(`/superadmin/providers/${id}/detail`)
@@ -38,5 +62,35 @@ export const providersService = {
       }
     )
     return response.data as ImportProvidersResult
+  },
+
+  async importSessions(
+    providerId: string,
+    campId: string,
+    file: File
+  ): Promise<ImportSessionsResult> {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await apiClient.post<ImportSessionsResult>(
+      `/superadmin/providers/${providerId}/camps/${campId}/sessions/import`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    )
+    return response.data as ImportSessionsResult
+  },
+
+  async importCamps(providerId: string, file: File): Promise<ImportCampsResult> {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await apiClient.post<ImportCampsResult>(
+      `/superadmin/providers/${providerId}/camps/import`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    )
+    return response.data as ImportCampsResult
   },
 }

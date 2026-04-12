@@ -5,6 +5,8 @@ import { SuperAdminProvidersModule } from './providers/providers.module'
 import { SuperAdminUsersModule } from './users/users.module'
 import { SuperAdminPermissionsModule } from './permissions/permissions.module'
 import { ApplicationReviewModule } from './application-review/application-review.module'
+import { SuperAdminCampsModule } from './camps/camps.module'
+import { SuperAdminSessionsModule } from './sessions/sessions.module'
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { ApplicationReviewModule } from './application-review/application-review
     SuperAdminUsersModule,
     SuperAdminPermissionsModule,
     ApplicationReviewModule,
+    SuperAdminCampsModule,
+    SuperAdminSessionsModule,
   ],
 })
 export class SuperAdminModule {}

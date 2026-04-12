@@ -52,8 +52,7 @@ export const PROVIDER_IMPORT_COLUMNS: ProviderImportColumn[] = [
   {
     key: 'googlePlaceId',
     label: 'Google Place ID',
-    description:
-      'Fetches business name, address, and location automatically from Google',
+    description: 'Fetches business name, address, and location automatically from Google',
     required: false,
     type: 'string',
     example: 'ChIJN1t_tDeuEmsRUsoyG83frY4',
@@ -120,8 +119,7 @@ export const PROVIDER_IMPORT_COLUMNS: ProviderImportColumn[] = [
     description: 'Camp description (100–300 characters)',
     required: false,
     type: 'string',
-    example:
-      'Award-winning summer camp offering STEM, arts, and outdoor adventures for ages 8-16.',
+    example: 'Award-winning summer camp offering STEM, arts, and outdoor adventures for ages 8-16.',
   },
   {
     key: 'campTypes',

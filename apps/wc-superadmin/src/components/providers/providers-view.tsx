@@ -24,7 +24,6 @@ import { useApplicationReviewStore } from '@/stores/application-review-store'
 import { providersService } from '@/services/providers.services'
 import config from '@/config/config'
 import type { ApplicationListItem, ApprovalStatus } from '@/types/application-review'
-import { ImportProvidersModal } from './import-providers-modal'
 
 type AllProvidersTab = 'all' | 'pending-review' | 'approved' | 'rejected' | 'suspended'
 
@@ -114,7 +113,6 @@ export function AllProvidersView() {
   const [searchInput, setSearchInput] = useState('')
   const [approvingId, setApprovingId] = useState<string | null>(null)
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null)
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const hasInitialized = useRef(false)
 
   const debouncedSearch = useDebounce(searchInput, 500)
@@ -286,20 +284,11 @@ export function AllProvidersView() {
             color="primary"
             className="ml-auto shrink-0"
             startContent={<Upload className="h-4 w-4" />}
-            onPress={() => setIsImportModalOpen(true)}
+            onPress={() => router.push('/providers/import')}
           >
             Import Providers
           </Button>
         </div>
-
-        <ImportProvidersModal
-          isOpen={isImportModalOpen}
-          onClose={() => setIsImportModalOpen(false)}
-          onSuccess={() => {
-            void fetchApplications()
-            void fetchTabCounts()
-          }}
-        />
 
         {/* Table */}
         <Table
