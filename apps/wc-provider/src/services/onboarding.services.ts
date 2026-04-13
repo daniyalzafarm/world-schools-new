@@ -1,11 +1,11 @@
 import apiClient, { type ApiResult } from '../utils/api-client'
 import type {
+  CancellationPolicySpecialCircumstance,
   ContactInfo,
   GoogleBusinessProfile,
   GoogleBusinessSearchResult,
   LegalBusinessInfo,
   OnboardingStatus,
-  ProviderSettings,
   SaveDepositSettingsRequest,
   SaveGoogleBusinessProfileRequest,
   SaveProviderSettingsRequest,
@@ -14,6 +14,13 @@ import type {
   VerificationDocument,
 } from '../types/onboarding'
 import type { ValidationResult } from '../utils/onboarding-validation'
+
+type ProviderSettingsResponse = {
+  cancellationPolicy: string
+  cancellationPolicyCustom?: Record<string, unknown> | null
+  cancellationPolicySpecialCircumstances?: CancellationPolicySpecialCircumstance[] | null
+  cancellationPolicyAgreedAt?: string | null
+}
 
 export const onboardingService = {
   /**
@@ -186,31 +193,22 @@ export const onboardingService = {
   /**
    * Get provider settings (Step 6 - Cancellation Policy only)
    */
-  async getProviderSettings(): Promise<
-    ApiResult<{
-      cancellationPolicy: string
-      cancellationPolicyCustom?: string | null
-    } | null>
-  > {
-    return await apiClient.get<{
-      cancellationPolicy: string
-      cancellationPolicyCustom?: string | null
-    } | null>('/provider/onboarding/payment-policies/settings')
+  async getProviderSettings(): Promise<ApiResult<ProviderSettingsResponse | null>> {
+    return await apiClient.get<ProviderSettingsResponse | null>(
+      '/provider/onboarding/payment-policies/settings'
+    )
   },
 
   /**
    * Save provider settings (Step 6 - Cancellation Policy only)
    */
-  async saveProviderSettings(data: SaveProviderSettingsRequest): Promise<
-    ApiResult<{
-      cancellationPolicy: string
-      cancellationPolicyCustom?: string | null
-    }>
-  > {
-    return await apiClient.post<{
-      cancellationPolicy: string
-      cancellationPolicyCustom?: string | null
-    }>('/provider/onboarding/payment-policies/save', data)
+  async saveProviderSettings(
+    data: SaveProviderSettingsRequest
+  ): Promise<ApiResult<ProviderSettingsResponse>> {
+    return await apiClient.post<ProviderSettingsResponse>(
+      '/provider/onboarding/payment-policies/save',
+      data
+    )
   },
 
   /**

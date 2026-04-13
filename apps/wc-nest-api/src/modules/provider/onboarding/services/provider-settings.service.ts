@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
+import { Prisma } from '../../../../generated/client/client'
 import { PrismaService } from '../../../../prisma/prisma.service'
 import { SaveProviderSettingsDto } from '../dto/provider-settings.dto'
 
@@ -29,16 +30,23 @@ export class ProviderSettingsService {
       )
     }
 
-    // Update only cancellation policy fields
+    // Build update data — only set cancellationPolicyAgreedAt when provider actively agrees
     const settings = await this.prisma.providerSettings.update({
       where: { providerId },
       data: {
         cancellationPolicy: dto.cancellationPolicy,
-        cancellationPolicyCustom: dto.cancellationPolicyCustom,
+        cancellationPolicyCustom: dto.cancellationPolicyCustom ?? Prisma.JsonNull,
+        cancellationPolicySpecialCircumstances:
+          dto.cancellationPolicySpecialCircumstances != null
+            ? (dto.cancellationPolicySpecialCircumstances as unknown as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
+        ...(dto.termsAgreed === true ? { cancellationPolicyAgreedAt: new Date() } : {}),
       },
       select: {
         cancellationPolicy: true,
         cancellationPolicyCustom: true,
+        cancellationPolicySpecialCircumstances: true,
+        cancellationPolicyAgreedAt: true,
       },
     })
 
@@ -61,6 +69,8 @@ export class ProviderSettingsService {
       select: {
         cancellationPolicy: true,
         cancellationPolicyCustom: true,
+        cancellationPolicySpecialCircumstances: true,
+        cancellationPolicyAgreedAt: true,
       },
     })
 

@@ -208,6 +208,42 @@
   body.session-form-page main>.sticky.bottom-0.z-40 {
     display: none;
   }
+
+  .animate-shake {
+    animation: shake 0.55s ease-in-out;
+  }
+}
+
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  15% {
+    transform: translateX(-6px);
+  }
+
+  30% {
+    transform: translateX(6px);
+  }
+
+  45% {
+    transform: translateX(-4px);
+  }
+
+  60% {
+    transform: translateX(4px);
+  }
+
+  75% {
+    transform: translateX(-2px);
+  }
+
+  90% {
+    transform: translateX(2px);
+  }
 }
 
 /* Google Places Autocomplete Custom Styling */
