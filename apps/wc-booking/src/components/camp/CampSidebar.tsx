@@ -89,15 +89,15 @@ function CompactSessionCard({
 
   if (isSoldOut) {
     return (
-      <div className="border-[1.5px] border-gray-200 rounded-[14px] px-4 py-3.5 mb-2 flex items-center gap-3 bg-white opacity-40 cursor-not-allowed pointer-events-none">
+      <div className="border-2 border-gray-200 rounded-xl px-4 py-3.5 mb-2 flex items-center gap-3 bg-white opacity-40 cursor-not-allowed pointer-events-none">
         <div className="flex-1 min-w-0">
-          <div className="text-[15px] font-bold text-gray-400 leading-tight mb-0.5 line-through">
+          <div className="text-sm font-bold text-gray-400 leading-tight mb-0.5 line-through">
             {dateLabel}
           </div>
-          <div className="text-[13px] text-gray-400 leading-snug">{metaText}</div>
+          <div className="text-sm text-gray-400 leading-snug">{metaText}</div>
         </div>
         {price !== null && (
-          <div className="text-[20px] font-extrabold shrink-0 text-gray-400 line-through">
+          <div className="text-xl font-extrabold shrink-0 text-gray-400 line-through">
             {formatCurrency(price, currency)}
           </div>
         )}
@@ -109,19 +109,19 @@ function CompactSessionCard({
     <div
       onClick={() => onSelect(session)}
       className={[
-        'border-[1.5px] rounded-[14px] px-4 py-3.5 mb-2 flex items-center gap-3 cursor-pointer transition-all',
+        'border-2 rounded-xl px-4 py-3.5 mb-2 flex items-center gap-3 cursor-pointer transition-all',
         isSelected
           ? 'border-gray-900 bg-gray-50 shadow-sm'
           : 'border-gray-200 bg-white hover:border-gray-400 hover:bg-gray-50',
       ].join(' ')}
     >
       <div className="flex-1 min-w-0">
-        <div className="text-[15px] font-bold text-gray-900 leading-tight mb-0.5">{dateLabel}</div>
-        <div className="text-[13px] text-gray-400 leading-snug">{metaText}</div>
+        <div className="text-sm font-bold text-gray-900 leading-tight mb-0.5">{dateLabel}</div>
+        <div className="text-sm text-gray-400 leading-snug">{metaText}</div>
       </div>
       {price !== null && (
         <div
-          className={`text-[20px] font-extrabold shrink-0 ${isSelected ? 'text-secondary' : 'text-gray-900'}`}
+          className={`text-xl font-extrabold shrink-0 ${isSelected ? 'text-secondary' : 'text-gray-900'}`}
         >
           {formatCurrency(price, currency)}
         </div>
@@ -238,7 +238,7 @@ export function CampSidebar({
             )}
           </div>
           {showExceptional && (
-            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-primary/15 text-emerald-700 border border-primary/30 whitespace-nowrap shrink-0">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/15 text-emerald-700 border border-primary/30 whitespace-nowrap shrink-0">
               Exceptional
             </span>
           )}
@@ -253,7 +253,7 @@ export function CampSidebar({
             </div>
             <button
               onClick={handleMessageOrganizer}
-              className="cursor-pointer block w-full py-3.5 px-5 bg-white text-gray-700 text-[14px] font-bold border-[1.5px] border-gray-200 rounded-xl text-center hover:border-gray-400 hover:bg-gray-50 transition-colors mt-2"
+              className="cursor-pointer block w-full py-3.5 px-5 bg-white text-gray-700 text-sm font-bold border-2 border-gray-200 rounded-xl text-center hover:border-gray-400 hover:bg-gray-50 transition-colors mt-2"
             >
               Message the camp
             </button>
@@ -265,7 +265,7 @@ export function CampSidebar({
               <div className="flex flex-wrap gap-1.5 mb-3.5">
                 <button
                   onClick={() => setSelectedMonth('any')}
-                  className={`cursor-pointer text-xs font-semibold border-[1.5px] rounded-full px-3 py-1 transition-all ${
+                  className={`cursor-pointer text-xs font-semibold border-2 rounded-full px-3 py-1 transition-all ${
                     selectedMonth === 'any'
                       ? 'bg-gray-900 border-gray-900 text-white'
                       : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'
@@ -277,7 +277,7 @@ export function CampSidebar({
                   <button
                     key={month}
                     onClick={() => setSelectedMonth(selectedMonth === month ? 'any' : month)}
-                    className={`cursor-pointer text-xs font-semibold border-[1.5px] rounded-full px-3 py-1 transition-all ${
+                    className={`cursor-pointer text-xs font-semibold border-2 rounded-full px-3 py-1 transition-all ${
                       selectedMonth === month
                         ? 'bg-gray-900 border-gray-900 text-white'
                         : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'
@@ -290,7 +290,7 @@ export function CampSidebar({
             )}
 
             {/* ── Sessions label ──────────────────────────────────── */}
-            <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.5px] mb-2">
+            <div className="text-xs font-bold text-gray-400 uppercase tracking-[0.5px] mb-2">
               Available sessions
             </div>
 
@@ -344,7 +344,7 @@ export function CampSidebar({
             {/* ── Message button ───────────────────────────────────── */}
             <button
               onClick={handleMessageOrganizer}
-              className="cursor-pointer block w-full py-3.5 px-5 bg-white text-gray-700 text-[14px] font-bold border-[1.5px] border-gray-200 rounded-xl text-center hover:border-gray-400 hover:bg-gray-50 transition-colors mt-2"
+              className="cursor-pointer block w-full py-3.5 px-5 bg-white text-gray-700 text-sm font-bold border-2 border-gray-200 rounded-xl text-center hover:border-gray-400 hover:bg-gray-50 transition-colors mt-2"
             >
               Message the camp
             </button>

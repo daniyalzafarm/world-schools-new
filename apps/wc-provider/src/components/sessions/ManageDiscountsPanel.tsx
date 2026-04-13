@@ -162,14 +162,14 @@ export function ManageDiscountsPanel({ campId, onClose }: ManageDiscountsPanelPr
 
   if (isLoading) {
     return (
-      <div className="fixed inset-y-0 right-0 w-[400px] bg-white border-l border-gray-200 shadow-lg z-50 flex items-center justify-center">
+      <div className="fixed inset-y-0 right-0 w-96 bg-white border-l border-gray-200 shadow-lg z-50 flex items-center justify-center">
         <div className="text-gray-500">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="fixed inset-y-0 right-0 w-[400px] bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-lg z-50 overflow-y-auto">
+    <div className="fixed inset-y-0 right-0 w-96 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-lg z-50 overflow-y-auto">
       {/* Header */}
       <div className="sticky top-0 px-6 h-18  bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Manage Discounts</h2>

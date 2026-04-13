@@ -85,7 +85,7 @@ export function MessagesMainLayout({ children }: MessagesMainLayoutProps) {
             menuOpen={mainSidebarOpen}
             onMenuToggle={handleMobileNavigation}
             onBackPress={handleMobileNavigation}
-            className="bg-[#F9F9FA] dark:bg-gray-900"
+            className="bg-gray-50 dark:bg-gray-900"
           />
         )}
 

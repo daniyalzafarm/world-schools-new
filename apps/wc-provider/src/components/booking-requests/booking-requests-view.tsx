@@ -350,67 +350,57 @@ export function BookingRequestsView() {
               >
                 <TableHeader>
                   <TableColumn
-                    className="min-w-[140px] cursor-pointer select-none text-xs font-semibold uppercase tracking-wide text-default-500"
+                    className="min-w-36 cursor-pointer select-none text-xs font-semibold uppercase tracking-wide text-default-500"
                     onClick={() => handleColumnSort('status')}
                   >
                     <div className="flex items-center gap-1">
                       <span>Status</span>
                       {filters.sortBy === 'status' ? (
-                        <span className="text-[10px]">
-                          {filters.sortOrder === 'asc' ? '↑' : '↓'}
-                        </span>
+                        <span className="text-xs">{filters.sortOrder === 'asc' ? '↑' : '↓'}</span>
                       ) : null}
                     </div>
                   </TableColumn>
                   <TableColumn
-                    className="min-w-[160px] cursor-pointer select-none text-xs font-semibold uppercase tracking-wide text-default-500"
+                    className="min-w-40 cursor-pointer select-none text-xs font-semibold uppercase tracking-wide text-default-500"
                     onClick={() => handleColumnSort('bookingGroupNumber')}
                   >
                     <div className="flex items-center gap-1">
                       <span>Reference</span>
                       {filters.sortBy === 'bookingGroupNumber' ? (
-                        <span className="text-[10px]">
-                          {filters.sortOrder === 'asc' ? '↑' : '↓'}
-                        </span>
+                        <span className="text-xs">{filters.sortOrder === 'asc' ? '↑' : '↓'}</span>
                       ) : null}
                     </div>
                   </TableColumn>
                   <TableColumn
-                    className="min-w-[200px] cursor-pointer select-none text-xs font-semibold uppercase tracking-wide text-default-500"
+                    className="min-w-48 cursor-pointer select-none text-xs font-semibold uppercase tracking-wide text-default-500"
                     onClick={() => handleColumnSort('parentFirstName')}
                   >
                     <div className="flex items-center gap-1">
                       <span>Booked by</span>
                       {filters.sortBy === 'parentFirstName' ? (
-                        <span className="text-[10px]">
-                          {filters.sortOrder === 'asc' ? '↑' : '↓'}
-                        </span>
+                        <span className="text-xs">{filters.sortOrder === 'asc' ? '↑' : '↓'}</span>
                       ) : null}
                     </div>
                   </TableColumn>
                   <TableColumn
-                    className="min-w-[220px] cursor-pointer select-none text-xs font-semibold uppercase tracking-wide text-default-500"
+                    className="min-w-56 cursor-pointer select-none text-xs font-semibold uppercase tracking-wide text-default-500"
                     onClick={() => handleColumnSort('sessionName')}
                   >
                     <div className="flex items-center gap-1">
                       <span>Session</span>
                       {filters.sortBy === 'sessionName' ? (
-                        <span className="text-[10px]">
-                          {filters.sortOrder === 'asc' ? '↑' : '↓'}
-                        </span>
+                        <span className="text-xs">{filters.sortOrder === 'asc' ? '↑' : '↓'}</span>
                       ) : null}
                     </div>
                   </TableColumn>
                   <TableColumn
-                    className="min-w-[120px] cursor-pointer select-none text-right text-xs font-semibold uppercase tracking-wide text-default-500"
+                    className="min-w-28 cursor-pointer select-none text-right text-xs font-semibold uppercase tracking-wide text-default-500"
                     onClick={() => handleColumnSort('totalAmount')}
                   >
                     <div className="flex items-center justify-end gap-1">
                       <span>Amount</span>
                       {filters.sortBy === 'totalAmount' ? (
-                        <span className="text-[10px]">
-                          {filters.sortOrder === 'asc' ? '↑' : '↓'}
-                        </span>
+                        <span className="text-xs">{filters.sortOrder === 'asc' ? '↑' : '↓'}</span>
                       ) : null}
                     </div>
                   </TableColumn>

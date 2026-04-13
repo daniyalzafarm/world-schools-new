@@ -13,10 +13,10 @@ export function WishlistEmptyState({ type = 'detail' }: WishlistEmptyStateProps)
 
   if (type === 'dashboard') {
     return (
-      <div className="col-span-full text-center py-20 px-5 bg-white rounded-[20px] border-2 border-dashed border-gray-200">
-        <div className="w-20 h-20 mx-auto mb-5 bg-[#E8FDF7] rounded-full flex items-center justify-center">
+      <div className="col-span-full text-center py-20 px-5 bg-white rounded-3xl border-2 border-dashed border-gray-200">
+        <div className="w-20 h-20 mx-auto mb-5 bg-emerald-50 rounded-full flex items-center justify-center">
           <svg
-            className="w-10 h-10 text-[#0D8B6D]"
+            className="w-10 h-10 text-teal-600"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -26,12 +26,12 @@ export function WishlistEmptyState({ type = 'detail' }: WishlistEmptyStateProps)
           </svg>
         </div>
         <h2 className="text-xl font-semibold mb-2">Create your first wishlist</h2>
-        <p className="text-gray-500 text-sm mb-6 max-w-[400px] mx-auto">
+        <p className="text-gray-500 text-sm mb-6 max-w-96 mx-auto">
           Save camps you love and organize them into wishlists. Compare options and plan the perfect
           holiday.
         </p>
         <Button
-          className="bg-[#1A2B49] text-white font-semibold px-7 py-3 rounded-xl h-auto"
+          className="bg-slate-800 text-white font-semibold px-7 py-3 rounded-xl h-auto"
           onPress={openCreateModal}
           startContent={
             <svg
@@ -55,9 +55,9 @@ export function WishlistEmptyState({ type = 'detail' }: WishlistEmptyStateProps)
   // detail type
   return (
     <div className="flex flex-col items-center justify-center py-24 px-8 text-center">
-      <div className="w-20 h-20 mb-6 bg-[#E8FDF7] rounded-full flex items-center justify-center">
+      <div className="w-20 h-20 mb-6 bg-emerald-50 rounded-full flex items-center justify-center">
         <svg
-          className="w-10 h-10 text-[#0D8B6D]"
+          className="w-10 h-10 text-teal-600"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -68,7 +68,7 @@ export function WishlistEmptyState({ type = 'detail' }: WishlistEmptyStateProps)
         </svg>
       </div>
       <h2 className="text-xl font-semibold mb-2">No camps yet</h2>
-      <p className="text-gray-500 text-sm max-w-[340px]">
+      <p className="text-gray-500 text-sm max-w-80">
         Browse camps and add them to this wishlist to start planning.
       </p>
     </div>

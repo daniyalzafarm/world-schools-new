@@ -540,7 +540,7 @@ export const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                     <GoogleMapWithSearch selectedPlace={mapLocation} className="h-full w-full" />
 
                     {/* Search Overlay */}
-                    <div className="absolute left-1/2 top-8 w-[90%] max-w-[500px] -translate-x-1/2">
+                    <div className="absolute left-1/2 top-8 w-[90%] max-w-lg -translate-x-1/2">
                       <Input
                         ref={searchInputRef}
                         value={searchQuery}

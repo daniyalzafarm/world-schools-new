@@ -199,7 +199,7 @@ export function WishlistMapPanel({ items, onPinClick }: WishlistMapPanelProps) {
 
   if (!hasAnyCoords) {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[#F8FAFC] text-gray-400">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-50 text-gray-400">
         <MapPin className="w-10 h-10 opacity-40" />
         <p className="text-sm font-medium">No locations available</p>
         <p className="text-xs text-center px-4 text-gray-400">

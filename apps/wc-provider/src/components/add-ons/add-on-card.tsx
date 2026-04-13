@@ -42,36 +42,32 @@ export function AddOnCard({ addOn, onEdit }: AddOnCardProps) {
   return (
     <div className="flex items-center gap-4 p-4 bg-default-50 rounded-xl border border-default-200 hover:border-default-300 transition-colors">
       {/* Icon */}
-      <div className="shrink-0 w-12 h-12 rounded-lg bg-default-100 flex items-center justify-center text-[24px]">
+      <div className="shrink-0 w-12 h-12 rounded-lg bg-default-100 flex items-center justify-center text-2xl">
         {addOn.icon || '📦'}
       </div>
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <div className="text-[15px] font-semibold text-default-900 mb-1">{addOn.name}</div>
+        <div className="text-sm font-semibold text-default-900 mb-1">{addOn.name}</div>
         {addOn.description && (
-          <div className="text-[14px] text-default-500 mb-2 line-clamp-1">{addOn.description}</div>
+          <div className="text-sm text-default-500 mb-2 line-clamp-1">{addOn.description}</div>
         )}
         <div className="flex items-center gap-3 flex-wrap">
-          <Chip
-            size="sm"
-            className={`text-[11px] font-semibold ${typeBadge.className}`}
-            variant="flat"
-          >
+          <Chip size="sm" className={`text-xs font-semibold ${typeBadge.className}`} variant="flat">
             {typeBadge.label}
           </Chip>
-          <span className="text-[13px] text-default-400">
+          <span className="text-sm text-default-400">
             Used in {usageCount} {usageCount === 1 ? 'camp' : 'camps'}
           </span>
         </div>
       </div>
 
       {/* Pricing */}
-      <div className="shrink-0 text-right min-w-[100px]">
-        <div className="text-[18px] font-bold text-default-900">
+      <div className="shrink-0 text-right min-w-24">
+        <div className="text-lg font-bold text-default-900">
           {addOn.currency} {price.toFixed(0)}
         </div>
-        <div className="text-[12px] text-default-400">
+        <div className="text-xs text-default-400">
           {formatPrice(price, addOn.currency, addOn.pricingUnit).split(' ').slice(2).join(' ')}
           {addOn.maxQuantity && (
             <span>

@@ -223,7 +223,7 @@ export default function CampAddOnsEditorPage() {
                   </div>
 
                   {/* Pricing */}
-                  <div className="min-w-[120px] shrink-0 text-right">
+                  <div className="min-w-28 shrink-0 text-right">
                     <div className="text-lg font-bold text-foreground">
                       {addOn.currency} {price.toFixed(0)}
                     </div>

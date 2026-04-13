@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   addToast,
   Button,
@@ -19,7 +19,7 @@ import {
   Tabs,
 } from '@heroui/react'
 import { Check, Eye, FilterX, LogIn, Search, Upload } from 'lucide-react'
-import { Input, useDebounce } from '@world-schools/ui-web'
+import { Input, PageSlot, useDebounce } from '@world-schools/ui-web'
 import { useApplicationReviewStore } from '@/stores/application-review-store'
 import { providersService } from '@/services/providers.services'
 import config from '@/config/config'
@@ -34,6 +34,18 @@ const TAB_STATUS_MAP: Record<AllProvidersTab, ApprovalStatus | undefined> = {
   rejected: 'rejected',
   suspended: 'suspended',
 }
+
+const TAB_PATHS: Record<AllProvidersTab, string> = {
+  all: '/providers',
+  'pending-review': '/providers/pending-review',
+  approved: '/providers/approved',
+  rejected: '/providers/rejected',
+  suspended: '/providers/suspended',
+}
+
+const getActiveTab = (path: string): AllProvidersTab =>
+  (Object.entries(TAB_PATHS).find(([, p]) => p === path)?.[0] as AllProvidersTab) ??
+  'pending-review'
 
 const getStatusColor = (status: ApprovalStatus) => {
   switch (status) {
@@ -95,6 +107,7 @@ const getInitials = (name: string | null | undefined) => {
 
 export function AllProvidersView() {
   const router = useRouter()
+  const pathname = usePathname()
   const {
     applications,
     pagination,
@@ -109,7 +122,7 @@ export function AllProvidersView() {
     clearFilters,
   } = useApplicationReviewStore()
 
-  const [activeTab, setActiveTab] = useState<AllProvidersTab>('all')
+  const activeTab = getActiveTab(pathname)
   const [searchInput, setSearchInput] = useState('')
   const [approvingId, setApprovingId] = useState<string | null>(null)
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null)
@@ -117,11 +130,12 @@ export function AllProvidersView() {
 
   const debouncedSearch = useDebounce(searchInput, 500)
 
-  // Initial load
+  // Initial load — set status filter based on the current tab path
   useEffect(() => {
     if (!hasInitialized.current) {
       hasInitialized.current = true
       clearFilters()
+      setFilters({ status: TAB_STATUS_MAP[activeTab] })
       void fetchTabCounts()
       void fetchApplications()
     }
@@ -138,20 +152,13 @@ export function AllProvidersView() {
   }, [fetchApplications, pagination.page, pagination.limit, filters])
 
   const handleTabChange = (key: React.Key) => {
-    const tab = key as AllProvidersTab
-    setActiveTab(tab)
-    setSearchInput('')
-    clearFilters()
-    setFilters({ status: TAB_STATUS_MAP[tab] })
-    void fetchTabCounts()
-    void fetchApplications()
+    router.push(TAB_PATHS[key as AllProvidersTab])
   }
 
   const handleClearFilters = () => {
     setSearchInput('')
     clearFilters()
     setFilters({ status: TAB_STATUS_MAP[activeTab] })
-    void fetchApplications()
   }
 
   const hasActiveFilters = searchInput !== ''
@@ -200,205 +207,213 @@ export function AllProvidersView() {
     ) : null
 
   return (
-    <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
-      <CardBody className="p-0">
-        {/* Tabs */}
-        <div className="flex border-b border-default-200 px-4 pt-3">
-          <Tabs
-            aria-label="Provider categories"
-            selectedKey={activeTab}
-            onSelectionChange={handleTabChange}
-            variant="underlined"
-            classNames={{
-              base: 'w-full',
-              tabList: 'p-0!',
-            }}
-          >
-            <Tab
-              key="all"
-              title={
-                <span className="flex items-center gap-1.5">
-                  All Providers {tabCountBadge(tabCounts.all)}
-                </span>
-              }
-            />
-            <Tab
-              key="pending-review"
-              title={
-                <span className="flex items-center gap-1.5">
-                  Pending Review {tabCountBadge(tabCounts.pendingReview, true)}
-                </span>
-              }
-            />
-            <Tab
-              key="approved"
-              title={
-                <span className="flex items-center gap-1.5">
-                  Approved {tabCountBadge(tabCounts.approved)}
-                </span>
-              }
-            />
-            <Tab
-              key="rejected"
-              title={
-                <span className="flex items-center gap-1.5">
-                  Rejected {tabCountBadge(tabCounts.rejected)}
-                </span>
-              }
-            />
-            <Tab
-              key="suspended"
-              title={
-                <span className="flex items-center gap-1.5">
-                  Suspended {tabCountBadge(tabCounts.suspended)}
-                </span>
-              }
-            />
-          </Tabs>
-        </div>
+    <PageSlot>
+      <section className="space-y-6">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">All Providers</h1>
+            <p className="mt-1 text-slate-500">Manage camp providers and their applications</p>
+          </div>
+        </header>
+        <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
+          <CardBody className="p-0">
+            {/* Tabs */}
+            <div className="flex border-b border-default-200 px-4 pt-3">
+              <Tabs
+                aria-label="Provider categories"
+                selectedKey={activeTab}
+                onSelectionChange={handleTabChange}
+                variant="underlined"
+                classNames={{
+                  base: 'w-full',
+                  tabList: 'p-0!',
+                }}
+              >
+                <Tab
+                  key="pending-review"
+                  title={
+                    <span className="flex items-center gap-1.5">
+                      Pending Review {tabCountBadge(tabCounts.pendingReview, true)}
+                    </span>
+                  }
+                />
+                <Tab
+                  key="approved"
+                  title={
+                    <span className="flex items-center gap-1.5">
+                      Approved {tabCountBadge(tabCounts.approved)}
+                    </span>
+                  }
+                />
+                <Tab
+                  key="rejected"
+                  title={
+                    <span className="flex items-center gap-1.5">
+                      Rejected {tabCountBadge(tabCounts.rejected)}
+                    </span>
+                  }
+                />
+                <Tab
+                  key="suspended"
+                  title={
+                    <span className="flex items-center gap-1.5">
+                      Suspended {tabCountBadge(tabCounts.suspended)}
+                    </span>
+                  }
+                />
+              </Tabs>
+            </div>
 
-        {/* Filter bar */}
-        <div className="flex flex-wrap items-center gap-3 border-b border-default-200 px-4 py-3">
-          <Input
-            aria-label="Search providers"
-            placeholder="Search by business name, email, or legal name…"
-            className="w-full max-w-sm shrink-0"
-            value={searchInput}
-            onValueChange={setSearchInput}
-            isClearable
-            onClear={() => setSearchInput('')}
-            startContent={<Search className="h-4 w-4 text-default-400" />}
-          />
-          {hasActiveFilters && (
-            <Button
-              variant="flat"
-              className="shrink-0"
-              startContent={<FilterX className="h-4 w-4" />}
-              onPress={handleClearFilters}
+            {/* Filter bar */}
+            <div className="flex flex-wrap items-center gap-3 border-b border-default-200 px-4 py-3">
+              <Input
+                aria-label="Search providers"
+                placeholder="Search by business name, email, or legal name…"
+                className="w-full max-w-sm shrink-0"
+                value={searchInput}
+                onValueChange={setSearchInput}
+                isClearable
+                onClear={() => setSearchInput('')}
+                startContent={<Search className="h-4 w-4 text-default-400" />}
+              />
+              {hasActiveFilters && (
+                <Button
+                  variant="flat"
+                  className="shrink-0"
+                  startContent={<FilterX className="h-4 w-4" />}
+                  onPress={handleClearFilters}
+                >
+                  Clear filters
+                </Button>
+              )}
+              <Button
+                variant="flat"
+                color="primary"
+                className="ml-auto shrink-0"
+                startContent={<Upload className="h-4 w-4" />}
+                onPress={() => router.push('/providers/import')}
+              >
+                Import Providers
+              </Button>
+            </div>
+
+            {/* Table */}
+            <Table
+              aria-label="All providers table"
+              classNames={{ wrapper: 'shadow-none rounded-none' }}
+              bottomContent={
+                pagination.total > 0 ? (
+                  <div className="flex flex-col gap-3 border-t border-default-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <span className="text-sm text-default-500">
+                      Showing {applications.length} of {pagination.total} providers
+                    </span>
+                    {pagination.totalPages > 1 ? (
+                      <Pagination
+                        total={pagination.totalPages}
+                        page={pagination.page}
+                        onChange={setPage}
+                        showControls
+                      />
+                    ) : null}
+                  </div>
+                ) : undefined
+              }
             >
-              Clear filters
-            </Button>
-          )}
-          <Button
-            variant="flat"
-            color="primary"
-            className="ml-auto shrink-0"
-            startContent={<Upload className="h-4 w-4" />}
-            onPress={() => router.push('/providers/import')}
-          >
-            Import Providers
-          </Button>
-        </div>
-
-        {/* Table */}
-        <Table
-          aria-label="All providers table"
-          classNames={{ wrapper: 'shadow-none rounded-none' }}
-          bottomContent={
-            pagination.total > 0 ? (
-              <div className="flex flex-col gap-3 border-t border-default-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                <span className="text-sm text-default-500">
-                  Showing {applications.length} of {pagination.total} providers
-                </span>
-                {pagination.totalPages > 1 ? (
-                  <Pagination
-                    total={pagination.totalPages}
-                    page={pagination.page}
-                    onChange={setPage}
-                    showControls
-                  />
-                ) : null}
-              </div>
-            ) : undefined
-          }
-        >
-          <TableHeader>
-            <TableColumn>PROVIDER</TableColumn>
-            <TableColumn>STATUS</TableColumn>
-            <TableColumn>TRUST SCORE</TableColumn>
-            <TableColumn>JOINED</TableColumn>
-            <TableColumn>ACTIONS</TableColumn>
-          </TableHeader>
-          <TableBody
-            items={applications}
-            isLoading={isLoading}
-            emptyContent={isLoading ? 'Loading…' : 'No providers found'}
-          >
-            {app => (
-              <TableRow key={app.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white">
-                      {getInitials(app.businessName)}
-                    </div>
-                    <div>
-                      <div className="font-semibold">{app.businessName}</div>
-                      {app.legalCompanyName && (
-                        <div className="text-xs text-default-500">{app.legalCompanyName}</div>
+              <TableHeader>
+                <TableColumn>PROVIDER</TableColumn>
+                <TableColumn>STATUS</TableColumn>
+                <TableColumn>TRUST SCORE</TableColumn>
+                <TableColumn>JOINED</TableColumn>
+                <TableColumn>ACTIONS</TableColumn>
+              </TableHeader>
+              <TableBody
+                items={applications}
+                isLoading={isLoading}
+                emptyContent={isLoading ? 'Loading…' : 'No providers found'}
+              >
+                {app => (
+                  <TableRow key={app.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white">
+                          {getInitials(app.businessName)}
+                        </div>
+                        <div>
+                          <div className="font-semibold">{app.businessName}</div>
+                          {app.legalCompanyName && (
+                            <div className="text-xs text-default-500">{app.legalCompanyName}</div>
+                          )}
+                          <div className="text-xs text-default-400">{app.email}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Chip size="sm" color={getStatusColor(app.approvalStatus)} variant="flat">
+                        {getStatusLabel(app.approvalStatus)}
+                      </Chip>
+                    </TableCell>
+                    <TableCell>
+                      {app.trustScore !== null && app.trustScore !== undefined ? (
+                        <Chip size="sm" color={getTrustScoreColor(app.trustScore)} variant="flat">
+                          {app.trustScore}/100
+                        </Chip>
+                      ) : (
+                        <span className="text-sm text-default-400">N/A</span>
                       )}
-                      <div className="text-xs text-default-400">{app.email}</div>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Chip size="sm" color={getStatusColor(app.approvalStatus)} variant="flat">
-                    {getStatusLabel(app.approvalStatus)}
-                  </Chip>
-                </TableCell>
-                <TableCell>
-                  {app.trustScore !== null && app.trustScore !== undefined ? (
-                    <Chip size="sm" color={getTrustScoreColor(app.trustScore)} variant="flat">
-                      {app.trustScore}/100
-                    </Chip>
-                  ) : (
-                    <span className="text-sm text-default-400">N/A</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <span className="text-sm text-default-500">{formatDate(app.createdAt)}</span>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="light"
-                      aria-label="View provider"
-                      onPress={() => router.push(`/providers/${app.id}`)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="light"
-                      color="primary"
-                      aria-label="Login as provider"
-                      isLoading={impersonatingId === app.id}
-                      onPress={() => void handleImpersonate(app)}
-                    >
-                      <LogIn className="h-4 w-4" />
-                    </Button>
-                    {activeTab === 'pending-review' && (
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="light"
-                        color="success"
-                        aria-label="Quick approve"
-                        isLoading={approvingId === app.id}
-                        onPress={() => void handleQuickApprove(app)}
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </CardBody>
-    </Card>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-default-500">{formatDate(app.createdAt)}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="light"
+                          aria-label="View provider"
+                          onPress={() =>
+                            router.push(
+                              activeTab === 'pending-review'
+                                ? `/providers/pending-review/${app.id}`
+                                : `/providers/${app.id}`
+                            )
+                          }
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="light"
+                          color="primary"
+                          aria-label="Login as provider"
+                          isLoading={impersonatingId === app.id}
+                          onPress={() => void handleImpersonate(app)}
+                        >
+                          <LogIn className="h-4 w-4" />
+                        </Button>
+                        {activeTab === 'pending-review' && (
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="light"
+                            color="success"
+                            aria-label="Quick approve"
+                            isLoading={approvingId === app.id}
+                            onPress={() => void handleQuickApprove(app)}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardBody>
+        </Card>
+      </section>
+    </PageSlot>
   )
 }

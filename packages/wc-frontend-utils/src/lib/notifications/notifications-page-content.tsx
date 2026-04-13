@@ -262,7 +262,7 @@ export function NotificationsPageContent({
               {opt.showCount && unreadCount > 0 && (
                 <span
                   className={[
-                    'inline-flex items-center justify-center min-w-[20px] h-5 rounded-full text-xs px-1.5',
+                    'inline-flex items-center justify-center min-w-5 h-5 rounded-full text-xs px-1.5',
                     isActive ? 'bg-white/20' : 'bg-gray-100 text-zinc-500',
                   ].join(' ')}
                 >

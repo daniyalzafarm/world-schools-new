@@ -181,17 +181,15 @@ export function CampEditorSidebar({ campId }: CampEditorSidebarProps) {
   }
 
   return (
-    <aside className="fixed left-0 top-0 z-100 flex h-screen w-[280px] flex-col border-r border-default-200 bg-default-50">
+    <aside className="fixed left-0 top-0 z-100 flex h-screen w-72 flex-col border-r border-default-200 bg-default-50">
       {/* Logo Header - Fixed */}
-      <div className="flex min-h-[61px] shrink-0 items-center bg-default-50 px-5 py-5">
-        <div className="flex items-center">
-          <Logo size={'md'} showText={true} />
-        </div>
+      <div className="flex min-h-16 shrink-0 items-center bg-default-50 px-5 py-5">
+        <Logo />
       </div>
 
       {/* Camp Name - Fixed */}
       <div className="shrink-0 border-b border-default-200 bg-default-50 px-5 py-4">
-        <p className="text-[11px] font-bold uppercase tracking-[0.5px] text-default-500">
+        <p className="text-xs font-bold uppercase tracking-[0.5px] text-default-500">
           EDITING CAMP
         </p>
         <h2 className="mt-1 truncate text-sm font-semibold text-foreground">
@@ -207,7 +205,7 @@ export function CampEditorSidebar({ campId }: CampEditorSidebarProps) {
 
           return (
             <div key={category} className={categoryIndex > 0 ? 'mt-6' : ''}>
-              <div className="mb-3 px-5 text-[11px] font-bold uppercase tracking-[0.5px] text-default-500">
+              <div className="mb-3 px-5 text-xs font-bold uppercase tracking-[0.5px] text-default-500">
                 {category}
               </div>
               {sections.map(section => {
@@ -224,9 +222,7 @@ export function CampEditorSidebar({ campId }: CampEditorSidebarProps) {
                     }`}
                   >
                     {/* Active Indicator */}
-                    {isCurrent && (
-                      <div className="absolute bottom-0 left-0 top-0 w-[3px] bg-primary" />
-                    )}
+                    {isCurrent && <div className="absolute bottom-0 left-0 top-0 w-1 bg-primary" />}
                     <span>{section.label}</span>
                   </button>
                 )

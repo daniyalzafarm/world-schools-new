@@ -85,7 +85,7 @@ export function HelpArticlePageContent() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-[720px] px-5 py-8">
+      <div className="mx-auto max-w-3xl px-5 py-8">
         <div className="mb-8 h-5 w-64 animate-pulse rounded bg-gray-50" />
         <div className="h-8 w-full animate-pulse rounded bg-gray-50" />
       </div>
@@ -94,7 +94,7 @@ export function HelpArticlePageContent() {
 
   if (notFound || !article) {
     return (
-      <div className="mx-auto max-w-[720px] px-5 py-12 text-center">
+      <div className="mx-auto max-w-3xl px-5 py-12 text-center">
         <p className="text-gray-500">Article not found.</p>
         <Link href={basePath} className="mt-4 inline-block text-secondary underline">
           Back to Help Center
@@ -107,7 +107,7 @@ export function HelpArticlePageContent() {
 
   return (
     <>
-      <nav className="mx-auto max-w-[720px] px-5 pt-6" aria-label="Breadcrumb">
+      <nav className="mx-auto max-w-3xl px-5 pt-6" aria-label="Breadcrumb">
         <Breadcrumbs variant="light" color="foreground">
           <BreadcrumbItem href={basePath}>Help Center</BreadcrumbItem>
           <BreadcrumbItem href={`${basePath}/${categorySlug}`}>
@@ -117,12 +117,12 @@ export function HelpArticlePageContent() {
         </Breadcrumbs>
       </nav>
 
-      <main className="mx-auto max-w-[720px] px-5 py-8 pb-20">
+      <main className="mx-auto max-w-3xl px-5 py-8 pb-20">
         <div className="mb-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
             {typeInfo.label}
           </div>
-          <h1 className="mt-2 text-3xl font-bold leading-tight text-secondary md:text-[32px]">
+          <h1 className="mt-2 text-3xl font-bold leading-tight text-secondary md:text-3xl">
             {article.title}
           </h1>
           {article.summary && (

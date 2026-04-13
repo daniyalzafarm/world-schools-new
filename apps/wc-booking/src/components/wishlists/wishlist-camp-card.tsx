@@ -66,15 +66,15 @@ export function WishlistCampCard({ item, readOnly = false, id }: WishlistCampCar
   return (
     <article
       id={id}
-      className={`relative bg-white border rounded-2xl overflow-hidden transition-all duration-200 w-[calc(33.33%-13.34px)] min-w-[260px] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] ${
+      className={`relative bg-white border rounded-2xl overflow-hidden transition-all duration-200 w-[calc(33.33%-13.34px)] min-w-64 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] ${
         isCompareSelected
-          ? 'border-[#1E2A4A] shadow-[0_0_0_2px_#1E2A4A]'
+          ? 'border-slate-800 shadow-[0_0_0_2px_#1E2A4A]'
           : 'border-gray-100 hover:border-gray-200'
       }`}
     >
       {/* Compare checkmark overlay */}
       {isCompareSelected && (
-        <div className="absolute top-2.5 left-2.5 w-7 h-7 bg-[#1E2A4A] rounded-full flex items-center justify-center z-10">
+        <div className="absolute top-2.5 left-2.5 w-7 h-7 bg-slate-800 rounded-full flex items-center justify-center z-10">
           <svg
             className="w-3.5 h-3.5 text-white"
             viewBox="0 0 24 24"
@@ -175,7 +175,7 @@ export function WishlistCampCard({ item, readOnly = false, id }: WishlistCampCar
             onClick={handleWishlistClick}
             title="Add to wishlist"
           >
-            <svg className="w-4 h-4 fill-[#EF4444] text-[#EF4444]" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 fill-red-500 text-red-500" viewBox="0 0 24 24">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
           </button>
@@ -187,7 +187,7 @@ export function WishlistCampCard({ item, readOnly = false, id }: WishlistCampCar
         {/* Camp name + rating */}
         <div className="flex justify-between items-start mb-1">
           <h2
-            className="text-[15px] font-semibold leading-snug cursor-pointer hover:text-[#0D8B6D] transition-colors break-words overflow-hidden"
+            className="text-sm font-semibold leading-snug cursor-pointer hover:text-teal-600 transition-colors break-words overflow-hidden"
             style={{ wordBreak: 'break-word' }}
             onClick={() => campSlug && router.push(`/camps/${campSlug}`)}
           >
@@ -196,21 +196,17 @@ export function WishlistCampCard({ item, readOnly = false, id }: WishlistCampCar
         </div>
 
         {/* Location */}
-        {camp?.locationName && (
-          <p className="text-[13px] text-gray-500 mb-1">{camp.locationName}</p>
-        )}
+        {camp?.locationName && <p className="text-sm text-gray-500 mb-1">{camp.locationName}</p>}
 
         <div className="flex items-center justify-between mb-2">
           {/* Price */}
-          {priceLabel && <p className="text-[13px] font-semibold text-gray-900">{priceLabel}</p>}
+          {priceLabel && <p className="text-sm font-semibold text-gray-900">{priceLabel}</p>}
           {/* Rating */}
           {rating != null && (
             <div className="flex items-center gap-1.5">
               <StarRating rating={rating} color="yellow" showRating={false} size={13} />
-              <span className="text-[12px] font-medium text-gray-700">{rating.toFixed(1)}</span>
-              {reviewsCount > 0 && (
-                <span className="text-[12px] text-gray-400">({reviewsCount})</span>
-              )}
+              <span className="text-xs font-medium text-gray-700">{rating.toFixed(1)}</span>
+              {reviewsCount > 0 && <span className="text-xs text-gray-400">({reviewsCount})</span>}
             </div>
           )}
         </div>

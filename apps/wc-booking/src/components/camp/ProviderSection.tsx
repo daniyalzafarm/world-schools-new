@@ -134,7 +134,7 @@ export function ProviderSection({ provider, campId, campSlug, campTitle }: Provi
               />
             ) : (
               <div
-                className="w-full h-full flex items-center justify-center text-[15px] font-bold text-white"
+                className="w-full h-full flex items-center justify-center text-sm font-bold text-white"
                 style={{ background: getAvatarGradient(displayName) }}
               >
                 {getInitials(displayName)}
@@ -143,13 +143,13 @@ export function ProviderSection({ provider, campId, campSlug, campTitle }: Provi
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="text-[16px] font-bold text-gray-900 leading-snug">{displayName}</div>
-            {location && <div className="text-[13px] text-gray-500 mt-0.5">{location}</div>}
+            <div className="text-base font-bold text-gray-900 leading-snug">{displayName}</div>
+            {location && <div className="text-sm text-gray-500 mt-0.5">{location}</div>}
 
             {isVerified && (
               <>
                 <div className="flex items-center gap-1.5 mt-2">
-                  <div className="w-[18px] h-[18px] bg-[#16a34a] rounded-full flex items-center justify-center shrink-0">
+                  <div className="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center shrink-0">
                     <svg
                       width="11"
                       height="11"
@@ -163,18 +163,16 @@ export function ProviderSection({ provider, campId, campSlug, campTitle }: Provi
                       <path d="M2 6l3 3 5-5" />
                     </svg>
                   </div>
-                  <span className="text-[13px] font-semibold text-[#16a34a]">
-                    Verified organizer
-                  </span>
+                  <span className="text-sm font-semibold text-green-600">Verified organizer</span>
                   {yearFounded && (
-                    <span className="text-[13px] text-gray-400">· Founded {yearFounded}</span>
+                    <span className="text-sm text-gray-400">· Founded {yearFounded}</span>
                   )}
                 </div>
-                <div className="text-[12px] text-gray-500 mt-1">Verified by World Camps</div>
+                <div className="text-xs text-gray-500 mt-1">Verified by World Camps</div>
               </>
             )}
             {!isVerified && yearFounded && (
-              <div className="text-[13px] text-gray-400 mt-1.5">Founded {yearFounded}</div>
+              <div className="text-sm text-gray-400 mt-1.5">Founded {yearFounded}</div>
             )}
           </div>
         </div>
@@ -182,26 +180,20 @@ export function ProviderSection({ provider, campId, campSlug, campTitle }: Provi
         {/* ── Stats ─────────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
           <div className="py-3.5 px-4 text-center">
-            <span className="text-[16px] font-bold text-gray-900 block mb-0.5">
+            <span className="text-base font-bold text-gray-900 block mb-0.5">
               {responseRate != null ? `${Math.round(responseRate)}%` : '—'}
             </span>
-            <span className="text-[11px] text-gray-500 uppercase tracking-[0.04em]">
-              Response rate
-            </span>
+            <span className="text-xs text-gray-500 uppercase tracking-wide">Response rate</span>
           </div>
           <div className="py-3.5 px-4 text-center">
-            <span className="text-[16px] font-bold text-gray-900 block mb-0.5">
+            <span className="text-base font-bold text-gray-900 block mb-0.5">
               {avgReplyTimeMinutes != null ? formatReplyTime(avgReplyTimeMinutes) : '—'}
             </span>
-            <span className="text-[11px] text-gray-500 uppercase tracking-[0.04em]">
-              Avg reply time
-            </span>
+            <span className="text-xs text-gray-500 uppercase tracking-wide">Avg reply time</span>
           </div>
           <div className="py-3.5 px-4 text-center">
-            <span className="text-[16px] font-bold text-gray-900 block mb-0.5">{totalCamps}</span>
-            <span className="text-[11px] text-gray-500 uppercase tracking-[0.04em]">
-              Camps listed
-            </span>
+            <span className="text-base font-bold text-gray-900 block mb-0.5">{totalCamps}</span>
+            <span className="text-xs text-gray-500 uppercase tracking-wide">Camps listed</span>
           </div>
         </div>
 

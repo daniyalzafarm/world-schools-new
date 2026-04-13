@@ -107,7 +107,7 @@ export function SessionsModal({
   }
 
   const pillClass = (active: boolean) =>
-    `px-3.5 py-1.5 rounded-full text-[13px] font-semibold border-[1.5px] transition-all ${
+    `px-3.5 py-1.5 rounded-full text-sm font-semibold border-2 transition-all ${
       active
         ? 'bg-gray-900 text-white border-gray-900'
         : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-900'
@@ -120,7 +120,7 @@ export function SessionsModal({
       hideCloseButton
       scrollBehavior="inside"
       classNames={{
-        base: 'mx-0 my-0 sm:mx-0 sm:my-0 rounded-t-[20px] rounded-b-none sm:rounded-[20px] sm:max-w-[600px] max-h-[80svh] sm:max-h-[580px] bg-white',
+        base: 'mx-0 my-0 sm:mx-0 sm:my-0 rounded-t-[20px] rounded-b-none sm:rounded-3xl sm:max-w-xl max-h-[80svh] sm:max-h-[580px] bg-white',
         backdrop: 'bg-black/50',
       }}
     >
@@ -133,7 +133,7 @@ export function SessionsModal({
           <h2 className="text-lg font-bold text-gray-900">Dates &amp; pricing</h2>
           <button
             onClick={onClose}
-            className="cursor-pointer w-9 h-9 rounded-full border-[1.5px] border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:opacity-60 transition-opacity"
+            className="cursor-pointer w-9 h-9 rounded-full border-2 border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:opacity-60 transition-opacity"
             aria-label="Close"
           >
             <svg
@@ -157,7 +157,7 @@ export function SessionsModal({
           <div className="px-6 py-3 border-b border-gray-200 shrink-0 flex flex-col gap-2">
             {monthKeys.length > 1 && (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-[0.06em] min-w-[60px]">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider min-w-16">
                   Month
                 </span>
                 <button
@@ -179,7 +179,7 @@ export function SessionsModal({
             )}
             {showAgeFilter && (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-[0.06em] min-w-[60px]">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider min-w-16">
                   Age group
                 </span>
                 <button
@@ -262,7 +262,7 @@ export function SessionsModal({
                   <a
                     href={`/camps/${campSlug}/book?sessionId=${selectedSession.id}`}
                     onClick={handleReserve}
-                    className="shrink-0 bg-primary hover:brightness-95 text-secondary text-[15px] font-bold rounded-xl py-3 px-6 transition-all whitespace-nowrap"
+                    className="shrink-0 bg-primary hover:brightness-95 text-secondary text-sm font-bold rounded-xl py-3 px-6 transition-all whitespace-nowrap"
                   >
                     Reserve →
                   </a>
@@ -274,7 +274,7 @@ export function SessionsModal({
               <span className="text-sm font-medium text-gray-400">
                 Select a session to continue
               </span>
-              <span className="shrink-0 bg-gray-200 text-gray-400 text-[15px] font-bold rounded-xl py-3 px-6 cursor-not-allowed whitespace-nowrap">
+              <span className="shrink-0 bg-gray-200 text-gray-400 text-sm font-bold rounded-xl py-3 px-6 cursor-not-allowed whitespace-nowrap">
                 Reserve →
               </span>
             </>
@@ -337,7 +337,7 @@ function SessionRadioCard({
   return (
     <div
       onClick={() => !isSoldOut && onSelect(session.id)}
-      className={`border-[1.5px] rounded-2xl p-4 bg-white transition-all flex items-start gap-3.5 ${
+      className={`border-2 rounded-2xl p-4 bg-white transition-all flex items-start gap-3.5 ${
         isSoldOut
           ? 'opacity-50 cursor-not-allowed border-gray-200'
           : selected
@@ -347,7 +347,7 @@ function SessionRadioCard({
     >
       {/* Radio */}
       <div
-        className={`w-[22px] h-[22px] rounded-full border-2 shrink-0 flex items-center justify-center mt-0.5 transition-all ${
+        className={`w-6 h-6 rounded-full border-2 shrink-0 flex items-center justify-center mt-0.5 transition-all ${
           selected ? 'border-gray-900 bg-gray-900' : 'border-gray-300 bg-white'
         }`}
       >
@@ -362,22 +362,22 @@ function SessionRadioCard({
         </p>
         <div className="flex flex-wrap gap-1.5">
           {ageLabel && (
-            <span className="text-xs font-semibold border-[1.5px] border-gray-200 rounded-full px-2.5 py-0.5 text-gray-600 bg-white">
+            <span className="text-xs font-semibold border-2 border-gray-200 rounded-full px-2.5 py-0.5 text-gray-600 bg-white">
               {ageLabel}
             </span>
           )}
           {isAmple && (
-            <span className="text-xs font-semibold border-[1.5px] border-green-200 rounded-full px-2.5 py-0.5 text-green-800 bg-green-50">
+            <span className="text-xs font-semibold border-2 border-green-200 rounded-full px-2.5 py-0.5 text-green-800 bg-green-50">
               {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
             </span>
           )}
           {isAlmostFull && (
-            <span className="text-xs font-semibold border-[1.5px] border-red-300 rounded-full px-2.5 py-0.5 text-red-700 bg-red-50">
+            <span className="text-xs font-semibold border-2 border-red-300 rounded-full px-2.5 py-0.5 text-red-700 bg-red-50">
               {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
             </span>
           )}
           {isSoldOut && (
-            <span className="text-xs font-semibold border-[1.5px] border-red-300 rounded-full px-2.5 py-0.5 text-red-700 bg-red-50">
+            <span className="text-xs font-semibold border-2 border-red-300 rounded-full px-2.5 py-0.5 text-red-700 bg-red-50">
               Fully booked
             </span>
           )}
@@ -386,15 +386,15 @@ function SessionRadioCard({
 
       {/* Price */}
       <div className="shrink-0 text-right flex flex-col items-end">
-        {isFromPrice && <p className="text-[11px] text-gray-400 mb-0.5">from</p>}
+        {isFromPrice && <p className="text-xs text-gray-400 mb-0.5">from</p>}
         <p
-          className={`text-[19px] font-extrabold leading-[1.1] tracking-tight whitespace-nowrap ${
+          className={`text-lg font-extrabold leading-none tracking-tight whitespace-nowrap ${
             isSoldOut ? 'line-through text-gray-300' : 'text-gray-900'
           }`}
         >
           {formatCurrency(price, currency)}
         </p>
-        <p className="text-[11px] text-gray-400 mt-0.5">{durationLabel}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{durationLabel}</p>
       </div>
     </div>
   )

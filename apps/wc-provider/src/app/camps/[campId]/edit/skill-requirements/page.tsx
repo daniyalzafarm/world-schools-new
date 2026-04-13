@@ -337,16 +337,16 @@ export default function SkillRequirementsPage() {
               type="button"
               onClick={() => onPick(lvl.value)}
               className={classNames(
-                'cursor-pointer border-[1.5px] rounded-lg px-3 py-2 text-center transition',
+                'cursor-pointer border-2 rounded-lg px-3 py-2 text-center transition',
                 selectedValue === lvl.value
                   ? 'border-danger bg-danger-50'
                   : 'border-default-200 hover:border-default-300 hover:bg-default-50'
               )}
             >
-              <div className="text-[17px] font-bold leading-5">{lvl.value}</div>
+              <div className="text-base font-bold leading-5">{lvl.value}</div>
               <div
                 className={classNames(
-                  'text-[11px] mt-0.5',
+                  'text-xs mt-0.5',
                   selectedValue === lvl.value ? 'text-danger-700 font-semibold' : 'text-default-500'
                 )}
               >
@@ -369,7 +369,7 @@ export default function SkillRequirementsPage() {
               type="button"
               onClick={() => onPick(lvl.value)}
               className={classNames(
-                'cursor-pointer min-w-[86px] flex-1 border-[1.5px] rounded-lg px-2.5 py-2 text-center transition',
+                'cursor-pointer min-w-20 flex-1 border-2 rounded-lg px-2.5 py-2 text-center transition',
                 selected
                   ? 'border-danger bg-danger-50'
                   : 'border-default-200 hover:border-default-300 hover:bg-default-50'
@@ -388,7 +388,7 @@ export default function SkillRequirementsPage() {
               </div>
               <div
                 className={classNames(
-                  'text-[11px]',
+                  'text-xs',
                   selected ? 'text-danger-700 font-semibold' : 'text-default-500'
                 )}
               >
@@ -415,9 +415,7 @@ export default function SkillRequirementsPage() {
         <div className="flex items-start justify-between gap-6">
           <div>
             <div className="flex items-center justify-between">
-              <h1 className="text-[28px] font-semibold leading-tight">
-                Skills &amp; Levels Required
-              </h1>
+              <h1 className="text-3xl font-semibold leading-tight">Skills &amp; Levels Required</h1>
               <AutoSaveIndicator status={saveStatus} />
             </div>
             <p className="text-sm text-default-500 mt-2 leading-6">
@@ -441,7 +439,7 @@ export default function SkillRequirementsPage() {
               key={item.activityId}
               className="border border-default-200 rounded-xl bg-background overflow-hidden hover:border-default-300 transition"
             >
-              <div className="flex items-center gap-3 px-[18px] py-4 border-b border-default-200">
+              <div className="flex items-center gap-3 px-4 py-4 border-b border-default-200">
                 <div className="h-9 w-9 rounded-lg bg-default-100 flex items-center justify-center text-lg shrink-0">
                   {act?.emoji ?? '⭐'}
                 </div>
@@ -450,7 +448,7 @@ export default function SkillRequirementsPage() {
                     {act?.name ?? item.activityId}
                   </div>
                   {tag && (
-                    <span className="inline-flex mt-0.5 px-2 py-px rounded border border-default-200 bg-default-50 text-[11px] text-default-500 font-medium">
+                    <span className="inline-flex mt-0.5 px-2 py-px rounded border border-default-200 bg-default-50 text-xs text-default-500 font-medium">
                       {tag}
                     </span>
                   )}
@@ -466,13 +464,13 @@ export default function SkillRequirementsPage() {
                 </Button>
               </div>
 
-              <div className="px-[18px] py-4">
+              <div className="px-4 py-4">
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   <button
                     type="button"
                     onClick={() => setItemMode(item.activityId, 'INFO')}
                     className={classNames(
-                      'cursor-pointer flex items-start gap-2.5 p-3 rounded-xl border-[1.5px] transition text-left',
+                      'cursor-pointer flex items-start gap-2.5 p-3 rounded-xl border-2 transition text-left',
                       mode === 'INFO'
                         ? 'border-primary bg-primary-50'
                         : 'border-default-200 hover:border-default-300 hover:bg-default-50'
@@ -480,13 +478,13 @@ export default function SkillRequirementsPage() {
                   >
                     <span
                       className={classNames(
-                        'mt-0.5 h-[15px] w-[15px] rounded-full border-2 flex items-center justify-center',
+                        'mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center',
                         mode === 'INFO' ? 'border-primary-700' : 'border-default-300'
                       )}
                     >
                       <span
                         className={classNames(
-                          'h-[7px] w-[7px] rounded-full',
+                          'h-2 w-2 rounded-full',
                           mode === 'INFO' ? 'bg-primary-700' : 'hidden'
                         )}
                       />
@@ -494,13 +492,13 @@ export default function SkillRequirementsPage() {
                     <span className="flex flex-col gap-0.5">
                       <span
                         className={classNames(
-                          'text-[13px] font-semibold',
+                          'text-sm font-semibold',
                           mode === 'INFO' ? 'text-primary-800' : 'text-default-900'
                         )}
                       >
                         Required before camp
                       </span>
-                      <span className="text-[11px] text-default-500 leading-4">
+                      <span className="text-xs text-default-500 leading-4">
                         All levels welcome, info collected post-confirmation
                       </span>
                     </span>
@@ -510,7 +508,7 @@ export default function SkillRequirementsPage() {
                     type="button"
                     onClick={() => setItemMode(item.activityId, 'GATE')}
                     className={classNames(
-                      'cursor-pointer flex items-start gap-2.5 p-3 rounded-xl border-[1.5px] transition text-left',
+                      'cursor-pointer flex items-start gap-2.5 p-3 rounded-xl border-2 transition text-left',
                       mode === 'GATE'
                         ? 'border-danger bg-danger-50'
                         : 'border-default-200 hover:border-default-300 hover:bg-default-50'
@@ -518,13 +516,13 @@ export default function SkillRequirementsPage() {
                   >
                     <span
                       className={classNames(
-                        'mt-0.5 h-[15px] w-[15px] rounded-full border-2 flex items-center justify-center',
+                        'mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center',
                         mode === 'GATE' ? 'border-danger' : 'border-default-300'
                       )}
                     >
                       <span
                         className={classNames(
-                          'h-[7px] w-[7px] rounded-full',
+                          'h-2 w-2 rounded-full',
                           mode === 'GATE' ? 'bg-danger' : 'hidden'
                         )}
                       />
@@ -532,13 +530,13 @@ export default function SkillRequirementsPage() {
                     <span className="flex flex-col gap-0.5">
                       <span
                         className={classNames(
-                          'text-[13px] font-semibold',
+                          'text-sm font-semibold',
                           mode === 'GATE' ? 'text-danger-700' : 'text-default-900'
                         )}
                       >
                         Required to book
                       </span>
-                      <span className="text-[11px] text-default-500 leading-4">
+                      <span className="text-xs text-default-500 leading-4">
                         Child can&apos;t book if level too low
                       </span>
                     </span>
@@ -547,7 +545,7 @@ export default function SkillRequirementsPage() {
 
                 {mode === 'GATE' ? (
                   <div className="border-t border-default-200 pt-4 mt-1">
-                    <div className="text-[11px] font-semibold text-default-500 tracking-wide uppercase mb-2.5">
+                    <div className="text-xs font-semibold text-default-500 tracking-wide uppercase mb-2.5">
                       Minimum required level
                     </div>
                     {renderLevelPicker({
@@ -558,7 +556,7 @@ export default function SkillRequirementsPage() {
                     })}
                   </div>
                 ) : (
-                  <p className="text-[13px] text-primary-800 bg-primary-50 rounded-lg px-3 py-2">
+                  <p className="text-sm text-primary-800 bg-primary-50 rounded-lg px-3 py-2">
                     All levels welcome. Parents will be asked for this info after the booking is
                     confirmed.
                   </p>
@@ -580,11 +578,11 @@ export default function SkillRequirementsPage() {
           onClick={closeModal}
         >
           <div
-            className="bg-content1 rounded-2xl shadow-xl w-full max-w-[500px] mx-4 overflow-hidden"
+            className="bg-content1 rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-5 border-b border-default-200">
-              <div className="text-[17px] font-semibold">
+              <div className="text-base font-semibold">
                 {mStep === 1
                   ? 'Add a required skill'
                   : mStep === 2
@@ -594,7 +592,7 @@ export default function SkillRequirementsPage() {
               <button
                 type="button"
                 onClick={closeModal}
-                className="h-[34px] w-[34px] rounded-full flex items-center justify-center text-default-500 hover:bg-default-100 transition"
+                className="h-8 w-8 rounded-full flex items-center justify-center text-default-500 hover:bg-default-100 transition"
               >
                 <X size={18} />
               </button>
@@ -604,19 +602,19 @@ export default function SkillRequirementsPage() {
               <div className="flex gap-2 mb-5">
                 <div
                   className={classNames(
-                    'h-[3px] flex-1 rounded',
+                    'h-1 flex-1 rounded',
                     mStep >= 1 ? 'bg-default-900' : 'bg-default-200'
                   )}
                 />
                 <div
                   className={classNames(
-                    'h-[3px] flex-1 rounded',
+                    'h-1 flex-1 rounded',
                     mStep >= 2 ? 'bg-default-900' : 'bg-default-200'
                   )}
                 />
                 <div
                   className={classNames(
-                    'h-[3px] flex-1 rounded',
+                    'h-1 flex-1 rounded',
                     mStep === 3 ? 'bg-default-900' : 'bg-default-200'
                   )}
                 />
@@ -633,14 +631,14 @@ export default function SkillRequirementsPage() {
                       value={mQuery}
                       onChange={e => setMQuery(e.target.value)}
                       placeholder="Search activity…"
-                      className="w-full h-11 pl-10 pr-3 rounded-lg border border-default-300 bg-background text-[15px] focus:outline-none focus:border-default-900"
+                      className="w-full h-11 pl-10 pr-3 rounded-lg border border-default-300 bg-background text-sm focus:outline-none focus:border-default-900"
                     />
                   </div>
 
                   <div className="max-h-[46vh] overflow-auto pr-1">
                     {activitiesByCategory.map(group => (
                       <div key={group.key} className="mb-2">
-                        <div className="text-[11px] font-semibold tracking-wide uppercase text-default-400 px-1 pb-1">
+                        <div className="text-xs font-semibold tracking-wide uppercase text-default-400 px-1 pb-1">
                           {group.label}
                         </div>
                         {group.items.map(a => {
@@ -699,7 +697,7 @@ export default function SkillRequirementsPage() {
                       type="button"
                       onClick={() => setMMode('INFO')}
                       className={classNames(
-                        'flex items-start gap-3 p-4 rounded-xl border-[1.5px] transition text-left',
+                        'flex items-start gap-3 p-4 rounded-xl border-2 transition text-left',
                         mMode === 'INFO'
                           ? 'border-primary bg-primary-50'
                           : 'border-default-200 hover:border-default-300'
@@ -707,7 +705,7 @@ export default function SkillRequirementsPage() {
                     >
                       <span
                         className={classNames(
-                          'mt-0.5 h-[18px] w-[18px] rounded-full border-2 flex items-center justify-center',
+                          'mt-0.5 h-5 w-5 rounded-full border-2 flex items-center justify-center',
                           mMode === 'INFO' ? 'border-primary-700' : 'border-default-300'
                         )}
                       >
@@ -730,7 +728,7 @@ export default function SkillRequirementsPage() {
                       type="button"
                       onClick={() => setMMode('GATE')}
                       className={classNames(
-                        'flex items-start gap-3 p-4 rounded-xl border-[1.5px] transition text-left',
+                        'flex items-start gap-3 p-4 rounded-xl border-2 transition text-left',
                         mMode === 'GATE'
                           ? 'border-danger bg-danger-50'
                           : 'border-default-200 hover:border-default-300'
@@ -738,7 +736,7 @@ export default function SkillRequirementsPage() {
                     >
                       <span
                         className={classNames(
-                          'mt-0.5 h-[18px] w-[18px] rounded-full border-2 flex items-center justify-center',
+                          'mt-0.5 h-5 w-5 rounded-full border-2 flex items-center justify-center',
                           mMode === 'GATE' ? 'border-danger' : 'border-default-300'
                         )}
                       >
@@ -776,7 +774,7 @@ export default function SkillRequirementsPage() {
                     </div>
                   </div>
 
-                  <div className="text-[13px] font-medium text-default-500 mb-2.5">
+                  <div className="text-sm font-medium text-default-500 mb-2.5">
                     Minimum required level
                   </div>
                   {renderLevelPicker({

@@ -209,7 +209,7 @@ export function LucideIconPicker({
                 )}
               >
                 <IconComponent size={18} className="shrink-0 text-gray-700 dark:text-gray-300" />
-                <span className="w-full truncate text-center text-[8px] text-gray-500 dark:text-gray-400">
+                <span className="w-full truncate text-center text-xs text-gray-500 dark:text-gray-400">
                   {name}
                 </span>
               </button>
@@ -230,7 +230,7 @@ export function LucideIconPicker({
       {label && (
         <label
           className={cn(
-            'text-[14px] font-bold text-foreground',
+            'text-sm font-bold text-foreground',
             'pb-0 will-change-auto origin-top-left transition-all duration-200! ease-out! motion-reduce:transition-none',
             classNames?.label
           )}
@@ -275,7 +275,7 @@ export function LucideIconPicker({
       </div>
 
       {description && (
-        <p className={cn('text-[13px] text-default-400', 'pt-1 px-1', classNames?.description)}>
+        <p className={cn('text-sm text-default-400', 'pt-1 px-1', classNames?.description)}>
           {description}
         </p>
       )}

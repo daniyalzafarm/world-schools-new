@@ -725,7 +725,7 @@ export function CatalogueScaleForm(props: CatalogueScaleFormProps) {
                       <div className={cn('text-sm font-bold font-mono', palette.chipText)}>
                         {(l.code || '?').toUpperCase()}
                       </div>
-                      <div className={cn('text-[11px] mt-0.5', palette.chipText)}>{l.label}</div>
+                      <div className={cn('text-xs mt-0.5', palette.chipText)}>{l.label}</div>
                     </div>
                   ))}
                 </div>

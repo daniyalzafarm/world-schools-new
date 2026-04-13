@@ -16,9 +16,9 @@ export function SharedWishlists({ entries, isLoading }: SharedWishlistsProps) {
         {Array.from({ length: 2 }).map((_, i) => (
           <div
             key={i}
-            className="bg-white rounded-[20px] border border-gray-100 overflow-hidden animate-pulse"
+            className="bg-white rounded-3xl border border-gray-100 overflow-hidden animate-pulse"
           >
-            <div className="h-[180px] bg-gray-100" />
+            <div className="h-44 bg-gray-100" />
             <div className="p-5 space-y-3">
               <div className="h-5 bg-gray-100 rounded w-3/4" />
               <div className="h-4 bg-gray-100 rounded w-1/2" />
@@ -31,7 +31,7 @@ export function SharedWishlists({ entries, isLoading }: SharedWishlistsProps) {
 
   if (entries.length === 0) {
     return (
-      <div className="text-center py-20 px-5 bg-white rounded-[20px] border-2 border-dashed border-gray-200">
+      <div className="text-center py-20 px-5 bg-white rounded-3xl border-2 border-dashed border-gray-200">
         <div className="w-16 h-16 mx-auto mb-4 bg-primary-50 rounded-full flex items-center justify-center">
           <svg
             className="w-8 h-8 text-primary-600"
@@ -48,7 +48,7 @@ export function SharedWishlists({ entries, isLoading }: SharedWishlistsProps) {
           </svg>
         </div>
         <h2 className="text-xl font-semibold mb-2">No shared wishlists yet</h2>
-        <p className="text-gray-500 text-sm max-w-[360px] mx-auto">
+        <p className="text-gray-500 text-sm max-w-96 mx-auto">
           When someone shares a wishlist with you, it will appear here.
         </p>
       </div>

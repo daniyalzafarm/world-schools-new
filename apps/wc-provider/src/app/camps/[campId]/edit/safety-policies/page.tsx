@@ -518,7 +518,7 @@ export default function SafetyPoliciesEditorPage() {
                   }`}
                 >
                   <span
-                    className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
                       selectedTemplate === template.id
                         ? 'border-primary-700 bg-primary-700'
                         : 'border-default-300'

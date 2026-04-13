@@ -122,7 +122,7 @@ export function SessionsSection({
             <button
               key={month}
               onClick={() => setSelectedMonth(selectedMonth === month ? 'any' : month)}
-              className={`shrink-0 inline-flex items-center gap-0.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border-[1.5px] transition-all ${
+              className={`shrink-0 inline-flex items-center gap-0.5 px-3.5 py-1.5 rounded-full text-sm font-semibold border-2 transition-all ${
                 selectedMonth === month
                   ? 'bg-gray-900 text-white border-gray-900'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-900'
@@ -130,7 +130,7 @@ export function SessionsSection({
             >
               {month.split(' ')[0]}
               <span
-                className={`text-[11px] font-normal ${selectedMonth === month ? 'opacity-60' : 'text-gray-400'}`}
+                className={`text-xs font-normal ${selectedMonth === month ? 'opacity-60' : 'text-gray-400'}`}
               >
                 ({sessionCountByMonth[month]})
               </span>
@@ -145,7 +145,7 @@ export function SessionsSection({
             <button
               key={opt.id}
               onClick={() => setSelectedAge(selectedAge === opt.id ? 'any' : opt.id)}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border-[1.5px] transition-all ${
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-semibold border-2 transition-all ${
                 selectedAge === opt.id
                   ? 'bg-gray-900 text-white border-gray-900'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-900'
@@ -201,7 +201,7 @@ export function SessionsSection({
       {hasMore && onOpenSessionsModal && (
         <button
           onClick={onOpenSessionsModal}
-          className="mt-4 w-full md:w-auto md:px-6 py-3.5 border-[1.5px] border-primary bg-primary/10 text-secondary text-sm font-bold rounded-xl text-center hover:bg-primary/20 transition-colors"
+          className="mt-4 w-full md:w-auto md:px-6 py-3.5 border-2 border-primary bg-primary/10 text-secondary text-sm font-bold rounded-xl text-center hover:bg-primary/20 transition-colors"
         >
           See all {filteredSessions.length} sessions →
         </button>
@@ -295,25 +295,25 @@ function SessionCard({
     <Wrapper
       {...(wrapperProps as any)}
       className={[
-        'no-underline border-[1.5px] rounded-[14px] px-[18px] py-4 bg-white transition-all flex items-center gap-4',
+        'no-underline border-2 rounded-xl px-4 py-4 bg-white transition-all flex items-center gap-4',
         isSoldOut
           ? 'opacity-40 cursor-not-allowed pointer-events-none border-gray-200'
           : isFewSpots
-            ? 'border-[#92400e]/30 hover:border-gray-400 hover:bg-gray-50 hover:shadow-sm cursor-pointer'
+            ? 'border-amber-800/30 hover:border-gray-400 hover:bg-gray-50 hover:shadow-sm cursor-pointer'
             : 'border-gray-200 hover:border-gray-400 hover:bg-gray-50 hover:shadow-sm cursor-pointer',
       ].join(' ')}
     >
       {/* Left: date + meta + pills */}
       <div className="flex-1 min-w-0">
         <p
-          className={`text-[18px] font-extrabold leading-tight mb-1 ${
+          className={`text-lg font-extrabold leading-tight mb-1 ${
             isSoldOut ? 'line-through text-gray-400' : 'text-gray-900'
           }`}
         >
           {session.name || dateRange}
         </p>
-        {session.name && <p className="text-[15px] text-gray-500 mb-1 leading-snug">{dateRange}</p>}
-        <div className="flex items-center flex-wrap gap-1.5 text-[15px] text-gray-500 mb-2">
+        {session.name && <p className="text-sm text-gray-500 mb-1 leading-snug">{dateRange}</p>}
+        <div className="flex items-center flex-wrap gap-1.5 text-sm text-gray-500 mb-2">
           <span>
             {startDayName} → {endDayName}
           </span>
@@ -327,7 +327,7 @@ function SessionCard({
             </span>
           )}
           {isFewSpots && spotsLeft !== null && (
-            <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-[#fef3c7] text-[#92400e]">
+            <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
               ⚡ {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
             </span>
           )}
@@ -341,15 +341,15 @@ function SessionCard({
 
       {/* Right: price */}
       <div className="flex flex-col items-end gap-0.5 shrink-0">
-        <p className="text-[11px] text-gray-400 leading-none">from</p>
+        <p className="text-xs text-gray-400 leading-none">from</p>
         <p
-          className={`text-[20px] font-extrabold leading-tight whitespace-nowrap ${
+          className={`text-xl font-extrabold leading-tight whitespace-nowrap ${
             isSoldOut ? 'line-through text-gray-400' : 'text-gray-900'
           }`}
         >
           {formattedPrice}
         </p>
-        <p className="text-[13px] text-gray-400 leading-none">/ {durationLabel}</p>
+        <p className="text-sm text-gray-400 leading-none">/ {durationLabel}</p>
       </div>
     </Wrapper>
   )
@@ -394,7 +394,7 @@ function SessionRadioCard({
         selected ? 'border-gray-900 bg-gray-900' : 'border-gray-300'
       }`}
     >
-      {selected && <div className="w-[7px] h-[7px] rounded-full bg-white" />}
+      {selected && <div className="w-2 h-2 rounded-full bg-white" />}
     </div>
   )
 
@@ -402,20 +402,20 @@ function SessionRadioCard({
     <div
       onClick={() => !isSoldOut && onSelect(session.id)}
       className={[
-        'border-[1.5px] rounded-[14px] px-[18px] py-4 bg-white transition-all',
+        'border-2 rounded-xl px-4 py-4 bg-white transition-all',
         isSoldOut
           ? 'opacity-40 cursor-not-allowed pointer-events-none border-gray-200'
           : selected
             ? 'border-gray-900 bg-gray-50 shadow-sm cursor-pointer'
             : isFewSpots
-              ? 'border-[#92400e]/30 hover:border-gray-400 hover:bg-gray-50 hover:shadow-sm cursor-pointer'
+              ? 'border-amber-800/30 hover:border-gray-400 hover:bg-gray-50 hover:shadow-sm cursor-pointer'
               : 'border-gray-200 hover:border-gray-400 hover:bg-gray-50 hover:shadow-sm cursor-pointer',
       ].join(' ')}
     >
       {/* Row 1: date heading + radio */}
       <div className="flex items-start justify-between gap-3 mb-1">
         <p
-          className={`text-[18px] font-extrabold leading-tight flex-1 ${
+          className={`text-lg font-extrabold leading-tight flex-1 ${
             isSoldOut ? 'line-through text-gray-400' : 'text-gray-900'
           }`}
         >
@@ -423,9 +423,9 @@ function SessionRadioCard({
         </p>
         {radioDot}
       </div>
-      {session.name && <p className="text-[15px] text-gray-500 mb-1 leading-snug">{dateRange}</p>}
+      {session.name && <p className="text-sm text-gray-500 mb-1 leading-snug">{dateRange}</p>}
       {/* Meta row */}
-      <div className="flex items-center flex-wrap gap-1.5 text-[15px] text-gray-500 mb-2">
+      <div className="flex items-center flex-wrap gap-1.5 text-sm text-gray-500 mb-2">
         <span>
           {startDayName} → {endDayName}
         </span>
@@ -441,7 +441,7 @@ function SessionRadioCard({
             </span>
           )}
           {isFewSpots && spotsLeft !== null && (
-            <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-[#fef3c7] text-[#92400e]">
+            <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
               ⚡ {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
             </span>
           )}
@@ -452,15 +452,15 @@ function SessionRadioCard({
           )}
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-[11px] text-gray-400 leading-none mb-0.5">from</p>
+          <p className="text-xs text-gray-400 leading-none mb-0.5">from</p>
           <p
-            className={`text-[20px] font-extrabold leading-tight whitespace-nowrap ${
+            className={`text-xl font-extrabold leading-tight whitespace-nowrap ${
               isSoldOut ? 'line-through text-gray-400' : 'text-gray-900'
             }`}
           >
             {formattedPrice}
           </p>
-          <p className="text-[13px] text-gray-400 leading-none">/ {durationLabel}</p>
+          <p className="text-sm text-gray-400 leading-none">/ {durationLabel}</p>
         </div>
       </div>
     </div>

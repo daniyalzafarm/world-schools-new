@@ -21,7 +21,7 @@ export function BookingDetailMapPanel({
 
   if (!hasCoords && !hasPlaceId) {
     return (
-      <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 bg-default-100 text-default-500 lg:min-h-0">
+      <div className="flex h-full min-h-72 flex-col items-center justify-center gap-2 bg-default-100 text-default-500 lg:min-h-0">
         <span className="text-3xl" aria-hidden>
           🗺️
         </span>
@@ -35,7 +35,7 @@ export function BookingDetailMapPanel({
 
   return (
     <GoogleMapsLoader apiKey={config.maps.googleApiKey}>
-      <div className="h-full min-h-[280px] w-full lg:min-h-0">
+      <div className="h-full min-h-72 w-full lg:min-h-0">
         <GoogleMapWithSearch
           selectedPlace={{
             lat: hasCoords ? lat : 0,

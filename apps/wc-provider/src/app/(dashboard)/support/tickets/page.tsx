@@ -162,7 +162,7 @@ export default function SupportTicketsPage() {
             as={Link}
             href="/support/tickets/new"
             color="primary"
-            className="bg-[#1E2A4A] text-white shrink-0"
+            className="bg-secondary text-white shrink-0"
             startContent={<Plus size={18} />}
           >
             New support ticket
@@ -214,9 +214,9 @@ export default function SupportTicketsPage() {
               >
                 {label}
                 <span
-                  className={`ml-1.5 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-semibold ${
+                  className={`ml-1.5 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs font-semibold ${
                     activeTab === id
-                      ? 'bg-[#1E2A4A] text-white'
+                      ? 'bg-secondary text-white'
                       : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                   }`}
                 >
@@ -243,7 +243,7 @@ export default function SupportTicketsPage() {
                 <Button
                   as={Link}
                   href="/support/tickets/new"
-                  className="bg-[#1E2A4A] text-white"
+                  className="bg-secondary text-white"
                   startContent={<Plus size={18} />}
                 >
                   New support ticket
@@ -281,7 +281,7 @@ export default function SupportTicketsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
-                      <h3 className="text-[15px] font-semibold text-slate-900 dark:text-white leading-snug">
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white leading-snug">
                         {ticket.subject}
                       </h3>
                       <span className="text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">

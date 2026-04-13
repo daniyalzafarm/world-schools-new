@@ -91,7 +91,7 @@ export function DesktopReviewSidebar() {
   const total = campFee + extrasRows.reduce((sum, row) => sum + row.total, 0)
 
   return (
-    <aside className="hidden lg:block sticky top-[120px] md:top-[128px]">
+    <aside className="hidden lg:block sticky top-28 md:top-32">
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="p-5 border-b border-gray-200">
           <div className="flex items-center gap-4">

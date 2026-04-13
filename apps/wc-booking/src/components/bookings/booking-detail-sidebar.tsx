@@ -22,7 +22,7 @@ function ActionRow({ href, label }: { href: string; label: string }) {
       href={href}
       className="flex items-center justify-between border-b border-default-200 py-4 text-default-800 transition-opacity hover:opacity-80"
     >
-      <span className="text-[15px] font-medium">{label}</span>
+      <span className="text-sm font-medium">{label}</span>
       <ChevronRight className="h-5 w-5 text-default-300" aria-hidden />
     </Link>
   )
@@ -92,12 +92,12 @@ export function BookingDetailSidebar({ detail }: { detail: ParentBookingGroupDet
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-default-200 bg-default-200 dark:border-slate-700">
         <div className="bg-white p-4 dark:bg-slate-900">
           <p className="text-xs text-default-500">Drop-off</p>
-          <p className="mt-1 text-[15px] font-medium text-secondary">{dropoffDate}</p>
+          <p className="mt-1 text-sm font-medium text-secondary">{dropoffDate}</p>
           {dropoffTime ? <p className="text-sm text-default-500">{dropoffTime}</p> : null}
         </div>
         <div className="bg-white p-4 dark:bg-slate-900">
           <p className="text-xs text-default-500">Pick-up</p>
-          <p className="mt-1 text-[15px] font-medium text-secondary">{pickupDate}</p>
+          <p className="mt-1 text-sm font-medium text-secondary">{pickupDate}</p>
           {pickupTime ? <p className="text-sm text-default-500">{pickupTime}</p> : null}
         </div>
       </div>
@@ -179,7 +179,7 @@ export function BookingDetailSidebar({ detail }: { detail: ParentBookingGroupDet
                   </div>
                   {i < steps.length - 1 ? (
                     <div
-                      className={`my-1 w-0.5 flex-1 min-h-[20px] ${
+                      className={`my-1 w-0.5 flex-1 min-h-5 ${
                         isDone ? 'bg-success-500/40' : 'bg-default-200 dark:bg-slate-700'
                       }`}
                     />

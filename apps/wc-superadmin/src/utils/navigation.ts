@@ -45,11 +45,6 @@ export const ROUTES: RouteConfig[] = [
     label: 'All Providers',
   },
   {
-    path: '/provider-requests',
-    permission: 'provider_applications.read',
-    label: 'Provider Requests',
-  },
-  {
     path: '/notifications',
     label: 'Notifications',
     // No permission required - available to all

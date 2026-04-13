@@ -580,7 +580,7 @@ export function SessionForm({
                   )
                   return (
                     <div key={ageGroupId} className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-default-700 min-w-[100px]">
+                      <span className="text-sm font-medium text-default-700 min-w-24">
                         Ages {ageGroup.min}-{ageGroup.max}
                       </span>
                       <CurrencyInput
@@ -689,7 +689,7 @@ export function SessionForm({
                   )
                   return (
                     <div key={ageGroupId} className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-default-700 min-w-[100px]">
+                      <span className="text-sm font-medium text-default-700 min-w-24">
                         Ages {ageGroup.min}-{ageGroup.max}
                       </span>
                       <Input

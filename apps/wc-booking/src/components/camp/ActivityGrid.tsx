@@ -47,7 +47,7 @@ export function ActivityGrid({
           {visibleActivities.map(activity => (
             <span
               key={activity.id}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-[13.5px] font-semibold text-gray-900 whitespace-nowrap"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-semibold text-gray-900 whitespace-nowrap"
             >
               {activity.icon && activity.icon !== '✨' && (
                 <span className="text-base leading-none" aria-hidden="true">
@@ -68,7 +68,7 @@ export function ActivityGrid({
                   {activity.icon}
                 </span>
               )}
-              <span className="text-[13.5px] text-gray-800 leading-tight">{activity.name}</span>
+              <span className="text-sm text-gray-800 leading-tight">{activity.name}</span>
             </div>
           ))}
         </div>
@@ -83,7 +83,7 @@ export function ActivityGrid({
               {activity.icon && activity.icon !== '✨' && (
                 <div className="text-2xl mb-2">{activity.icon}</div>
               )}
-              <div className="text-[13px] font-semibold text-gray-900 leading-tight">
+              <div className="text-sm font-semibold text-gray-900 leading-tight">
                 {activity.name}
               </div>
             </div>
@@ -94,7 +94,7 @@ export function ActivityGrid({
       {hasMore && !pill && (
         <button
           onClick={() => setShowAll(!showAll)}
-          className="w-full py-3 mt-1 border-[1.5px] border-gray-200 rounded-xl text-[14px] font-semibold text-gray-600 bg-white hover:border-gray-400 hover:text-gray-900 transition-all"
+          className="w-full py-3 mt-1 border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-600 bg-white hover:border-gray-400 hover:text-gray-900 transition-all"
         >
           {showAll ? 'Show less' : `Show all ${total} activities`}
         </button>

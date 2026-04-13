@@ -275,13 +275,13 @@ export default function InterestsAndAbilitiesPage() {
       {/* ===== INTERESTS SECTION ===== */}
       <section className={mobileTab === 'skills' ? 'hidden md:block' : ''}>
         <div className="mb-6">
-          <h2 className="text-[17px] font-semibold text-foreground mb-1">Interests</h2>
+          <h2 className="text-base font-semibold text-foreground mb-1">Interests</h2>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[13px] text-default-500">Select what {child.firstName} enjoys.</p>
+            <p className="text-sm text-default-500">Select what {child.firstName} enjoys.</p>
             <div className="flex items-center gap-1.5 text-xs font-medium">
               <span
                 className={[
-                  'h-[7px] w-[7px] rounded-full',
+                  'h-2 w-2 rounded-full',
                   interestsSaveStatus === 'saving'
                     ? 'bg-warning'
                     : interestsSaveStatus === 'success'
@@ -321,10 +321,10 @@ export default function InterestsAndAbilitiesPage() {
                 type="button"
                 onClick={() => toggleInterestCategory(id)}
                 className={[
-                  'cursor-pointer inline-flex items-center gap-2 rounded-full border-[1.5px] bg-background text-[14px] font-medium text-foreground select-none',
+                  'cursor-pointer inline-flex items-center gap-2 rounded-full border-2 bg-background text-sm font-medium text-foreground select-none',
                   selected
-                    ? 'border-foreground border-2 px-[17px] py-[9px]'
-                    : 'border-default-200 px-[18px] py-[10px] hover:border-default-300',
+                    ? 'border-foreground border-2 px-4 py-2'
+                    : 'border-default-200 px-4 py-2.5 hover:border-default-300',
                 ].join(' ')}
               >
                 <span className="leading-none">{cat.emoji ?? '•'}</span>
@@ -336,7 +336,7 @@ export default function InterestsAndAbilitiesPage() {
 
         {anyInterestSelected && (
           <div className="mb-14">
-            <p className="text-[13px] text-default-500 mb-5">
+            <p className="text-sm text-default-500 mb-5">
               <strong className="text-foreground font-semibold">Get more specific</strong> —
               optional
             </p>
@@ -349,7 +349,7 @@ export default function InterestsAndAbilitiesPage() {
                   const selectedSpecifics = specificsByCategoryId.get(id) ?? []
                   return (
                     <div key={`spec-${id}`}>
-                      <div className="text-[11px] font-semibold tracking-[0.6px] uppercase text-default-400 mb-2.5">
+                      <div className="text-xs font-semibold tracking-[0.6px] uppercase text-default-400 mb-2.5">
                         {cat.name}
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -362,9 +362,9 @@ export default function InterestsAndAbilitiesPage() {
                               type="button"
                               onClick={() => toggleInterestCategory(id, actId)}
                               className={[
-                                'cursor-pointer inline-flex items-center gap-1.5 rounded-full border-[1.5px] bg-background text-[14px] font-normal text-foreground select-none',
+                                'cursor-pointer inline-flex items-center gap-1.5 rounded-full border-2 bg-background text-sm font-normal text-foreground select-none',
                                 selected
-                                  ? 'border-foreground border-2 px-[15px] py-[7px]'
+                                  ? 'border-foreground border-2 px-4 py-2'
                                   : 'border-default-200 px-4 py-2 hover:border-default-300',
                               ].join(' ')}
                             >
@@ -385,8 +385,8 @@ export default function InterestsAndAbilitiesPage() {
       {/* ===== SKILLS SECTION ===== */}
       <section className={mobileTab === 'interests' ? 'hidden md:block' : ''}>
         <div className="mb-6">
-          <h2 className="text-[17px] font-semibold text-foreground mb-1">Skills & Levels</h2>
-          <p className="text-[13px] text-default-500">
+          <h2 className="text-base font-semibold text-foreground mb-1">Skills & Levels</h2>
+          <p className="text-sm text-default-500">
             Add specific skills and {child.firstName}&apos;s current level. Camps use this to place{' '}
             {child.firstName} in the right group.
           </p>
@@ -408,7 +408,7 @@ export default function InterestsAndAbilitiesPage() {
               return (
                 <div
                   key={s.activityId}
-                  className="flex items-center gap-3 px-[18px] py-4 border-b border-default-200 last:border-b-0"
+                  className="flex items-center gap-3 px-4 py-4 border-b border-default-200 last:border-b-0"
                 >
                   <div className="h-9 w-9 rounded-lg bg-default-100 flex items-center justify-center text-lg shrink-0">
                     {act?.emoji ?? '•'}
@@ -420,19 +420,19 @@ export default function InterestsAndAbilitiesPage() {
                     <div className="flex items-center gap-2 mt-1">
                       {isCefr ? (
                         <>
-                          <span className="inline-flex items-center px-[7px] py-px rounded-md border border-default-200 bg-default-100 text-xs font-semibold text-foreground">
+                          <span className="inline-flex items-center px-2 py-px rounded-md border border-default-200 bg-default-100 text-xs font-semibold text-foreground">
                             {s.level}
                           </span>
                           <span className="text-xs text-default-500">{currentLabel}</span>
                         </>
                       ) : (
                         <>
-                          <div className="flex items-center gap-[3px]">
+                          <div className="flex items-center gap-1">
                             {Array.from({ length: levels.length || 3 }).map((_, idx) => (
                               <span
                                 key={idx}
                                 className={[
-                                  'h-[7px] w-[7px] rounded-full',
+                                  'h-2 w-2 rounded-full',
                                   idx < filled ? 'bg-foreground' : 'bg-default-200',
                                 ].join(' ')}
                               />

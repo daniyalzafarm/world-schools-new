@@ -30,24 +30,21 @@ export function HelpSearchPageContent() {
 
   return (
     <>
-      <nav
-        className="mx-auto max-w-[800px] px-5 pt-6 text-sm text-gray-500"
-        aria-label="Breadcrumb"
-      >
+      <nav className="mx-auto max-w-3xl px-5 pt-6 text-sm text-gray-500" aria-label="Breadcrumb">
         <Breadcrumbs variant="light" color="foreground">
           <BreadcrumbItem href={basePath}>Help Center</BreadcrumbItem>
           <BreadcrumbItem>Search results</BreadcrumbItem>
         </Breadcrumbs>
       </nav>
 
-      <main className="mx-auto max-w-[800px] px-5 py-8 pb-20">
+      <main className="mx-auto max-w-3xl px-5 py-8 pb-20">
         {!q || q.length < 2 ? (
-          <p className="text-[15px] text-gray-500">Enter at least 2 characters to search.</p>
+          <p className="text-sm text-gray-500">Enter at least 2 characters to search.</p>
         ) : loading ? (
           <>
             <div className="results-header mb-6">
               <h1 className="results-title text-2xl font-bold text-secondary">Search results</h1>
-              <p className="results-count mt-2 text-[15px] text-gray-500">Searching…</p>
+              <p className="results-count mt-2 text-sm text-gray-500">Searching…</p>
             </div>
             <div className="results-list flex flex-col gap-4">
               {[1, 2, 3].map(i => (
@@ -70,10 +67,10 @@ export function HelpSearchPageContent() {
             <h2 className="no-results-title mb-2 text-xl font-semibold text-secondary">
               No results found
             </h2>
-            <p className="no-results-text mb-6 text-[15px] text-gray-500">
+            <p className="no-results-text mb-6 text-sm text-gray-500">
               We couldn&apos;t find any articles matching &quot;{q}&quot;
             </p>
-            <div className="no-results-suggestions mx-auto mb-6 max-w-[400px] rounded-xl bg-gray-50 p-5 text-left">
+            <div className="no-results-suggestions mx-auto mb-6 max-w-96 rounded-xl bg-gray-50 p-5 text-left">
               <h3 className="no-results-suggestions-title mb-3 text-sm font-semibold text-secondary">
                 Try these tips:
               </h3>
@@ -95,7 +92,7 @@ export function HelpSearchPageContent() {
           <>
             <div className="results-header mb-6">
               <h1 className="results-title text-2xl font-bold text-secondary">Search results</h1>
-              <p className="results-count mt-2 text-[15px] text-gray-500">
+              <p className="results-count mt-2 text-sm text-gray-500">
                 {results.length} result{results.length !== 1 ? 's' : ''} for{' '}
                 <span className="results-query font-semibold text-secondary">&quot;{q}&quot;</span>
               </p>
@@ -111,7 +108,7 @@ export function HelpSearchPageContent() {
                   <div className="result-category mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
                     {highlightSearchText(art.category.name, q)}
                   </div>
-                  <h2 className="result-title mb-2 text-[17px] font-semibold text-secondary">
+                  <h2 className="result-title mb-2 text-base font-semibold text-secondary">
                     {highlightSearchText(art.title, q)}
                   </h2>
                   {art.summary && (
@@ -124,7 +121,7 @@ export function HelpSearchPageContent() {
             </div>
 
             <section className="contact-cta mt-12 rounded-xl bg-gray-50 p-6 text-center">
-              <p className="contact-cta-text mb-4 text-[15px] text-gray-500">
+              <p className="contact-cta-text mb-4 text-sm text-gray-500">
                 Didn&apos;t find what you were looking for?
               </p>
               <Link

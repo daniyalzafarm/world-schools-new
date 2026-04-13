@@ -274,7 +274,7 @@ export default function CampPage() {
       {/* ── 1. Hero Gallery ─────────────────────────────────────────── */}
       <div id="gallery">
         {/* Mobile — module-02 Variant C: single photo + count badge */}
-        <div className="block sm:hidden relative w-full h-[240px] overflow-hidden bg-gray-200">
+        <div className="block sm:hidden relative w-full h-60 overflow-hidden bg-gray-200">
           <img
             src={primaryPhotoUrl || '/placeholder-camp.jpg'}
             alt={camp.name}
@@ -380,7 +380,7 @@ export default function CampPage() {
             {/* ── 3. About ──────────────────────────────────────────── */}
             <section id="about" className="mb-10 scroll-mt-14 pt-6 md:mb-12 md:scroll-mt-16">
               {/* Module 01 — camp title */}
-              <h1 className="mb-2 text-[26px] leading-tight font-bold text-gray-900 sm:text-3xl lg:text-[36px]">
+              <h1 className="mb-2 text-2xl leading-tight font-bold text-gray-900 sm:text-3xl lg:text-4xl">
                 {camp.name}
               </h1>
 
@@ -391,7 +391,7 @@ export default function CampPage() {
                 headerAddress) && (
                 <div className="mb-4 flex flex-col gap-y-1.5 text-base text-gray-600 md:mb-5">
                   {(headerRating != null || isVerifiedProvider || headerTrustScore != null) && (
-                    <div className="flex flex-wrap items-center gap-2 text-[15px]">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
                       {headerRating != null && (
                         <span className="flex items-center gap-1">
                           <StarRating
@@ -443,7 +443,7 @@ export default function CampPage() {
                   )}
 
                   {headerAddress && (
-                    <div className="flex flex-wrap items-center gap-2 text-[15px]">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
                       <MapPin size={16} />
                       <span>{headerAddress}</span>
                       <span className="text-gray-500">·</span>
@@ -539,7 +539,7 @@ export default function CampPage() {
                       strokeWidth="1.8"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      className="w-[26px] h-[26px] shrink-0 text-gray-900"
+                      className="w-6 h-6 shrink-0 text-gray-900"
                     >
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                     </svg>
@@ -593,14 +593,14 @@ export default function CampPage() {
                 (camp.campusFacilities.campusSize || camp.campusFacilities.campusSetting) && (
                   <div className="flex flex-wrap gap-2 mb-7">
                     {camp.campusFacilities.campusSize && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-[13px] text-gray-700">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm text-gray-700">
                         🏕️{' '}
                         {CAMPUS_SIZE.find(s => s.value === camp.campusFacilities?.campusSize)
                           ?.label || camp.campusFacilities.campusSize}
                       </span>
                     )}
                     {camp.campusFacilities.campusSetting && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-[13px] text-gray-700">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm text-gray-700">
                         🌿{' '}
                         {CAMPUS_SETTING.find(s => s.value === camp.campusFacilities?.campusSetting)
                           ?.label || camp.campusFacilities.campusSetting}
@@ -612,7 +612,7 @@ export default function CampPage() {
               {/* Campus facilities */}
               {camp.campusFacilities?.selectedFacilities?.length ? (
                 <div className="mb-7">
-                  <p className="text-[13px] font-bold uppercase tracking-[0.06em] text-gray-500 mb-[14px]">
+                  <p className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3.5">
                     Campus facilities
                   </p>
                   <div
@@ -623,8 +623,8 @@ export default function CampPage() {
                       const f = PREDEFINED_FACILITIES.find(f => f.id === id)
                       if (!f) return null
                       return (
-                        <div key={id} className="flex items-center gap-2 text-[14px] text-gray-700">
-                          <span className="text-[18px] shrink-0">{f.icon}</span>
+                        <div key={id} className="flex items-center gap-2 text-sm text-gray-700">
+                          <span className="text-lg shrink-0">{f.icon}</span>
                           {f.name}
                         </div>
                       )
@@ -636,7 +636,7 @@ export default function CampPage() {
               {/* Map */}
               {(camp.locationLat && camp.locationLng) || camp.locationPlaceId ? (
                 <GoogleMapsLoader apiKey={config.maps.googleApiKey}>
-                  <div className="h-[220px] w-full rounded-2xl overflow-hidden border border-gray-200 mb-2.5">
+                  <div className="h-56 w-full rounded-2xl overflow-hidden border border-gray-200 mb-2.5">
                     <GoogleMapWithSearch
                       selectedPlace={{
                         lat: camp.locationLat != null ? Number(camp.locationLat) : 0,
@@ -651,14 +651,14 @@ export default function CampPage() {
 
               {/* Address + See full map link */}
               {camp.locationAddress && (
-                <p className="text-[14px] text-gray-500 mb-1">{camp.locationAddress}</p>
+                <p className="text-sm text-gray-500 mb-1">{camp.locationAddress}</p>
               )}
               {(camp.locationLat && camp.locationLng) || camp.locationAddress ? (
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(camp.locationAddress || `${camp.locationLat},${camp.locationLng}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[14px] font-semibold text-secondary inline-flex items-center gap-1 mb-7"
+                  className="text-sm font-semibold text-secondary inline-flex items-center gap-1 mb-7"
                 >
                   See full map
                   <svg
@@ -692,11 +692,11 @@ export default function CampPage() {
                 if (!transportItems.length && !overallDescription) return null
                 return (
                   <>
-                    <p className="text-[13px] font-bold uppercase tracking-[0.06em] text-gray-500 mb-0">
+                    <p className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-0">
                       Getting there
                     </p>
                     {overallDescription && (
-                      <p className="text-[14px] text-gray-500 mt-3 mb-1 leading-relaxed">
+                      <p className="text-sm text-gray-500 mt-3 mb-1 leading-relaxed">
                         {overallDescription}
                       </p>
                     )}
@@ -709,17 +709,13 @@ export default function CampPage() {
                               key={item.id}
                               className="flex items-center gap-4 py-4 border-b border-gray-100 last:border-b-0"
                             >
-                              <span className="text-[22px] shrink-0 w-10 text-center">
-                                {item.icon}
-                              </span>
+                              <span className="text-xl shrink-0 w-10 text-center">{item.icon}</span>
                               <div className="flex-1 min-w-0">
-                                <div className="text-[15px] font-semibold text-gray-900 mb-0.5">
+                                <div className="text-sm font-semibold text-gray-900 mb-0.5">
                                   {item.name}
                                 </div>
                                 {detail.description && (
-                                  <div className="text-[14px] text-gray-500">
-                                    {detail.description}
-                                  </div>
+                                  <div className="text-sm text-gray-500">{detail.description}</div>
                                 )}
                               </div>
                               {detail.moreInfoUrl && (
@@ -727,7 +723,7 @@ export default function CampPage() {
                                   href={detail.moreInfoUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-[14px] font-medium text-secondary whitespace-nowrap shrink-0 hover:underline"
+                                  className="text-sm font-medium text-secondary whitespace-nowrap shrink-0 hover:underline"
                                 >
                                   More info
                                 </a>

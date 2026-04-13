@@ -21,9 +21,9 @@ export function NotificationBadge({
   const displayCount = count > maxCount ? `${maxCount}+` : count.toString()
 
   const sizeClasses = {
-    sm: 'h-4 min-w-[16px] text-[10px] px-1',
-    md: 'h-5 min-w-[20px] text-xs px-1.5',
-    lg: 'h-6 min-w-[24px] text-sm px-2',
+    sm: 'h-4 min-w-4 text-xs px-1',
+    md: 'h-5 min-w-5 text-xs px-1.5',
+    lg: 'h-6 min-w-6 text-sm px-2',
   }
 
   return (

@@ -45,7 +45,7 @@ function StepBars({ currentStep }: { currentStep: string }) {
         <div
           key={idx}
           className={[
-            'h-1 flex-1 rounded-[2px]',
+            'h-1 flex-1 rounded-sm',
             b.done ? 'bg-emerald-500' : '',
             b.active ? 'bg-gray-900' : '',
             !b.done && !b.active ? 'bg-gray-200' : '',

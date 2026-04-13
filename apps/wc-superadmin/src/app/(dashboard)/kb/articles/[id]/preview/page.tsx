@@ -104,7 +104,7 @@ export default function KbArticlePreviewPage() {
           }
           previewMode
         />
-        <div className="mx-auto max-w-[720px] px-5 py-8">
+        <div className="mx-auto max-w-3xl px-5 py-8">
           <div className="mb-8 h-5 w-64 animate-pulse rounded bg-gray-50" />
           <div className="h-8 w-full animate-pulse rounded bg-gray-50" />
         </div>
@@ -116,7 +116,7 @@ export default function KbArticlePreviewPage() {
     return (
       <div className="flex h-full flex-col overflow-hidden">
         <ArticleEditorTopBar title="Preview" breadcrumb="Knowledge Base" previewMode />
-        <div className="mx-auto max-w-[720px] px-5 py-12 text-center">
+        <div className="mx-auto max-w-3xl px-5 py-12 text-center">
           <p className="text-gray-500">Article not found.</p>
           <Link href="/kb/articles" className="mt-4 inline-block text-primary underline">
             Back to Articles
@@ -163,8 +163,8 @@ export default function KbArticlePreviewPage() {
       />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <main className="mx-auto max-w-[720px] px-5 py-8 pb-20">
-          <nav className="max-w-[720px] pb-6" aria-label="Breadcrumb">
+        <main className="mx-auto max-w-3xl px-5 py-8 pb-20">
+          <nav className="max-w-3xl pb-6" aria-label="Breadcrumb">
             <Breadcrumbs variant="light" color="foreground">
               <BreadcrumbItem>Help Center</BreadcrumbItem>
               {category && <BreadcrumbItem>{category.name}</BreadcrumbItem>}
@@ -175,7 +175,7 @@ export default function KbArticlePreviewPage() {
             <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
               {typeInfo.label}
             </div>
-            <h1 className="mt-2 text-3xl font-bold leading-tight text-secondary md:text-[32px]">
+            <h1 className="mt-2 text-3xl font-bold leading-tight text-secondary md:text-3xl">
               {article.title}
             </h1>
             {article.summary && (

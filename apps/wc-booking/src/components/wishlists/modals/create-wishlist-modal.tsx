@@ -135,7 +135,7 @@ export function CreateWishlistModal({ isOpen, onClose, wishlist }: CreateWishlis
                       <span>{child.firstName}</span>
                       {/* Check */}
                       <div
-                        className={`w-[18px] h-[18px] rounded-[5px] border-2 flex items-center justify-center transition-all ${
+                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
                           isSelected ? 'bg-gray-900 border-gray-900' : 'border-gray-300'
                         }`}
                       >
@@ -154,7 +154,7 @@ export function CreateWishlistModal({ isOpen, onClose, wishlist }: CreateWishlis
             Cancel
           </Button>
           <Button
-            className="bg-[#1A2B49] text-white font-semibold"
+            className="bg-slate-800 text-white font-semibold"
             onPress={handleSubmit}
             isLoading={isSaving}
             isDisabled={!name.trim()}

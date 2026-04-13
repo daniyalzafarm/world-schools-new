@@ -7,5 +7,5 @@ interface ArticleEditorCanvasProps {
 }
 
 export function ArticleEditorCanvas({ children }: ArticleEditorCanvasProps) {
-  return <div className="mx-auto w-full max-w-[740px]">{children}</div>
+  return <div className="mx-auto w-full max-w-3xl">{children}</div>
 }

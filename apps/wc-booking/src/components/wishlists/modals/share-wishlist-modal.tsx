@@ -148,7 +148,7 @@ export function ShareWishlistModal({ isOpen, onClose, wishlist }: ShareWishlistM
               />
             </div>
             <Button
-              className="bg-[#1E2A4A] text-white font-semibold shrink-0 h-10 self-end mb-0.5"
+              className="bg-slate-800 text-white font-semibold shrink-0 h-10 self-end mb-0.5"
               onPress={handleInvite}
               isLoading={isInviting}
               isDisabled={!email.trim()}
@@ -171,9 +171,9 @@ export function ShareWishlistModal({ isOpen, onClose, wishlist }: ShareWishlistM
                     Me
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[15px] font-medium truncate">You</div>
+                    <div className="text-sm font-medium truncate">You</div>
                   </div>
-                  <span className="text-xs text-[#0D8B6D] bg-[#E8FDF7] px-2.5 py-1 rounded-full font-medium">
+                  <span className="text-xs text-teal-600 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
                     Owner
                   </span>
                 </div>
@@ -187,7 +187,7 @@ export function ShareWishlistModal({ isOpen, onClose, wishlist }: ShareWishlistM
                         {share.email[0].toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-[15px] font-medium truncate">{share.email}</div>
+                        <div className="text-sm font-medium truncate">{share.email}</div>
                       </div>
                       {/* Role selector */}
                       <SelectField
@@ -227,7 +227,7 @@ export function ShareWishlistModal({ isOpen, onClose, wishlist }: ShareWishlistM
           <div>
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-[15px] font-medium">Anyone with the link</p>
+                <p className="text-sm font-medium">Anyone with the link</p>
                 <p className="text-sm text-gray-500">Anyone can view this wishlist</p>
               </div>
               <Switch
@@ -259,7 +259,7 @@ export function ShareWishlistModal({ isOpen, onClose, wishlist }: ShareWishlistM
         </ModalBody>
 
         <ModalFooter>
-          <Button className="bg-[#1E2A4A] text-white font-semibold" onPress={onClose}>
+          <Button className="bg-slate-800 text-white font-semibold" onPress={onClose}>
             Done
           </Button>
         </ModalFooter>

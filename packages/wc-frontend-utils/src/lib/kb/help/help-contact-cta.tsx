@@ -28,7 +28,7 @@ export function HelpContactCta({
       <h2 className="mb-2 text-xl font-semibold text-secondary">
         Can&apos;t find what you&apos;re looking for?
       </h2>
-      <p className="mb-5 text-[15px] text-gray-500">
+      <p className="mb-5 text-sm text-gray-500">
         Our support team is here to help with any questions.
       </p>
       <Button

@@ -106,7 +106,7 @@ export default function SharedWishlistTokenPage() {
           {!wishlist.items?.length ? (
             <WishlistEmptyState type="detail" />
           ) : (
-            <div className="grid grid-cols-[repeat(3,1fr)] gap-5 max-w-full">
+            <div className="grid grid-cols-3 gap-5 max-w-full">
               {wishlist.items.map(item => (
                 <WishlistCampCard key={item.id} item={item} readOnly />
               ))}
@@ -115,7 +115,7 @@ export default function SharedWishlistTokenPage() {
         </div>
 
         {/* Map panel */}
-        <div className="w-[400px] shrink-0 border-l border-gray-100 hidden lg:flex">
+        <div className="w-96 shrink-0 border-l border-gray-100 hidden lg:flex">
           <WishlistMapPanel items={wishlist.items ?? []} />
         </div>
       </div>

@@ -128,7 +128,7 @@ export default function SupportNewTicketPage() {
             as={Link}
             href="/support/tickets"
             color="primary"
-            className="bg-[#1E2A4A] text-white"
+            className="bg-slate-800 text-white"
           >
             Back to my tickets
           </Button>
@@ -189,7 +189,7 @@ export default function SupportNewTicketPage() {
             onValueChange={setDescription}
             isRequired
             minRows={6}
-            classNames={{ input: 'min-h-[160px]' }}
+            classNames={{ input: 'min-h-40' }}
           />
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Include booking IDs, error messages, or steps you've already tried.

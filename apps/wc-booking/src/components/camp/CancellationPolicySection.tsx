@@ -62,9 +62,9 @@ const POLICY_TEMPLATES: Record<string, PolicyTemplate> = {
 }
 
 const BADGE_CLASSES: Record<string, string> = {
-  flexible: 'bg-[#dcfce7] text-[#15803d]',
-  standard: 'bg-[#fef3c7] text-[#b45309]',
-  strict: 'bg-[#fee2e2] text-[#b91c1c]',
+  flexible: 'bg-green-100 text-green-700',
+  standard: 'bg-amber-100 text-amber-700',
+  strict: 'bg-red-100 text-red-700',
   custom: 'bg-gray-100 text-gray-600',
 }
 
@@ -147,7 +147,7 @@ export function CancellationPolicySection({
   if (activeRule && sessionStartStr) {
     if (activeRule.refundPct === 100) {
       banner = {
-        cls: 'bg-primary/10 text-[#065f46] border border-primary/30',
+        cls: 'bg-primary/10 text-emerald-800 border border-primary/30',
         icon: '✓',
         text: (
           <>
@@ -158,7 +158,7 @@ export function CancellationPolicySection({
       }
     } else if (activeRule.refundPct === 50) {
       banner = {
-        cls: 'bg-[#fef3c7] text-[#92400e] border border-amber-300',
+        cls: 'bg-amber-100 text-amber-800 border border-amber-300',
         icon: '⚠️',
         text: (
           <>
@@ -169,7 +169,7 @@ export function CancellationPolicySection({
       }
     } else {
       banner = {
-        cls: 'bg-[#fee2e2] text-[#991b1b] border border-red-300',
+        cls: 'bg-red-100 text-red-800 border border-red-300',
         icon: '⚠️',
         text: (
           <>
@@ -187,18 +187,18 @@ export function CancellationPolicySection({
       <div className="flex items-center gap-3 mb-5">
         <h2 className="text-[clamp(18px,3vw,24px)] font-bold text-gray-900">Cancellation policy</h2>
         <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[13px] font-semibold ${badgeClass}`}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-semibold ${badgeClass}`}
         >
           {tier === 'flexible' ? `✓ ${displayName}` : displayName}
         </span>
       </div>
 
       {/* ── Summary description ──────────────────── */}
-      {description && <p className="text-base text-gray-700 leading-[1.65] mb-4">{description}</p>}
+      {description && <p className="text-base text-gray-700 leading-relaxed mb-4">{description}</p>}
 
       {/* ── Deposit banner ───────────────────────── */}
       {depositNote && (
-        <div className="flex items-start gap-2.5 py-3 px-4 rounded-[10px] text-[14px] mb-5 leading-[1.5] bg-[#fef3c7] text-[#92400e] border border-amber-300">
+        <div className="flex items-start gap-2.5 py-3 px-4 rounded-xl text-sm mb-5 leading-normal bg-amber-100 text-amber-800 border border-amber-300">
           <span className="text-base shrink-0 mt-px">⚠️</span>
           <span>{depositNote}</span>
         </div>
@@ -206,14 +206,14 @@ export function CancellationPolicySection({
 
       {/* ── Refund schedule table ────────────────── */}
       {rules.length > 0 && (
-        <table className="w-full border-collapse mt-5 text-[14px]">
+        <table className="w-full border-collapse mt-5 text-sm">
           <thead>
             <tr>
-              <th className="text-left text-[11px] font-bold uppercase tracking-[0.06em] text-gray-500 pb-[10px] px-4">
+              <th className="text-left text-xs font-bold uppercase tracking-wider text-gray-500 pb-2.5 px-4">
                 Cancellation timing
               </th>
-              <th className="text-left text-[11px] font-bold uppercase tracking-[0.06em] text-gray-500 pb-[10px] px-4" />
-              <th className="text-right text-[11px] font-bold uppercase tracking-[0.06em] text-gray-500 pb-[10px] px-4">
+              <th className="text-left text-xs font-bold uppercase tracking-wider text-gray-500 pb-2.5 px-4" />
+              <th className="text-right text-xs font-bold uppercase tracking-wider text-gray-500 pb-2.5 px-4">
                 Refund
               </th>
             </tr>
@@ -238,12 +238,12 @@ export function CancellationPolicySection({
                 if (rule.refundPct === 100) {
                   rowCls = 'bg-primary/10 font-semibold text-gray-900'
                   firstCellBorderCls = 'border-l-[3px] border-primary'
-                  youAreHereColorCls = 'text-[#059669]'
+                  youAreHereColorCls = 'text-emerald-600'
                 } else if (rule.refundPct === 50) {
-                  rowCls = 'bg-[#fef3c7] font-semibold text-[#92400e]'
+                  rowCls = 'bg-amber-100 font-semibold text-amber-800'
                   firstCellBorderCls = 'border-l-[3px] border-amber-500'
                 } else {
-                  rowCls = 'bg-[#fee2e2] font-semibold text-[#b91c1c]'
+                  rowCls = 'bg-red-100 font-semibold text-red-700'
                   firstCellBorderCls = 'border-l-[3px] border-red-500'
                 }
               }
@@ -251,20 +251,20 @@ export function CancellationPolicySection({
               // Refund percentage pill
               const pillCls =
                 rule.refundPct === 100
-                  ? 'bg-[#dcfce7] text-[#15803d]'
+                  ? 'bg-green-100 text-green-700'
                   : rule.refundPct > 0
-                    ? 'bg-[#fef3c7] text-[#b45309]'
-                    : 'bg-[#fee2e2] text-[#b91c1c]'
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-red-100 text-red-700'
 
               return (
                 <tr key={i} className={rowCls}>
                   <td
                     className={`py-3 px-4 border-t border-gray-100 align-middle ${firstCellBorderCls}`}
                   >
-                    {showCheck && <span className="text-[#16a34a] mr-1.5">✓</span>}
+                    {showCheck && <span className="text-green-600 mr-1.5">✓</span>}
                     {rule.label}
                   </td>
-                  <td className="py-3 px-4 border-t border-gray-100 align-middle text-[12px] whitespace-nowrap">
+                  <td className="py-3 px-4 border-t border-gray-100 align-middle text-xs whitespace-nowrap">
                     {isActive && daysUntilStart !== null && (
                       <span className={youAreHereColorCls}>
                         ← You are here ({daysUntilStart} day{daysUntilStart !== 1 ? 's' : ''} away)
@@ -273,7 +273,7 @@ export function CancellationPolicySection({
                   </td>
                   <td className="py-3 px-4 border-t border-gray-100 align-middle text-right">
                     <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[13px] font-bold ${pillCls}`}
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-bold ${pillCls}`}
                     >
                       {rule.refundPct}%
                     </span>
@@ -288,7 +288,7 @@ export function CancellationPolicySection({
       {/* ── Date-adaptive banner ─────────────────── */}
       {banner && (
         <div
-          className={`flex items-start gap-2.5 py-3 px-4 rounded-[10px] text-[14px] mt-4 leading-[1.5] ${banner.cls}`}
+          className={`flex items-start gap-2.5 py-3 px-4 rounded-xl text-sm mt-4 leading-normal ${banner.cls}`}
         >
           <span className="text-base shrink-0 mt-px">{banner.icon}</span>
           <span>{banner.text}</span>

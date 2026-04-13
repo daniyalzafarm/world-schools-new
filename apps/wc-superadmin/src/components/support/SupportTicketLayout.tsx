@@ -39,7 +39,7 @@ export function SupportTicketLayout({
 
         {/* Right sidebar on large screens */}
         {rightSidebar && (
-          <aside className="hidden h-full w-[360px] shrink-0 overflow-y-auto border-l border-default-200 bg-background lg:block">
+          <aside className="hidden h-full w-96 shrink-0 overflow-y-auto border-l border-default-200 bg-background lg:block">
             {rightSidebar}
           </aside>
         )}

@@ -87,7 +87,7 @@ export function MessageThread<T extends MessageThreadMessage>({
 
   const showEmpty = !isLoading && !error && messages.length === 0
   const defaultEmpty = (
-    <div className="flex items-center justify-center h-full min-h-[200px]">
+    <div className="flex items-center justify-center h-full min-h-48">
       <div className="text-center text-gray-500 dark:text-gray-400 text-sm">
         No messages yet. Send a message to start.
       </div>
@@ -101,12 +101,12 @@ export function MessageThread<T extends MessageThreadMessage>({
           (renderLoading ? (
             renderLoading()
           ) : (
-            <div className="flex items-center justify-center min-h-[200px] text-gray-500 dark:text-gray-400 text-sm">
+            <div className="flex items-center justify-center min-h-48 text-gray-500 dark:text-gray-400 text-sm">
               Loading...
             </div>
           ))}
         {!isLoading && error && (
-          <div className="flex flex-col items-center justify-center min-h-[200px] px-4">
+          <div className="flex flex-col items-center justify-center min-h-48 px-4">
             <p className="text-sm text-red-500 dark:text-red-400 mb-3">{error}</p>
             {onRetry && (
               <Button size="sm" color="primary" onPress={onRetry}>

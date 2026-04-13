@@ -196,14 +196,14 @@ export default function UsersPage() {
             placeholder="Search users by name or email..."
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            className="w-[280px]"
+            className="w-72"
             startContent={<UserIcon className="h-5 w-5 text-gray-400" />}
           />
           <Select
             label="Role"
             labelPlacement="outside"
             placeholder="Select role"
-            className="w-[180px]"
+            className="w-44"
             selectedKeys={filters.roleId ? [filters.roleId] : ['all']}
             onSelectionChange={keys => {
               const value = Array.from(keys)[0] as string | undefined
@@ -219,7 +219,7 @@ export default function UsersPage() {
             label="Email Status"
             labelPlacement="outside"
             placeholder="Select status"
-            className="w-[180px]"
+            className="w-44"
             selectedKeys={
               filters.emailVerified !== undefined ? [String(filters.emailVerified)] : ['all']
             }

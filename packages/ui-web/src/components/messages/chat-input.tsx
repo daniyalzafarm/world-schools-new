@@ -151,7 +151,7 @@ export function ChatInput({
       )}
     >
       <div
-        className={`w-full ${!isLarge && !fullWidth ? 'md:w-[80%]' : ''} ${fullWidth ? 'px-16' : ''} mx-auto`}
+        className={`w-full ${!isLarge && !fullWidth ? 'md:w-4/5' : ''} ${fullWidth ? 'px-16' : ''} mx-auto`}
       >
         <div className="relative max-h-40 flex items-end gap-3 bg-white shadow dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-2">
           {onFilesChange && (
@@ -230,7 +230,7 @@ export function ChatInput({
                 key={`${file.name}-${index}`}
                 className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200"
               >
-                <span className="max-w-[180px] truncate">{file.name}</span>
+                <span className="max-w-44 truncate">{file.name}</span>
                 <button
                   type="button"
                   onClick={() => handleRemoveAttachment(index)}

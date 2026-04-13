@@ -83,7 +83,7 @@ export function MobileStickyFooter({
           </div>
           <a
             href={`/camps/${campSlug}/book?sessionId=${selectedSession.id}`}
-            className="flex-shrink-0 px-6 py-3 rounded-xl bg-primary hover:brightness-95 text-secondary text-[15px] font-bold transition-all"
+            className="flex-shrink-0 px-6 py-3 rounded-xl bg-primary hover:brightness-95 text-secondary text-sm font-bold transition-all"
           >
             Reserve →
           </a>
@@ -92,7 +92,7 @@ export function MobileStickyFooter({
         /* Default state */
         <button
           onClick={onOpenSessionsModal}
-          className="w-full py-3.5 rounded-xl bg-primary hover:brightness-95 text-secondary text-[15px] font-bold transition-all"
+          className="w-full py-3.5 rounded-xl bg-primary hover:brightness-95 text-secondary text-sm font-bold transition-all"
         >
           See all {activeSessions.length} session{activeSessions.length !== 1 ? 's' : ''} →
         </button>

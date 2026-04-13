@@ -110,14 +110,14 @@ function ReviewCard({ review }: { review: PublicCampReview }) {
     <div className="p-5 border border-gray-200 rounded-2xl bg-white flex flex-col gap-2.5">
       <div className="flex items-center gap-2.5">
         <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-bold text-white flex-shrink-0"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
           style={{ background: gradient }}
         >
           {initials}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[14px] font-bold text-gray-900 leading-tight">{displayName}</div>
-          {location && <div className="text-[12px] text-gray-400">{location}</div>}
+          <div className="text-sm font-bold text-gray-900 leading-tight">{displayName}</div>
+          {location && <div className="text-xs text-gray-400">{location}</div>}
         </div>
       </div>
 
@@ -138,7 +138,7 @@ function ReviewCard({ review }: { review: PublicCampReview }) {
               variant="flat"
               classNames={{
                 base: 'bg-gray-100 border-none h-auto py-1',
-                content: 'text-[12px] font-medium text-gray-700 px-1',
+                content: 'text-xs font-medium text-gray-700 px-1',
               }}
             >
               {formatTagValue(tag)}
@@ -147,7 +147,7 @@ function ReviewCard({ review }: { review: PublicCampReview }) {
         </div>
       )}
 
-      {meta && <p className="text-[12px] text-gray-400">{meta}</p>}
+      {meta && <p className="text-xs text-gray-400">{meta}</p>}
     </div>
   )
 }
@@ -190,7 +190,7 @@ export function ReviewsDrawer({
       }}
     >
       <ModalContent>
-        <ModalHeader className="text-[15px] font-semibold text-gray-900">
+        <ModalHeader className="text-sm font-semibold text-gray-900">
           All reviews ({totalReviews})
         </ModalHeader>
 
@@ -201,13 +201,13 @@ export function ReviewsDrawer({
               <div className="p-6">
                 {/* Score */}
                 <div className="mb-6">
-                  <div className="text-[48px] font-extrabold leading-none tracking-tight text-gray-900">
+                  <div className="text-5xl font-extrabold leading-none tracking-tight text-gray-900">
                     {rating.toFixed(1)}
                   </div>
                   <div className="my-2">
                     <StarRating rating={5} color="primary" showRating={false} size={15} />
                   </div>
-                  <p className="text-[13px] text-gray-400">{totalReviews} verified reviews</p>
+                  <p className="text-sm text-gray-400">{totalReviews} verified reviews</p>
                 </div>
 
                 {/* Category bars */}
@@ -246,7 +246,7 @@ export function ReviewsDrawer({
                 <span className="text-3xl font-extrabold text-gray-900">{rating.toFixed(1)}</span>
                 <div>
                   <StarRating rating={5} color="primary" showRating={false} size={14} />
-                  <p className="text-[12px] text-gray-400 mt-0.5">{totalReviews} reviews</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{totalReviews} reviews</p>
                 </div>
               </div>
 
@@ -260,7 +260,7 @@ export function ReviewsDrawer({
                     color={starFilter === s ? 'secondary' : 'default'}
                     onPress={() => setStarFilter(s)}
                     className={[
-                      'h-8 min-w-0 rounded-full text-[13px] font-semibold gap-1',
+                      'h-8 min-w-0 rounded-full text-sm font-semibold gap-1',
                       starFilter === s ? '' : 'border-gray-200 text-gray-700 bg-white',
                     ].join(' ')}
                   >

@@ -131,7 +131,7 @@ export default function PrivacyPage() {
   return (
     <div className="space-y-6">
       <div className="mb-10">
-        <h1 className="text-[32px] font-semibold text-slate-900 dark:text-white">Privacy & Data</h1>
+        <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">Privacy & Data</h1>
         <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
           Manage your data, privacy settings, and account status.
         </p>
@@ -140,7 +140,7 @@ export default function PrivacyPage() {
       {/* GDPR Info Box */}
       <div className="rounded-2xl border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 p-5 mb-10">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-[10px] bg-primary-500 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-primary-500 flex items-center justify-center shrink-0">
             <Shield className="w-5 h-5 text-white" />
           </div>
           <h3 className="text-base font-semibold text-primary-900 dark:text-primary-100">

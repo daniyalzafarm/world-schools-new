@@ -1013,52 +1013,50 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
 
               <CardBody className="p-0">
                 {showAllowedHtml && (
-                  <div className="space-y-2 border-b border-default-200 bg-default-50 px-4 py-3 text-[11px] text-default-600">
+                  <div className="space-y-2 border-b border-default-200 bg-default-50 px-4 py-3 text-xs text-default-600">
                     <div className="flex items-start gap-2">
-                      <span className="mt-[2px] font-semibold uppercase tracking-wide">Tags</span>
+                      <span className="mt-0.5 font-semibold uppercase tracking-wide">Tags</span>
                       <div className="flex-1 space-y-1">
-                        <Code size="sm" className="block whitespace-pre-wrap text-[11px]">
+                        <Code size="sm" className="block whitespace-pre-wrap text-xs">
                           {KB_ALLOWED_TAGS_TEXT}
                         </Code>
                       </div>
                       <Button
                         size="sm"
                         variant="flat"
-                        className="text-[11px] h-6"
+                        className="text-xs h-6"
                         onPress={() => copyToClipboard(KB_ALLOWED_TAGS_TEXT)}
                       >
                         Copy
                       </Button>
                     </div>
                     <div className="flex items-start gap-2">
-                      <span className="mt-[2px] font-semibold uppercase tracking-wide">Attrs</span>
+                      <span className="mt-0.5 font-semibold uppercase tracking-wide">Attrs</span>
                       <div className="flex-1 space-y-1">
-                        <Code size="sm" className="block whitespace-pre-wrap text-[11px]">
+                        <Code size="sm" className="block whitespace-pre-wrap text-xs">
                           {KB_ALLOWED_ATTRIBUTES_TEXT}
                         </Code>
                       </div>
                       <Button
                         size="sm"
                         variant="flat"
-                        className="text-[11px] h-6"
+                        className="text-xs h-6"
                         onPress={() => copyToClipboard(KB_ALLOWED_ATTRIBUTES_TEXT)}
                       >
                         Copy
                       </Button>
                     </div>
                     <div className="flex items-start gap-2">
-                      <span className="mt-[2px] font-semibold uppercase tracking-wide">
-                        Classes
-                      </span>
+                      <span className="mt-0.5 font-semibold uppercase tracking-wide">Classes</span>
                       <div className="flex-1 space-y-1">
-                        <Code size="sm" className="block whitespace-pre-wrap text-[11px]">
+                        <Code size="sm" className="block whitespace-pre-wrap text-xs">
                           {KB_ALLOWED_CLASSES_TEXT}
                         </Code>
                       </div>
                       <Button
                         size="sm"
                         variant="flat"
-                        className="text-[11px] h-6"
+                        className="text-xs h-6"
                         onPress={() => copyToClipboard(KB_ALLOWED_CLASSES_TEXT)}
                       >
                         Copy

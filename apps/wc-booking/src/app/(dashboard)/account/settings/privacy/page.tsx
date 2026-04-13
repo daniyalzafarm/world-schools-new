@@ -143,7 +143,7 @@ const PrivacyDataPage = () => {
       <div className="min-h-full w-full bg-white dark:bg-gray-900">
         {/* Page Header */}
         <div className="mb-10">
-          <h1 className="text-[32px] font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
             Privacy & Data
           </h1>
           <p className="text-base text-gray-500 dark:text-gray-400">
@@ -154,7 +154,7 @@ const PrivacyDataPage = () => {
         {/* GDPR Info Box */}
         <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl p-5 mb-10">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-[10px] bg-primary-500 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-primary-500 flex items-center justify-center shrink-0">
               <Shield className="w-5 h-5 text-white" />
             </div>
             <h3 className="text-base font-semibold text-primary-900 dark:text-primary-100">

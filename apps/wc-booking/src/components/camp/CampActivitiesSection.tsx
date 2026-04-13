@@ -275,7 +275,7 @@ export function CampActivitiesSection({ camp }: CampActivitiesSectionProps) {
           {sections.map(section => (
             <span
               key={section.key}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-[13px] text-gray-700 font-medium"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm text-gray-700 font-medium"
             >
               <span className="text-sm leading-none">{section.icon}</span>
               {section.title}
@@ -293,7 +293,7 @@ export function CampActivitiesSection({ camp }: CampActivitiesSectionProps) {
           {primarySection.items.map(item => (
             <span
               key={item.id}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-[13.5px] font-semibold text-gray-900 whitespace-nowrap"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-semibold text-gray-900 whitespace-nowrap"
             >
               {item.icon && item.icon !== '✨' && (
                 <span className="text-base leading-none" aria-hidden="true">
@@ -309,7 +309,7 @@ export function CampActivitiesSection({ camp }: CampActivitiesSectionProps) {
       {/* ── Special focus: "other included activities" ── */}
       {isSpecialFocus && otherSections.length > 0 && (
         <div className="mb-5">
-          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
             Other included activities
           </p>
           <OtherActivitiesChips sections={otherSections} />
@@ -347,7 +347,7 @@ function OtherActivitiesChips({ sections }: { sections: ActivitySectionData[] })
       {visible.map(item => (
         <span
           key={item.id}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-[13px] text-gray-700 font-medium whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm text-gray-700 font-medium whitespace-nowrap"
         >
           {item.icon && item.icon !== '✨' && (
             <span className="text-sm leading-none">{item.icon}</span>
@@ -356,7 +356,7 @@ function OtherActivitiesChips({ sections }: { sections: ActivitySectionData[] })
         </span>
       ))}
       {remaining > 0 && (
-        <span className="inline-flex items-center px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-full text-[13px] text-gray-500 font-medium whitespace-nowrap">
+        <span className="inline-flex items-center px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-full text-sm text-gray-500 font-medium whitespace-nowrap">
           +{remaining} more
         </span>
       )}

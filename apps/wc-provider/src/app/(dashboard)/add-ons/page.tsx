@@ -42,8 +42,8 @@ export default function AddOnsPage() {
       <section className="space-y-6">
         {/* Header */}
         <header className="flex flex-col gap-2">
-          <h1 className="text-[24px] font-semibold text-default-900 mb-1.5">Optional Add-ons</h1>
-          <p className="text-[15px] text-default-500 max-w-[600px]">
+          <h1 className="text-2xl font-semibold text-default-900 mb-1.5">Optional Add-ons</h1>
+          <p className="text-sm text-default-500 max-w-xl">
             Create optional extras that parents can purchase when booking. These are reusable across
             all your camps.
           </p>
@@ -52,12 +52,12 @@ export default function AddOnsPage() {
         {/* Info Banner */}
         {showInfoBanner && (
           <div className="flex items-start gap-3 p-4 bg-primary-50 rounded-xl relative">
-            <span className="text-[20px]">💡</span>
+            <span className="text-xl">💡</span>
             <div className="flex-1">
-              <div className="text-[14px] font-semibold text-default-900 mb-1">
+              <div className="text-sm font-semibold text-default-900 mb-1">
                 Add-ons are shared across all your camps
               </div>
-              <div className="text-[13px] text-default-500 leading-[1.5]">
+              <div className="text-sm text-default-500 leading-normal">
                 Create an add-on once and enable it for any camp. Changes will apply everywhere it's
                 used. Toggle individual add-ons on/off for this specific camp.
               </div>
@@ -76,8 +76,8 @@ export default function AddOnsPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-[16px] font-semibold text-default-900">Your Add-ons</span>
-              <span className="text-[14px] text-default-400">({addOns.length} total)</span>
+              <span className="text-base font-semibold text-default-900">Your Add-ons</span>
+              <span className="text-sm text-default-400">({addOns.length} total)</span>
             </div>
             <Button color="primary" onPress={() => handleOpenModal()} className="font-semibold">
               + Add New
@@ -92,9 +92,9 @@ export default function AddOnsPage() {
           {/* Empty State */}
           {!isLoading && addOns.length === 0 && (
             <div className="text-center py-12">
-              <div className="text-[48px] mb-4">📦</div>
-              <div className="text-[18px] font-semibold text-default-900 mb-2">No add-ons yet</div>
-              <div className="text-[14px] text-default-500 mb-6 max-w-[400px] mx-auto">
+              <div className="text-5xl mb-4">📦</div>
+              <div className="text-lg font-semibold text-default-900 mb-2">No add-ons yet</div>
+              <div className="text-sm text-default-500 mb-6 max-w-96 mx-auto">
                 Create your first add-on to offer optional extras like activities, services, or
                 equipment rentals.
               </div>

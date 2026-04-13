@@ -25,8 +25,8 @@ export function SessionsEmptyState({ onCreateSession }: SessionsEmptyStateProps)
 
           {/* Title and Description */}
           <div className="space-y-2">
-            <h2 className="text-[24px] font-bold text-default-900">Create Your First Session</h2>
-            <p className="text-[16px] text-default-600 max-w-xl mx-auto leading-relaxed">
+            <h2 className="text-2xl font-bold text-default-900">Create Your First Session</h2>
+            <p className="text-base text-default-600 max-w-xl mx-auto leading-relaxed">
               Sessions have set start and end dates. Perfect for traditional summer camps with
               specific weeks.
             </p>
@@ -39,8 +39,8 @@ export function SessionsEmptyState({ onCreateSession }: SessionsEmptyStateProps)
                 <Calendar className="w-5 h-5 text-primary-600 dark:text-primary-400" />
               </div>
               <div>
-                <h4 className="text-[14px] font-semibold text-default-900 mb-1">Fixed Dates</h4>
-                <p className="text-[13px] text-default-600">Set specific dates for each session</p>
+                <h4 className="text-sm font-semibold text-default-900 mb-1">Fixed Dates</h4>
+                <p className="text-sm text-default-600">Set specific dates for each session</p>
               </div>
             </div>
 
@@ -49,10 +49,8 @@ export function SessionsEmptyState({ onCreateSession }: SessionsEmptyStateProps)
                 <DollarSign className="w-5 h-5 text-success-600 dark:text-success-400" />
               </div>
               <div>
-                <h4 className="text-[14px] font-semibold text-default-900 mb-1">
-                  Flexible Pricing
-                </h4>
-                <p className="text-[13px] text-default-600">
+                <h4 className="text-sm font-semibold text-default-900 mb-1">Flexible Pricing</h4>
+                <p className="text-sm text-default-600">
                   Single price or age group pricing options
                 </p>
               </div>
@@ -63,12 +61,8 @@ export function SessionsEmptyState({ onCreateSession }: SessionsEmptyStateProps)
                 <Users className="w-5 h-5 text-warning-600 dark:text-warning-400" />
               </div>
               <div>
-                <h4 className="text-[14px] font-semibold text-default-900 mb-1">
-                  Capacity Control
-                </h4>
-                <p className="text-[13px] text-default-600">
-                  Set maximum capacity for each session
-                </p>
+                <h4 className="text-sm font-semibold text-default-900 mb-1">Capacity Control</h4>
+                <p className="text-sm text-default-600">Set maximum capacity for each session</p>
               </div>
             </div>
 
@@ -77,10 +71,8 @@ export function SessionsEmptyState({ onCreateSession }: SessionsEmptyStateProps)
                 <Copy className="w-5 h-5 text-secondary-600 dark:text-secondary-400" />
               </div>
               <div>
-                <h4 className="text-[14px] font-semibold text-default-900 mb-1">
-                  Easy Duplication
-                </h4>
-                <p className="text-[13px] text-default-600">
+                <h4 className="text-sm font-semibold text-default-900 mb-1">Easy Duplication</h4>
+                <p className="text-sm text-default-600">
                   Quickly duplicate sessions with same settings
                 </p>
               </div>
@@ -89,23 +81,23 @@ export function SessionsEmptyState({ onCreateSession }: SessionsEmptyStateProps)
 
           {/* Example */}
           <div className="bg-default-100 dark:bg-default-800 rounded-xl p-6 w-full max-w-xl mx-auto">
-            <p className="text-[12px] font-semibold text-default-500 uppercase tracking-wide mb-3">
+            <p className="text-xs font-semibold text-default-500 uppercase tracking-wide mb-3">
               Example
             </p>
             <div className="space-y-2 text-left">
               <div className="flex items-center justify-between">
-                <span className="text-[13px] text-default-600">Session:</span>
-                <span className="text-[13px] font-semibold text-default-900">
+                <span className="text-sm text-default-600">Session:</span>
+                <span className="text-sm font-semibold text-default-900">
                   Week 1 - June 10-16, 2024
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[13px] text-default-600">Price:</span>
-                <span className="text-[13px] font-semibold text-default-900">$1,200</span>
+                <span className="text-sm text-default-600">Price:</span>
+                <span className="text-sm font-semibold text-default-900">$1,200</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[13px] text-default-600">Capacity:</span>
-                <span className="text-[13px] font-semibold text-default-900">50 spots</span>
+                <span className="text-sm text-default-600">Capacity:</span>
+                <span className="text-sm font-semibold text-default-900">50 spots</span>
               </div>
             </div>
           </div>

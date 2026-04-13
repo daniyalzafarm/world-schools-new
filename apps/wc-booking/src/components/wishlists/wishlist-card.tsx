@@ -30,11 +30,11 @@ function CollageArea({ wishlist }: { wishlist: Wishlist }) {
 
   if (isEmpty) {
     return (
-      <div className="relative h-[180px] flex flex-col items-center justify-center bg-linear-to-br from-gray-100 to-gray-200 overflow-hidden">
+      <div className="relative h-44 flex flex-col items-center justify-center bg-linear-to-br from-gray-100 to-gray-200 overflow-hidden">
         <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
           <Search className="w-6 h-6 text-gray-400" />
         </div>
-        <span className="text-[13px] text-gray-500 mt-2">Start exploring camps</span>
+        <span className="text-sm text-gray-500 mt-2">Start exploring camps</span>
       </div>
     )
   }
@@ -42,14 +42,14 @@ function CollageArea({ wishlist }: { wishlist: Wishlist }) {
   // 1 photo: full-width single image
   if (photos.length === 1) {
     return (
-      <div className="relative h-[180px] overflow-hidden">
+      <div className="relative h-44 overflow-hidden">
         <img
           src={photos[0]}
           alt=""
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
         />
         <div className="absolute inset-0 bg-linear-to-b from-transparent via-transparent to-black/40" />
-        <span className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/75 text-white rounded-lg text-[13px] font-medium backdrop-blur-sm">
+        <span className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/75 text-white rounded-lg text-sm font-medium backdrop-blur-sm">
           {wishlist.campCount} {wishlist.campCount === 1 ? 'camp' : 'camps'}
         </span>
       </div>
@@ -59,7 +59,7 @@ function CollageArea({ wishlist }: { wishlist: Wishlist }) {
   // 2 photos: two equal columns
   if (photos.length === 2) {
     return (
-      <div className="relative h-[180px] overflow-hidden grid grid-cols-2 gap-0.5">
+      <div className="relative h-44 overflow-hidden grid grid-cols-2 gap-0.5">
         {photos.map((url, i) => (
           <div key={i} className="overflow-hidden">
             <img
@@ -70,7 +70,7 @@ function CollageArea({ wishlist }: { wishlist: Wishlist }) {
           </div>
         ))}
         <div className="absolute inset-0 bg-linear-to-b from-transparent via-transparent to-black/40" />
-        <span className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/75 text-white rounded-lg text-[13px] font-medium backdrop-blur-sm">
+        <span className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/75 text-white rounded-lg text-sm font-medium backdrop-blur-sm">
           {wishlist.campCount} {wishlist.campCount === 1 ? 'camp' : 'camps'}
         </span>
       </div>
@@ -80,7 +80,7 @@ function CollageArea({ wishlist }: { wishlist: Wishlist }) {
   // 3 photos: 2×2 grid, first image spans 2 rows
   if (photos.length === 3) {
     return (
-      <div className="relative h-[180px] overflow-hidden grid grid-cols-2 grid-rows-2 gap-0.5">
+      <div className="relative h-44 overflow-hidden grid grid-cols-2 grid-rows-2 gap-0.5">
         <div className="row-span-2 overflow-hidden">
           <img
             src={photos[0]}
@@ -98,7 +98,7 @@ function CollageArea({ wishlist }: { wishlist: Wishlist }) {
           </div>
         ))}
         <div className="absolute inset-0 bg-linear-to-b from-transparent via-transparent to-black/40" />
-        <span className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/75 text-white rounded-lg text-[13px] font-medium backdrop-blur-sm">
+        <span className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/75 text-white rounded-lg text-sm font-medium backdrop-blur-sm">
           {wishlist.campCount} {wishlist.campCount === 1 ? 'camp' : 'camps'}
         </span>
       </div>
@@ -107,7 +107,7 @@ function CollageArea({ wishlist }: { wishlist: Wishlist }) {
 
   // 4+ photos: 2×2 grid
   return (
-    <div className="relative h-[180px] overflow-hidden grid grid-cols-2 grid-rows-2 gap-0.5">
+    <div className="relative h-44 overflow-hidden grid grid-cols-2 grid-rows-2 gap-0.5">
       {photos.slice(0, 4).map((url, i) => (
         <div key={i} className="overflow-hidden">
           <img
@@ -118,7 +118,7 @@ function CollageArea({ wishlist }: { wishlist: Wishlist }) {
         </div>
       ))}
       <div className="absolute inset-0 bg-linear-to-b from-transparent via-transparent to-black/40" />
-      <span className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/75 text-white rounded-lg text-[13px] font-medium backdrop-blur-sm">
+      <span className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/75 text-white rounded-lg text-sm font-medium backdrop-blur-sm">
         {wishlist.campCount} {wishlist.campCount === 1 ? 'camp' : 'camps'}
       </span>
     </div>
@@ -182,7 +182,7 @@ export function WishlistCard({
 
   return (
     <div
-      className="group bg-white rounded-[20px] border border-gray-100 overflow-hidden transition-all duration-200 cursor-pointer hover:border-gray-900 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)]"
+      className="group bg-white rounded-3xl border border-gray-100 overflow-hidden transition-all duration-200 cursor-pointer hover:border-gray-900 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)]"
       onClick={handleCardClick}
     >
       <CollageArea wishlist={wishlist} />
@@ -193,11 +193,11 @@ export function WishlistCard({
           <div className="flex items-center gap-2.5 min-w-0">
             {wishlist.icon && <span className="text-2xl flex-shrink-0">{wishlist.icon}</span>}
             <div className="min-w-0">
-              <h3 className="text-[17px] font-semibold truncate hover:text-[#0D8B6D] transition-colors">
+              <h3 className="text-base font-semibold truncate hover:text-teal-600 transition-colors">
                 {wishlist.name}
               </h3>
               {childrenNames && (
-                <div className="text-[13px] text-gray-500 truncate">{childrenNames}</div>
+                <div className="text-sm text-gray-500 truncate">{childrenNames}</div>
               )}
             </div>
           </div>
@@ -213,7 +213,7 @@ export function WishlistCard({
                   className="w-9 h-9"
                   disabled={isDeleting}
                 >
-                  <MoreVertical className="w-[18px] h-[18px] text-gray-500" />
+                  <MoreVertical className="w-5 h-5 text-gray-500" />
                 </Button>
               </DropdownTrigger>
               <DropdownMenu
@@ -256,22 +256,22 @@ export function WishlistCard({
           wishlist.children.length > 0 ||
           (readOnly && sharedBy) ||
           (!readOnly && wishlist.shareCount > 0)) && (
-          <div className="flex flex-wrap items-center gap-2 mt-[14px] pt-[14px] border-t border-gray-100">
+          <div className="flex flex-wrap items-center gap-2 mt-3.5 pt-3.5 border-t border-gray-100">
             {wishlist.campCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-[13px] font-medium text-gray-900 whitespace-nowrap">
+              <span className="inline-flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-sm font-medium text-gray-900 whitespace-nowrap">
                 <Heart className="w-3.5 h-3.5 text-gray-500" />
                 {wishlist.campCount} {wishlist.campCount === 1 ? 'camp' : 'camps'}
               </span>
             )}
             {wishlist.children.length > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-[13px] font-medium text-gray-900 whitespace-nowrap">
+              <span className="inline-flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-sm font-medium text-gray-900 whitespace-nowrap">
                 <User className="w-3.5 h-3.5 text-gray-500" />
                 {wishlist.children.length} {wishlist.children.length === 1 ? 'child' : 'children'}
               </span>
             )}
             {!readOnly && wishlist.shareCount > 0 && (
               <button
-                className="cursor-pointer inline-flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-[13px] font-medium text-gray-900 whitespace-nowrap hover:border-gray-200 transition-all"
+                className="cursor-pointer inline-flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-sm font-medium text-gray-900 whitespace-nowrap hover:border-gray-200 transition-all"
                 onClick={e => {
                   e.stopPropagation()
                   onShare?.(wishlist)
@@ -281,7 +281,7 @@ export function WishlistCard({
                   {wishlist.shares.slice(0, 2).map((s, i) => (
                     <span
                       key={s.id}
-                      className="w-[18px] h-[18px] rounded-full bg-linear-to-br from-blue-100 to-red-100 border-2 border-white flex items-center justify-center text-[9px] font-semibold"
+                      className="w-5 h-5 rounded-full bg-linear-to-br from-blue-100 to-red-100 border-2 border-white flex items-center justify-center text-xs font-semibold"
                       style={{ marginLeft: i === 0 ? 0 : -5 }}
                     >
                       {s.email[0].toUpperCase()}
@@ -292,7 +292,7 @@ export function WishlistCard({
               </button>
             )}
             {readOnly && sharedBy && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-full text-[13px] font-medium text-blue-600 whitespace-nowrap">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-full text-sm font-medium text-blue-600 whitespace-nowrap">
                 Shared by {sharedBy}
               </span>
             )}

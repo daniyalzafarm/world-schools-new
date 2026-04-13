@@ -34,7 +34,7 @@ export function EmojiCard({ emoji, label, selected, onClick, disabled = false }:
         }
       `}
     >
-      <span className="text-[28px] leading-none">{emoji}</span>
+      <span className="text-3xl leading-none">{emoji}</span>
       <span className={`text-sm font-medium`}>{label}</span>
     </button>
   )

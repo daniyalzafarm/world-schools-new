@@ -133,13 +133,13 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
       }}
     >
       <ModalContent>
-        <ModalHeader className="text-[20px] font-semibold">
+        <ModalHeader className="text-xl font-semibold">
           {addOn ? 'Edit Add-on' : 'Create Add-on'}
         </ModalHeader>
         <ModalBody className="gap-5">
           {/* Type Selection */}
           <div>
-            <label className="block text-[14px] font-semibold text-default-900 mb-2">
+            <label className="block text-sm font-semibold text-default-900 mb-2">
               Add-on Type <span className="text-danger">*</span>
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -154,9 +154,9 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
                       : 'border-default-200 hover:border-primary'
                   }`}
                 >
-                  <div className="text-[20px] mb-1">{type.icon}</div>
-                  <div className="text-[14px] font-semibold text-default-900">{type.label}</div>
-                  <div className="text-[12px] text-default-500 mt-0.5">{type.description}</div>
+                  <div className="text-xl mb-1">{type.icon}</div>
+                  <div className="text-sm font-semibold text-default-900">{type.label}</div>
+                  <div className="text-xs text-default-500 mt-0.5">{type.description}</div>
                 </button>
               ))}
             </div>
@@ -223,7 +223,7 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
 
           {/* Quantity Limits */}
           <div>
-            <label className="block text-[14px] font-semibold text-default-900 mb-2">
+            <label className="block text-sm font-semibold text-default-900 mb-2">
               Quantity Limits
             </label>
             <div className="flex items-center gap-3">
@@ -237,8 +237,8 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
                     maxQuantity: value ? parseInt(value) : undefined,
                   }))
                 }
-                className="max-w-[120px]"
-                startContent={<span className="text-default-400 text-[13px]">Max:</span>}
+                className="max-w-28"
+                startContent={<span className="text-default-400 text-sm">Max:</span>}
               />
               <Input
                 placeholder="per week"
@@ -247,12 +247,12 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
                 className="flex-1"
               />
             </div>
-            <p className="text-[13px] text-default-400 mt-1.5">Leave empty for no limit</p>
+            <p className="text-sm text-default-400 mt-1.5">Leave empty for no limit</p>
           </div>
 
           {/* Age Restriction */}
           <div>
-            <label className="block text-[14px] font-semibold text-default-900 mb-2">
+            <label className="block text-sm font-semibold text-default-900 mb-2">
               Age Restriction (optional)
             </label>
             <div className="grid grid-cols-2 gap-3">
@@ -283,9 +283,7 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
                 }
               />
             </div>
-            <p className="text-[13px] text-default-400 mt-1.5">
-              Leave empty if available for all ages
-            </p>
+            <p className="text-sm text-default-400 mt-1.5">Leave empty if available for all ages</p>
           </div>
         </ModalBody>
         <ModalFooter>

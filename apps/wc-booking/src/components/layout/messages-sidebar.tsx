@@ -186,7 +186,7 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
           'fixed lg:static z-40',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
           'transition-all duration-300 ease-in-out',
-          'w-full lg:w-[400px]'
+          'w-full lg:w-96'
         )}
       >
         <div className="flex h-full flex-col">

@@ -76,9 +76,9 @@ export interface EmojiPickerProps {
 }
 
 const emojiSizeClasses = {
-  sm: 'text-[20px]',
-  md: 'text-[24px]',
-  lg: 'text-[32px]',
+  sm: 'text-xl',
+  md: 'text-2xl',
+  lg: 'text-3xl',
 }
 
 const pickerPositionClasses = {
@@ -232,7 +232,7 @@ export function EmojiPicker({
       {label && (
         <label
           className={cn(
-            'text-[14px] font-bold text-foreground',
+            'text-sm font-bold text-foreground',
             'pb-0 will-change-auto origin-top-left transition-all duration-200! ease-out! motion-reduce:transition-none',
             classNames?.label
           )}
@@ -273,7 +273,7 @@ export function EmojiPicker({
       </div>
 
       {description && (
-        <p className={cn('text-[13px] text-default-400', 'pt-1 px-1', classNames?.description)}>
+        <p className={cn('text-sm text-default-400', 'pt-1 px-1', classNames?.description)}>
           {description}
         </p>
       )}

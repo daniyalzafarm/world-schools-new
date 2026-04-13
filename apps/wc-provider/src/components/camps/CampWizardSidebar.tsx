@@ -60,9 +60,9 @@ export function CampWizardSidebar({ currentStep, campId }: CampWizardSidebarProp
   }
 
   return (
-    <aside className="fixed left-0 top-0 z-100 flex h-screen w-[280px] flex-col overflow-y-auto border-r border-default-200 bg-default-50">
+    <aside className="fixed left-0 top-0 z-100 flex h-screen w-72 flex-col overflow-y-auto border-r border-default-200 bg-default-50">
       {/* Logo Header */}
-      <div className="flex min-h-[61px] items-center bg-default-50 px-5 py-5">
+      <div className="flex min-h-16 items-center bg-default-50 px-5 py-5">
         <div className="flex items-center">
           <Logo size={'md'} showText={true} />
         </div>
@@ -108,7 +108,7 @@ export function CampWizardSidebar({ currentStep, campId }: CampWizardSidebarProp
             <>
               {/* Active Indicator */}
               {isCurrent && isEnabled && (
-                <div className="absolute bottom-0 left-0 top-0 w-[3px] bg-primary" />
+                <div className="absolute bottom-0 left-0 top-0 w-1 bg-primary" />
               )}
 
               {/* Step Number */}

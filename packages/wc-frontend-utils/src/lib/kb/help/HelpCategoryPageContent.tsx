@@ -53,7 +53,7 @@ export function HelpCategoryPageContent() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-[900px] px-5 py-8">
+      <div className="mx-auto max-w-4xl px-5 py-8">
         <div className="mb-8 h-6 w-48 animate-pulse rounded bg-gray-50" />
         <div className="h-32 animate-pulse rounded-2xl bg-gray-50" />
       </div>
@@ -62,7 +62,7 @@ export function HelpCategoryPageContent() {
 
   if (notFound || !category) {
     return (
-      <div className="mx-auto max-w-[900px] px-5 py-12 text-center">
+      <div className="mx-auto max-w-4xl px-5 py-12 text-center">
         <p className="text-gray-500">Category not found.</p>
         <Link href={basePath} className="mt-4 inline-block text-secondary underline">
           Back to Help Center
@@ -73,14 +73,14 @@ export function HelpCategoryPageContent() {
 
   return (
     <>
-      <nav className="mx-auto max-w-[900px] px-5 pt-6" aria-label="Breadcrumb">
+      <nav className="mx-auto max-w-4xl px-5 pt-6" aria-label="Breadcrumb">
         <Breadcrumbs variant="light" color="foreground">
           <BreadcrumbItem href={basePath}>Help Center</BreadcrumbItem>
           <BreadcrumbItem>{category.name}</BreadcrumbItem>
         </Breadcrumbs>
       </nav>
 
-      <main className="mx-auto max-w-[900px] px-5 py-8 pb-20">
+      <main className="mx-auto max-w-4xl px-5 py-8 pb-20">
         <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-5">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gray-50 text-3xl">
             {category.icon ?? '📄'}
@@ -104,7 +104,7 @@ export function HelpCategoryPageContent() {
                     href={`${basePath}/${categorySlug}/${art.slug}`}
                     className="flex items-center gap-4 bg-white px-6 py-5 transition-colors hover:bg-gray-50 sm:px-6"
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-gray-50">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-50">
                       <FileText className="h-5 w-5 text-gray-500" strokeWidth={2} />
                     </div>
                     <div className="min-w-0 flex-1">

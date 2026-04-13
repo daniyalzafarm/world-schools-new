@@ -286,7 +286,7 @@ export default function ChildEmergencyContactsPage() {
   // Loading state
   if (isLoading || !child) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-slate-600 dark:text-slate-400">Loading emergency contacts...</p>
@@ -443,7 +443,7 @@ export default function ChildEmergencyContactsPage() {
       {contacts.length > 0 && contacts.length < MAX_CONTACTS && (
         <button
           onClick={handleAddContact}
-          className="w-full flex items-center justify-center gap-2 p-5 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl bg-transparent text-slate-700 dark:text-slate-300 font-medium text-[15px] underline hover:border-slate-900 dark:hover:border-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all cursor-pointer"
+          className="w-full flex items-center justify-center gap-2 p-5 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl bg-transparent text-slate-700 dark:text-slate-300 font-medium text-sm underline hover:border-slate-900 dark:hover:border-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all cursor-pointer"
         >
           <Plus className="w-5 h-5 hidden sm:block" />
           Add emergency contact

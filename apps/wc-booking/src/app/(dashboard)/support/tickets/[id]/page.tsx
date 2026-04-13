@@ -229,7 +229,7 @@ export default function ParentSupportTicketDetailPage() {
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               <span
-                className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusPillClasses(ticket.status)}`}
+                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusPillClasses(ticket.status)}`}
               >
                 {ticket.status === 'PENDING_REQUESTER'
                   ? 'Pending your reply'
@@ -237,7 +237,7 @@ export default function ParentSupportTicketDetailPage() {
                     ? 'Pending support'
                     : ticket.status.charAt(0) + ticket.status.slice(1).toLowerCase()}
               </span>
-              <span className="font-mono text-[11px] bg-slate-100 px-2 py-1 rounded-md dark:bg-slate-800">
+              <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded-md dark:bg-slate-800">
                 {ticket.ticketNumber}
               </span>
               <span>·</span>
@@ -284,12 +284,12 @@ export default function ParentSupportTicketDetailPage() {
             disabled={sendingReply || !user || isResolved}
             helpText={!isResolved}
             renderLoading={() => (
-              <div className="flex h-full min-h-[200px] items-center justify-center text-sm text-slate-500 dark:text-slate-400">
+              <div className="flex h-full min-h-48 items-center justify-center text-sm text-slate-500 dark:text-slate-400">
                 <Spinner size="lg" label="Loading conversation..." />
               </div>
             )}
             emptyMessage={
-              <div className="flex h-full min-h-[200px] items-center justify-center">
+              <div className="flex h-full min-h-48 items-center justify-center">
                 <div className="text-center text-sm text-slate-500 dark:text-slate-400">
                   <p>No messages yet.</p>
                   {!isResolved && <p className="mt-1">Send a message to start the conversation.</p>}

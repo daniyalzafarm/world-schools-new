@@ -102,7 +102,7 @@ export function DesktopAddonsSidebar() {
   const reviewsCount = 241
 
   return (
-    <aside className="hidden lg:block sticky top-[120px] md:top-[128px]">
+    <aside className="hidden lg:block sticky top-28 md:top-32">
       <div className="space-y-3">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-4">

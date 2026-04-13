@@ -339,7 +339,7 @@ export default function OnboardingStep5DepositSettingsPage() {
             {depositRequired && (
               <div className="grid grid-cols-[100px_90px_1fr] items-center gap-3 border-b border-primary-200 pb-3">
                 <span className="text-sm font-semibold text-foreground">At booking</span>
-                <span className="text-right text-[15px] font-bold text-success">
+                <span className="text-right text-sm font-bold text-success">
                   ${calculateDeposit(calcPrice).toLocaleString()}
                 </span>
                 <span className="text-sm leading-snug text-default-500">After 48h</span>
@@ -360,7 +360,7 @@ export default function OnboardingStep5DepositSettingsPage() {
                     })
                   : ''}
               </span>
-              <span className="text-right text-[15px] font-bold text-success">
+              <span className="text-right text-sm font-bold text-success">
                 $
                 {(
                   calculateEarnings(calcPrice) -
@@ -372,7 +372,7 @@ export default function OnboardingStep5DepositSettingsPage() {
           </div>
 
           {/* Service Fee Note */}
-          <div className="mt-2 border-t border-primary-200 pt-3 text-center text-[11px] text-default-500">
+          <div className="mt-2 border-t border-primary-200 pt-3 text-center text-xs text-default-500">
             10% service fee applied to each payment
           </div>
         </div>
@@ -415,10 +415,10 @@ export default function OnboardingStep5DepositSettingsPage() {
       <div>
         {/* Section Header */}
         <div className="mb-6">
-          <h1 className="mb-2 text-[28px] font-bold leading-tight text-foreground">
+          <h1 className="mb-2 text-3xl font-bold leading-tight text-foreground">
             Deposit Settings
           </h1>
-          <p className="text-[15px] text-default-500">
+          <p className="text-sm text-default-500">
             Set up how parents will pay upfront for your camp programs
           </p>
         </div>
@@ -450,11 +450,11 @@ export default function OnboardingStep5DepositSettingsPage() {
                 disabled={isReadOnly}
                 className="peer absolute opacity-0"
               />
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-default-100 text-xl transition-colors peer-checked:bg-primary peer-checked:text-secondary">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-default-100 text-xl transition-colors peer-checked:bg-primary peer-checked:text-secondary">
                 %
               </div>
               <div className="flex-1">
-                <div className="mb-1 text-[15px] font-semibold text-foreground">Percentage</div>
+                <div className="mb-1 text-sm font-semibold text-foreground">Percentage</div>
                 <div className="text-sm leading-relaxed text-default-500">Most common option</div>
 
                 {/* Inline Input for Percentage */}
@@ -472,7 +472,7 @@ export default function OnboardingStep5DepositSettingsPage() {
                         min="1"
                         max="100"
                         disabled={isReadOnly}
-                        className="w-[100px] border-none px-3.5 py-3 text-center text-lg font-semibold outline-none"
+                        className="w-24 border-none px-3.5 py-3 text-center text-lg font-semibold outline-none"
                       />
                       <span className="bg-default-100 px-3.5 py-3 text-base font-semibold text-default-600">
                         %
@@ -505,11 +505,11 @@ export default function OnboardingStep5DepositSettingsPage() {
                 disabled={isReadOnly}
                 className="peer absolute opacity-0"
               />
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-default-100 text-xl transition-colors peer-checked:bg-primary">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-default-100 text-xl transition-colors peer-checked:bg-primary">
                 💵
               </div>
               <div className="flex-1">
-                <div className="mb-1 text-[15px] font-semibold text-foreground">Fixed amount</div>
+                <div className="mb-1 text-sm font-semibold text-foreground">Fixed amount</div>
                 <div className="text-sm leading-relaxed text-default-500">
                   Same amount regardless of price
                 </div>
@@ -531,7 +531,7 @@ export default function OnboardingStep5DepositSettingsPage() {
                         onChange={e => setDepositFixedAmount(e.target.value)}
                         min="1"
                         disabled={isReadOnly}
-                        className="w-[100px] border-none px-3.5 py-3 text-center text-lg font-semibold outline-none"
+                        className="w-24 border-none px-3.5 py-3 text-center text-lg font-semibold outline-none"
                       />
                     </div>
                     <span className="text-sm text-default-500">fixed deposit amount</span>
@@ -558,11 +558,11 @@ export default function OnboardingStep5DepositSettingsPage() {
                 disabled={isReadOnly}
                 className="peer absolute opacity-0"
               />
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-default-100 text-xl transition-colors peer-checked:bg-primary">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-default-100 text-xl transition-colors peer-checked:bg-primary">
                 💳
               </div>
               <div className="flex-1">
-                <div className="mb-1 text-[15px] font-semibold text-foreground">No deposit</div>
+                <div className="mb-1 text-sm font-semibold text-foreground">No deposit</div>
                 <div className="text-sm leading-relaxed text-default-500">
                   Payment follows cancellation policy only
                 </div>

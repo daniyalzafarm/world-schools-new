@@ -97,14 +97,14 @@ function ReviewCard({ review }: { review: PublicCampReview }) {
     <div className="p-5 border border-gray-200 rounded-2xl bg-white flex flex-col gap-2.5">
       <div className="flex items-center gap-2.5">
         <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-bold text-white flex-shrink-0"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
           style={{ background: gradient }}
         >
           {initials}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[14px] font-bold text-gray-900 leading-tight">{displayName}</div>
-          {location && <div className="text-[12px] text-gray-400">{location}</div>}
+          <div className="text-sm font-bold text-gray-900 leading-tight">{displayName}</div>
+          {location && <div className="text-xs text-gray-400">{location}</div>}
         </div>
       </div>
 
@@ -125,7 +125,7 @@ function ReviewCard({ review }: { review: PublicCampReview }) {
               variant="flat"
               classNames={{
                 base: 'bg-gray-100 border-none h-auto py-1',
-                content: 'text-[12px] font-medium text-gray-700 px-1',
+                content: 'text-xs font-medium text-gray-700 px-1',
               }}
             >
               {formatTagValue(tag)}
@@ -134,7 +134,7 @@ function ReviewCard({ review }: { review: PublicCampReview }) {
         </div>
       )}
 
-      {meta && <div className="text-[12px] text-gray-400">{meta}</div>}
+      {meta && <div className="text-xs text-gray-400">{meta}</div>}
     </div>
   )
 }
@@ -191,8 +191,8 @@ export function ReviewsSection({
           {/* Summary */}
           <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-6 md:gap-8 mb-8 items-center">
             {/* Score block */}
-            <div className="flex flex-col items-center md:items-start md:pr-8 md:border-r md:border-gray-200 pb-6 md:pb-0 border-b md:border-b-0 border-gray-200 min-w-[100px]">
-              <div className="text-[52px] font-extrabold leading-none tracking-tight text-gray-900">
+            <div className="flex flex-col items-center md:items-start md:pr-8 md:border-r md:border-gray-200 pb-6 md:pb-0 border-b md:border-b-0 border-gray-200 min-w-24">
+              <div className="text-5xl font-extrabold leading-none tracking-tight text-gray-900">
                 {(data.overallRating ?? 0).toFixed(1)}
               </div>
               <div className="my-1.5">
@@ -203,7 +203,7 @@ export function ReviewsSection({
                   size={16}
                 />
               </div>
-              <div className="text-[13px] text-gray-400">{data.totalReviews} verified reviews</div>
+              <div className="text-sm text-gray-400">{data.totalReviews} verified reviews</div>
             </div>
 
             {/* Category score bars */}
@@ -214,7 +214,7 @@ export function ReviewsSection({
                 return (
                   <div
                     key={key}
-                    className="grid grid-cols-[minmax(0,110px)_1fr_28px] sm:grid-cols-[130px_1fr_30px] gap-2 sm:gap-2.5 items-center text-[13px]"
+                    className="grid grid-cols-[minmax(0,110px)_1fr_28px] sm:grid-cols-[130px_1fr_30px] gap-2 sm:gap-2.5 items-center text-sm"
                   >
                     <span className="text-gray-600 truncate">{label}</span>
                     <Progress
@@ -224,7 +224,7 @@ export function ReviewsSection({
                       aria-label={label}
                       classNames={{ track: 'h-1.5' }}
                     />
-                    <span className="font-bold text-gray-900 text-right min-w-[28px]">
+                    <span className="font-bold text-gray-900 text-right min-w-7">
                       {val.toFixed(1)}
                     </span>
                   </div>
@@ -268,8 +268,8 @@ export function ReviewsSection({
             ))}
           </div>
           <div>
-            <p className="text-[15px] font-semibold text-gray-700">No reviews yet</p>
-            <p className="text-[13px] text-gray-400 mt-1">
+            <p className="text-sm font-semibold text-gray-700">No reviews yet</p>
+            <p className="text-sm text-gray-400 mt-1">
               Be the first to share your experience at {campName}.
             </p>
           </div>
@@ -278,7 +278,7 @@ export function ReviewsSection({
             href="/reviews/write"
             variant="flat"
             startContent={<PenLine size={15} />}
-            className="mt-1 rounded-xl border-[1.5px] border-primary bg-primary/10 text-secondary font-bold hover:bg-primary/20"
+            className="mt-1 rounded-xl border-2 border-primary bg-primary/10 text-secondary font-bold hover:bg-primary/20"
           >
             Write a review
           </Button>

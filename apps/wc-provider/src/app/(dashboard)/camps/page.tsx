@@ -368,7 +368,7 @@ export default function CampsPage() {
             <Select
               aria-label="location"
               placeholder="Select location"
-              className="w-[280px]"
+              className="w-72"
               selectedKeys={activeFilters.location ? [activeFilters.location] : []}
               onSelectionChange={keys => {
                 const value = Array.from(keys)[0] as string | undefined
@@ -385,7 +385,7 @@ export default function CampsPage() {
             <Select
               aria-label="type"
               placeholder="Select type"
-              className="w-[180px]"
+              className="w-44"
               selectedKeys={activeFilters.type ? [activeFilters.type] : []}
               onSelectionChange={keys => {
                 const value = Array.from(keys)[0] as string | undefined
@@ -628,7 +628,7 @@ export default function CampsPage() {
                 variant="bordered"
                 size="lg"
                 onPress={handleLoadMore}
-                className="min-w-[200px]"
+                className="min-w-48"
               >
                 Load More Camps ({camps.length - displayedCampsCount} remaining)
               </Button>

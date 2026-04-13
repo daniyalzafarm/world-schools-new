@@ -151,7 +151,7 @@ export default function RolesPage() {
             placeholder="Search roles..."
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            className="w-[280px]"
+            className="w-72"
             startContent={<ShieldCheck className="h-5 w-5 text-gray-400" />}
           />
 

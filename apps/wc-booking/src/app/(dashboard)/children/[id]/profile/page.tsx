@@ -617,7 +617,7 @@ export default function ChildProfilePage() {
   // Loading state
   if (isLoading || !child) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-slate-600 dark:text-slate-400">Loading profile...</p>
@@ -830,7 +830,7 @@ export default function ChildProfilePage() {
 
             {/* School Year Equivalent Hint */}
             {schoolYearEquivalent && (
-              <p className="mt-2 text-[13px] text-slate-600 dark:text-slate-400">
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
                 Equivalent to:{' '}
                 <span className="text-primary-600 dark:text-primary-400 font-medium">
                   {schoolYearEquivalent}

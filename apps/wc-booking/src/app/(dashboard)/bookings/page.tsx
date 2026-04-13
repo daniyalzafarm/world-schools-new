@@ -83,7 +83,7 @@ function BookingCard({
 
   const inner = (
     <>
-      <div className="relative h-44 w-full shrink-0 overflow-hidden bg-default-100 sm:h-auto sm:w-60 sm:min-h-[200px]">
+      <div className="relative h-44 w-full shrink-0 overflow-hidden bg-default-100 sm:h-auto sm:w-60 sm:min-h-48">
         {cover ? (
           <img
             src={cover}
@@ -138,7 +138,7 @@ function BookingCard({
                 key={ch.id}
                 className="inline-flex items-center gap-1.5 rounded-full bg-default-100 px-3 py-1 text-sm text-default-800"
               >
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-linear-to-br from-rose-100 to-primary-100 text-[10px] font-semibold">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-linear-to-br from-rose-100 to-primary-100 text-xs font-semibold">
                   {initial}
                 </span>
                 {ch.firstName}

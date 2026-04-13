@@ -106,7 +106,7 @@ export function CampSearchPopover({
             placeholder={currentCamp ? currentCamp.name : placeholder}
             startContent={
               isBusy ? (
-                <div className="w-4 h-4 animate-spin rounded-full border-2 border-gray-200 border-t-[#1E2A4A] shrink-0" />
+                <div className="w-4 h-4 animate-spin rounded-full border-2 border-gray-200 border-t-slate-800 shrink-0" />
               ) : (
                 <svg
                   className="w-4 h-4 text-gray-400 shrink-0"
@@ -126,7 +126,7 @@ export function CampSearchPopover({
         </div>
       </PopoverTrigger>
 
-      <PopoverContent className="w-[250px] max-h-[300px] overflow-hidden overflow-y-auto rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-gray-100">
+      <PopoverContent className="w-64 max-h-72 overflow-hidden overflow-y-auto rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-gray-100">
         <div>
           {results.map(camp => {
             const thumb = thumbnailUrl(camp)
@@ -147,8 +147,8 @@ export function CampSearchPopover({
                     <div className="w-full h-full bg-linear-to-br from-slate-200 to-slate-300" />
                   )}
                 </div>
-                <div className="min-w-0 max-w-[180px]">
-                  <div className="text-xs font-semibold text-[#1E2A4A] truncate">{camp.name}</div>
+                <div className="min-w-0 max-w-44">
+                  <div className="text-xs font-semibold text-slate-800 truncate">{camp.name}</div>
                   {camp.locationName && (
                     <div className="text-xs text-gray-500 truncate">{camp.locationName}</div>
                   )}

@@ -465,7 +465,7 @@ export default function KbArticlesPage() {
               >
                 <span>{tab.label}</span>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                     audienceFilter === tab.key ? 'bg-primary-100 text-secondary' : 'bg-default-100'
                   }`}
                 >
@@ -609,54 +609,54 @@ export default function KbArticlesPage() {
             >
               <TableHeader>
                 <TableColumn
-                  className="min-w-[240px] cursor-pointer select-none text-xs font-semibold uppercase tracking-wide text-default-500"
+                  className="min-w-60 cursor-pointer select-none text-xs font-semibold uppercase tracking-wide text-default-500"
                   onClick={() => handleSort('title')}
                 >
                   <div className="flex items-center gap-1">
                     <span>Article</span>
                     {sortBy === 'title' && (
-                      <span className="text-[10px]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                      <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </div>
                 </TableColumn>
-                <TableColumn className="min-w-[120px] text-xs font-semibold uppercase tracking-wide text-default-500">
+                <TableColumn className="min-w-28 text-xs font-semibold uppercase tracking-wide text-default-500">
                   Audience
                 </TableColumn>
-                <TableColumn className="min-w-[120px] text-xs font-semibold uppercase tracking-wide text-default-500">
+                <TableColumn className="min-w-28 text-xs font-semibold uppercase tracking-wide text-default-500">
                   Category
                 </TableColumn>
-                <TableColumn className="min-w-[100px] text-xs font-semibold uppercase tracking-wide text-default-500">
+                <TableColumn className="min-w-24 text-xs font-semibold uppercase tracking-wide text-default-500">
                   Type
                 </TableColumn>
-                <TableColumn className="min-w-[100px] text-xs font-semibold uppercase tracking-wide text-default-500">
+                <TableColumn className="min-w-24 text-xs font-semibold uppercase tracking-wide text-default-500">
                   Status
                 </TableColumn>
                 <TableColumn
-                  className="min-w-[80px] cursor-pointer select-none text-right text-xs font-semibold uppercase tracking-wide text-default-500"
+                  className="min-w-20 cursor-pointer select-none text-right text-xs font-semibold uppercase tracking-wide text-default-500"
                   onClick={() => handleSort('views')}
                 >
                   <div className="flex items-center justify-end gap-1">
                     <span>Views</span>
                     {sortBy === 'views' && (
-                      <span className="text-[10px]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                      <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </div>
                 </TableColumn>
-                <TableColumn className="min-w-[120px] text-xs font-semibold uppercase tracking-wide text-default-500">
+                <TableColumn className="min-w-28 text-xs font-semibold uppercase tracking-wide text-default-500">
                   Helpful
                 </TableColumn>
                 <TableColumn
-                  className="min-w-[140px] cursor-pointer select-none text-xs font-semibold uppercase tracking-wide text-default-500"
+                  className="min-w-36 cursor-pointer select-none text-xs font-semibold uppercase tracking-wide text-default-500"
                   onClick={() => handleSort('updatedAt')}
                 >
                   <div className="flex items-center gap-1">
                     <span>Updated</span>
                     {sortBy === 'updatedAt' && (
-                      <span className="text-[10px]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                      <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </div>
                 </TableColumn>
-                <TableColumn className="w-[120px] text-right text-xs font-semibold uppercase tracking-wide text-default-500">
+                <TableColumn className="w-28 text-right text-xs font-semibold uppercase tracking-wide text-default-500">
                   Actions
                 </TableColumn>
               </TableHeader>
@@ -737,7 +737,7 @@ export default function KbArticlesPage() {
                         <span className="text-sm font-semibold text-default-700">
                           {article.views.toLocaleString()}
                         </span>
-                        <div className="text-[11px] text-default-400">views</div>
+                        <div className="text-xs text-default-400">views</div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

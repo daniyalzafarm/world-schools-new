@@ -124,7 +124,7 @@ export default function PersonalInfoPage() {
   return (
     <div className="min-h-full w-full bg-white dark:bg-slate-900">
       <div className="mb-10">
-        <h1 className="text-[32px] font-semibold text-slate-900 dark:text-white mb-2">
+        <h1 className="text-3xl font-semibold text-slate-900 dark:text-white mb-2">
           Personal info
         </h1>
         <p className="text-base text-slate-500 dark:text-slate-400">

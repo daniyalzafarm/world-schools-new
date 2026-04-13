@@ -127,7 +127,7 @@ export function AccordionGroup({
                 return (
                   <span
                     key={id}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-[13px] font-medium text-gray-700"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-sm font-medium text-gray-700"
                   >
                     {opt?.icon} {opt?.name ?? id}
                   </span>
@@ -192,9 +192,7 @@ export function AccordionGroup({
                 <div className="flex-1 min-w-0">
                   <div className="text-base font-semibold text-gray-900 mb-0.5">{addon.name}</div>
                   {addon.description && (
-                    <div className="text-[14px] text-gray-500 leading-relaxed">
-                      {addon.description}
-                    </div>
+                    <div className="text-sm text-gray-500 leading-relaxed">{addon.description}</div>
                   )}
                 </div>
                 <div className="text-right shrink-0">
@@ -205,9 +203,7 @@ export function AccordionGroup({
                       maximumFractionDigits: 0,
                     }).format(addon.price)}
                   </div>
-                  <div className="text-[13px] text-gray-500">
-                    per {addon.quantityUnit ?? 'child'}
-                  </div>
+                  <div className="text-sm text-gray-500">per {addon.quantityUnit ?? 'child'}</div>
                 </div>
               </div>
             ))}

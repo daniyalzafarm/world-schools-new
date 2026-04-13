@@ -96,7 +96,7 @@ export function RadioButton({
         <div className="flex-1">
           <div className="text-sm font-medium text-foreground">{label}</div>
           {description && (
-            <div className="mt-0.5 text-[13px] leading-[1.3] text-default-500">{description}</div>
+            <div className="mt-0.5 text-sm leading-snug text-default-500">{description}</div>
           )}
         </div>
       </label>

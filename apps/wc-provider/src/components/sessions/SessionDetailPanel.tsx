@@ -242,7 +242,7 @@ export function SessionDetailPanel({
                   value={spotsValue.toString()}
                   onChange={e => setSpotsValue(parseInt(e.target.value) || 0)}
                   min={0}
-                  className="max-w-[120px]"
+                  className="max-w-28"
                   classNames={{
                     input: 'text-center text-xl font-semibold',
                   }}
@@ -264,7 +264,7 @@ export function SessionDetailPanel({
             <div className="space-y-3">
               {session.ageGroupSpots?.map(ags => (
                 <div key={ags.ageGroupId} className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-default-700 min-w-[100px]">
+                  <span className="text-sm font-medium text-default-700 min-w-24">
                     {getAgeGroupLabel(ags.ageGroupId)}
                   </span>
                   <Input

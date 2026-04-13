@@ -54,7 +54,7 @@ export default function WishlistDetailPage() {
               {Array.from({ length: 2 }).map((_, i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse w-[calc(33.33%-13.34px)] min-w-[260px]"
+                  className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse w-[calc(33.33%-13.34px)] min-w-64"
                 >
                   <div className="aspect-4/3 bg-gray-100" />
                   <div className="p-3.5 space-y-2">
@@ -67,7 +67,7 @@ export default function WishlistDetailPage() {
             </div>
           </div>
           {/* Map skeleton */}
-          <div className="w-[400px] shrink-0 border-l border-gray-100 hidden lg:block">
+          <div className="w-96 shrink-0 border-l border-gray-100 hidden lg:block">
             <div className="w-full h-full bg-linear-to-b from-[#E8F4F8] to-[#D4E8E0]" />
           </div>
         </div>
@@ -104,7 +104,7 @@ export default function WishlistDetailPage() {
         </div>
 
         {/* Map panel */}
-        <div className="w-[400px] shrink-0 border-l border-gray-100 hidden lg:flex">
+        <div className="w-96 shrink-0 border-l border-gray-100 hidden lg:flex">
           <WishlistMapPanel items={activeWishlist.items ?? []} />
         </div>
       </div>

@@ -28,7 +28,7 @@ export function SessionPricingDisplay({
     if (variant === 'compact') {
       return (
         <div className="text-right">
-          <div className="text-[18px] font-bold text-default-900">
+          <div className="text-lg font-bold text-default-900">
             {formatCurrency(price, currency)}
           </div>
         </div>
@@ -37,10 +37,8 @@ export function SessionPricingDisplay({
 
     return (
       <div className="text-right">
-        <div className="text-[20px] font-bold text-default-900">
-          {formatCurrency(price, currency)}
-        </div>
-        <div className="text-[12px] text-default-500">per session</div>
+        <div className="text-xl font-bold text-default-900">{formatCurrency(price, currency)}</div>
+        <div className="text-xs text-default-500">per session</div>
       </div>
     )
   }
@@ -53,7 +51,7 @@ export function SessionPricingDisplay({
     if (variant === 'compact') {
       return (
         <div className="text-right">
-          <div className="text-[18px] font-bold text-default-900">
+          <div className="text-lg font-bold text-default-900">
             {minPrice === maxPrice
               ? formatCurrency(minPrice, currency)
               : `${formatCurrency(minPrice, currency)} - ${formatCurrency(maxPrice, currency)}`}
@@ -64,15 +62,15 @@ export function SessionPricingDisplay({
 
     return (
       <div className="text-right">
-        <div className="text-[20px] font-bold text-default-900">
+        <div className="text-xl font-bold text-default-900">
           {minPrice === maxPrice
             ? formatCurrency(minPrice, currency)
             : `${formatCurrency(minPrice, currency)} - ${formatCurrency(maxPrice, currency)}`}
         </div>
-        <div className="text-[12px] text-default-500">per session (varies by age group)</div>
+        <div className="text-xs text-default-500">per session (varies by age group)</div>
       </div>
     )
   }
 
-  return <div className="text-[14px] text-default-400 italic">No pricing set</div>
+  return <div className="text-sm text-default-400 italic">No pricing set</div>
 }

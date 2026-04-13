@@ -18,10 +18,10 @@ export function CompareBar({ wishlistId }: CompareBarProps) {
   const items = activeWishlist?.items.filter(i => compareIds.includes(i.campId)) ?? []
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1E2A4A] text-white px-4 pt-3 pb-3 pl-5 rounded-2xl flex items-center gap-4 shadow-[0_8px_32px_rgba(0,0,0,0.2)] z-50">
-      <div className="text-[15px] font-medium">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-4 pt-3 pb-3 pl-5 rounded-2xl flex items-center gap-4 shadow-[0_8px_32px_rgba(0,0,0,0.2)] z-50">
+      <div className="text-sm font-medium">
         Compare{' '}
-        <span className="bg-[#45F0B5] text-[#1E2A4A] px-2 py-0.5 rounded-xl text-[13px] font-bold">
+        <span className="bg-primary text-slate-800 px-2 py-0.5 rounded-xl text-sm font-bold">
           {compareIds.length}
         </span>
       </div>
@@ -38,7 +38,7 @@ export function CompareBar({ wishlistId }: CompareBarProps) {
           return (
             <div
               key={item.campId}
-              className="w-9 h-9 rounded-lg overflow-hidden border-2 border-[#1E2A4A]"
+              className="w-9 h-9 rounded-lg overflow-hidden border-2 border-slate-800"
               style={{ marginLeft: i === 0 ? 0 : -8 }}
             >
               {photo ? (
@@ -53,7 +53,7 @@ export function CompareBar({ wishlistId }: CompareBarProps) {
 
       {/* Compare button */}
       <button
-        className="cursor-pointer flex items-center gap-1.5 px-5 py-2.5 bg-[#45F0B5] rounded-[10px] text-[14px] font-semibold text-[#1E2A4A] hover:bg-[#3DE0A5] transition-colors"
+        className="cursor-pointer flex items-center gap-1.5 px-5 py-2.5 bg-primary rounded-xl text-sm font-semibold text-slate-800 hover:bg-emerald-400 transition-colors"
         onClick={() => {
           const slugs = items.map(i => i.camp?.slug).filter(Boolean) as string[]
           const qs = new URLSearchParams()
@@ -72,7 +72,7 @@ export function CompareBar({ wishlistId }: CompareBarProps) {
         onClick={clearCompare}
       >
         <svg
-          className="w-[18px] h-[18px]"
+          className="w-5 h-5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

@@ -162,7 +162,7 @@ export function AddToWishlistModal({ skipSuccessView = false }: { skipSuccessVie
           <>
             {/* Success state — replaces the preview with a check + confirmation */}
             <ModalBody className="flex flex-col items-center py-8 px-6 text-center">
-              <div className="w-[100px] h-[100px] bg-[#45F0B5] rounded-[14px] flex items-center justify-center mb-3 animate-[scaleIn_0.3s_ease] shrink-0 overflow-hidden">
+              <div className="w-24 h-24 bg-primary rounded-xl flex items-center justify-center mb-3 animate-[scaleIn_0.3s_ease] shrink-0 overflow-hidden">
                 {addToWishlistCampPreview?.thumbnail ? (
                   <div className="relative w-full h-full">
                     <img
@@ -172,7 +172,7 @@ export function AddToWishlistModal({ skipSuccessView = false }: { skipSuccessVie
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <svg
-                        className="w-10 h-10 text-[#1E2A4A]"
+                        className="w-10 h-10 text-slate-800"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -184,7 +184,7 @@ export function AddToWishlistModal({ skipSuccessView = false }: { skipSuccessVie
                   </div>
                 ) : (
                   <svg
-                    className="w-10 h-10 text-[#1E2A4A]"
+                    className="w-10 h-10 text-slate-800"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -194,7 +194,7 @@ export function AddToWishlistModal({ skipSuccessView = false }: { skipSuccessVie
                   </svg>
                 )}
               </div>
-              <h3 className="text-[18px] font-semibold text-[#1E2A4A] mb-1">Saved!</h3>
+              <h3 className="text-lg font-semibold text-slate-800 mb-1">Saved!</h3>
               {savedTo && <p className="text-sm text-gray-500">Added to {savedTo.name}</p>}
             </ModalBody>
             <div className="flex gap-3 p-6 pt-0">
@@ -202,7 +202,7 @@ export function AddToWishlistModal({ skipSuccessView = false }: { skipSuccessVie
                 Continue browsing
               </Button>
               <Button
-                className="flex-1 bg-[#45F0B5] text-[#1E2A4A] font-semibold"
+                className="flex-1 bg-primary text-slate-800 font-semibold"
                 onPress={() => {
                   handleClose()
                   if (savedToFirstId) router.push(`/wishlists/${savedToFirstId}`)
@@ -221,7 +221,7 @@ export function AddToWishlistModal({ skipSuccessView = false }: { skipSuccessVie
                   onClick={() => setView('select')}
                 >
                   <svg
-                    className="w-[18px] h-[18px] text-gray-500"
+                    className="w-5 h-5 text-gray-500"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -231,14 +231,12 @@ export function AddToWishlistModal({ skipSuccessView = false }: { skipSuccessVie
                   </svg>
                 </button>
               )}
-              <span className="text-[18px] font-semibold text-[#1E2A4A]">Create new list</span>
+              <span className="text-lg font-semibold text-slate-800">Create new list</span>
             </ModalHeader>
             {addToWishlistCampPreview && <CampPreview preview={addToWishlistCampPreview} />}
             <ModalBody className="gap-4 pt-4 pb-2">
               <div>
-                <label className="block text-[13px] font-medium text-gray-500 mb-2">
-                  List name
-                </label>
+                <label className="block text-sm font-medium text-gray-500 mb-2">List name</label>
                 <Input
                   placeholder="e.g. Summer 2025"
                   value={newName}
@@ -250,7 +248,7 @@ export function AddToWishlistModal({ skipSuccessView = false }: { skipSuccessVie
 
               {children.length > 0 && (
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-500 mb-2">
+                  <label className="block text-sm font-medium text-gray-500 mb-2">
                     For which children?
                     <span className="text-gray-400 font-normal">(optional)</span>
                   </label>
@@ -284,7 +282,7 @@ export function AddToWishlistModal({ skipSuccessView = false }: { skipSuccessVie
                 Cancel
               </Button>
               <Button
-                className="bg-[#45F0B5] text-[#1E2A4A] font-semibold"
+                className="bg-primary text-slate-800 font-semibold"
                 onPress={handleCreateAndSave}
                 isLoading={isSaving}
                 isDisabled={!newName.trim()}
@@ -296,20 +294,20 @@ export function AddToWishlistModal({ skipSuccessView = false }: { skipSuccessVie
         ) : (
           // select view
           <>
-            <ModalHeader className="text-[18px] font-semibold text-[#1E2A4A] pb-0">
+            <ModalHeader className="text-lg font-semibold text-slate-800 pb-0">
               Save to wishlist
             </ModalHeader>
             {addToWishlistCampPreview && <CampPreview preview={addToWishlistCampPreview} />}
             <ModalBody className="pt-4 pb-0 px-0">
-              <ScrollShadow className="px-6 pb-4 max-h-[320px]">
+              <ScrollShadow className="px-6 pb-4 max-h-80">
                 {/* Create new button */}
                 <button
-                  className="flex items-center gap-3 w-full p-3.5 bg-white border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#45F0B5] hover:bg-[#E6FCF5] transition-all mb-4 group"
+                  className="flex items-center gap-3 w-full p-3.5 bg-white border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-primary hover:bg-emerald-50 transition-all mb-4 group"
                   onClick={() => setView('create')}
                 >
-                  <div className="w-10 h-10 bg-gray-100 rounded-[10px] flex items-center justify-center shrink-0 group-hover:bg-[#45F0B5] transition-colors">
+                  <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-primary transition-colors">
                     <svg
-                      className="w-5 h-5 text-gray-500 group-hover:text-[#1E2A4A]"
+                      className="w-5 h-5 text-gray-500 group-hover:text-slate-800"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -319,7 +317,7 @@ export function AddToWishlistModal({ skipSuccessView = false }: { skipSuccessVie
                       <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
                   </div>
-                  <span className="text-[15px] font-medium text-[#1E2A4A]">Create new list</span>
+                  <span className="text-sm font-medium text-slate-800">Create new list</span>
                 </button>
 
                 {/* Wishlists */}
@@ -337,14 +335,14 @@ export function AddToWishlistModal({ skipSuccessView = false }: { skipSuccessVie
                         className={`flex items-center gap-3 p-3.5 bg-white border rounded-xl cursor-pointer transition-all text-left ${
                           isSelected
                             ? 'border-gray-900 bg-gray-50'
-                            : 'border-gray-200 hover:border-[#1E2A4A] hover:bg-gray-50'
+                            : 'border-gray-200 hover:border-slate-800 hover:bg-gray-50'
                         }`}
                         onClick={() => toggleWishlist(w.id)}
                       >
                         {/* Check circle */}
                         <div
-                          className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                            isSelected ? 'bg-[#45F0B5] border-[#45F0B5]' : 'border-gray-300'
+                          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                            isSelected ? 'bg-primary border-primary' : 'border-gray-300'
                           }`}
                         >
                           {isSelected && (
@@ -360,10 +358,10 @@ export function AddToWishlistModal({ skipSuccessView = false }: { skipSuccessVie
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-[15px] font-medium text-[#1E2A4A] truncate">
+                          <div className="text-sm font-medium text-slate-800 truncate">
                             {w.name}
                           </div>
-                          <div className="text-[13px] text-gray-500">
+                          <div className="text-sm text-gray-500">
                             {w.campCount} {w.campCount === 1 ? 'camp' : 'camps'}
                           </div>
                         </div>
@@ -376,7 +374,7 @@ export function AddToWishlistModal({ skipSuccessView = false }: { skipSuccessVie
 
             <div className="px-6 py-5 border-t border-gray-100 bg-gray-50">
               <Button
-                className="w-full bg-[#45F0B5] text-[#1E2A4A] font-semibold h-[52px] text-base"
+                className="w-full bg-primary text-slate-800 font-semibold h-12 text-base"
                 onPress={handleSave}
                 isLoading={isSaving}
                 isDisabled={!hasChanges}
@@ -398,15 +396,15 @@ interface CampPreviewProps {
 function CampPreview({ preview }: CampPreviewProps) {
   return (
     <div className="flex flex-col items-center px-6 pt-5 pb-4 text-center border-b border-gray-100">
-      <div className="w-[100px] h-[100px] rounded-[14px] overflow-hidden mb-3 shrink-0 shadow-sm">
+      <div className="w-24 h-24 rounded-xl overflow-hidden mb-3 shrink-0 shadow-sm">
         {preview.thumbnail ? (
           <img src={preview.thumbnail} alt={preview.name} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-linear-to-br from-[#E8F4F8] to-[#D4E8E0]" />
         )}
       </div>
-      <p className="text-[16px] font-semibold text-[#1E2A4A] leading-snug">{preview.name}</p>
-      {preview.location && <p className="text-[14px] text-gray-500 mt-0.5">{preview.location}</p>}
+      <p className="text-base font-semibold text-slate-800 leading-snug">{preview.name}</p>
+      {preview.location && <p className="text-sm text-gray-500 mt-0.5">{preview.location}</p>}
     </div>
   )
 }

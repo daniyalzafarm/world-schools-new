@@ -1685,10 +1685,10 @@ function ReviewStep() {
         </div>
 
         <div className="lg:hidden border-t border-gray-200 bg-white pt-5 space-y-4">
-          <h3 className="text-[15px] font-semibold text-gray-900">Price details</h3>
+          <h3 className="text-sm font-semibold text-gray-900">Price details</h3>
 
           <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
               Camp fee
             </p>
             {campFeeBreakdown.length === 0 ? (
@@ -1713,7 +1713,7 @@ function ReviewStep() {
 
           {extrasPriceRows.length > 0 ? (
             <div>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
                 Extras
               </p>
               <div className="space-y-2">

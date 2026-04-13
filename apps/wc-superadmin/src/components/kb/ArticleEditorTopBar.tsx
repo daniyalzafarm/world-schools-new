@@ -38,7 +38,7 @@ export function ArticleEditorTopBar({
   return (
     <header
       className={cn(
-        'h-[60px] border-b-2 border-gray-200 bg-background px-5 lg:px-6',
+        'h-16 border-b-2 border-gray-200 bg-background px-5 lg:px-6',
         previewMode && 'border-warning-200'
       )}
     >

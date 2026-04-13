@@ -708,7 +708,7 @@ export default function OnboardingStep1Page() {
                     <GoogleMapWithSearch selectedPlace={mapLocation} className="h-full w-full" />
 
                     {/* Search Overlay */}
-                    <div className="absolute left-1/2 top-8 w-[90%] max-w-[500px] -translate-x-1/2">
+                    <div className="absolute left-1/2 top-8 w-[90%] max-w-lg -translate-x-1/2">
                       <Input
                         ref={searchInputRef}
                         value={searchQuery}
@@ -1115,7 +1115,7 @@ export default function OnboardingStep1Page() {
                       errorMessage={errors.currency?.message}
                       classNames={{
                         base: 'w-full',
-                        listboxWrapper: 'max-h-[320px]',
+                        listboxWrapper: 'max-h-80',
                       }}
                       inputProps={{
                         classNames: {
@@ -1149,7 +1149,7 @@ export default function OnboardingStep1Page() {
                       errorMessage={errors.timezone?.message}
                       classNames={{
                         base: 'w-full',
-                        listboxWrapper: 'max-h-[320px]',
+                        listboxWrapper: 'max-h-80',
                       }}
                       inputProps={{
                         classNames: {

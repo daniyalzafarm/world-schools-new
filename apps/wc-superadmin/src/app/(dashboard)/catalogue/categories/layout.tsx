@@ -50,7 +50,7 @@ export default function CatalogueCategoriesLayout({ children }: { children: Reac
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
-        <div className="mx-auto w-full max-w-[740px]">
+        <div className="mx-auto w-full max-w-3xl">
           <div className="px-4 py-6 lg:px-10 lg:py-8">{children}</div>
         </div>
       </div>

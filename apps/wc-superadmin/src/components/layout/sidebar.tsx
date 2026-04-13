@@ -26,7 +26,6 @@ import {
   Inbox,
   LayoutGrid,
   List,
-  ListPlus,
   LogOut,
   MessageCircle,
   MessageCircleWarning,
@@ -111,13 +110,6 @@ const NAV_ITEMS: NavItem[] = [
     icon: <Banknote size={20} />,
     type: 'regular',
     // No permission required - available to all authenticated users
-  },
-  {
-    name: 'Provider Requests',
-    href: '/provider-requests',
-    icon: <ListPlus size={20} />,
-    type: 'regular',
-    permission: 'provider_applications.read',
   },
   {
     name: 'All Providers',
@@ -442,7 +434,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
             <div className="flex items-center justify-between gap-2 whitespace-nowrap overflow-hidden">
               <div className={cn('flex w-full', 'justify-start')}>
                 <div className="shrink-0">
-                  <Logo size={'md'} showText={!isCollapsed} />
+                  <Logo showText={!isCollapsed} />
                 </div>
               </div>
             </div>

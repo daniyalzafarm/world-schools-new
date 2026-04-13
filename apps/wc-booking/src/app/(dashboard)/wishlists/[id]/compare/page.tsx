@@ -86,7 +86,7 @@ export default function WishlistComparePage() {
     <div className="h-full overflow-y-auto">
       {/* Header */}
       <header className="sticky top-0 bg-white border-b border-gray-200 z-50 px-5 py-3.5">
-        <div className="max-w-[1320px] mx-auto flex items-center gap-4">
+        <div className="max-w-7xl mx-auto flex items-center gap-4">
           <Button
             isIconOnly
             variant="flat"
@@ -97,8 +97,8 @@ export default function WishlistComparePage() {
             <ChevronLeft size={20} />
           </Button>
           <div>
-            <h1 className="text-[17px] font-semibold">Compare Camps</h1>
-            <div className="text-[13px] text-gray-500">
+            <h1 className="text-base font-semibold">Compare Camps</h1>
+            <div className="text-sm text-gray-500">
               {filledCount > 0
                 ? `${filledCount} of ${SLOT_COUNT} slots filled — search to add more`
                 : 'Search for camps to compare'}
@@ -107,10 +107,10 @@ export default function WishlistComparePage() {
         </div>
       </header>
 
-      <div className="max-w-[1320px] mx-auto">
+      <div className="max-w-7xl mx-auto">
         {isLoadingSlots ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#45F0B5]" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
         ) : (
           <WishlistCompareTable slots={slots} onSlotChange={handleSlotChange} />

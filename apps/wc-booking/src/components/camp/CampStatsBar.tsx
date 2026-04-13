@@ -89,7 +89,7 @@ export function CampStatsBar({
       {stats.map(stat => (
         <div key={`${stat.label}-${stat.value}`} className="flex flex-col gap-2 bg-white px-5 py-4">
           <span className="flex items-center gap-1 text-xs font-semibold tracking-[0.5px] text-gray-400 uppercase">
-            <span className="text-[13px] leading-none" aria-hidden>
+            <span className="text-sm leading-none" aria-hidden>
               {stat.icon}
             </span>
             {stat.label}

@@ -374,7 +374,7 @@ export function CatalogueActivityForm(props: CatalogueActivityFormProps) {
                     <div className={cn('text-sm font-bold font-mono', palette.chipText)}>
                       {(lvl.value || '?').toUpperCase()}
                     </div>
-                    <div className={cn('text-[11px] mt-0.5', palette.chipText)}>{lvl.label}</div>
+                    <div className={cn('text-xs mt-0.5', palette.chipText)}>{lvl.label}</div>
                   </div>
                 ))}
               </div>

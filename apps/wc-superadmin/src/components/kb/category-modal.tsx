@@ -155,7 +155,7 @@ export function CategoryModal() {
               isInvalid={!!errors.name}
               errorMessage={errors.name}
               classNames={{
-                label: 'text-[14px] font-semibold',
+                label: 'text-sm font-semibold',
               }}
             />
           </div>
@@ -171,7 +171,7 @@ export function CategoryModal() {
             errorMessage={errors.slug}
             description="URL-friendly identifier (lowercase, alphanumeric, hyphens only)"
             classNames={{
-              label: 'text-[14px] font-semibold',
+              label: 'text-sm font-semibold',
             }}
           />
 
@@ -183,7 +183,7 @@ export function CategoryModal() {
             onValueChange={value => setFormData(prev => ({ ...prev, description: value }))}
             minRows={3}
             classNames={{
-              label: 'text-[14px] font-semibold',
+              label: 'text-sm font-semibold',
             }}
           />
 
@@ -196,14 +196,14 @@ export function CategoryModal() {
             onValueChange={value => setFormData(prev => ({ ...prev, sortOrder: Number(value) }))}
             description="Lower numbers appear first"
             classNames={{
-              label: 'text-[14px] font-semibold',
+              label: 'text-sm font-semibold',
             }}
           />
 
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1">
-              <label className="text-[14px] font-semibold">Active Status</label>
-              <p className="text-[13px] text-default-400">
+              <label className="text-sm font-semibold">Active Status</label>
+              <p className="text-sm text-default-400">
                 Inactive categories are hidden from users
               </p>
             </div>

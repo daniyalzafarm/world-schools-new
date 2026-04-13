@@ -136,9 +136,9 @@ export function OnboardingSidebar({
   ]
 
   return (
-    <aside className="fixed left-0 top-0 z-100 flex h-screen w-[280px] flex-col overflow-y-auto border-r border-default-200 bg-default-50">
+    <aside className="fixed left-0 top-0 z-100 flex h-screen w-72 flex-col overflow-y-auto border-r border-default-200 bg-default-50">
       {/* Logo Header */}
-      <div className="flex min-h-[61px] items-center bg-default-50 px-5 py-5">
+      <div className="flex min-h-16 items-center bg-default-50 px-5 py-5">
         <div className="flex items-center">
           <Logo size={'md'} showText={true} />
         </div>
@@ -146,7 +146,7 @@ export function OnboardingSidebar({
 
       {/* Navigation */}
       <nav className="flex-1 py-6">
-        <div className="mb-3 px-5 text-[11px] font-bold uppercase tracking-[0.5px] text-default-500">
+        <div className="mb-3 px-5 text-xs font-bold uppercase tracking-[0.5px] text-default-500">
           ONBOARDING STEPS
         </div>
 
@@ -159,13 +159,13 @@ export function OnboardingSidebar({
             <>
               {/* Active Indicator */}
               {isActive && isEnabled && (
-                <div className="absolute bottom-0 left-0 top-0 w-[3px] bg-primary" />
+                <div className="absolute bottom-0 left-0 top-0 w-1 bg-primary" />
               )}
 
               {/* Step Number */}
               <div
                 className={cn(
-                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-[13px] font-semibold',
+                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold',
                   {
                     'border-primary bg-primary text-foreground':
                       (isActive || isCompleted) && isEnabled,
@@ -179,9 +179,9 @@ export function OnboardingSidebar({
 
               {/* Step Info */}
               <div className="flex-1">
-                <div className="text-[14px] font-semibold">{step.title}</div>
+                <div className="text-sm font-semibold">{step.title}</div>
                 <div
-                  className={cn('text-[12px]', {
+                  className={cn('text-xs', {
                     'text-default-500': isEnabled,
                     'text-default-400': !isEnabled,
                   })}

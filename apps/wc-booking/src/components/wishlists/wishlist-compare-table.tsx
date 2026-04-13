@@ -37,11 +37,11 @@ function getAgeRange(camp: Camp): string | null {
 function SectionHeader({ label }: { label: string }) {
   return (
     <div className="table-row">
-      <span className="table-cell px-4 py-2.5 bg-[#1E2A4A] text-white text-xs font-semibold uppercase tracking-[0.5px]">
+      <span className="table-cell px-4 py-2.5 bg-slate-800 text-white text-xs font-semibold uppercase tracking-[0.5px]">
         {label}
       </span>
       {Array.from({ length: SLOT_COUNT }).map((_, i) => (
-        <span key={i} className="table-cell px-4 py-2.5 bg-[#1E2A4A]" />
+        <span key={i} className="table-cell px-4 py-2.5 bg-slate-800" />
       ))}
     </div>
   )
@@ -51,7 +51,7 @@ function DataRow({ label, values }: { label: string; values: React.ReactNode[] }
   const paddedValues = Array.from({ length: SLOT_COUNT }, (_, i) => values[i] ?? null)
   return (
     <div className="table-row">
-      <div className="table-cell py-3.5 px-4 text-[13px] font-medium text-gray-500 bg-gray-50 border-b border-gray-100 w-[120px] max-w-[120px] align-middle">
+      <div className="table-cell py-3.5 px-4 text-sm font-medium text-gray-500 bg-gray-50 border-b border-gray-100 w-28 max-w-28 align-middle">
         {label}
       </div>
       {paddedValues.map((val, i) => (
@@ -79,14 +79,14 @@ function ActivitiesList({ activities }: { activities: string[] }) {
       {visible.map((a, i) => (
         <span
           key={i}
-          className="px-2.5 py-1 bg-gray-100 text-[#1E2A4A] rounded-md text-xs font-medium"
+          className="px-2.5 py-1 bg-gray-100 text-slate-800 rounded-md text-xs font-medium"
         >
           {a}
         </span>
       ))}
       {hiddenCount > 0 && (
         <button
-          className="px-2.5 py-1 bg-[#E6FCF5] text-[#0D8B6D] rounded-md text-xs font-medium hover:bg-[#D0F5EA] transition-colors"
+          className="px-2.5 py-1 bg-emerald-50 text-teal-600 rounded-md text-xs font-medium hover:bg-emerald-100 transition-colors"
           onClick={() => setExpanded(v => !v)}
         >
           {expanded ? 'Show less' : `+${hiddenCount} more`}
@@ -106,7 +106,7 @@ function StarRating({ rating }: { rating: number }) {
       {Array.from({ length: 5 }).map((_, i) => (
         <svg
           key={i}
-          className={`w-3 h-3 ${i < full || (i === full && half) ? 'fill-[#45F0B5] text-[#45F0B5]' : 'fill-gray-200 text-gray-200'}`}
+          className={`w-3 h-3 ${i < full || (i === full && half) ? 'fill-primary text-primary' : 'fill-gray-200 text-gray-200'}`}
           viewBox="0 0 24 24"
           stroke="currentColor"
           strokeWidth="1"
@@ -122,7 +122,7 @@ function StarRating({ rating }: { rating: number }) {
 
 function EmptySlot() {
   return (
-    <div className="flex flex-col items-center justify-center h-[150px] rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">
+    <div className="flex flex-col items-center justify-center h-36 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">
       <svg
         className="w-7 h-7 text-gray-300 mb-1.5"
         viewBox="0 0 24 24"
@@ -185,11 +185,11 @@ export function WishlistCompareTable({
       <div className="table border-collapse w-max min-w-full">
         {/* ── Camp header row ──────────────────────────────────────────── */}
         <div className="table-row">
-          <div className="table-cell py-5 px-4 bg-white align-top w-[120px] max-w-[120px]" />
+          <div className="table-cell py-5 px-4 bg-white align-top w-28 max-w-28" />
           {paddedSlots.map((camp, i) => (
             <div
               key={i}
-              className="table-cell py-5 px-4 border-l border-gray-100 w-[280px] min-w-[260px] max-w-[300px] align-top"
+              className="table-cell py-5 px-4 border-l border-gray-100 w-72 min-w-64 max-w-72 align-top"
             >
               {/* Search bar */}
               {!readOnly && (
@@ -205,7 +205,7 @@ export function WishlistCompareTable({
               {camp ? (
                 <>
                   {/* Photo */}
-                  <div className="relative h-[160px] rounded-xl overflow-hidden mb-3.5">
+                  <div className="relative h-40 rounded-xl overflow-hidden mb-3.5">
                     {firstPhotoUrl(camp) ? (
                       <img
                         src={firstPhotoUrl(camp)!}
@@ -222,15 +222,12 @@ export function WishlistCompareTable({
                         title="Add to wishlist"
                       >
                         {isCampWishlisted(camp) ? (
-                          <svg
-                            className="w-[18px] h-[18px] fill-[#EF4444] text-[#EF4444]"
-                            viewBox="0 0 24 24"
-                          >
+                          <svg className="w-5 h-5 fill-red-500 text-red-500" viewBox="0 0 24 24">
                             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                           </svg>
                         ) : (
                           <svg
-                            className="w-[18px] h-[18px] text-gray-400"
+                            className="w-5 h-5 text-gray-400"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
@@ -245,7 +242,7 @@ export function WishlistCompareTable({
 
                   {/* Name */}
                   <div
-                    className="text-[17px] font-semibold mb-1.5 cursor-pointer hover:text-[#0D8B6D] transition-colors leading-snug"
+                    className="text-base font-semibold mb-1.5 cursor-pointer hover:text-teal-600 transition-colors leading-snug"
                     onClick={() => router.push(`/camps/${camp.slug}`)}
                   >
                     {camp.name}
@@ -253,7 +250,7 @@ export function WishlistCompareTable({
 
                   {/* Location */}
                   {camp.locationName && (
-                    <div className="flex items-center gap-1 text-[14px] text-gray-500 mb-1.5">
+                    <div className="flex items-center gap-1 text-sm text-gray-500 mb-1.5">
                       <svg
                         className="w-3.5 h-3.5 shrink-0"
                         viewBox="0 0 24 24"
@@ -269,11 +266,11 @@ export function WishlistCompareTable({
                   )}
 
                   {/* Rating + type */}
-                  <div className="flex items-center gap-2 text-[13px] text-gray-400 flex-wrap">
+                  <div className="flex items-center gap-2 text-sm text-gray-400 flex-wrap">
                     {(() => {
                       const gbp = (camp as any)?.provider?.googleBusinessProfile
                       return gbp?.rating ? (
-                        <span className="flex items-center gap-1 text-[#1E2A4A] font-medium">
+                        <span className="flex items-center gap-1 text-slate-800 font-medium">
                           <StarRating rating={gbp.rating} />
                           {gbp.rating}
                           {gbp.reviewsCount ? ` (${gbp.reviewsCount})` : ''}
@@ -307,7 +304,7 @@ export function WishlistCompareTable({
             const exp = new Date().getFullYear() - year
             return (
               <div key={camp.id}>
-                <div className="font-semibold text-[#1E2A4A]">{year}</div>
+                <div className="font-semibold text-slate-800">{year}</div>
                 <div className="text-xs text-gray-500 mt-0.5">{exp} years experience</div>
               </div>
             )
@@ -318,7 +315,7 @@ export function WishlistCompareTable({
           label="Ages"
           values={paddedSlots.map(camp => {
             const range = camp ? getAgeRange(camp) : null
-            return range ? <div className="font-semibold text-[#1E2A4A]">{range}</div> : null
+            return range ? <div className="font-semibold text-slate-800">{range}</div> : null
           })}
         />
 
@@ -331,7 +328,7 @@ export function WishlistCompareTable({
                 {camp.languages.map(lang => (
                   <span
                     key={lang}
-                    className="px-2.5 py-1 bg-gray-100 text-[#1E2A4A] rounded-md text-xs font-medium capitalize"
+                    className="px-2.5 py-1 bg-gray-100 text-slate-800 rounded-md text-xs font-medium capitalize"
                   >
                     {lang}
                   </span>
@@ -347,7 +344,7 @@ export function WishlistCompareTable({
             camp?.gender ? (
               <span
                 key={camp.id}
-                className="px-2.5 py-1 bg-gray-100 text-[#1E2A4A] rounded-md text-xs font-medium capitalize"
+                className="px-2.5 py-1 bg-gray-100 text-slate-800 rounded-md text-xs font-medium capitalize"
               >
                 {camp.gender}
               </span>
@@ -367,7 +364,7 @@ export function WishlistCompareTable({
                 if (!acc) return null
                 return (
                   <div key={camp.id}>
-                    {acc.rooms && <div className="font-semibold text-[#1E2A4A]">{acc.rooms}</div>}
+                    {acc.rooms && <div className="font-semibold text-slate-800">{acc.rooms}</div>}
                     {acc.type && (
                       <div className="text-xs text-gray-500 mt-0.5 capitalize">{acc.type}</div>
                     )}
@@ -393,7 +390,7 @@ export function WishlistCompareTable({
                 if (m.dinner) parts.push('Dinner')
                 if (m.snacks) parts.push('Snacks')
                 return parts.length ? (
-                  <div className="font-semibold text-[#1E2A4A]">{parts.join(' + ')}</div>
+                  <div className="font-semibold text-slate-800">{parts.join(' + ')}</div>
                 ) : null
               })}
             />
@@ -408,7 +405,7 @@ export function WishlistCompareTable({
                     {dietary.map(d => (
                       <span
                         key={d}
-                        className="px-2.5 py-1 bg-[#D1FAE5] text-[#065F46] rounded-md text-xs font-medium"
+                        className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-md text-xs font-medium"
                       >
                         ✓ {d}
                       </span>
@@ -437,7 +434,7 @@ export function WishlistCompareTable({
                     {items.map(item => (
                       <span
                         key={item}
-                        className="px-2.5 py-1 bg-gray-100 text-[#1E2A4A] rounded-md text-xs font-medium"
+                        className="px-2.5 py-1 bg-gray-100 text-slate-800 rounded-md text-xs font-medium"
                       >
                         ✓ {item}
                       </span>
@@ -467,8 +464,8 @@ export function WishlistCompareTable({
                 return (
                   <div key={camp.id} className="flex flex-col gap-1">
                     {slots.map((s, idx) => (
-                      <div key={idx} className="flex gap-2.5 text-[13px]">
-                        <span className="text-gray-400 min-w-[38px] shrink-0">{s.time}</span>
+                      <div key={idx} className="flex gap-2.5 text-sm">
+                        <span className="text-gray-400 min-w-10 shrink-0">{s.time}</span>
                         <span>{s.activity}</span>
                       </div>
                     ))}
@@ -507,7 +504,7 @@ export function WishlistCompareTable({
                   <div key={camp.id} className="p-3 bg-gray-50 rounded-xl">
                     <div className="flex items-center gap-1.5 mb-1">
                       <StarRating rating={gbp.rating} />
-                      <span className="text-sm font-semibold text-[#1E2A4A]">{gbp.rating}</span>
+                      <span className="text-sm font-semibold text-slate-800">{gbp.rating}</span>
                       {gbp.reviewsCount && (
                         <span className="text-xs text-gray-500">({gbp.reviewsCount} reviews)</span>
                       )}
@@ -534,17 +531,17 @@ export function WishlistCompareTable({
               {camp ? (
                 <div className="flex flex-col gap-2.5">
                   <button
-                    className="w-full py-3.5 bg-[#45F0B5] rounded-xl text-[15px] font-semibold text-[#1E2A4A] hover:bg-[#3DE0A5] transition-colors"
+                    className="w-full py-3.5 bg-primary rounded-xl text-sm font-semibold text-slate-800 hover:bg-emerald-400 transition-colors"
                     onClick={() => router.push(`/camps/${camp.slug}`)}
                   >
                     Book
                   </button>
                   <button
-                    className="w-full py-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-medium text-[#1E2A4A] flex items-center justify-center gap-2 hover:bg-gray-50 hover:border-[#1E2A4A] transition-colors"
+                    className="w-full py-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-medium text-slate-800 flex items-center justify-center gap-2 hover:bg-gray-50 hover:border-slate-800 transition-colors"
                     onClick={() => router.push(`/messages?camp=${camp.slug}`)}
                   >
                     <svg
-                      className="w-[18px] h-[18px]"
+                      className="w-5 h-5"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -556,15 +553,15 @@ export function WishlistCompareTable({
                   </button>
                   {!readOnly && (
                     <button
-                      className={`w-full py-2.5 bg-white border rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition-colors ${
+                      className={`w-full py-2.5 bg-white border rounded-lg text-sm flex items-center justify-center gap-1.5 transition-colors ${
                         isCampWishlisted(camp)
-                          ? 'border-red-200 text-[#EF4444] hover:bg-red-50'
-                          : 'border-gray-200 text-gray-500 hover:border-[#1E2A4A] hover:text-[#1E2A4A] hover:bg-gray-50'
+                          ? 'border-red-200 text-red-500 hover:bg-red-50'
+                          : 'border-gray-200 text-gray-500 hover:border-slate-800 hover:text-slate-800 hover:bg-gray-50'
                       }`}
                       onClick={() => handleWishlistClick(camp)}
                     >
                       {isCampWishlisted(camp) ? (
-                        <svg className="w-4 h-4 fill-[#EF4444]" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 fill-red-500" viewBox="0 0 24 24">
                           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                         </svg>
                       ) : (

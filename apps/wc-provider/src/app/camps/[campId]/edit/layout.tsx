@@ -33,7 +33,7 @@ function CampEditorLayoutContent({
   return (
     <div className="flex h-screen overflow-hidden bg-white">
       {/* Mobile Header */}
-      <div className="fixed left-0 right-0 top-0 z-50 flex h-[60px] items-center bg-white px-6 md:hidden">
+      <div className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center bg-white px-6 md:hidden">
         <Logo size="md" />
       </div>
 
@@ -43,7 +43,7 @@ function CampEditorLayoutContent({
       </div>
 
       {/* Main Content - Full height with flex layout */}
-      <main className="flex h-full flex-1 overflow-hidden pt-[60px] md:ml-[280px] md:pt-0">
+      <main className="flex h-full flex-1 overflow-hidden pt-16 md:ml-72 md:pt-0">
         {/* Left Column: Main Content Area (Top Bar + Content + Footer) */}
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Top Bar - Sticky with reserved space */}
@@ -66,7 +66,7 @@ function CampEditorLayoutContent({
         <div
           className={`hidden h-full shrink-0 overflow-y-auto border-l border-default-200 bg-background transition-all duration-300 ease-in-out lg:block ${
             rightSidebar
-              ? 'lg:w-[380px] xl:w-[400px] translate-x-0 opacity-100'
+              ? 'lg:w-96 xl:w-96 translate-x-0 opacity-100'
               : 'lg:w-0 xl:w-0 translate-x-full opacity-0'
           }`}
         >

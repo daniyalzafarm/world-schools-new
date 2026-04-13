@@ -49,12 +49,12 @@ export function SessionCard({
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
-                <h3 className="text-[18px] font-bold text-default-900 truncate">{session.name}</h3>
+                <h3 className="text-lg font-bold text-default-900 truncate">{session.name}</h3>
                 <SessionStatusBadge status={session.status} />
               </div>
               <div className="flex items-center gap-2 text-default-600">
                 <Calendar className="w-4 h-4 shrink-0" />
-                <span className="text-[14px]">
+                <span className="text-sm">
                   {formatDateRange(session.startDate, session.endDate)}
                 </span>
               </div>
@@ -120,7 +120,7 @@ export function SessionCard({
           {/* Capacity */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] text-default-600">Capacity</span>
+              <span className="text-sm text-default-600">Capacity</span>
               <SessionCapacityIndicator
                 availabilityType={session.availabilityType}
                 totalSpots={session.totalSpots}

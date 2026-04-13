@@ -52,12 +52,12 @@ export default function WishlistsPage() {
     <div>
       {/* Page header */}
       <header className="flex justify-between items-start mb-8 gap-4 flex-wrap">
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 min-w-48">
           <h1 className="text-3xl font-semibold tracking-tight text-secondary">My Wishlists</h1>
           <p className="mt-1 text-default-600">Plan holidays and find the perfect camps</p>
         </div>
         <Button
-          className="bg-[#1A2B49] text-white font-semibold px-5 py-3 rounded-xl h-auto whitespace-nowrap"
+          className="bg-slate-800 text-white font-semibold px-5 py-3 rounded-xl h-auto whitespace-nowrap"
           onPress={openCreateModal}
           startContent={
             <svg
@@ -89,8 +89,8 @@ export default function WishlistsPage() {
           >
             My wishlists
             <span
-              className={`px-2 py-0.5 rounded-[10px] text-xs ${
-                activeTab === 'my' ? 'bg-[#E8FDF7] text-[#0D8B6D]' : 'bg-gray-200 text-gray-500'
+              className={`px-2 py-0.5 rounded-xl text-xs ${
+                activeTab === 'my' ? 'bg-emerald-50 text-teal-600' : 'bg-gray-200 text-gray-500'
               }`}
             >
               {myWishlists.length}
@@ -106,8 +106,8 @@ export default function WishlistsPage() {
           >
             Shared with me
             <span
-              className={`px-2 py-0.5 rounded-[10px] text-xs ${
-                activeTab === 'shared' ? 'bg-[#E8FDF7] text-[#0D8B6D]' : 'bg-gray-200 text-gray-500'
+              className={`px-2 py-0.5 rounded-xl text-xs ${
+                activeTab === 'shared' ? 'bg-emerald-50 text-teal-600' : 'bg-gray-200 text-gray-500'
               }`}
             >
               {sharedWishlists.length}

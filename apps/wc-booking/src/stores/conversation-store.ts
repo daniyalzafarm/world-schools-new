@@ -60,7 +60,10 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
           userId: '',
           pinned: conv?.pinned,
         })
-        if (!result.success) throw new Error(result.error ?? 'Failed to pin conversation')
+        if (!result.success)
+          throw new Error(
+            (result.data as { message?: string })?.message ?? 'Failed to pin conversation'
+          )
         set(state => ({ actionError: { ...state.actionError, [id]: null } }))
       } catch (err) {
         set({ userConversations: prev, actionError: { ...get().actionError, [id]: String(err) } })
@@ -86,7 +89,10 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
           userId: '',
           archived: conv?.archived,
         })
-        if (!result.success) throw new Error(result.error ?? 'Failed to archive conversation')
+        if (!result.success)
+          throw new Error(
+            (result.data as { message?: string })?.message ?? 'Failed to archive conversation'
+          )
         set(state => ({ actionError: { ...state.actionError, [id]: null } }))
       } catch (err) {
         set({ userConversations: prev, actionError: { ...get().actionError, [id]: String(err) } })
@@ -112,7 +118,10 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
           userId: '',
           starred: conv?.starred,
         })
-        if (!result.success) throw new Error(result.error ?? 'Failed to update favorite')
+        if (!result.success)
+          throw new Error(
+            (result.data as { message?: string })?.message ?? 'Failed to update favorite'
+          )
         set(state => ({ actionError: { ...state.actionError, [id]: null } }))
       } catch (err) {
         set({ userConversations: prev, actionError: { ...get().actionError, [id]: String(err) } })
@@ -138,7 +147,10 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
           userId: '',
           muted: conv?.muted,
         })
-        if (!result.success) throw new Error(result.error ?? 'Failed to mute conversation')
+        if (!result.success)
+          throw new Error(
+            (result.data as { message?: string })?.message ?? 'Failed to mute conversation'
+          )
         set(state => ({ actionError: { ...state.actionError, [id]: null } }))
       } catch (err) {
         set({ userConversations: prev, actionError: { ...get().actionError, [id]: String(err) } })

@@ -25,7 +25,7 @@ export function OnboardingTopBar({ breadcrumb, showTrustScore = true }: Onboardi
   return (
     <div className="flex h-18 bg-white px-12 items-center justify-between border-b border-default-200">
       {/* Breadcrumb */}
-      <div className="text-[13px] text-default-500">{breadcrumb}</div>
+      <div className="text-sm text-default-500">{breadcrumb}</div>
 
       {/* Trust Score indicator */}
       {showTrustScore && (

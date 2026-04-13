@@ -43,12 +43,12 @@ export function HelpHomePageContent() {
 
   return (
     <>
-      <section className="bg-secondary px-5 py-12 text-center sm:px-5 md:py-[48px] md:pb-[72px]">
+      <section className="bg-secondary px-5 py-12 text-center sm:px-5 md:py-12 md:pb-18">
         <h1 className="mb-6 text-3xl font-bold text-white md:text-4xl">How can we help?</h1>
-        <form onSubmit={handleSearchSubmit} className="mx-auto max-w-[600px]">
+        <form onSubmit={handleSearchSubmit} className="mx-auto max-w-xl">
           <div className="relative">
             <Search
-              className="absolute left-[18px] top-1/2 h-[22px] w-[22px] -translate-y-1/2 text-zinc-500"
+              className="absolute left-4 top-1/2 h-6 w-6 -translate-y-1/2 text-zinc-500"
               strokeWidth={2}
             />
             <input
@@ -56,18 +56,18 @@ export function HelpHomePageContent() {
               placeholder="Search for articles..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border-0 py-4 pl-[52px] pr-6 text-base bg-white shadow-[0_4px_20px_rgba(0,0,0,0.15)] focus:outline-none focus:ring-2 focus:ring-[#45F0B5]/30 focus:ring-offset-0"
+              className="w-full rounded-xl border-0 py-4 pl-14 pr-6 text-base bg-white shadow-[0_4px_20px_rgba(0,0,0,0.15)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-0"
             />
           </div>
         </form>
         {!!popular.length && (
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-            <span className="text-[13px] text-white/60">Popular:</span>
+            <span className="text-sm text-white/60">Popular:</span>
             {popular.slice(0, 4).map(a => (
               <Link
                 key={a.id}
                 href={`${basePath}/${a.category.slug}/${a.slug}`}
-                className="rounded-[20px] bg-white/10 px-3 py-1.5 text-[13px] text-white no-underline transition-colors hover:bg-white/20"
+                className="rounded-3xl bg-white/10 px-3 py-1.5 text-sm text-white no-underline transition-colors hover:bg-white/20"
               >
                 {a.title}
               </Link>
@@ -76,7 +76,7 @@ export function HelpHomePageContent() {
         )}
       </section>
 
-      <main className="mx-auto max-w-[1200px] px-5 py-12 pb-20 md:py-[48px] md:pb-20">
+      <main className="mx-auto max-w-6xl px-5 py-12 pb-20 md:py-12 md:pb-20">
         {!!categories.length && (
           <h2 className="mb-6 text-center text-2xl font-bold text-secondary md:mb-8">
             Browse by topic
@@ -87,7 +87,7 @@ export function HelpHomePageContent() {
             {[1, 2, 3].map(i => (
               <div
                 key={i}
-                className="h-[180px] animate-pulse rounded-2xl border border-gray-200 bg-gray-50"
+                className="h-44 animate-pulse rounded-2xl border border-gray-200 bg-gray-50"
               />
             ))}
           </div>
@@ -104,7 +104,7 @@ export function HelpHomePageContent() {
                 </div>
                 <h3 className="mb-2 text-lg font-semibold text-secondary">{cat.name}</h3>
                 <p className="mb-4 text-sm leading-snug text-gray-500">{cat.description ?? ''}</p>
-                <span className="text-[13px] text-gray-500">
+                <span className="text-sm text-gray-500">
                   {cat._count.articles} article
                   {cat._count.articles !== 1 ? 's' : ''}
                 </span>
@@ -121,10 +121,10 @@ export function HelpHomePageContent() {
                 <Link
                   key={a.id}
                   href={`${basePath}/${a.category.slug}/${a.slug}`}
-                  className="flex items-center gap-2 rounded-[10px] bg-gray-50 p-4 text-secondary no-underline transition-colors hover:bg-[#EBEBEB]"
+                  className="flex items-center gap-2 rounded-xl bg-gray-50 p-4 text-secondary no-underline transition-colors hover:bg-gray-200"
                 >
                   <ChevronRight className="h-5 w-5 shrink-0 text-gray-500" strokeWidth={2} />
-                  <span className="text-[15px]">{a.title}</span>
+                  <span className="text-sm">{a.title}</span>
                 </Link>
               ))}
             </div>

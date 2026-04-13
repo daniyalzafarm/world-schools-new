@@ -14,7 +14,7 @@ interface SafetyCardProps {
 
 function CheckIcon() {
   return (
-    <div className="w-[18px] h-[18px] rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+    <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
       <svg
         viewBox="0 0 12 12"
         fill="none"
@@ -22,7 +22,7 @@ function CheckIcon() {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="w-[11px] h-[11px]"
+        className="w-3 h-3"
       >
         <polyline points="2 6 5 9 10 3" />
       </svg>

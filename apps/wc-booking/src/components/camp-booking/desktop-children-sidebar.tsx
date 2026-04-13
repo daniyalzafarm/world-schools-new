@@ -85,7 +85,7 @@ export function DesktopChildrenSidebar() {
   const reviewsCount = 241
 
   return (
-    <aside className="hidden lg:block sticky top-[120px] md:top-[128px]">
+    <aside className="hidden lg:block sticky top-28 md:top-32">
       <div className="space-y-3">
         {/* Camp info card */}
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">

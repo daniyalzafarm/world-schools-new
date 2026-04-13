@@ -143,7 +143,7 @@ export default function KbCategoriesPage() {
         <Input
           label="Search"
           placeholder="Search categories..."
-          className="w-[280px]"
+          className="w-72"
           value={searchInput}
           onValueChange={setSearchInput}
           isClearable

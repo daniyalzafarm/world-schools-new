@@ -634,7 +634,7 @@ export default function SupportTicketsPage() {
                     <span>{t.label}</span>
                     {tabCount(t.key) != null && (
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                           tabKey === t.key ? 'bg-primary-100 text-secondary' : 'bg-default-100'
                         }`}
                       >
@@ -752,7 +752,7 @@ export default function SupportTicketsPage() {
                       {/* ticket-meta - matches reference ticket-user + ticket-badges */}
                       <div className="flex items-center gap-3 flex-wrap">
                         <div className="flex items-center gap-1.5">
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary-100 text-secondary text-[10px] font-semibold dark:bg-secondary-500/20 dark:text-secondary">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary-100 text-secondary text-xs font-semibold dark:bg-secondary-500/20 dark:text-secondary">
                             {requesterDisplay(t)
                               .split(/\s+/)
                               .map(w => w[0])
@@ -764,14 +764,14 @@ export default function SupportTicketsPage() {
                         </div>
                         <div className="flex gap-1.5 flex-wrap">
                           <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${getPriorityBadgeClass(
+                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityBadgeClass(
                               t.priority
                             )}`}
                           >
                             {t.priority}
                           </span>
                           <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${getRequesterBadgeClass(
+                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getRequesterBadgeClass(
                               t.requesterType
                             )}`}
                           >
@@ -779,7 +779,7 @@ export default function SupportTicketsPage() {
                           </span>
                           {t.category && (
                             <span
-                              className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${getCategoryBadgeClass(
+                              className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getCategoryBadgeClass(
                                 t.category.key
                               )}`}
                             >

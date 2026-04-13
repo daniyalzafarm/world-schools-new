@@ -539,7 +539,7 @@ export default function SupportTicketDetailPage() {
                 onSelectionChange={keys =>
                   setReplyStatus((Array.from(keys)[0] as SupportTicketStatus) || null)
                 }
-                className="max-w-[200px]"
+                className="max-w-48"
               >
                 <SelectItem key="OPEN">Keep Open</SelectItem>
                 <SelectItem key="IN_PROGRESS">In Progress</SelectItem>

@@ -51,7 +51,7 @@ export function WishlistDetailHeader({
             <div className="flex items-center gap-2">
               {/* Children pill */}
               {childrenNames && (
-                <button className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-[13px] font-medium text-gray-900 whitespace-nowrap">
+                <button className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-sm font-medium text-gray-900 whitespace-nowrap">
                   <svg
                     className="w-3.5 h-3.5 text-gray-500"
                     viewBox="0 0 24 24"
@@ -69,7 +69,7 @@ export function WishlistDetailHeader({
               {/* Share pill */}
               {!readOnly && (
                 <button
-                  className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-[13px] font-medium text-gray-900 hover:border-gray-200 transition-all whitespace-nowrap"
+                  className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-sm font-medium text-gray-900 hover:border-gray-200 transition-all whitespace-nowrap"
                   onClick={() => onShare?.() ?? openShareModal()}
                 >
                   {shareCount > 0 ? (
@@ -77,7 +77,7 @@ export function WishlistDetailHeader({
                       {wishlist.shares.slice(0, 3).map((s, i) => (
                         <span
                           key={s.id}
-                          className="w-[22px] h-[22px] rounded-full bg-linear-to-br from-blue-100 to-red-100 border-2 border-white flex items-center justify-center text-[9px] font-semibold"
+                          className="w-6 h-6 rounded-full bg-linear-to-br from-blue-100 to-red-100 border-2 border-white flex items-center justify-center text-xs font-semibold"
                           style={{ marginLeft: i === 0 ? 0 : -6 }}
                         >
                           {s.email[0].toUpperCase()}

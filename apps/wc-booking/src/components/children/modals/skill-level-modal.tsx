@@ -146,7 +146,7 @@ export function SkillLevelModal({
         <span
           key={idx}
           className={[
-            'h-[7px] w-[7px] rounded-full',
+            'h-2 w-2 rounded-full',
             idx < filled ? 'bg-foreground' : 'bg-default-200',
           ].join(' ')}
         />
@@ -193,7 +193,7 @@ export function SkillLevelModal({
               <div className="space-y-4">
                 {groupedActivities.map(group => (
                   <div key={group.categoryName}>
-                    <div className="text-[11px] font-semibold tracking-wide uppercase text-default-400 mb-2 px-1">
+                    <div className="text-xs font-semibold tracking-wide uppercase text-default-400 mb-2 px-1">
                       {group.categoryName}
                     </div>
                     <div className="space-y-1">
@@ -278,7 +278,7 @@ export function SkillLevelModal({
                             ].join(' ')}
                           >
                             <div className="text-lg font-semibold text-foreground">{lvl.value}</div>
-                            <div className="text-[11px] text-default-500">{lvl.label}</div>
+                            <div className="text-xs text-default-500">{lvl.label}</div>
                           </button>
                         )
                       })}
@@ -293,7 +293,7 @@ export function SkillLevelModal({
                             type="button"
                             onClick={() => setSelectedLevel(lvl.value)}
                             className={[
-                              'min-w-[120px] flex-1 rounded-lg border px-3 py-3 text-center transition',
+                              'min-w-28 flex-1 rounded-lg border px-3 py-3 text-center transition',
                               selected
                                 ? 'border-secondary bg-secondary-50 dark:bg-secondary-900/20'
                                 : 'border-default-200 hover:bg-default-100',

@@ -67,7 +67,7 @@ export function MessageAttachmentsList({ attachments }: MessageAttachmentsListPr
             <div key={key} className="rounded-lg bg-gray-100 px-3 py-2 dark:bg-gray-800">
               <div className="flex items-center gap-2 mb-1 text-xs text-gray-700 dark:text-gray-200">
                 <Music className="w-4 h-4" />
-                <span className="truncate max-w-[180px]">{att.fileName}</span>
+                <span className="truncate max-w-44">{att.fileName}</span>
                 <span className="text-gray-400 dark:text-gray-500">{formatSize(att.fileSize)}</span>
               </div>
               <audio controls className="w-full">
@@ -88,7 +88,7 @@ export function MessageAttachmentsList({ attachments }: MessageAttachmentsListPr
                 <source src={att.url} />
               </video>
               <div className="mt-1 flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
-                <span className="truncate max-w-[200px]">{att.fileName}</span>
+                <span className="truncate max-w-48">{att.fileName}</span>
                 <button
                   type="button"
                   onClick={() => openInNewTab(att.url)}
@@ -110,7 +110,7 @@ export function MessageAttachmentsList({ attachments }: MessageAttachmentsListPr
             {renderIcon(att.fileType)}
             <span className="truncate">{att.fileName}</span>
             {att.fileSize != null && (
-              <span className="text-[11px] min-w-10 text-gray-500 dark:text-gray-400">
+              <span className="text-xs min-w-10 text-gray-500 dark:text-gray-400">
                 {formatSize(att.fileSize)}
               </span>
             )}

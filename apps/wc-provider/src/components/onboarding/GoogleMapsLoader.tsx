@@ -79,7 +79,7 @@ export function GoogleMapsLoader({ children, apiKey }: GoogleMapsLoaderProps) {
 
   if (error) {
     return (
-      <div className="flex min-h-[200px] items-center justify-center">
+      <div className="flex min-h-48 items-center justify-center">
         <div className="text-center">
           <p className="text-sm text-red-500">{error}</p>
           <p className="mt-2 text-xs text-gray-500">
@@ -92,7 +92,7 @@ export function GoogleMapsLoader({ children, apiKey }: GoogleMapsLoaderProps) {
 
   if (!loaded) {
     return (
-      <div className="flex min-h-[200px] items-center justify-center">
+      <div className="flex min-h-48 items-center justify-center">
         <div className="text-sm text-gray-500">Loading Google Maps...</div>
       </div>
     )

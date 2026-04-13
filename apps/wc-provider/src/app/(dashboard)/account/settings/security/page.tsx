@@ -229,7 +229,7 @@ export default function SecuritySettingsPage() {
   return (
     <div className="min-h-full w-full flex flex-col bg-white dark:bg-gray-900">
       <div className="mb-10">
-        <h1 className="text-[32px] font-semibold text-gray-900 dark:text-gray-100 mb-2">
+        <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
           Login & security
         </h1>
         <p className="text-base text-gray-500 dark:text-gray-400">
@@ -257,16 +257,16 @@ export default function SecuritySettingsPage() {
             <div className="flex items-center gap-2 font-medium text-gray-900 dark:text-gray-100 mb-1">
               Two-factor authentication
               {twoFactorStatus?.enabled ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[13px] font-medium bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300">
                   Enabled
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[13px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                   Not enabled
                 </span>
               )}
             </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400 leading-[1.4] mb-2">
+            <div className="text-sm text-gray-500 dark:text-gray-400 leading-snug mb-2">
               Use email verification codes to secure your account
             </div>
           </div>
@@ -306,7 +306,7 @@ export default function SecuritySettingsPage() {
                     className="flex items-start gap-4 p-4 bg-white dark:bg-gray-900"
                   >
                     <div
-                      className={`w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0 ${
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                         session.isCurrent
                           ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
@@ -320,12 +320,12 @@ export default function SecuritySettingsPage() {
                           {session.browser} on {session.os}
                         </p>
                         {session.isCurrent && (
-                          <span className="px-2 py-0.5 text-[11px] font-semibold bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-full">
+                          <span className="px-2 py-0.5 text-xs font-semibold bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-full">
                             Current
                           </span>
                         )}
                       </div>
-                      <p className="text-[13px] text-gray-500 dark:text-gray-400">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
                         {session.location} · Last active {formatDate(session.lastActiveAt)}
                       </p>
                     </div>

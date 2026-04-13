@@ -4,19 +4,19 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Card, CardBody, Chip, Spinner, Tab, Tabs } from '@heroui/react'
 import { EMOJI, formatSnakeCaseToTitleCase } from '@world-schools/wc-frontend-utils'
-import { Breadcrumb } from '../../../../components/ui/breadcrumb'
-import { useApplicationReviewStore } from '../../../../stores/application-review-store'
-import { ApprovalActions } from '../../../../components/application-review/ApprovalActions'
-import { SubmittedBySection } from '../../../../components/application-review/SubmittedBySection'
-import { ContactInfoSection } from '../../../../components/application-review/ContactInfoSection'
-import { GoogleBusinessSection } from '../../../../components/application-review/GoogleBusinessSection'
-import { DocumentsSection } from '../../../../components/application-review/DocumentsSection'
-import { SettingsSection } from '../../../../components/application-review/SettingsSection'
-import { TrustScoreSection } from '../../../../components/application-review/TrustScoreSection'
-import type { ApprovalStatus } from '../../../../types/application-review'
+import { Breadcrumb } from '../../../../../components/ui/breadcrumb'
+import { useApplicationReviewStore } from '../../../../../stores/application-review-store'
+import { ApprovalActions } from '../../../../../components/application-review/ApprovalActions'
+import { SubmittedBySection } from '../../../../../components/application-review/SubmittedBySection'
+import { ContactInfoSection } from '../../../../../components/application-review/ContactInfoSection'
+import { GoogleBusinessSection } from '../../../../../components/application-review/GoogleBusinessSection'
+import { DocumentsSection } from '../../../../../components/application-review/DocumentsSection'
+import { SettingsSection } from '../../../../../components/application-review/SettingsSection'
+import { TrustScoreSection } from '../../../../../components/application-review/TrustScoreSection'
+import type { ApprovalStatus } from '../../../../../types/application-review'
 import { PageSlot } from '@world-schools/ui-web'
 
-export default function ProviderRequestDetailPage() {
+export default function PendingReviewProviderDetailPage() {
   const params = useParams()
   const providerId = params.id as string
 
@@ -79,7 +79,7 @@ export default function ProviderRequestDetailPage() {
         {/* Breadcrumb */}
         <Breadcrumb
           items={[
-            { label: 'Provider Requests', href: '/provider-requests' },
+            { label: 'Pending Review', href: '/providers/pending-review' },
             { label: selectedApplication.businessName },
           ]}
         />

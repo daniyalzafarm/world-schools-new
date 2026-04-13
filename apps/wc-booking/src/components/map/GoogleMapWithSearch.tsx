@@ -228,7 +228,7 @@ export function GoogleMapWithSearch({ selectedPlace }: GoogleMapWithSearchProps)
 
   if (error) {
     return (
-      <div className="flex h-full min-h-[400px] items-center justify-center bg-gray-100 rounded-xl">
+      <div className="flex h-full min-h-96 items-center justify-center bg-gray-100 rounded-xl">
         <div className="text-center p-6">
           <p className="text-sm text-red-500 font-medium">{error}</p>
           <p className="mt-2 text-xs text-gray-500">
@@ -240,7 +240,7 @@ export function GoogleMapWithSearch({ selectedPlace }: GoogleMapWithSearchProps)
   }
 
   return (
-    <div className="relative h-full w-full min-h-[400px]">
+    <div className="relative h-full w-full min-h-96">
       {isLoading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 rounded-xl">
           <Spinner size="lg" />
