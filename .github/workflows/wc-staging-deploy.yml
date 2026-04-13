@@ -6,6 +6,7 @@ on:
       - "wc-v*.*.*"
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   AZURE_RESOURCE_GROUP: rg-wc-staging-ch-north
   AZURE_LOCATION: switzerlandnorth
   ACR_NAME: acrwc
@@ -47,7 +48,7 @@ jobs:
       - run: az acr login --name ${{ env.ACR_NAME }}
 
       - name: Buildx cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
           key: buildx-api-${{ github.sha }}
@@ -267,7 +268,7 @@ jobs:
       - run: az acr login --name ${{ env.ACR_NAME }}
 
       - name: Buildx cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
           key: buildx-${{ matrix.app.id }}-${{ github.sha }}
