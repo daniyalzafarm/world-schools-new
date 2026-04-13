@@ -56,6 +56,14 @@ export async function seedRbac(prisma: PrismaClient): Promise<SeedRoleIds> {
     })
   }
 
+  // Remove any role-permission assignments that are no longer in the Super Admin context
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: superAdminRole.id,
+      permissionId: { notIn: superAdminPermissionIds },
+    },
+  })
+
   let providerAdminRole = await prisma.role.findFirst({
     where: { name: 'Provider Admin', isSystemRole: true, providerId: null },
   })
@@ -85,6 +93,14 @@ export async function seedRbac(prisma: PrismaClient): Promise<SeedRoleIds> {
     })
   }
 
+  // Remove any role-permission assignments that are no longer in the Provider Admin context
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: providerAdminRole.id,
+      permissionId: { notIn: providerAdminPermissionIds },
+    },
+  })
+
   let parentRole = await prisma.role.findFirst({
     where: { name: 'Parent', isSystemRole: true, providerId: null },
   })
@@ -98,6 +114,17 @@ export async function seedRbac(prisma: PrismaClient): Promise<SeedRoleIds> {
   })
 
   // Parent role has no permissions assigned (parents access their own data through specific endpoints)
+  // Clean up any permissions that may have been accidentally assigned
+  await prisma.rolePermission.deleteMany({
+    where: { roleId: parentRole.id },
+  })
+
+  // Remove any Permission rows that are no longer defined in permissions.ts
+  const currentPermissionIds = permissions.map(p => p.id)
+  await prisma.permission.deleteMany({
+    where: { id: { notIn: currentPermissionIds } },
+  })
+
   console.log('✅ Created system roles: Super Admin, Provider Admin, Parent')
 
   return {

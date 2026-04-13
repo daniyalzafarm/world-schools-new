@@ -19,6 +19,9 @@ export async function seedUsers(prisma: PrismaClient, options: SeedUsersOptions)
       passwordHash: hashedPassword,
       firstName: 'Super',
       lastName: 'Admin',
+      emailVerified: true,
+      emailVerifiedAt: new Date(),
+      passwordChangedAt: new Date(),
     },
   })
 
@@ -143,6 +146,13 @@ export async function seedUsers(prisma: PrismaClient, options: SeedUsersOptions)
               ownerId: providerUser.id,
               legalCompanyName: `Test Provider ${index + 1}`,
               email,
+              contactFirstName: 'Provider',
+              contactLastName: word,
+              contactRole: 'Owner / Director',
+              contactPhone: '+12025550100',
+              contactEmail: email,
+              onboardingCurrentStep: 2,
+              onboardingStartedAt: new Date(),
             },
           }),
         ])
