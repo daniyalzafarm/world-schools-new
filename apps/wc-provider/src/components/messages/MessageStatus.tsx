@@ -153,7 +153,7 @@ export function MessageStatus({
     if (isDelivered) {
       return (
         <>
-          <Check size={iconSize} />
+          <CheckCheck size={iconSize} />
           {showText && <span>Delivered{deliveredAt && ` at ${formatTime(deliveredAt)}`}</span>}
         </>
       )

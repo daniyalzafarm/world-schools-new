@@ -352,17 +352,7 @@ export class MessagingWebSocketHandler {
         messageId: payload.messageId,
         userId: payload.userId,
       })
-
-      // Broadcast read receipt to conversation room
-      this.wsService.emitToRoom(
-        `conversation:${payload.conversationId}`,
-        WsServerEvent.ReceiptRead,
-        {
-          messageId: payload.messageId,
-          userId: payload.userId,
-          conversationId: payload.conversationId,
-        }
-      )
+      // Receipt broadcast is handled by Redis pub/sub inside messagesService.markAsRead()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       this.logger.error(`Failed to handle message read: ${errorMessage}`)
@@ -395,17 +385,7 @@ export class MessagingWebSocketHandler {
         userId: payload.userId,
         deliveryLatencyMs: payload.deliveryLatencyMs,
       })
-
-      // Broadcast delivery receipt to conversation room
-      this.wsService.emitToRoom(
-        `conversation:${payload.conversationId}`,
-        WsServerEvent.ReceiptDelivered,
-        {
-          messageId: payload.messageId,
-          userId: payload.userId,
-          conversationId: payload.conversationId,
-        }
-      )
+      // Receipt broadcast is handled by Redis pub/sub inside messagesService.markAsDelivered()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       this.logger.error(`Failed to handle message delivered: ${errorMessage}`)

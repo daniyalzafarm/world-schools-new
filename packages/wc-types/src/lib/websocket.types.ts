@@ -80,12 +80,16 @@ export interface WsReadReceiptPayload {
   messageId: string
   userId: string
   conversationId: string
+  readAt?: string
+  senderId?: string
 }
 
 export interface WsDeliveredReceiptPayload {
   messageId: string
   userId: string
   conversationId: string
+  deliveredAt?: string
+  senderId?: string
   deliveryLatencyMs?: number
 }
 

@@ -214,6 +214,13 @@ export function createMessagingStore(config: MessagingStoreConfig) {
               // Join rooms for all known conversations so messages can be delivered
               // while the user is simply online in the app.
               joinAllKnownConversations()
+
+              // Bulk-deliver all SENT messages that arrived while offline.
+              // This mirrors WhatsApp/Signal: DELIVERED means the app received it,
+              // READ means the user actually opened the conversation.
+              void messagesService
+                .markAllDelivered()
+                .catch(err => log('markAllDelivered on connect failed:', err))
             })
           )
 
@@ -410,6 +417,9 @@ export function createMessagingStore(config: MessagingStoreConfig) {
                     )
                     if (message) {
                       message.status = MessageStatus.READ
+                      if ('readAt' in data && data.readAt) {
+                        ;(message as any).readAt = new Date(data.readAt)
+                      }
                     }
                   } else {
                     // Fallback: search all conversations
@@ -419,38 +429,8 @@ export function createMessagingStore(config: MessagingStoreConfig) {
                       )
                       if (message) {
                         message.status = MessageStatus.READ
-                        break
-                      }
-                    }
-                  }
-                })
-              })
-            )
-
-            wsUnsubscribers.push(
-              messagingWebSocket.onDeliveredReceipt(data => {
-                log('Received receipt:delivered via global WebSocket:', data)
-                set(draft => {
-                  if (data.conversationId && draft.messages[data.conversationId]) {
-                    const message = draft.messages[data.conversationId].find(
-                      m => m.id === data.messageId
-                    )
-                    if (message && message.status !== MessageStatus.READ) {
-                      message.status = MessageStatus.DELIVERED
-                      if ('deliveredAt' in data && data.deliveredAt) {
-                        ;(message as any).deliveredAt = new Date(data.deliveredAt)
-                      }
-                    }
-                  } else {
-                    // Fallback: search all conversations
-                    for (const conversationId in draft.messages) {
-                      const message = draft.messages[conversationId].find(
-                        m => m.id === data.messageId
-                      )
-                      if (message && message.status !== MessageStatus.READ) {
-                        message.status = MessageStatus.DELIVERED
-                        if ('deliveredAt' in data && data.deliveredAt) {
-                          ;(message as any).deliveredAt = new Date(data.deliveredAt)
+                        if ('readAt' in data && data.readAt) {
+                          ;(message as any).readAt = new Date(data.readAt)
                         }
                         break
                       }
@@ -460,6 +440,43 @@ export function createMessagingStore(config: MessagingStoreConfig) {
               })
             )
           }
+
+          // ── DELIVERY RECEIPTS (always active, flag-independent) ─────────
+          // Emitted by the backend to user:${senderId} directly (not just the
+          // conversation room), so the sender sees the double tick regardless of
+          // whether WEBSOCKET_MESSAGES is enabled and conversation rooms are joined.
+          wsUnsubscribers.push(
+            messagingWebSocket.onDeliveredReceipt(data => {
+              log('Received receipt:delivered via global WebSocket:', data)
+              set(draft => {
+                if (data.conversationId && draft.messages[data.conversationId]) {
+                  const message = draft.messages[data.conversationId].find(
+                    m => m.id === data.messageId
+                  )
+                  if (message && message.status !== MessageStatus.READ) {
+                    message.status = MessageStatus.DELIVERED
+                    if ('deliveredAt' in data && data.deliveredAt) {
+                      ;(message as any).deliveredAt = new Date(data.deliveredAt)
+                    }
+                  }
+                } else {
+                  // Fallback: search all conversations
+                  for (const conversationId in draft.messages) {
+                    const message = draft.messages[conversationId].find(
+                      m => m.id === data.messageId
+                    )
+                    if (message && message.status !== MessageStatus.READ) {
+                      message.status = MessageStatus.DELIVERED
+                      if ('deliveredAt' in data && data.deliveredAt) {
+                        ;(message as any).deliveredAt = new Date(data.deliveredAt)
+                      }
+                      break
+                    }
+                  }
+                }
+              })
+            })
+          )
 
           // ── NEW CONVERSATION notifications (always active) ─────────────
           // When another user creates a conversation that involves us (e.g. a
@@ -480,6 +497,54 @@ export function createMessagingStore(config: MessagingStoreConfig) {
                     // Prepend so the new conversation appears at the top
                     draft.conversations.unshift(data.conversation)
                     log('Added new conversation to list:', data.conversation.id)
+                  }
+                })
+              }
+            )
+          )
+
+          // ── UNREAD COUNT update on new messages (always active) ──────────
+          // When a new message arrives we increment unreadCount for the current
+          // user's participant in the affected conversation, regardless of whether
+          // WEBSOCKET_MESSAGES is enabled. This keeps the per-conversation badge
+          // accurate in real-time without a full API refetch.
+          wsUnsubscribers.push(
+            messagingWebSocket.onMessageNew(
+              (data: { message: MessageResponseDto; tempId?: string }) => {
+                const currentUserId = getCurrentUserId?.() ?? null
+                const { activeConversationId } = get()
+                const { conversationId, senderId } = data.message
+
+                // Only update unread count for incoming messages on non-active conversations
+                if (
+                  !currentUserId ||
+                  senderId === currentUserId ||
+                  conversationId === activeConversationId
+                ) {
+                  return
+                }
+
+                log(
+                  'Incrementing unreadCount for conversation:',
+                  conversationId,
+                  'user:',
+                  currentUserId
+                )
+
+                set(draft => {
+                  const conversation = draft.conversations.find(c => c.id === conversationId)
+                  if (!conversation) return
+
+                  // Update last message preview in the sidebar
+                  conversation.lastMessage = data.message as any
+                  conversation.lastActivityAt = data.message.sentAt as any
+
+                  // Increment unreadCount for the current user's participant
+                  const participant = conversation.participants?.find(
+                    p => p.userId === currentUserId
+                  )
+                  if (participant) {
+                    participant.unreadCount = (participant.unreadCount ?? 0) + 1
                   }
                 })
               }
@@ -1123,6 +1188,21 @@ export function createMessagingStore(config: MessagingStoreConfig) {
           } else {
             log('Skipping HTTP markAsRead because userId is missing')
           }
+
+          // Optimistically update local state so the UI reflects READ immediately,
+          // regardless of whether a WS receipt:read event arrives (e.g. when
+          // WEBSOCKET_MESSAGES flag is off or the WS connection is down).
+          const now = new Date()
+          set(draft => {
+            const msgs = draft.messages[conversationId]
+            if (msgs) {
+              const message = msgs.find(m => m.id === messageId)
+              if (message) {
+                message.status = MessageStatus.READ
+                ;(message as any).readAt = now
+              }
+            }
+          })
 
           log('Message marked as read successfully')
         } catch (error: any) {

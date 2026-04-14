@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Button, Input, ScrollShadow } from '@heroui/react'
 import { cn, type Conversation, ConversationItem, type FilterType } from '@world-schools/ui-web'
-import { AlertCircle, ChevronLeft, Pin, Search, X } from 'lucide-react'
+import { AlertCircle, ChevronLeft, Search, X } from 'lucide-react'
 import { ArchivedChatsButton } from '@/components/messages/archived-chats-button'
 import { useConversationStore } from '@/stores/conversation-store'
 import { useMessagingStore } from '@/stores/messaging-store'
@@ -62,10 +62,12 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
 
   // Convert ConversationResponseDto to UI Conversation type
   const convertToUIConversation = (conv: ConversationResponseDto): Conversation => {
-    // Filter out current user from participants to get the "other" participant
+    // Current user's own participant — has the real unreadCount, pinned, starred, etc.
+    const currentUserParticipant = conv.participants?.find(p => p.userId === user?.id)
+    // Other (provider) participant — used only for display name
     const otherParticipants = conv.participants?.filter(p => p.userId !== user?.id) ?? []
-    const participant = otherParticipants.find(p => p.providerId || p.userId)
-    const providerName = participant?.provider?.legalCompanyName || 'Provider'
+    const providerParticipant = otherParticipants.find(p => p.providerId)
+    const providerName = providerParticipant?.provider?.legalCompanyName || 'Provider'
     const isSuperadmin = conv.type === 'USER_SUPERADMIN'
 
     return {
@@ -76,12 +78,12 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
       lastSeen: getTimestamp(conv.lastActivityAt),
       avatar: '', // No real avatar - ConversationItem will show initials from name
       verified: isSuperadmin,
-      pinned: participant?.pinned ?? false,
-      starred: participant?.starred ?? false,
-      archived: participant?.archived ?? false,
-      muted: participant?.muted ?? false,
-      unread: (participant?.unreadCount ?? 0) > 0,
-      unreadCount: participant?.unreadCount ?? 0,
+      pinned: currentUserParticipant?.pinned ?? false,
+      starred: currentUserParticipant?.starred ?? false,
+      archived: currentUserParticipant?.archived ?? false,
+      muted: currentUserParticipant?.muted ?? false,
+      unread: (currentUserParticipant?.unreadCount ?? 0) > 0,
+      unreadCount: currentUserParticipant?.unreadCount ?? 0,
     }
   }
 

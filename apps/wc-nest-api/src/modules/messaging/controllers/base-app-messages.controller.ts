@@ -397,6 +397,22 @@ export abstract class BaseAppMessagesController {
     return { success: true, message: 'Messages marked as delivered successfully' }
   }
 
+  @Post('mark-all-delivered')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Bulk-mark all SENT messages as delivered',
+    description:
+      'Marks every SENT message (sent by others to the current user) as delivered. ' +
+      'Called on app open / WebSocket reconnect so offline messages get delivery receipts ' +
+      'before the user opens any conversation (WhatsApp/Signal model).',
+  })
+  @ApiResponse({ status: 200, description: 'All pending messages marked as delivered' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async markAllDelivered(@CurrentUser('id') currentUserId: string) {
+    await this.messagesService.markAllDelivered(currentUserId)
+    return { success: true, message: 'All pending messages marked as delivered' }
+  }
+
   @Post(':id/delivered')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

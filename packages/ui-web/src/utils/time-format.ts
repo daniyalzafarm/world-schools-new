@@ -77,7 +77,7 @@ export function formatShortRelativeTime(timestamp: number, suffix = ''): string 
     result = `${years}y`
   }
 
-  return suffix ? `${result} ${suffix}` : result
+  return suffix && result !== 'now' ? `${result} ${suffix}` : result
 }
 
 /**

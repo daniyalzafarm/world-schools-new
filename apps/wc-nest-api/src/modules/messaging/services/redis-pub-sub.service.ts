@@ -217,7 +217,15 @@ export class RedisPubSubService implements OnModuleInit, OnApplicationBootstrap 
           break
 
         case 'receipts:delivered':
+          // Broadcast to the conversation room (catches anyone who has joined it)
           this.server.to(`conversation:${data.conversationId}`).emit('receipt:delivered', data)
+          // Also emit directly to the sender's user room so they always receive
+          // the delivery tick regardless of conversation room membership.
+          // This matches the pattern used for ticket events and guarantees delivery
+          // even when WEBSOCKET_MESSAGES flag is false and conversation rooms are not joined.
+          if (data.senderId) {
+            this.server.to(`user:${data.senderId}`).emit('receipt:delivered', data)
+          }
           break
 
         case 'conversation:assigned':

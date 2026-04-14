@@ -25,6 +25,7 @@ import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
 import { eventBus } from '@world-schools/wc-utils'
 import { usePermissions } from '@/hooks/use-permissions'
+import { useUnreadMessagesCount } from '@/hooks/use-unread-messages-count'
 
 // Custom hook for sidebar expansion state management
 const useSidebarExpansion = (onToggleCollapse: () => void) => {
@@ -157,6 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   const pathname = usePathname()
   const { user } = useAuthStore()
   const { hasPermission } = usePermissions()
+  const unreadCount = useUnreadMessagesCount()
 
   // Collapsed state is managed locally within the sidebar
   const [isCollapsed, setIsCollapsed] = React.useState(false) // Start expanded
@@ -333,8 +335,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
    * Filter navigation items based on user permissions
    */
   const visibleNavItems = React.useMemo(() => {
-    return NAV_ITEMS.filter(isNavItemVisible)
-  }, [isNavItemVisible])
+    return NAV_ITEMS.filter(isNavItemVisible).map(item =>
+      item.name === 'Messages' ? { ...item, badge: unreadCount || undefined } : item
+    )
+  }, [isNavItemVisible, unreadCount])
 
   const userInitials = user
     ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || 'WC'

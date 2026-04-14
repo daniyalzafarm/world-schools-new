@@ -130,19 +130,34 @@ export default function MessagesPage() {
     return () => clearTimeout(t)
   }, [rateLimitRetryAfter, clearRateLimitRetryAfter])
 
-  // Mark latest incoming message as read when viewing the conversation
+  // Mark all unread incoming messages as read when viewing the conversation
   useEffect(() => {
     if (!activeConversationId || !user?.id) return
     if (!isConnected) return
     if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
 
-    const latestIncomingUnread = [...activeMessages]
-      .reverse()
-      .find(m => m.senderId !== user.id && !m.readAt)
-
-    if (latestIncomingUnread?.id) {
-      void markAsRead(activeConversationId, latestIncomingUnread.id)
+    const unreadIncoming = activeMessages.filter(m => m.senderId !== user.id && !m.readAt)
+    for (const msg of unreadIncoming) {
+      void markAsRead(activeConversationId, msg.id)
     }
+  }, [activeConversationId, activeMessages, user?.id, isConnected, markAsRead])
+
+  // Re-trigger mark-as-read when the tab becomes visible again (user was in another tab)
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return
+      if (!activeConversationId || !user?.id || !isConnected) return
+
+      const unreadIncoming = activeMessages.filter(m => m.senderId !== user.id && !m.readAt)
+      for (const msg of unreadIncoming) {
+        void markAsRead(activeConversationId, msg.id)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [activeConversationId, activeMessages, user?.id, isConnected, markAsRead])
 
   // Get active conversation object

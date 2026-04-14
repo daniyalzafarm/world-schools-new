@@ -24,6 +24,7 @@ import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
 import eventBus from '@/utils/event-bus'
 import config from '@/config/config'
+import { useUnreadMessagesCount } from '@/hooks/use-unread-messages-count'
 
 // Custom hook for sidebar expansion state management
 const useSidebarExpansion = (onToggleCollapse: () => void) => {
@@ -139,6 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const pathname = usePathname()
   const { user } = useAuthStore()
   const isCampDrawer = variant === 'camp-drawer'
+  const unreadCount = useUnreadMessagesCount()
 
   // Collapsed state is managed locally within the sidebar
   const [isCollapsed, setIsCollapsed] = React.useState(false) // Start expanded
@@ -299,6 +301,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     [isCollapsed, router, sidebarOpen, setSidebarOpen]
   )
 
+  const navItemsWithBadges = React.useMemo(
+    () =>
+      NAV_ITEMS.map(item =>
+        item.name === 'Messages' ? { ...item, badge: unreadCount || undefined } : item
+      ),
+    [unreadCount]
+  )
+
   const drawerCollapsed = isCampDrawer ? false : isCollapsed
 
   const userInitials = user
@@ -367,7 +377,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Navigation */}
           <nav className="p-3 space-y-1 overflow-x-hidden">
-            {NAV_ITEMS.map(item => {
+            {navItemsWithBadges.map(item => {
               // Fix active state logic to prevent multiple items being active
               // Home should only be active on exact root path
               const isActive = item.href

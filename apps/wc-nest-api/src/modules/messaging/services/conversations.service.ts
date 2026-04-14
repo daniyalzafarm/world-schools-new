@@ -338,6 +338,24 @@ export class ConversationsService {
   }
 
   /**
+   * Get the number of conversations where the current user personally has unread messages,
+   * excluding support tickets. Queries ConversationParticipant directly so provider-org
+   * fallback logic (which inflates counts) is never applied.
+   */
+  async getPersonalUnreadConversationsCount(userId: string): Promise<number> {
+    return this.prisma.conversationParticipant.count({
+      where: {
+        userId,
+        unreadCount: { gt: 0 },
+        archived: false,
+        conversation: {
+          NOT: { contextType: ContextType.SUPPORT_TICKET },
+        },
+      },
+    })
+  }
+
+  /**
    * Get total count of conversations for a user with filters
    */
   async getConversationsCount(dto: GetConversationsDto): Promise<number> {

@@ -359,6 +359,18 @@ export class MessagesController {
   }
 
   /**
+   * Bulk-mark all SENT messages as delivered for the current user.
+   * Called on app open / WebSocket reconnect so offline messages get
+   * delivery receipts before the user opens any conversation.
+   */
+  @Post('mark-all-delivered')
+  @HttpCode(HttpStatus.OK)
+  async markAllDelivered(@CurrentUser('id') currentUserId: string) {
+    await this.messagesService.markAllDelivered(currentUserId)
+    return { success: true, message: 'All pending messages marked as delivered' }
+  }
+
+  /**
    * Mark message as delivered
    */
   @Post(':id/delivered')

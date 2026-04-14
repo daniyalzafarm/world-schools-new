@@ -51,4 +51,4 @@ const { useMessagingStore } = createMessagingStore({
   getCurrentUserId: () => useAuthStore.getState().user?.id ?? null,
 })
 
-export { useMessagingStore, conversationsService }
+export { useMessagingStore, conversationsService, messagingWebSocket }

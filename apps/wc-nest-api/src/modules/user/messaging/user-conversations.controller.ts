@@ -159,6 +159,22 @@ export class UserConversationsController {
   }
 
   /**
+   * Get unread conversation count (excluding support tickets)
+   */
+  @Get('unread-count')
+  @ApiOperation({
+    summary: 'Get unread conversation count',
+    description:
+      'Returns the number of conversations with unread messages, excluding support ticket conversations.',
+  })
+  @ApiResponse({ status: 200, description: 'Unread conversation count retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getUnreadConversationsCount(@CurrentUser('id') currentUserId: string) {
+    const count = await this.conversationsService.getPersonalUnreadConversationsCount(currentUserId)
+    return { success: true, data: { count } }
+  }
+
+  /**
    * Get a single conversation by ID
    */
   @Get(':id')

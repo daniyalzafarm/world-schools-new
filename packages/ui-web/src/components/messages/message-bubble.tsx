@@ -39,36 +39,11 @@ export function MessageBubble({
 
     return (
       <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-        {isFailed && (
-          <>
-            <AlertCircle size={12} className="text-red-500" />
-            <span className="text-red-500">Failed</span>
-          </>
-        )}
-        {isSending && (
-          <>
-            <Clock size={12} className="animate-pulse" />
-            <span>Sending...</span>
-          </>
-        )}
-        {isSent && !isDelivered && !isRead && (
-          <>
-            <Check size={12} />
-            <span>Sent</span>
-          </>
-        )}
-        {isDelivered && !isRead && (
-          <>
-            <Check size={12} />
-            <span>Delivered</span>
-          </>
-        )}
-        {isRead && (
-          <>
-            <CheckCheck size={12} className="text-blue-500" />
-            <span className="text-blue-500">Read</span>
-          </>
-        )}
+        {isFailed && <AlertCircle size={12} className="text-red-500" />}
+        {isSending && <Clock size={12} className="animate-pulse" />}
+        {isSent && !isDelivered && !isRead && <Check size={12} />}
+        {isDelivered && !isRead && <CheckCheck size={12} />}
+        {isRead && <CheckCheck size={12} className="text-blue-500" />}
       </div>
     )
   }

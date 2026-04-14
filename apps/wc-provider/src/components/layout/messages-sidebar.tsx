@@ -4,168 +4,18 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Button, Input, ScrollShadow } from '@heroui/react'
 import { cn, type Conversation, ConversationItem, type FilterType } from '@world-schools/ui-web'
-import { AlertCircle, ChevronLeft, Pin, Search, X } from 'lucide-react'
+import { AlertCircle, ChevronLeft, Search, X } from 'lucide-react'
 import { ArchivedChatsButton } from '@/components/messages/archived-chats-button'
 import { useConversationStore } from '@/stores/conversation-store'
 import { useMessagingStore } from '@/stores/messaging-store'
 import { ConversationListSkeleton } from '@/components/messages/conversation-skeleton'
 import type { ConversationResponseDto } from '@world-schools/wc-frontend-utils'
+import { useAuthStore } from '@/stores/auth-store'
 
 interface MessagesSidebarProps {
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
 }
-
-// Mock data for conversations - will be replaced with real data
-const mockConversations: Conversation[] = [
-  // Superadmin conversation - always pinned at the top
-  {
-    id: 'superadmin',
-    name: 'World Camps Support',
-    lastMessage: 'How can we help you today?',
-    time: Date.now() - 1000 * 60 * 5, // 5 minutes ago
-    lastSeen: Date.now() - 1000 * 60 * 2, // 2 minutes ago
-    avatar: 'school-1',
-    verified: true,
-    pinned: true,
-    pinnedAt: Date.now() - 1000 * 60 * 30, // Pinned 30 minutes ago
-    unread: false,
-  },
-  // Regular provider conversations with various states
-  {
-    id: 'provider-1',
-    name: 'Adventure Summer Camp',
-    lastMessage: 'Thank you for your booking! We look forward to seeing your child.',
-    time: Date.now() - 1000 * 60 * 15, // 15 minutes ago
-    lastSeen: Date.now() - 1000 * 60 * 10, // 10 minutes ago
-    avatar: 'school-2',
-    starred: true,
-    verified: true,
-    unread: true,
-    unreadCount: 3,
-    muted: true,
-  },
-  {
-    id: 'provider-2',
-    name: 'Creative Arts Workshop',
-    lastMessage: 'The art supplies list has been updated on our website.',
-    time: Date.now() - 1000 * 60 * 30, // 30 minutes ago
-    lastSeen: Date.now() - 1000 * 60 * 25, // 25 minutes ago
-    avatar: 'school-3',
-    unread: true,
-    unreadCount: 0, // Marked as unread but no new messages
-  },
-  {
-    id: 'provider-3',
-    name: 'Mountain Explorer Camp',
-    lastMessage: 'Looking forward to the hiking trip next week!',
-    time: Date.now() - 1000 * 60 * 60, // 1 hour ago
-    lastSeen: Date.now() - 1000 * 60 * 45, // 45 minutes ago
-    avatar: 'school-1',
-    starred: true,
-  },
-  {
-    id: 'provider-4',
-    name: 'Tech Innovation Camp',
-    lastMessage: 'Your child did great in the robotics session today!',
-    time: Date.now() - 1000 * 60 * 60 * 2, // 2 hours ago
-    lastSeen: Date.now() - 1000 * 60 * 60, // 1 hour ago
-    avatar: 'school-2',
-    verified: true,
-    muted: true,
-    unread: true,
-    unreadCount: 12, // High unread count
-  },
-  {
-    id: 'provider-5',
-    name: 'Nature Discovery Camp',
-    lastMessage: "Don't forget to bring sunscreen and a water bottle tomorrow.",
-    time: Date.now() - 1000 * 60 * 60 * 3, // 3 hours ago
-    lastSeen: Date.now() - 1000 * 60 * 60 * 2, // 2 hours ago
-    avatar: 'school-3',
-    starred: true,
-    verified: true,
-  },
-  {
-    id: 'provider-6',
-    name: 'Sports Excellence Academy',
-    lastMessage: 'Practice schedule for next week is now available.',
-    time: Date.now() - 1000 * 60 * 60 * 6, // 6 hours ago
-    lastSeen: Date.now() - 1000 * 60 * 60 * 4, // 4 hours ago
-    avatar: 'school-1',
-    verified: true,
-  },
-  {
-    id: 'provider-7',
-    name: 'Music & Performing Arts Camp',
-    lastMessage: 'The recital date has been confirmed for July 15th.',
-    time: Date.now() - 1000 * 60 * 60 * 12, // 12 hours ago
-    lastSeen: Date.now() - 1000 * 60 * 60 * 8, // 8 hours ago
-    avatar: 'school-2',
-    pinned: true,
-    pinnedAt: Date.now() - 1000 * 60 * 60, // Pinned 1 hour ago
-    verified: true,
-  },
-  {
-    id: 'provider-8',
-    name: 'Science Explorers Camp',
-    lastMessage: 'We have a special guest speaker coming next Tuesday!',
-    time: Date.now() - 1000 * 60 * 60 * 18, // 18 hours ago
-    lastSeen: Date.now() - 1000 * 60 * 60 * 15, // 15 hours ago
-    avatar: 'school-3',
-    muted: true,
-  },
-  {
-    id: 'provider-9',
-    name: 'Aquatic Adventures Camp',
-    lastMessage: 'Swimming lessons start at 9 AM sharp. Please arrive 15 minutes early.',
-    time: Date.now() - 1000 * 60 * 60 * 24, // 1 day ago
-    lastSeen: Date.now() - 1000 * 60 * 60 * 20, // 20 hours ago
-    avatar: 'school-1',
-    starred: true,
-    unread: true,
-    unreadCount: 5,
-  },
-  {
-    id: 'provider-10',
-    name: 'Wilderness Survival Camp',
-    lastMessage: 'Reminder: Camping gear checklist sent via email.',
-    time: Date.now() - 1000 * 60 * 60 * 36, // 36 hours ago
-    lastSeen: Date.now() - 1000 * 60 * 60 * 30, // 30 hours ago
-    avatar: 'school-2',
-    verified: true,
-  },
-  // Archived conversations
-  {
-    id: 'provider-archived-1',
-    name: 'Winter Sports Camp 2023',
-    lastMessage: 'Thanks for a wonderful winter season! See you next year.',
-    time: Date.now() - 1000 * 60 * 60 * 24 * 14, // 2 weeks ago
-    lastSeen: Date.now() - 1000 * 60 * 60 * 24 * 13, // 13 days ago
-    avatar: 'school-3',
-    archived: true,
-    verified: true,
-  },
-  {
-    id: 'provider-archived-2',
-    name: 'Spring Break Adventure',
-    lastMessage: 'Hope you enjoyed the spring break program!',
-    time: Date.now() - 1000 * 60 * 60 * 24 * 30, // 1 month ago
-    lastSeen: Date.now() - 1000 * 60 * 60 * 24 * 28, // 28 days ago
-    avatar: 'school-1',
-    archived: true,
-    starred: true,
-  },
-  {
-    id: 'provider-archived-3',
-    name: 'Holiday Coding Bootcamp',
-    lastMessage: 'Great progress in the coding sessions! Keep practicing.',
-    time: Date.now() - 1000 * 60 * 60 * 24 * 45, // 45 days ago
-    lastSeen: Date.now() - 1000 * 60 * 60 * 24 * 42, // 42 days ago
-    avatar: 'school-2',
-    archived: true,
-  },
-]
 
 export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
   sidebarOpen,
@@ -176,6 +26,9 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const router = useRouter()
   const pathname = usePathname()
+
+  // Get current user for identifying own participant in conversations
+  const { user } = useAuthStore()
 
   // Use global conversation store (for local UI state like pinning, archiving)
   const {
@@ -209,12 +62,12 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
 
   // Convert ConversationResponseDto to UI Conversation type
   const convertToUIConversation = (conv: ConversationResponseDto): Conversation => {
-    const participant = conv.participants?.find(p => p.providerId || p.userId)
     const isSuperadmin = conv.type === 'USER_SUPERADMIN'
 
-    // For provider app, filter out provider participants (those with providerId) to find the user/parent
-    const nonProviderParticipants = conv.participants?.filter(p => !p.providerId) ?? []
-    const userParticipant = nonProviderParticipants.find(p => p.userId)
+    // Current provider user's own participant — has the real unreadCount, pinned, starred, etc.
+    const currentUserParticipant = conv.participants?.find(p => p.userId === user?.id)
+    // Booking user participant — for display name (excludes virtual provider org and current user)
+    const userParticipant = conv.participants?.find(p => !p.providerId && p.userId !== user?.id)
     const firstName = userParticipant?.user?.firstName || ''
     const lastName = userParticipant?.user?.lastName || ''
     const userName =
@@ -228,12 +81,12 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
       lastSeen: getTimestamp(conv.lastActivityAt),
       avatar: '', // No real avatar - ConversationItem will show initials from name
       verified: isSuperadmin,
-      pinned: participant?.pinned ?? false,
-      starred: participant?.starred ?? false,
-      archived: participant?.archived ?? false,
-      muted: participant?.muted ?? false,
-      unread: (participant?.unreadCount ?? 0) > 0,
-      unreadCount: participant?.unreadCount ?? 0,
+      pinned: currentUserParticipant?.pinned ?? false,
+      starred: currentUserParticipant?.starred ?? false,
+      archived: currentUserParticipant?.archived ?? false,
+      muted: currentUserParticipant?.muted ?? false,
+      unread: (currentUserParticipant?.unreadCount ?? 0) > 0,
+      unreadCount: currentUserParticipant?.unreadCount ?? 0,
     }
   }
 

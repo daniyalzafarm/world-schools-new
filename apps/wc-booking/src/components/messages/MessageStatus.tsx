@@ -142,9 +142,9 @@ export function MessageStatus({
     if (isRead) {
       return (
         <>
-          <CheckCheck size={iconSize} className="text-blue-500" />
+          <CheckCheck size={iconSize} className="text-primary-600" />
           {showText && (
-            <span className="text-blue-500">Read{readAt && ` at ${formatTime(readAt)}`}</span>
+            <span className="text-primary-600">Read{readAt && ` at ${formatTime(readAt)}`}</span>
           )}
         </>
       )
@@ -153,7 +153,7 @@ export function MessageStatus({
     if (isDelivered) {
       return (
         <>
-          <Check size={iconSize} />
+          <CheckCheck size={iconSize} />
           {showText && <span>Delivered{deliveredAt && ` at ${formatTime(deliveredAt)}`}</span>}
         </>
       )

@@ -82,6 +82,7 @@ export interface ConversationsService {
   deleteLabel: (id: string) => Promise<ApiResult<SuccessResponseDto>>
   archiveConversation: (id: string) => Promise<ApiResult<ConversationResponseDto>>
   unarchiveConversation: (id: string) => Promise<ApiResult<ConversationResponseDto>>
+  getUnreadCount: () => Promise<ApiResult<{ count: number }>>
 }
 
 /**
@@ -245,6 +246,10 @@ export function createConversationsService(
     })
   }
 
+  const getUnreadCount = async () => {
+    return await apiClient.get<{ count: number }>(`${endpointPrefix}/unread-count`)
+  }
+
   return {
     createConversation,
     getConversations,
@@ -261,5 +266,6 @@ export function createConversationsService(
     deleteLabel,
     archiveConversation,
     unarchiveConversation,
+    getUnreadCount,
   }
 }

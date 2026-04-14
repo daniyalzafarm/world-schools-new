@@ -82,6 +82,7 @@ export interface MessagesService {
   deleteMessage: (id: string, dto: DeleteMessageDto) => Promise<ApiResult<SuccessResponseDto>>
   markAsRead: (id: string, dto: MarkAsReadDto) => Promise<ApiResult<SuccessResponseDto>>
   markAsDelivered: (id: string, dto: MarkAsDeliveredDto) => Promise<ApiResult<SuccessResponseDto>>
+  markAllDelivered: () => Promise<ApiResult<SuccessResponseDto>>
   addReaction: (id: string, dto: AddReactionDto) => Promise<ApiResult<ReactionResponseDto>>
   removeReaction: (id: string, dto: RemoveReactionDto) => Promise<ApiResult<SuccessResponseDto>>
   bookmarkMessage: (id: string, dto: BookmarkMessageDto) => Promise<ApiResult<BookmarkResponseDto>>
@@ -216,6 +217,10 @@ export function createMessagesService(config: MessagesServiceConfig): MessagesSe
     return await apiClient.post<SuccessResponseDto>(`${endpointPrefix}/${id}/delivered`, dto)
   }
 
+  const markAllDelivered = async () => {
+    return await apiClient.post<SuccessResponseDto>(`${endpointPrefix}/mark-all-delivered`, {})
+  }
+
   /**
    * Add a reaction to a message
    * @param id - Message ID
@@ -334,6 +339,7 @@ export function createMessagesService(config: MessagesServiceConfig): MessagesSe
     deleteMessage,
     markAsRead,
     markAsDelivered,
+    markAllDelivered,
     addReaction,
     removeReaction,
     bookmarkMessage,

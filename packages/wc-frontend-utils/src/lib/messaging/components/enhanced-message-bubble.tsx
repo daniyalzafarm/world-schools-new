@@ -73,7 +73,6 @@ export function EnhancedMessageBubble({
         {isFailed && (
           <>
             <AlertCircle size={12} className="text-red-500" />
-            <span className="text-red-500">Failed</span>
             {onRetry && (
               <Button
                 size="sm"
@@ -88,30 +87,10 @@ export function EnhancedMessageBubble({
             )}
           </>
         )}
-        {isSending && (
-          <>
-            <Clock size={12} className="animate-pulse" />
-            <span>Sending...</span>
-          </>
-        )}
-        {isSent && !isDelivered && !isRead && (
-          <>
-            <Check size={12} />
-            <span>Sent</span>
-          </>
-        )}
-        {isDelivered && !isRead && (
-          <>
-            <Check size={12} />
-            <span>Delivered</span>
-          </>
-        )}
-        {isRead && (
-          <>
-            <CheckCheck size={12} className="text-blue-500" />
-            <span className="text-blue-500">Read</span>
-          </>
-        )}
+        {isSending && <Clock size={12} className="animate-pulse" />}
+        {isSent && !isDelivered && !isRead && <Check size={12} />}
+        {isDelivered && !isRead && <CheckCheck size={12} />}
+        {isRead && <CheckCheck size={12} className="text-primary-600" />}
       </div>
     )
   }

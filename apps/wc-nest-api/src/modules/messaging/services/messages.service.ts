@@ -1025,6 +1025,12 @@ export class MessagesService {
             created: true,
           }
 
+      // Transition message status to READ and set readAt timestamp (only if not already READ)
+      await tx.message.updateMany({
+        where: { id: messageId, status: { not: MessageStatus.READ } },
+        data: { status: MessageStatus.READ, readAt: new Date() },
+      })
+
       // Decrement unread count and update lastReadAt for participant
       const participantUpdate = await tx.conversationParticipant.updateMany({
         where: {
@@ -1109,7 +1115,7 @@ export class MessagesService {
             created: true,
           }
 
-      // Update message status to DELIVERED if not already READ
+      // Update message status to DELIVERED and set deliveredAt if not already DELIVERED or READ
       const statusUpdate = await tx.message.updateMany({
         where: {
           id: messageId,
@@ -1117,6 +1123,7 @@ export class MessagesService {
         },
         data: {
           status: MessageStatus.DELIVERED,
+          deliveredAt: new Date(),
         },
       })
 
@@ -1163,6 +1170,30 @@ export class MessagesService {
       `Message ${messageId} marked as delivered to user ${userId} (latency: ${totalLatencyMs}ms)`
     )
     return result.receipt
+  }
+
+  /**
+   * Bulk-mark all SENT messages as delivered for a user.
+   * Called on WebSocket connect so offline messages get delivery receipts
+   * before the user opens any conversation (WhatsApp/Signal model).
+   */
+  async markAllDelivered(userId: string): Promise<void> {
+    const pendingMessages = await this.prisma.message.findMany({
+      where: {
+        status: MessageStatus.SENT,
+        senderId: { not: userId },
+        conversation: {
+          participants: { some: { userId } },
+        },
+      },
+      select: { id: true, conversationId: true },
+    })
+
+    for (const msg of pendingMessages) {
+      await this.markAsDelivered({ messageId: msg.id, userId }).catch(err =>
+        this.logger.warn(`markAllDelivered: skipped ${msg.id} — ${(err as Error).message}`)
+      )
+    }
   }
 
   /**
