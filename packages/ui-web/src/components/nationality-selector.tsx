@@ -51,12 +51,11 @@ export function NationalitySelector({
 
   // Auto-focus search input when modal opens
   useEffect(() => {
-    if (isOpen) {
-      const timer = setTimeout(() => {
-        searchInputRef.current?.focus()
-      }, 100)
-      return () => clearTimeout(timer)
-    }
+    if (!isOpen) return
+    const timer = setTimeout(() => {
+      searchInputRef.current?.focus()
+    }, 100)
+    return () => clearTimeout(timer)
   }, [isOpen])
 
   // Clear search when modal closes

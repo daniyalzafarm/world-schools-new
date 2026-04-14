@@ -79,6 +79,9 @@ export {
   type SupportMessage,
 } from './lib/messaging/hooks/use-support-conversation-messages'
 
+// Support tickets — service factory, shared hooks, and shared UI components
+export * from './lib/support-tickets'
+
 // Notifications page (shared hook + UI across all wc-* apps)
 export {
   useNotificationsPage,

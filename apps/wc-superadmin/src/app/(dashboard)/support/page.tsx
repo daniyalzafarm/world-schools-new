@@ -244,8 +244,11 @@ export default function SupportTicketsPage() {
         limit: PAGE_SIZE,
         offset: (page - 1) * PAGE_SIZE,
         searchTerm: debouncedSearch || undefined,
-        priority: priorityFilter === 'all' ? undefined : priorityFilter,
-        requesterType: requesterTypeFilter === 'all' ? undefined : requesterTypeFilter,
+        priority: priorityFilter === 'all' ? undefined : (priorityFilter as SupportTicketPriority),
+        requesterType:
+          requesterTypeFilter === 'all'
+            ? undefined
+            : (requesterTypeFilter as SupportTicketRequesterType),
         categoryKey: categoryFilter === 'all' ? undefined : categoryFilter,
         status: statusFilterForApi,
       }
@@ -711,85 +714,98 @@ export default function SupportTicketsPage() {
                     <p className="text-default-500">No tickets found</p>
                   </div>
                 ) : (
-                  tickets.map(t => (
-                    <div
-                      key={t.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setSelectedTicketId(t.id)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          setSelectedTicketId(t.id)
-                        }
-                      }}
-                      className={`px-4 py-4 cursor-pointer transition-colors hover:bg-default-100 ${
-                        selectedTicketId === t.id
-                          ? 'bg-slate-100 dark:bg-primary-500/10 border-l-4 border-l-primary'
-                          : ''
-                      }`}
-                    >
-                      {/* ticket-header */}
-                      <div className="flex items-start justify-between mb-2">
-                        <span className="text-xs font-medium text-default-400">
-                          #{t.ticketNumber}
-                        </span>
-                        <span className="text-xs text-default-400">
-                          {t.createdAt ? formatRelativeTime(t.createdAt) : '—'}
-                        </span>
-                      </div>
-                      {/* ticket-subject */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
-                        <span className="text-sm font-semibold text-foreground line-clamp-1">
-                          {t.subject}
-                        </span>
-                      </div>
-                      {/* ticket-preview */}
-                      <p className="text-sm text-default-500 line-clamp-2 mb-3">
-                        {ticketPreviewText(t, user?.id ?? '')}
-                      </p>
-                      {/* ticket-meta - matches reference ticket-user + ticket-badges */}
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <div className="flex items-center gap-1.5">
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary-100 text-secondary text-xs font-semibold dark:bg-secondary-500/20 dark:text-secondary">
-                            {requesterDisplay(t)
-                              .split(/\s+/)
-                              .map(w => w[0])
-                              .join('')
-                              .slice(0, 2)
-                              .toUpperCase() || '—'}
+                  tickets.map(t => {
+                    const isSlaBreached =
+                      t.slaFirstResponseBreachedAt != null || t.slaResolutionBreachedAt != null
+                    return (
+                      <div
+                        key={t.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedTicketId(t.id)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            setSelectedTicketId(t.id)
+                          }
+                        }}
+                        className={`px-4 py-4 cursor-pointer transition-colors hover:bg-default-100 border-l-4 ${
+                          isSlaBreached
+                            ? 'border-l-danger bg-danger-50/40 dark:bg-danger-500/5'
+                            : selectedTicketId === t.id
+                              ? 'bg-slate-100 dark:bg-primary-500/10 border-l-primary'
+                              : 'border-l-transparent'
+                        }`}
+                      >
+                        {/* ticket-header */}
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-default-400">
+                              #{t.ticketNumber}
+                            </span>
+                            {isSlaBreached && (
+                              <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold bg-danger-100 text-danger dark:bg-danger-500/20 dark:text-danger">
+                                SLA breached
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-default-400">
+                            {t.createdAt ? formatRelativeTime(t.createdAt) : '—'}
                           </span>
-                          <span className="text-xs text-default-500">{requesterDisplay(t)}</span>
                         </div>
-                        <div className="flex gap-1.5 flex-wrap">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityBadgeClass(
-                              t.priority
-                            )}`}
-                          >
-                            {t.priority}
+                        {/* ticket-subject */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                          <span className="text-sm font-semibold text-foreground line-clamp-1">
+                            {t.subject}
                           </span>
-                          <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getRequesterBadgeClass(
-                              t.requesterType
-                            )}`}
-                          >
-                            {t.requesterType}
-                          </span>
-                          {t.category && (
+                        </div>
+                        {/* ticket-preview */}
+                        <p className="text-sm text-default-500 line-clamp-2 mb-3">
+                          {ticketPreviewText(t, user?.id ?? '')}
+                        </p>
+                        {/* ticket-meta - matches reference ticket-user + ticket-badges */}
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex items-center gap-1.5">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary-100 text-secondary text-xs font-semibold dark:bg-secondary-500/20 dark:text-secondary">
+                              {requesterDisplay(t)
+                                .split(/\s+/)
+                                .map(w => w[0])
+                                .join('')
+                                .slice(0, 2)
+                                .toUpperCase() || '—'}
+                            </span>
+                            <span className="text-xs text-default-500">{requesterDisplay(t)}</span>
+                          </div>
+                          <div className="flex gap-1.5 flex-wrap">
                             <span
-                              className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getCategoryBadgeClass(
-                                t.category.key
+                              className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityBadgeClass(
+                                t.priority
                               )}`}
                             >
-                              {t.category.name}
+                              {t.priority}
                             </span>
-                          )}
+                            <span
+                              className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getRequesterBadgeClass(
+                                t.requesterType
+                              )}`}
+                            >
+                              {t.requesterType}
+                            </span>
+                            {t.category && (
+                              <span
+                                className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getCategoryBadgeClass(
+                                  t.category.key
+                                )}`}
+                              >
+                                {t.category.name}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    )
+                  })
                 )}
               </div>
 

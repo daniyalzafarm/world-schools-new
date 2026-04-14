@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common'
 import {
   Prisma,
+  SupportTicketAudience,
   SupportTicketPriority,
   SupportTicketRequesterType,
   SupportTicketStatus,
@@ -430,6 +431,26 @@ export class SupportTicketsService {
     const resolved = byStatus[SupportTicketStatus.RESOLVED] ?? 0
     const closed = byStatus[SupportTicketStatus.CLOSED] ?? 0
     return { open, inProgress, pending, resolved, closed, total }
+  }
+
+  /**
+   * List active support ticket categories for a given requester audience.
+   * Used by GET /user/support-ticket-categories and GET /provider/support-ticket-categories.
+   *
+   * @param requesterType 'PARENT' or 'PROVIDER'
+   */
+  async listCategories(requesterType: 'PARENT' | 'PROVIDER') {
+    const audience =
+      requesterType === 'PARENT' ? SupportTicketAudience.PARENT : SupportTicketAudience.PROVIDER
+
+    return this.prisma.supportTicketCategory.findMany({
+      where: {
+        isActive: true,
+        audience: { in: [audience, SupportTicketAudience.BOTH] },
+      },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      select: { id: true, key: true, name: true, description: true, audience: true },
+    })
   }
 
   async updateTicket(id: string, dto: UpdateSupportTicketDto) {

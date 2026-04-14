@@ -7,8 +7,10 @@ import { SupportTicketsController } from './controllers/support-tickets.controll
 import { SupportTicketConversationsController } from './controllers/support-ticket-conversations.controller'
 import { UserSupportTicketsController } from './controllers/user-support-tickets.controller'
 import { UserSupportTicketConversationsController } from './controllers/user-support-ticket-conversations.controller'
+import { UserSupportTicketCategoriesController } from './controllers/user-support-ticket-categories.controller'
 import { ProviderSupportTicketsController } from './controllers/provider-support-tickets.controller'
 import { ProviderSupportTicketConversationsController } from './controllers/provider-support-ticket-conversations.controller'
+import { ProviderSupportTicketCategoriesController } from './controllers/provider-support-ticket-categories.controller'
 import { SupportTicketsService } from './services/support-tickets.service'
 import { SupportTicketConversationService } from './services/support-ticket-conversation.service'
 import { SupportTicketSlaService } from './services/support-ticket-sla.service'
@@ -21,8 +23,10 @@ import { SlaBreachMonitorService } from './services/sla-breach-monitor.service'
     SupportTicketConversationsController,
     UserSupportTicketsController,
     UserSupportTicketConversationsController,
+    UserSupportTicketCategoriesController,
     ProviderSupportTicketsController,
     ProviderSupportTicketConversationsController,
+    ProviderSupportTicketCategoriesController,
   ],
   providers: [
     SupportTicketsService,

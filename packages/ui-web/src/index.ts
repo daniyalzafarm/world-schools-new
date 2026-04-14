@@ -19,5 +19,11 @@ export {
 } from './utils/time-format'
 
 // Export types
-export type { Message, Conversation, FilterType, ReportReason } from './types/messages'
+export type {
+  Message,
+  MessageAttachment,
+  Conversation,
+  FilterType,
+  ReportReason,
+} from './types/messages'
 export { DEFAULT_REPORT_REASONS } from './types/messages'

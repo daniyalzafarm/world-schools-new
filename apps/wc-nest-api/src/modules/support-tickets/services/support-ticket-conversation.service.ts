@@ -10,9 +10,11 @@ import {
   Prisma,
   SenderType,
   SupportTicketRequesterType,
+  SupportTicketStatus,
 } from '../../../generated/client/client'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { MessagesService } from '../../messaging/services/messages.service'
+import { RedisPubSubService } from '../../messaging/services/redis-pub-sub.service'
 import { CreateTicketReplyDto } from '../dto'
 
 /** Shape aligned with messaging module MessageResponseDto for frontend DRY. */
@@ -65,7 +67,8 @@ export class SupportTicketConversationService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly messagesService: MessagesService
+    private readonly messagesService: MessagesService,
+    private readonly redisPubSub: RedisPubSubService
   ) {}
 
   /**
@@ -268,6 +271,9 @@ export class SupportTicketConversationService {
         conversationId: true,
         requesterUserId: true,
         requesterType: true,
+        status: true,
+        firstRespondedAt: true,
+        assignedToUserId: true,
       },
     })
 
@@ -286,7 +292,7 @@ export class SupportTicketConversationService {
       idempotencyKey: `support-ticket-reply:${ticketId}:${dto.senderId}:${Date.now()}`,
     })
 
-    const isRequesterReply = ticket.requesterUserId && dto.senderId === ticket.requesterUserId
+    const isRequesterReply = !!(ticket.requesterUserId && dto.senderId === ticket.requesterUserId)
 
     await this.prisma.supportTicket.update({
       where: { id: ticketId },
@@ -295,7 +301,79 @@ export class SupportTicketConversationService {
         : { lastSupportReplyAt: new Date() },
     })
 
+    await this._autoTransitionStatusAfterReply(ticket, isRequesterReply, dto.senderId)
+
     // sendMessage already returns message with sender and resolved attachments
     return message as unknown as SupportTicketMessageResponse
+  }
+
+  /**
+   * Automatically transitions ticket status after a reply:
+   * - Support replies to OPEN/IN_PROGRESS/PENDING_SUPPORT → PENDING_REQUESTER
+   *   (also sets firstRespondedAt if this is the first support reply)
+   * - Requester replies to PENDING_REQUESTER → PENDING_SUPPORT
+   */
+  private async _autoTransitionStatusAfterReply(
+    ticket: {
+      id: string
+      status: SupportTicketStatus
+      firstRespondedAt: Date | null
+      requesterUserId: string | null
+      assignedToUserId: string | null
+    },
+    isRequesterReply: boolean,
+    replierUserId: string
+  ): Promise<void> {
+    const SUPPORT_REPLY_TRIGGER_STATUSES: SupportTicketStatus[] = [
+      SupportTicketStatus.OPEN,
+      SupportTicketStatus.IN_PROGRESS,
+      SupportTicketStatus.PENDING_SUPPORT,
+    ]
+
+    let newStatus: SupportTicketStatus | null = null
+    const extraData: Partial<{ firstRespondedAt: Date }> = {}
+
+    if (!isRequesterReply && SUPPORT_REPLY_TRIGGER_STATUSES.includes(ticket.status)) {
+      newStatus = SupportTicketStatus.PENDING_REQUESTER
+      if (ticket.firstRespondedAt === null) {
+        extraData.firstRespondedAt = new Date()
+      }
+    } else if (isRequesterReply && ticket.status === SupportTicketStatus.PENDING_REQUESTER) {
+      newStatus = SupportTicketStatus.PENDING_SUPPORT
+    }
+
+    if (!newStatus) return
+
+    const updated = await this.prisma.supportTicket.update({
+      where: { id: ticket.id },
+      data: {
+        status: newStatus,
+        ...extraData,
+        statusHistory: {
+          create: {
+            fromStatus: ticket.status,
+            toStatus: newStatus,
+            changedByUserId: replierUserId,
+            changeReason: isRequesterReply ? 'Requester replied' : 'Support replied',
+          },
+        },
+      },
+      select: { updatedAt: true },
+    })
+
+    void this.redisPubSub
+      .publishMessage('ticket:statusUpdated', {
+        ticketId: ticket.id,
+        status: newStatus,
+        resolvedAt: null,
+        closedAt: null,
+        updatedAt: updated.updatedAt,
+        changedByUserId: replierUserId,
+        requesterUserId: ticket.requesterUserId,
+        assignedToUserId: ticket.assignedToUserId,
+      })
+      .catch(err => {
+        this.logger.error('Failed to publish auto ticket status transition event', err)
+      })
   }
 }

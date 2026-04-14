@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Avatar, BreadcrumbItem, Breadcrumbs, Button, Chip, Divider, Skeleton } from '@heroui/react'
 import { type Message, MessageBubble, MessageThread } from '@world-schools/ui-web'
 import { ArrowLeft, Calendar, ExternalLink, Tag, User } from 'lucide-react'
+import { SlaProgressBar } from '@world-schools/wc-frontend-utils'
 import { PageSlot } from '@/components/layout/page-slot'
 import { SupportTicketLayout } from '@/components/support/SupportTicketLayout'
 import { useAuthStore } from '@/stores/auth-store'
@@ -381,6 +382,28 @@ export default function SupportTicketDetailPage() {
             </dd>
           </div>
         </dl>
+
+        {/* SLA progress bars */}
+        {(ticket.firstResponseDueAt || ticket.resolutionDueAt) && (
+          <div className="mt-3 flex flex-col gap-3">
+            {ticket.firstResponseDueAt && (
+              <SlaProgressBar
+                label="First response"
+                dueAt={ticket.firstResponseDueAt}
+                completedAt={ticket.firstRespondedAt}
+                breachedAt={ticket.slaFirstResponseBreachedAt}
+              />
+            )}
+            {ticket.resolutionDueAt && (
+              <SlaProgressBar
+                label="Resolution"
+                dueAt={ticket.resolutionDueAt}
+                completedAt={ticket.resolvedAt}
+                breachedAt={ticket.slaResolutionBreachedAt}
+              />
+            )}
+          </div>
+        )}
       </section>
 
       {/* Assigned to */}
