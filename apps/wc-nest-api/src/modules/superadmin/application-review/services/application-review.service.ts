@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { PrismaService } from '../../../../prisma/prisma.service'
 import { ConfigService } from '../../../../config/config.service'
 import { TrustScoreService } from '../../../provider/onboarding/services/trust-score.service'
@@ -12,6 +13,7 @@ import {
   RequestInfoDto,
 } from '../dto/application-review.dto'
 import { ApplicationNotificationService } from '../../../common/email-templates/application-notification.service'
+import { WsInternalEvent } from '../../../websocket/ws-internal-events'
 
 @Injectable()
 export class ApplicationReviewService {
@@ -22,7 +24,8 @@ export class ApplicationReviewService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly trustScoreService: TrustScoreService,
-    private readonly applicationNotificationService: ApplicationNotificationService
+    private readonly applicationNotificationService: ApplicationNotificationService,
+    private readonly eventEmitter: EventEmitter2
   ) {
     // Azure Storage Service will be initialized lazily when needed
   }
@@ -342,6 +345,12 @@ export class ApplicationReviewService {
 
     this.logger.log(`Approved provider application ${providerId} by reviewer ${reviewerId}`)
 
+    this.eventEmitter.emit(WsInternalEvent.OnboardingStatusChanged, {
+      providerId,
+      newStatus: 'approved',
+      previousStatus: provider.approvalStatus,
+    })
+
     // Send application approved email
     await this.applicationNotificationService.sendApplicationApprovedEmail(providerId)
   }
@@ -375,6 +384,14 @@ export class ApplicationReviewService {
 
     this.logger.log(`Rejected provider application ${providerId} by reviewer ${reviewerId}`)
 
+    this.eventEmitter.emit(WsInternalEvent.OnboardingStatusChanged, {
+      providerId,
+      newStatus: 'rejected',
+      previousStatus: provider.approvalStatus,
+      rejectionReason: dto.reason,
+      rejectionCategory: dto.category,
+    })
+
     // Send application rejected email
     await this.applicationNotificationService.sendApplicationRejectedEmail(providerId)
   }
@@ -403,6 +420,12 @@ export class ApplicationReviewService {
     // TODO: Send email notification to provider with the info request message
 
     this.logger.log(`Requested info from provider ${providerId} by reviewer ${reviewerId}`)
+
+    this.eventEmitter.emit(WsInternalEvent.OnboardingStatusChanged, {
+      providerId,
+      newStatus: 'info_requested',
+      previousStatus: provider.approvalStatus,
+    })
   }
 
   /**
@@ -428,5 +451,11 @@ export class ApplicationReviewService {
     })
 
     this.logger.log(`Suspended provider ${providerId} by reviewer ${reviewerId}`)
+
+    this.eventEmitter.emit(WsInternalEvent.OnboardingStatusChanged, {
+      providerId,
+      newStatus: 'suspended',
+      previousStatus: provider.approvalStatus,
+    })
   }
 }

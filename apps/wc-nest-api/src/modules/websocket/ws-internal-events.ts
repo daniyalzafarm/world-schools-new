@@ -25,4 +25,7 @@ export const WsInternalEvent = {
   // BookingGroupsService → BookingWebSocketHandler routing
   BookingStatusChanged: 'booking:status_changed',
   BookingRequestSubmitted: 'booking:request_submitted',
+
+  // ApplicationReviewService → ApplicationReviewWebSocketHandler routing
+  OnboardingStatusChanged: 'onboarding:status_changed',
 } as const

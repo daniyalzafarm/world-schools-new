@@ -158,6 +158,14 @@ export interface WsTicketAssignedPayload {
   fromAssigneeUserId?: string | null
 }
 
+export interface WsOnboardingStatusChangedPayload {
+  providerId: string
+  newStatus: string
+  previousStatus: string
+  rejectionReason?: string | null
+  rejectionCategory?: string | null
+}
+
 export interface WsHeartbeatPingPayload {
   serverTime: number
 }
@@ -253,6 +261,8 @@ export const WsServerEvent = {
   AuthExpired: 'auth:expired',
   /** Server confirms the new token is valid */
   AuthTokenRefreshed: 'auth:token_refreshed',
+  // Onboarding
+  OnboardingStatusChanged: 'onboarding:status_changed',
 } as const
 
 /** Socket.io events emitted by the client and received by the server */
@@ -299,6 +309,7 @@ export interface WsServerToClientEvents {
   'auth:token_expiring': (data: WsAuthTokenExpiringPayload) => void
   'auth:expired': (data: Record<string, never>) => void
   'auth:token_refreshed': (data: Record<string, never>) => void
+  'onboarding:status_changed': (data: WsOnboardingStatusChangedPayload) => void
 }
 
 /** Events the client emits and the server handles */

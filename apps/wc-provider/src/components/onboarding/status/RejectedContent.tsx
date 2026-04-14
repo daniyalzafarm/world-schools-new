@@ -4,116 +4,85 @@ import type { OnboardingStatus } from '../../../types/onboarding'
 
 interface RejectedContentProps {
   status: OnboardingStatus
+  contactFirstName?: string
 }
 
-export function RejectedContent({ status }: RejectedContentProps) {
-  // Format rejection category from snake_case to Title Case
+export function RejectedContent({ status, contactFirstName }: RejectedContentProps) {
+  const firstName = contactFirstName || 'there'
+
   const formattedCategory = status.rejectionCategory
     ? formatSnakeCaseToTitleCase(status.rejectionCategory)
     : undefined
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
-      {/* Main Status Card */}
-      <div className="p-12 text-center">
-        <div className="mb-6 text-6xl">❌</div>
-        <h1 className="mb-4 text-3xl font-bold leading-tight text-foreground">
-          Application Not Approved
-        </h1>
-        <p className="mb-8 text-lg text-default-500">
-          Unfortunately, we're unable to approve your application at this time.
-        </p>
+    <div className="mx-auto flex w-full max-w-[560px] flex-col items-center text-center">
+      {/* Icon */}
+      <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border-4 border-danger bg-danger-50 text-3xl font-bold text-danger">
+        ✕
       </div>
 
-      {/* Rejection Reason */}
+      {/* Title */}
+      <h1 className="mb-2 text-[28px] font-bold text-foreground">Application Not Approved</h1>
+      <p className="mb-8 text-base text-default-500">
+        Hi <span className="font-semibold text-foreground">{firstName}</span>, unfortunately we're
+        unable to approve your application at this time.
+      </p>
+
+      {/* Rejection Reason Card */}
       {status.rejectionReason && (
-        <div className="mb-8 rounded-xl border border-danger-200 bg-danger-50 p-8">
-          <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-danger-600">
-            ⚠️ Reason for Rejection
-          </h2>
+        <div className="mb-8 w-full rounded-xl border border-danger bg-danger-50 p-5 text-left">
+          <div className="mb-3 flex items-center gap-2">
+            <span>📋</span>
+            <span className="text-[15px] font-bold text-foreground">Reason for Decision</span>
+          </div>
           {formattedCategory && (
-            <div className="mb-2 text-sm font-semibold text-danger-600">{formattedCategory}</div>
+            <div className="mb-2 text-sm font-semibold text-danger">{formattedCategory}</div>
           )}
-          <p className="text-default-500">{status.rejectionReason}</p>
+          <ul className="list-none space-y-2">
+            <li className="flex gap-2 text-sm leading-relaxed text-default-600">
+              <span className="font-bold text-danger">•</span>
+              <span>{status.rejectionReason}</span>
+            </li>
+          </ul>
         </div>
       )}
 
-      {/* What Can You Do */}
-      <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
-        <h2 className="mb-6 text-2xl font-semibold text-foreground">What can you do?</h2>
-        <div className="flex flex-col gap-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success-50 text-2xl">
-              📧
-            </div>
-            <div className="flex-1">
-              <div className="mb-1 font-semibold text-foreground">Contact Support</div>
-              <div className="text-sm text-default-500">
-                Reach out to our support team for more details about the rejection and how to
-                address the issues.
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success-50 text-2xl">
-              📄
-            </div>
-            <div className="flex-1">
-              <div className="mb-1 font-semibold text-foreground">Review Requirements</div>
-              <div className="text-sm text-default-500">
-                Make sure you meet all the requirements for becoming a World Camps provider.
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success-50 text-2xl">
-              🔄
-            </div>
-            <div className="flex-1">
-              <div className="mb-1 font-semibold text-foreground">Reapply</div>
-              <div className="text-sm text-default-500">
-                Once you've addressed the issues, you can submit a new application.
-              </div>
-            </div>
-          </div>
+      {/* Ready to Reapply */}
+      <div className="w-full border-t border-default-100 pt-8">
+        <div className="rounded-xl border border-primary bg-primary-50 p-6 text-center">
+          <h3 className="mb-2 text-lg font-bold text-foreground">Ready to Reapply?</h3>
+          <p className="mb-5 text-sm text-default-500">
+            Once you've addressed these issues, you can reapply.
+            <br />
+            Your previous information will be saved.
+          </p>
+          <Button
+            color="primary"
+            size="lg"
+            className="font-semibold"
+            onPress={() => (window.location.href = '/onboarding')}
+          >
+            Reapply Now
+          </Button>
         </div>
-      </div>
 
-      {/* Need Help */}
-      <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
-        <h2 className="mb-4 text-2xl font-semibold text-foreground">Need Help?</h2>
-        <p className="mb-6 text-default-500">
-          Our support team is here to help you understand the rejection and guide you through the
-          process of reapplying.
-        </p>
-        <div className="flex flex-col gap-3 text-sm">
-          <div className="flex items-center gap-2">
+        {/* Support Links */}
+        <div className="mt-6 flex items-center justify-center gap-6">
+          <a
+            href="mailto:support@worldcamps.com"
+            className="flex items-center gap-1.5 text-sm text-default-500 hover:text-foreground"
+          >
             <span>📧</span>
-            <a href="mailto:support@worldcamps.com" className="text-primary-700 hover:underline">
-              support@worldcamps.com
-            </a>
-          </div>
-          <div className="flex items-center gap-2">
+            <span>support@worldcamps.com</span>
+          </a>
+          <a
+            href="tel:+15551234567"
+            className="flex items-center gap-1.5 text-sm text-default-500 hover:text-foreground"
+          >
             <span>📞</span>
-            <a href="tel:+1-555-123-4567" className="text-primary-700 hover:underline">
-              +1 (555) 123-4567
-            </a>
-          </div>
+            <span>+1 (555) 123-4567</span>
+          </a>
         </div>
-      </div>
-
-      {/* Action Button */}
-      <div className="flex justify-center">
-        <Button
-          color="primary"
-          className="font-semibold"
-          size="lg"
-          onPress={() => (window.location.href = 'mailto:support@worldcamps.com')}
-        >
-          📧 Contact Support
-        </Button>
       </div>
     </div>
   )

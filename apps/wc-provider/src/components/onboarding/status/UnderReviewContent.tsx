@@ -1,112 +1,98 @@
-import { Progress } from '@heroui/react'
 import type { OnboardingStatus } from '../../../types/onboarding'
 
 interface UnderReviewContentProps {
   status: OnboardingStatus
+  contactFirstName?: string
+  contactEmail?: string
 }
 
-export function UnderReviewContent({ status }: UnderReviewContentProps) {
+export function UnderReviewContent({ contactFirstName, contactEmail }: UnderReviewContentProps) {
+  const firstName = contactFirstName || 'there'
+  const email = contactEmail || 'your email'
+
   return (
-    <div className="mx-auto w-full max-w-3xl">
-      {/* Main Status Card */}
-      <div className="p-12 text-center">
-        <div className="mb-6 text-6xl">⏳</div>
-        <h1 className="mb-4 text-3xl font-bold leading-tight text-foreground">
-          Application Under Review
-        </h1>
-        <p className="mb-8 text-lg text-default-500">
-          Thank you for submitting your application! Our team is currently reviewing your
-          information.
+    <div className="mx-auto flex w-full max-w-[560px] flex-col items-center text-center">
+      {/* Animated Icon */}
+      <div className="mb-5 flex h-20 w-20 animate-pulse items-center justify-center rounded-full border-4 border-warning bg-warning-50 text-4xl">
+        ⏳
+      </div>
+
+      {/* Title */}
+      <h1 className="mb-2 text-[28px] font-bold leading-tight text-foreground">
+        Application Under Review
+      </h1>
+      <p className="mb-8 text-base text-default-500">
+        Thank you for applying, <span className="font-semibold text-foreground">{firstName}</span>!
+        <br />
+        Our team is reviewing your application.
+      </p>
+
+      {/* Timeline Card */}
+      <div className="mb-8 w-full rounded-xl border-2 border-warning bg-warning-50 p-5 text-left">
+        <div className="mb-1 flex items-center gap-2">
+          <span className="text-lg">⏱️</span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-default-500">
+            Estimated Review Time
+          </span>
+        </div>
+        <div className="mb-1 text-2xl font-bold text-foreground">2-3 business days</div>
+        <p className="text-sm text-default-500">We'll email you as soon as a decision is made.</p>
+      </div>
+
+      {/* What Happens Next */}
+      <div className="w-full">
+        <h2 className="mb-4 text-center text-base font-bold text-foreground">What Happens Next?</h2>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-4 rounded-xl border border-default-200 bg-white p-4">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-default-100 text-sm font-bold text-foreground">
+              1
+            </div>
+            <div className="flex-1 text-left">
+              <div className="text-sm font-semibold text-foreground">
+                Our team reviews your details
+              </div>
+              <div className="text-xs text-default-500">
+                We verify your business information, insurance, and safety credentials.
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 rounded-xl border border-default-200 bg-white p-4">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-default-100 text-sm font-bold text-foreground">
+              2
+            </div>
+            <div className="flex-1 text-left">
+              <div className="text-sm font-semibold text-foreground">
+                We may request additional information
+              </div>
+              <div className="text-xs text-default-500">
+                If needed, we'll message you directly through the platform.
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 rounded-xl border border-default-200 bg-white p-4">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-default-100 text-sm font-bold text-foreground">
+              3
+            </div>
+            <div className="flex-1 text-left">
+              <div className="text-sm font-semibold text-foreground">
+                You'll receive an email notification
+              </div>
+              <div className="text-xs text-default-500">
+                We'll let you know as soon as a decision is made.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Email Confirmation Banner */}
+      <div className="mt-8 flex w-full items-center gap-3 rounded-xl border border-primary bg-primary-50 p-4">
+        <span className="text-xl">📧</span>
+        <p className="text-sm text-foreground">
+          We'll notify you at <span className="font-semibold">{email}</span>
         </p>
-      </div>
-
-      {/* What's Being Reviewed */}
-      <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
-        <h2 className="mb-6 text-2xl font-semibold text-foreground">What's being reviewed?</h2>
-        <div className="flex flex-col gap-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 text-2xl">
-              📄
-            </div>
-            <div className="flex-1">
-              <div className="mb-1 font-semibold text-foreground">Business Information</div>
-              <div className="text-sm text-default-500">
-                Verifying your business details and legal information
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 text-2xl">
-              🛡️
-            </div>
-            <div className="flex-1">
-              <div className="mb-1 font-semibold text-foreground">Verification Documents</div>
-              <div className="text-sm text-default-500">
-                Reviewing your business registration and insurance certificates
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 text-2xl">
-              ⭐
-            </div>
-            <div className="flex-1">
-              <div className="mb-1 font-semibold text-foreground">Trust Score Assessment</div>
-              <div className="text-sm text-default-500">
-                Calculating your provider trust score based on submitted information
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Trust Score */}
-      {/* {status.trustScore !== null && status.trustScore !== undefined && (
-        <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
-          <h2 className="mb-4 text-2xl font-semibold text-foreground">Your Trust Score</h2>
-          <div className="mb-4 flex items-center gap-4">
-            <div className="text-5xl font-bold text-primary">{status.trustScore}</div>
-            <div className="text-default-500">out of 100</div>
-          </div>
-          <Progress
-            value={status.trustScore}
-            maxValue={100}
-            size="md"
-            aria-label="Trust score progress"
-          />
-          <p className="text-sm text-default-500">
-            {status.trustScore >= 70
-              ? 'Excellent! Your application looks great.'
-              : status.trustScore >= 50
-                ? 'Good progress. Our team will review your application.'
-                : 'Our team will carefully review your application.'}
-          </p>
-        </div>
-      )} */}
-
-      {/* Estimated Review Time */}
-      <div className="mb-8 rounded-xl border border-default-200 bg-white p-8">
-        <h2 className="mb-4 text-2xl font-semibold text-foreground">⏰ Estimated Review Time</h2>
-        <p className="text-default-500">
-          Most applications are reviewed within <strong>2-3 business days</strong>. You'll receive
-          an email notification once your application has been reviewed.
-        </p>
-      </div>
-
-      {/* Contact Info */}
-      <div className="rounded-xl bg-default-50 p-6">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">ℹ️</span>
-          <div className="text-sm text-default-500">
-            <strong>Need to make changes?</strong> If you need to update any information, please
-            contact our support team at{' '}
-            <a href="mailto:support@worldcamps.com" className="text-primary-700 hover:underline">
-              support@worldcamps.com
-            </a>
-          </div>
-        </div>
       </div>
     </div>
   )
