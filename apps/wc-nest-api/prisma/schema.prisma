@@ -960,6 +960,8 @@ enum CampStatus {
   draft
   published
   archived
+  pending_review
+  suspended
 }
 
 enum WishlistShareRole {

@@ -22,6 +22,7 @@ import {
   MessageCircleWarning,
   Notebook,
   ShieldCheck,
+  Tent,
   User,
 } from 'lucide-react'
 import { cn } from '@world-schools/ui-web'
@@ -107,6 +108,13 @@ const NAV_ITEMS: NavItem[] = [
     icon: <Building size={20} />,
     type: 'regular',
     permission: 'providers.read',
+  },
+  {
+    name: 'Camps',
+    href: '/camps',
+    icon: <Tent size={20} />,
+    type: 'regular',
+    permission: 'camps.read',
   },
   {
     name: 'Users',

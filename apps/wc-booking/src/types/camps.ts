@@ -1,26 +1,21 @@
 // Camp types for wc-booking app
 import type { Session } from './sessions'
+import type {
+  AgeGroup,
+  BaseCampStatus,
+  CampPhoto,
+  CampType,
+  Gender,
+  LocationType,
+} from '@world-schools/wc-types'
 
-export type CampType = 'day' | 'residential'
-export type LocationType = 'provider' | 'different'
-export type Gender = 'coed' | 'boys' | 'girls'
-export type CampStatus = 'draft' | 'published' | 'archived'
+// Re-export shared primitives for local usage
+export type { AgeGroup, CampPhoto, CampType, Gender, LocationType }
+
+// wc-booking uses the base statuses only (no admin-specific pending_review / suspended)
+export type CampStatus = BaseCampStatus
+
 export type SessionType = 'flexible' | 'fixed'
-
-export interface AgeGroup {
-  id?: string
-  min: number
-  max: number
-}
-
-export interface CampPhoto {
-  id: string
-  url: string
-  thumbnail: string
-  isPrimary: boolean
-  order: number
-  caption?: string
-}
 
 // Activity Item Interface
 export interface ActivityItem {

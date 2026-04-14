@@ -47,6 +47,18 @@ export const NAVIGATION_PERMISSIONS: Record<string, NavigationPermissionConfig> 
       'providers.delete',
     ],
   },
+  camps: {
+    navigationPermission: 'camps.read',
+    label: 'Camps',
+    groupPermissions: [
+      'camps.create',
+      'camps.read',
+      'camps.update',
+      'camps.delete',
+      'camps.review',
+      'camps.approve',
+    ],
+  },
   provider_applications: {
     navigationPermission: 'provider_applications.read',
     label: 'Provider Applications',

@@ -1,16 +1,14 @@
-export interface AgeGroup {
-  min: number
-  max: number
-}
+import type {
+  AgeGroup,
+  BaseCampStatus,
+  CampPhoto,
+  CampType,
+  Gender,
+  LocationType,
+} from '@world-schools/wc-types'
 
-export interface CampPhoto {
-  id: string
-  url: string
-  thumbnail: string
-  isPrimary: boolean
-  order: number
-  caption?: string
-}
+// Re-export shared primitives for local usage
+export type { AgeGroup, CampPhoto, CampType, Gender, LocationType }
 
 export interface WhatsIncluded {
   items: string[]
@@ -72,10 +70,8 @@ export interface CampFocus {
   learningApproach?: string
 }
 
-export type CampType = 'day' | 'residential'
-export type LocationType = 'provider' | 'different'
-export type Gender = 'coed' | 'boys' | 'girls'
-export type CampStatus = 'draft' | 'published' | 'archived'
+// wc-provider uses the base statuses only (no admin-specific pending_review / suspended)
+export type CampStatus = BaseCampStatus
 
 export interface Camp {
   id: string

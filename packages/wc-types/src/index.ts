@@ -1,4 +1,5 @@
 export * from './lib/wc-types'
+export * from './lib/camps.types'
 export * from './lib/auth.types'
 export * from './lib/cancellation-policy.types'
 export * from './lib/kb.types'
