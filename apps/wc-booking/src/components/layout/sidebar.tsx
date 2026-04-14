@@ -3,15 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import {
-  Badge,
-  Button,
-  Dropdown,
-  DropdownItem,
-  DropdownMenu,
-  DropdownTrigger,
-  Tooltip,
-} from '@heroui/react'
+import { Badge, Button, Tooltip } from '@heroui/react'
 import {
   ArrowLeftToLine,
   Bell,
@@ -22,11 +14,8 @@ import {
   Heart,
   HelpCircle,
   Home,
-  LogOut,
   MessageCircle,
-  Settings,
   Star,
-  Users,
   X,
 } from 'lucide-react'
 import { cn } from '@world-schools/ui-web'
@@ -109,12 +98,6 @@ export const NAV_ITEMS: NavItem[] = [
     type: 'regular',
   },
   {
-    name: 'Children',
-    href: '/children',
-    icon: <Users size={20} />,
-    type: 'regular',
-  },
-  {
     name: 'Messages',
     href: '/messages',
     icon: <MessageCircle size={20} />,
@@ -154,7 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const router = useRouter()
   const pathname = usePathname()
-  const { user, logout } = useAuthStore()
+  const { user } = useAuthStore()
   const isCampDrawer = variant === 'camp-drawer'
 
   // Collapsed state is managed locally within the sidebar
@@ -512,66 +495,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 drawerCollapsed ? 'flex-col items-center gap-2' : 'items-center gap-2'
               )}
             >
-              <Dropdown placement="right-end">
-                <DropdownTrigger>
-                  <div
-                    className={cn(
-                      'cursor-pointer flex items-center gap-3 hover:bg-default-100 dark:hover:bg-gray-800/50 rounded-lg p-2',
-                      !drawerCollapsed && 'flex-1 min-w-0'
-                    )}
-                  >
-                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
-                      <span className="text-secondary text-sm font-semibold">{userInitials}</span>
-                    </div>
-                    {!drawerCollapsed && (
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                          {userFullName}
-                        </p>
-                        <p className="text-sm text-secondary truncate">Parent</p>
-                      </div>
-                    )}
+              <div
+                className={cn(
+                  'cursor-pointer flex items-center gap-3 hover:bg-default-100 dark:hover:bg-gray-800/50 rounded-lg p-2',
+                  !drawerCollapsed && 'flex-1 min-w-0'
+                )}
+                onClick={() => {
+                  router.push('/account')
+                  if (isCampDrawer) setSidebarOpen(false)
+                }}
+              >
+                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
+                  <span className="text-secondary text-sm font-semibold">{userInitials}</span>
+                </div>
+                {!drawerCollapsed && (
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                      {userFullName}
+                    </p>
+                    <p className="text-sm text-secondary truncate">Parent</p>
                   </div>
-                </DropdownTrigger>
-                <DropdownMenu
-                  aria-label="User menu"
-                  onAction={key => {
-                    if (key === 'account') {
-                      router.push('/account')
-                      if (isCampDrawer) setSidebarOpen(false)
-                    } else if (key === 'logout') {
-                      logout().catch(e => console.error(e))
-                      router.push('/auth/signin')
-                      if (isCampDrawer) setSidebarOpen(false)
-                    }
-                  }}
-                >
-                  <DropdownItem
-                    key="account"
-                    className="text-gray-700 dark:text-gray-300"
-                    startContent={<Settings size={16} />}
-                  >
-                    Account
-                  </DropdownItem>
-                  <DropdownItem
-                    key="logout"
-                    className="text-red-600 dark:text-red-400"
-                    startContent={<LogOut size={16} />}
-                  >
-                    Logout
-                  </DropdownItem>
-                  <DropdownItem
-                    key="version"
-                    className="cursor-default"
-                    isReadOnly
-                    textValue="Version"
-                  >
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Version {config.app.version}
-                    </div>
-                  </DropdownItem>
-                </DropdownMenu>
-              </Dropdown>
+                )}
+              </div>
               {!isCampDrawer && (
                 <Tooltip
                   content={

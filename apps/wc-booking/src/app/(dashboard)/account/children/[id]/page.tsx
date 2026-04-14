@@ -85,7 +85,7 @@ export default function ChildDetailsPage() {
         <p className="text-slate-600 dark:text-slate-400 mb-6">
           The child you're looking for doesn't exist.
         </p>
-        <Button color="primary" onPress={() => router.push('/children')}>
+        <Button color="primary" onPress={() => router.push('/account/children')}>
           Back to Children
         </Button>
       </div>
@@ -94,7 +94,7 @@ export default function ChildDetailsPage() {
 
   // If new child, redirect to children list (modal will handle creation)
   if (childId === 'new' || !child) {
-    router.push('/children')
+    router.push('/account/children')
     return null
   }
 
@@ -136,7 +136,7 @@ export default function ChildDetailsPage() {
           <div className="text-sm mt-1">
             Please add at least one emergency contact before booking camps.{' '}
             <button
-              onClick={() => router.push(`/children/${childId}/emergency`)}
+              onClick={() => router.push(`/account/children/${childId}/emergency`)}
               className={cn('cursor-pointer font-semibold underline hover:text-error-500')}
             >
               Add emergency contact
@@ -151,7 +151,7 @@ export default function ChildDetailsPage() {
           <div className="text-sm mt-1">
             Adding medical information helps camps better prepare for {child.firstName}'s needs.{' '}
             <button
-              onClick={() => router.push(`/children/${childId}/medical`)}
+              onClick={() => router.push(`/account/children/${childId}/medical`)}
               className={cn('cursor-pointer font-semibold underline hover:text-warning-500')}
             >
               Add medical information
@@ -251,7 +251,7 @@ export default function ChildDetailsPage() {
           {profileCompletion < 100 ? (
             <>
               <button
-                onClick={() => router.push(`/children/${childId}/profile`)}
+                onClick={() => router.push(`/account/children/${childId}/profile`)}
                 className={cn(
                   'cursor-pointer font-semibold underline',
                   profileCompletion >= 75 ? 'hover:text-success-500' : 'hover:text-warning-500'
@@ -275,7 +275,7 @@ export default function ChildDetailsPage() {
         <div className="space-y-1">
           {/* Personal information */}
           <button
-            onClick={() => router.push(`/children/${childId}/profile`)}
+            onClick={() => router.push(`/account/children/${childId}/profile`)}
             className="cursor-pointer flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors w-full"
           >
             <div className="w-11 h-11 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
@@ -294,7 +294,7 @@ export default function ChildDetailsPage() {
 
           {/* Medical information */}
           <button
-            onClick={() => router.push(`/children/${childId}/medical`)}
+            onClick={() => router.push(`/account/children/${childId}/medical`)}
             className="cursor-pointer flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors w-full"
           >
             <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0 text-slate-900 dark:text-white">
@@ -313,7 +313,7 @@ export default function ChildDetailsPage() {
 
           {/* Emergency contacts */}
           <button
-            onClick={() => router.push(`/children/${childId}/emergency`)}
+            onClick={() => router.push(`/account/children/${childId}/emergency`)}
             className="cursor-pointer flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors w-full"
           >
             <div
@@ -349,7 +349,7 @@ export default function ChildDetailsPage() {
 
           {/* Camp preferences */}
           <button
-            onClick={() => router.push(`/children/${childId}/preferences`)}
+            onClick={() => router.push(`/account/children/${childId}/preferences`)}
             className="cursor-pointer flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors w-full"
           >
             <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0 text-slate-900 dark:text-white">

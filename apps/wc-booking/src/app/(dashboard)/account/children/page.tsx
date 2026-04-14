@@ -86,7 +86,7 @@ export default function ChildrenPage() {
   }
 
   const handleEditChild = (childId: string) => {
-    router.push(`/children/${childId}`)
+    router.push(`/account/children/${childId}`)
   }
 
   return (

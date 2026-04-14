@@ -40,7 +40,7 @@ export function AddChildModal({ isOpen, onClose }: AddChildModalProps) {
                 color: 'success',
               })
               onClose()
-              router.push(`/children/${newChild.id}/profile`)
+              router.push(`/account/children/${newChild.id}/profile`)
             }}
           />
         </ModalBody>

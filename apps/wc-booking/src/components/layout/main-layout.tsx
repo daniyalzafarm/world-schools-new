@@ -4,8 +4,8 @@ import React, { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 
 import { ProtectedRoute } from '@/components/auth/protected-route'
+import { BottomNav } from '@/components/layout/bottom-nav'
 import { Sidebar } from '@/components/layout/sidebar'
-import { MobileHeader } from '@/components/layout/mobile-header'
 import { useAuthStore } from '@/stores/auth-store'
 
 interface MainLayoutProps {
@@ -67,14 +67,14 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
       <div className="flex h-screen bg-white dark:bg-gray-900">
         <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <MobileHeader menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
           <main
             className={`flex-1 bg-white dark:bg-slate-900 ${
               needsOverflowHidden ? 'overflow-hidden' : 'overflow-auto'
             }`}
           >
-            <div className="relative h-full pt-14 lg:pt-0">{children}</div>
+            <div className="relative h-full">{children}</div>
           </main>
+          <BottomNav />
         </div>
       </div>
     )
@@ -87,15 +87,14 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
         <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          <MobileHeader menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-
           <main
             className={`flex-1 bg-white dark:bg-slate-900 ${
               needsOverflowHidden ? 'overflow-hidden' : 'overflow-auto'
             }`}
           >
-            <div className="relative h-full pt-14 lg:pt-0">{children}</div>
+            <div className="relative h-full">{children}</div>
           </main>
+          <BottomNav />
         </div>
       </div>
     </ProtectedRoute>

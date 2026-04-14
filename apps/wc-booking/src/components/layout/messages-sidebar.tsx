@@ -158,14 +158,19 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
       // Mark conversation as read
       markAsRead(conversation.id)
 
-      // Dispatch conversation selection event (WhatsApp Web pattern - no URL navigation)
-      window.dispatchEvent(
-        new CustomEvent('selectConversation', {
-          detail: conversation,
-        })
-      )
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        // Mobile: navigate via URL so the layout switches to conversation view
+        router.push(`/messages/${conversation.id}`)
+      } else {
+        // Desktop: event-based selection (WhatsApp Web pattern — no URL change)
+        window.dispatchEvent(
+          new CustomEvent('selectConversation', {
+            detail: conversation,
+          })
+        )
+      }
     },
-    [markAsRead]
+    [markAsRead, router]
   )
 
   return (
@@ -181,9 +186,9 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
       {/* Messages Sidebar */}
       <aside
         className={cn(
-          'h-full bg-white dark:bg-gray-900/95 backdrop-blur-md',
+          'lg:h-full bg-white dark:bg-gray-900/95 backdrop-blur-md',
           'border-r border-gray-200 dark:border-gray-700',
-          'fixed lg:static z-40',
+          'fixed inset-x-0 top-0 bottom-16 lg:static z-40',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
           'transition-all duration-300 ease-in-out',
           'w-full lg:w-96'

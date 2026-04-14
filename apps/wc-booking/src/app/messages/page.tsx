@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   addToast,
   Avatar,
@@ -25,7 +25,7 @@ import {
   type ReportReason,
   Textarea,
 } from '@world-schools/ui-web'
-import { MessageSquare, MoreVertical, Users } from 'lucide-react'
+import { ChevronLeft, MessageSquare, MoreVertical, Users } from 'lucide-react'
 import { useMessagingStore } from '@/stores/messaging-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { MessageListSkeleton } from '@/components/messages/message-skeleton'
@@ -45,6 +45,7 @@ import { messagingAttachmentsService } from '@/services/messaging-attachments.se
 
 export default function MessagesPage() {
   const pathname = usePathname()
+  const router = useRouter()
 
   // Detect if we're on the archived route (includes both /messages/archived and /messages/archived/[id])
   const isArchivedPage = pathname.startsWith('/messages/archived')
@@ -392,6 +393,15 @@ export default function MessagesPage() {
         {/* Chat Header for Draft */}
         <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4">
           <div className="flex items-center gap-3">
+            <Button
+              isIconOnly
+              variant="light"
+              size="sm"
+              className="lg:hidden -ml-2 mr-1"
+              onPress={() => router.push(isArchivedPage ? '/messages/archived' : '/messages')}
+            >
+              <ChevronLeft size={20} />
+            </Button>
             <div className="relative">
               <Avatar name={draftConversation.providerName} size="md" />
             </div>
@@ -444,6 +454,15 @@ export default function MessagesPage() {
         {/* Chat Header */}
         <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4">
           <div className="flex items-center gap-3">
+            <Button
+              isIconOnly
+              variant="light"
+              size="sm"
+              className="lg:hidden -ml-2 mr-1"
+              onPress={() => router.push(isArchivedPage ? '/messages/archived' : '/messages')}
+            >
+              <ChevronLeft size={20} />
+            </Button>
             <div className="relative">
               <Avatar src={avatarSrc} name={name} size="md" />
               {/* Presence indicator */}

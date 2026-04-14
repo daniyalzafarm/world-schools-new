@@ -2,8 +2,9 @@
 
 import React from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { cn } from '@world-schools/ui-web'
-import { Bell, Home, Lock, Phone, Shield, User } from 'lucide-react'
+import { cn, useConfirmDialog } from '@world-schools/ui-web'
+import { Bell, Home, Lock, LogOut, Phone, Shield, User } from 'lucide-react'
+import { useAuthStore } from '@/stores/auth-store'
 
 interface AccountSidebarProps {
   sidebarOpen: boolean
@@ -76,6 +77,22 @@ const navigationSections: NavigationSection[] = [
 export const AccountSidebar: React.FC<AccountSidebarProps> = ({ sidebarOpen, setSidebarOpen }) => {
   const router = useRouter()
   const pathname = usePathname()
+  const { logout } = useAuthStore()
+  const { confirm } = useConfirmDialog()
+
+  const handleLogout = async () => {
+    const confirmed = await confirm({
+      title: 'Logout',
+      message: 'Are you sure you want to logout?',
+      confirmText: 'Logout',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    })
+    if (!confirmed) return
+    logout().catch(e => console.error(e))
+    router.push('/auth/signin')
+    setSidebarOpen(false)
+  }
 
   const handleNavigation = (href: string) => {
     router.push(href)
@@ -114,7 +131,7 @@ export const AccountSidebar: React.FC<AccountSidebarProps> = ({ sidebarOpen, set
             <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Account</h1>
           </div>
 
-          <nav className="flex-1 overflow-y-auto px-3 pb-6">
+          <nav className="flex-1 overflow-y-auto px-3 pb-2">
             {navigationSections.map((section, sectionIndex) => (
               <div key={sectionIndex} className="mb-2">
                 {section.title && (
@@ -152,6 +169,15 @@ export const AccountSidebar: React.FC<AccountSidebarProps> = ({ sidebarOpen, set
                 </div>
               </div>
             ))}
+            <div
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+            >
+              <span className="shrink-0 text-red-500 dark:text-red-400">
+                <LogOut size={20} />
+              </span>
+              <span className="flex-1">Logout</span>
+            </div>
           </nav>
         </div>
       </aside>

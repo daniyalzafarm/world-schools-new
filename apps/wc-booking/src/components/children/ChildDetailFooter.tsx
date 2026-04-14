@@ -72,7 +72,7 @@ function ProfileFooterContent({
         <Button
           type="button"
           variant="light"
-          onPress={() => router.push(`/children/${childId}`)}
+          onPress={() => router.push(`/account/children/${childId}`)}
           isDisabled={isSaving}
         >
           Cancel
@@ -147,7 +147,7 @@ function PreferencesFooterContent({
         <Button
           type="button"
           variant="light"
-          onPress={() => router.push(`/children/${childId}`)}
+          onPress={() => router.push(`/account/children/${childId}`)}
           isDisabled={isSaving}
         >
           Cancel

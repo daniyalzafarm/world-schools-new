@@ -3,15 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import {
-  Badge,
-  Button,
-  Dropdown,
-  DropdownItem,
-  DropdownMenu,
-  DropdownTrigger,
-  Tooltip,
-} from '@heroui/react'
+import { Badge, Button, Tooltip } from '@heroui/react'
 import {
   ArrowLeftToLine,
   Banknote,
@@ -26,11 +18,9 @@ import {
   Inbox,
   LayoutGrid,
   List,
-  LogOut,
   MessageCircle,
   MessageCircleWarning,
   Notebook,
-  Settings,
   ShieldCheck,
   User,
 } from 'lucide-react'
@@ -186,7 +176,7 @@ const NAV_ITEMS: NavItem[] = [
 export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen }) => {
   const router = useRouter()
   const pathname = usePathname()
-  const { user, logout } = useAuthStore()
+  const { user } = useAuthStore()
   const { hasPermission } = usePermissions()
   const { underReviewCount, fetchUnderReviewCount } = useApplicationReviewStore()
   const [openTicketCount, setOpenTicketCount] = React.useState<number>(0)
@@ -572,64 +562,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                 isCollapsed ? 'flex-col items-center gap-2' : 'items-center gap-3'
               )}
             >
-              <Dropdown placement="right-end">
-                <DropdownTrigger>
-                  <div
-                    className={cn(
-                      'cursor-pointer flex items-center gap-3 hover:bg-default-100 dark:hover:bg-gray-800/50 rounded-lg p-2',
-                      !isCollapsed && 'w-5/6'
-                    )}
-                  >
-                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
-                      <span className="text-secondary text-sm font-semibold">{userInitials}</span>
-                    </div>
-                    {!isCollapsed && (
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                          {userFullName}
-                        </p>
-                        <p className="text-sm text-secondary truncate">World Camps HQ</p>
-                      </div>
-                    )}
+              <div
+                className={cn(
+                  'cursor-pointer flex items-center gap-3 hover:bg-default-100 dark:hover:bg-gray-800/50 rounded-lg p-2',
+                  !isCollapsed && 'w-5/6'
+                )}
+                onClick={() => {
+                  router.push('/account')
+                  if (sidebarOpen) setSidebarOpen(false)
+                }}
+              >
+                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
+                  <span className="text-secondary text-sm font-semibold">{userInitials}</span>
+                </div>
+                {!isCollapsed && (
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                      {userFullName}
+                    </p>
+                    <p className="text-sm text-secondary truncate">World Camps HQ</p>
                   </div>
-                </DropdownTrigger>
-                <DropdownMenu
-                  aria-label="User menu"
-                  onAction={key => {
-                    if (key === 'settings') {
-                      router.push('/account')
-                    } else if (key === 'logout') {
-                      logout().catch(e => console.error(e))
-                      router.push('/auth/signin')
-                    }
-                  }}
-                >
-                  <DropdownItem
-                    key="settings"
-                    className="text-gray-700 dark:text-gray-300"
-                    startContent={<Settings size={16} />}
-                  >
-                    Account
-                  </DropdownItem>
-                  <DropdownItem
-                    key="logout"
-                    className="text-red-600 dark:text-red-400"
-                    startContent={<LogOut size={16} />}
-                  >
-                    Logout
-                  </DropdownItem>
-                  <DropdownItem
-                    key="version"
-                    className="cursor-default"
-                    isReadOnly
-                    textValue="Version"
-                  >
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Version {config.app.version}
-                    </div>
-                  </DropdownItem>
-                </DropdownMenu>
-              </Dropdown>
+                )}
+              </div>
               <Tooltip
                 content={
                   isCollapsed ? 'Expand' : !isManuallyExpanded ? 'Keep expanded' : 'Collapse'
