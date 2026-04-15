@@ -3,18 +3,7 @@
 import React from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn, useConfirmDialog } from '@world-schools/ui-web'
-import {
-  Bell,
-  CreditCard,
-  Home,
-  Lock,
-  LogOut,
-  Phone,
-  Receipt,
-  Shield,
-  User,
-  Users,
-} from 'lucide-react'
+import { CreditCard, Home, Lock, LogOut, Phone, Receipt, Shield, User, Users } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 
 interface AccountSidebarProps {
@@ -81,11 +70,6 @@ const navigationSections: NavigationSection[] = [
   {
     title: 'Settings',
     items: [
-      {
-        name: 'Notifications',
-        href: '/account/settings/notifications',
-        icon: <Bell size={20} />,
-      },
       {
         name: 'Login & security',
         href: '/account/settings/security',

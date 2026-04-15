@@ -6,8 +6,8 @@ import { Button } from '@heroui/react'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { RouteGuard } from '@/components/auth/route-guard'
 import { OnboardingGuard } from '@/components/auth/onboarding-guard'
+import { BottomNav } from '@/components/layout/bottom-nav'
 import { Sidebar } from '@/components/layout/sidebar'
-import { MobileHeader } from '@/components/layout/mobile-header'
 import { useAuthStore } from '@/stores/auth-store'
 import config from '@/config/config'
 
@@ -70,10 +70,10 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
       <div className="flex h-screen bg-white dark:bg-gray-900">
         <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <MobileHeader menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
           <main className="flex-1 overflow-auto bg-white dark:bg-slate-900">
-            <div className="relative h-full pt-14 lg:pt-0">{children}</div>
+            <div className="relative h-full">{children}</div>
           </main>
+          <BottomNav />
         </div>
       </div>
     )
@@ -104,16 +104,11 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
 
             {/* Main content area */}
             <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Mobile Header */}
-              <MobileHeader
-                menuOpen={sidebarOpen}
-                onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
-              />
-
               {/* Main content */}
               <main className="flex-1 overflow-auto bg-white dark:bg-slate-900">
-                <div className="relative h-full pt-14 lg:pt-0">{children}</div>
+                <div className="relative h-full">{children}</div>
               </main>
+              <BottomNav />
             </div>
           </div>
         </OnboardingGuard>

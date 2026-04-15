@@ -24,7 +24,7 @@ import {
   type ReportReason,
   Textarea,
 } from '@world-schools/ui-web'
-import { MessageSquare, MoreVertical } from 'lucide-react'
+import { ChevronLeft, MessageSquare, MoreVertical } from 'lucide-react'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { MessagesSidebar } from '@/components/layout/messages-sidebar'
 import { useMessagingStore } from '@/stores/messaging-store'
@@ -49,6 +49,13 @@ export default function MessagesPage() {
 
   // Detect if we're on the archived route
   const isArchivedPage = pathname.startsWith('/messages/archived')
+
+  // On mobile, show the conversation list by default
+  useEffect(() => {
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(true)
+    }
+  }, [])
 
   // Get user from auth store
   const { user } = useAuthStore()
@@ -151,6 +158,16 @@ export default function MessagesPage() {
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [activeConversationId, activeMessages, user?.id, isConnected, markAsRead])
+
+  // On mobile: show sidebar (list) when no conversation selected, hide it when one is active
+  useEffect(() => {
+    if (window.innerWidth >= 1024) return
+    if (activeConversationId) {
+      setSidebarOpen(false)
+    } else {
+      setSidebarOpen(true)
+    }
+  }, [activeConversationId])
 
   // Get active conversation object
   const activeConversation = conversations.find(c => c.id === activeConversationId) ?? null
@@ -353,6 +370,15 @@ export default function MessagesPage() {
       {/* Chat Header */}
       <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex items-center gap-3">
+          <Button
+            isIconOnly
+            variant="light"
+            size="sm"
+            className="lg:hidden -ml-2 mr-1"
+            onPress={() => setActiveConversation(null)}
+          >
+            <ChevronLeft size={20} />
+          </Button>
           <div className="relative">
             <Avatar src={avatarSrc} name={name} size="md" />
             {/* Presence indicator */}
@@ -552,7 +578,7 @@ export default function MessagesPage() {
   // Full-screen layout with TopNav and MessagesSidebar
   return (
     <ProtectedRoute requireAuth requireProviderRole>
-      <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
+      <div className="flex flex-col h-full bg-white dark:bg-gray-900">
         {/* Messages Content Area */}
         <div className="flex flex-1 overflow-hidden">
           {/* Messages Sidebar */}

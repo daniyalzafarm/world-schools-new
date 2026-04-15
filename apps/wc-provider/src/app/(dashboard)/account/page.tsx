@@ -2,48 +2,100 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, ChevronRight, MapPin, Phone, Shield, User } from 'lucide-react'
+import {
+  Building2,
+  ChevronRight,
+  Headphones,
+  HelpCircle,
+  Lock,
+  LogOut,
+  MapPin,
+  Phone,
+  Puzzle,
+  Shield,
+  ShieldCheck,
+  User,
+  Users,
+} from 'lucide-react'
+import { cn, useConfirmDialog } from '@world-schools/ui-web'
 import { profileService, type UserProfile } from '@/services/profile.services'
+import { useAuth } from '@/hooks/use-auth'
+import { usePermissions } from '@/hooks/use-permissions'
 import { Avatar } from '@heroui/react'
 
 interface QuickLink {
   title: string
-  description: string
+  description?: string
   href: string
   icon: React.ReactNode
 }
 
-const quickLinks: QuickLink[] = [
+interface QuickLinkSection {
+  title?: string
+  items: QuickLink[]
+}
+
+const baseQuickLinkSections: QuickLinkSection[] = [
   {
-    title: 'Personal info',
-    description: 'Name, photo',
-    href: '/account/profile/personal-info',
-    icon: <User size={22} />,
+    title: 'Profile',
+    items: [
+      {
+        title: 'Personal info',
+        description: 'Name, photo',
+        href: '/account/profile/personal-info',
+        icon: <User size={22} />,
+      },
+      {
+        title: 'Contact details',
+        description: 'Email, phone, address',
+        href: '/account/profile/contact-details',
+        icon: <Phone size={22} />,
+      },
+    ],
   },
   {
-    title: 'Contact details',
-    description: 'Email, phone, address',
-    href: '/account/profile/contact-details',
-    icon: <Phone size={22} />,
+    title: 'Settings',
+    items: [
+      {
+        title: 'Login & security',
+        description: 'Password, 2FA settings',
+        href: '/account/settings/security',
+        icon: <Shield size={22} />,
+      },
+    ],
   },
   {
-    title: 'Notifications',
-    description: 'Email, push preferences',
-    href: '/account/settings/notifications',
-    icon: <Bell size={22} />,
-  },
-  {
-    title: 'Login & security',
-    description: 'Password, 2FA settings',
-    href: '/account/settings/security',
-    icon: <Shield size={22} />,
+    title: 'Account',
+    items: [
+      {
+        title: 'Privacy & Data',
+        description: 'Manage your privacy settings',
+        href: '/account/settings/privacy',
+        icon: <Lock size={22} />,
+      },
+    ],
   },
 ]
+
+const businessInfoSection: QuickLinkSection = {
+  title: 'Business Information',
+  items: [
+    {
+      title: 'Company Details',
+      description: 'Business name, registration info',
+      href: '/account/business/company-details',
+      icon: <Building2 size={22} />,
+    },
+  ],
+}
 
 export default function AccountHubPage() {
   const router = useRouter()
   const [profileData, setProfileData] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const { isProviderAdmin, logout } = useAuth()
+  const { confirm } = useConfirmDialog()
+  const { hasPermission } = usePermissions()
 
   useEffect(() => {
     void loadProfile()
@@ -63,6 +115,19 @@ export default function AccountHubPage() {
 
   const handleNavigation = (href: string) => {
     router.push(href)
+  }
+
+  const handleLogout = async () => {
+    const confirmed = await confirm({
+      title: 'Logout',
+      message: 'Are you sure you want to logout?',
+      confirmText: 'Logout',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    })
+    if (!confirmed) return
+    logout().catch(e => console.error(e))
+    router.push('/auth/signin')
   }
 
   const getInitials = () => {
@@ -85,11 +150,56 @@ export default function AccountHubPage() {
     return city || country || 'Location not set'
   }
 
+  const moreItems = [
+    {
+      title: 'Add-ons',
+      description: 'Manage add-ons for your camps',
+      href: '/add-ons',
+      icon: <Puzzle size={22} />,
+    },
+    ...(hasPermission('users.read')
+      ? [
+          {
+            title: 'Users',
+            description: 'Manage team members',
+            href: '/users',
+            icon: <Users size={22} />,
+          },
+        ]
+      : []),
+    ...(hasPermission('roles.read')
+      ? [
+          {
+            title: 'Roles',
+            description: 'Manage roles & permissions',
+            href: '/roles',
+            icon: <ShieldCheck size={22} />,
+          },
+        ]
+      : []),
+    {
+      title: 'Help',
+      href: '/help',
+      icon: <HelpCircle size={22} />,
+    },
+    {
+      title: 'Support',
+      href: '/support/tickets',
+      icon: <Headphones size={22} />,
+    },
+  ]
+
+  const moreSection = { title: 'More', items: moreItems }
+
+  const quickLinkSections = isProviderAdmin
+    ? [businessInfoSection, ...baseQuickLinkSections, moreSection]
+    : [...baseQuickLinkSections, moreSection]
+
   return (
     <>
       <div className="mb-10">
         <h1 className="text-3xl font-semibold text-slate-900 dark:text-white mb-2">Account</h1>
-        <p className="text-base text-slate-500 dark:text-slate-400">
+        <p className="hidden lg:block text-base text-slate-500 dark:text-slate-400">
           Manage your personal info, contact details, and settings.
         </p>
       </div>
@@ -131,29 +241,52 @@ export default function AccountHubPage() {
         )}
       </div>
 
-      <div className="mb-6">
-        <div className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">
-          Quick actions
-        </div>
-        <div className="space-y-1">
-          {quickLinks.map(link => (
-            <div
-              key={link.href}
-              onClick={() => handleNavigation(link.href)}
-              className="flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
-            >
-              <div className="w-11 h-11 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center shrink-0 text-slate-900 dark:text-white">
-                {link.icon}
+      {/* Quick Actions — mobile only (AccountSidebar handles desktop navigation) */}
+      <div className="lg:hidden">
+        {quickLinkSections.map((section, sectionIndex) => (
+          <div key={sectionIndex}>
+            {section.title && (
+              <div className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-1 pt-5 pb-2">
+                {section.title}
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-base font-medium text-slate-900 dark:text-white mb-0.5">
-                  {link.title}
+            )}
+            <div className="space-y-1">
+              {section.items.map(link => (
+                <div
+                  key={link.href}
+                  onClick={() => handleNavigation(link.href)}
+                  className="flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                >
+                  <div className="w-11 h-11 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center shrink-0 text-slate-900 dark:text-white">
+                    {link.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-base font-medium text-slate-900 dark:text-white mb-0.5">
+                      {link.title}
+                    </div>
+                    {link.description && (
+                      <div className="text-sm text-slate-500 dark:text-slate-400">
+                        {link.description}
+                      </div>
+                    )}
+                  </div>
+                  <ChevronRight size={20} className="text-slate-400 shrink-0" />
                 </div>
-                <div className="text-sm text-slate-500 dark:text-slate-400">{link.description}</div>
-              </div>
-              <ChevronRight size={20} className="text-slate-400 shrink-0" />
+              ))}
             </div>
-          ))}
+          </div>
+        ))}
+        <div
+          onClick={handleLogout}
+          className={cn(
+            'flex items-center gap-4 p-3 mt-2 rounded-lg cursor-pointer transition-colors',
+            'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+          )}
+        >
+          <div className="w-11 h-11 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-center justify-center shrink-0">
+            <LogOut size={22} />
+          </div>
+          <span className="text-base font-medium">Logout</span>
         </div>
       </div>
     </>

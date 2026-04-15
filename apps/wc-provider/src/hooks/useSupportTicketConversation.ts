@@ -18,10 +18,13 @@ export function useSupportTicketConversation({ ticketId, conversationId }: Optio
     return res.success ? res.data.data : []
   }, [])
 
-  const addReply = useCallback(async (id: string, data: { content: string; attachmentIds?: string[] }) => {
-    const res = await supportTicketsService.addReply(id, data)
-    return res.success ? res.data : null
-  }, [])
+  const addReply = useCallback(
+    async (id: string, data: { content: string; attachmentIds?: string[] }) => {
+      const res = await supportTicketsService.addReply(id, data)
+      return res.success ? res.data : null
+    },
+    []
+  )
 
   return useSupportConversationMessages({
     ticketId,

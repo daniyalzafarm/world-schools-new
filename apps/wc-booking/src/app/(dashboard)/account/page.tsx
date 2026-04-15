@@ -6,12 +6,15 @@ import {
   Bell,
   ChevronRight,
   CreditCard,
+  Headphones,
+  HelpCircle,
   Lock,
   LogOut,
   MapPin,
   Phone,
   Receipt,
   Shield,
+  Star,
   User,
   Users,
 } from 'lucide-react'
@@ -77,12 +80,6 @@ const quickLinkSections: QuickLinkSection[] = [
     title: 'Settings',
     items: [
       {
-        title: 'Notifications',
-        description: 'Email, push, SMS preferences',
-        href: '/account/settings/notifications',
-        icon: <Bell size={22} />,
-      },
-      {
         title: 'Login & security',
         description: 'Password, 2FA settings',
         href: '/account/settings/security',
@@ -98,6 +95,26 @@ const quickLinkSections: QuickLinkSection[] = [
         description: 'Manage your privacy settings',
         href: '/account/settings/privacy',
         icon: <Lock size={22} />,
+      },
+    ],
+  },
+  {
+    title: 'More',
+    items: [
+      {
+        title: 'Reviews',
+        href: '/reviews',
+        icon: <Star size={22} />,
+      },
+      {
+        title: 'Help',
+        href: '/help',
+        icon: <HelpCircle size={22} />,
+      },
+      {
+        title: 'Support',
+        href: '/support/tickets',
+        icon: <Headphones size={22} />,
       },
     ],
   },

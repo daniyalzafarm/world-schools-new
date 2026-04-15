@@ -3,7 +3,7 @@
 import React from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn, useConfirmDialog } from '@world-schools/ui-web'
-import { Bell, Building2, Home, Lock, LogOut, Phone, Shield, User } from 'lucide-react'
+import { Building2, Home, Lock, LogOut, Phone, Shield, User } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 
 interface AccountSidebarProps {
@@ -50,11 +50,6 @@ const navigationSections: NavigationSection[] = [
   {
     title: 'Settings',
     items: [
-      {
-        name: 'Notifications',
-        href: '/account/settings/notifications',
-        icon: <Bell size={20} />,
-      },
       {
         name: 'Login & security',
         href: '/account/settings/security',
@@ -106,7 +101,7 @@ export const AccountSidebar: React.FC<AccountSidebarProps> = ({ sidebarOpen, set
   }
 
   const sections = isProviderAdmin
-    ? [...navigationSections, businessInfoSection]
+    ? [...navigationSections.slice(0, 1), businessInfoSection, ...navigationSections.slice(1)]
     : navigationSections
 
   const handleNavigation = (href: string) => {
