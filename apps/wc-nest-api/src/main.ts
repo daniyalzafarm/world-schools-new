@@ -8,11 +8,21 @@ import { ValidationPipe } from '@nestjs/common'
 import { join } from 'path'
 import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
+import crypto from 'crypto'
+import type { NextFunction, Request, Response } from 'express'
 import { AuthTokenMiddleware } from './common/middleware/auth-token.middleware'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
   const configService = app.get(ConfigService)
+
+  // Prevent header-based auth from running in production — it is development-only
+  if (configService.jwtConfig.authUsingRequest && configService.isProduction) {
+    throw new Error(
+      'AUTH_USING_REQUEST must not be enabled in production. ' +
+        'Use cookie-based auth with proper domain configuration instead.'
+    )
+  }
 
   // Configure trust proxy for accurate IP address capture
   const trustProxyConfig = configService.trustProxyConfig
@@ -24,6 +34,57 @@ async function bootstrap() {
   // Register AuthTokenMiddleware globally (after cookieParser)
   const authTokenMiddleware = app.get(AuthTokenMiddleware)
   app.use(authTokenMiddleware.use.bind(authTokenMiddleware))
+
+  // CSRF protection using the stateless double-submit cookie pattern.
+  // - A random token is set in a non-httpOnly cookie on every safe (GET/HEAD/OPTIONS) request.
+  // - Mutating requests must echo that cookie value back in the X-CSRF-Token header.
+  // - Skipped entirely in AUTH_USING_REQUEST mode (localStorage-based token auth is not
+  //   CSRF-vulnerable because cookies are not sent automatically by the browser).
+  if (!configService.jwtConfig.authUsingRequest) {
+    const CSRF_COOKIE = 'csrf-token'
+    const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+    const isProduction = configService.isProduction
+
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      // Socket.io transport requests (/socket.io/...) are not CSRF-vulnerable:
+      // WebSocket upgrades are protected by the Origin header, and the Socket.io
+      // gateway authenticates via its own JWT handshake. Skip CSRF for these paths
+      // so that the HTTP long-polling fallback transport is not broken.
+      if (req.path.startsWith('/socket.io')) {
+        return next()
+      }
+
+      if (SAFE_METHODS.has(req.method)) {
+        // Refresh the CSRF cookie if absent (first visit or after cookie expiry)
+        if (!req.cookies[CSRF_COOKIE]) {
+          const token = crypto.randomBytes(32).toString('hex')
+          res.cookie(CSRF_COOKIE, token, {
+            httpOnly: false, // Must be readable by JS so the client can echo it as a header
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'lax',
+            path: '/',
+            maxAge: 24 * 60 * 60 * 1000, // 24 h — prevents 403 on first POST after browser reopen
+          })
+        }
+        return next()
+      }
+
+      // For mutating requests validate that header == cookie (double-submit)
+      const cookieToken = req.cookies[CSRF_COOKIE]
+      const headerToken = req.headers['x-csrf-token'] as string | undefined
+
+      if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+        res.status(403).json({
+          success: false,
+          message: 'Invalid or missing CSRF token',
+          statusCode: 403,
+        })
+        return
+      }
+
+      next()
+    })
+  }
 
   // Apply security headers with Helmet (if enabled)
   if (configService.isHelmetEnabled) {
@@ -68,6 +129,7 @@ async function bootstrap() {
       'Accept',
       'x-access-token',
       'x-refresh-token',
+      'x-csrf-token',
     ],
     credentials: true,
     exposedHeaders: ['x-access-token', 'x-refresh-token'],

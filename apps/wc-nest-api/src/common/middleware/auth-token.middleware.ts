@@ -25,6 +25,12 @@ export class AuthTokenMiddleware implements NestMiddleware {
           req.cookies['wc_provider_access_token'] = token
         } else if (isUser) {
           req.cookies['wc_user_access_token'] = token
+        } else {
+          // Shared routes (messaging, notifications, etc.): inject into all three slots.
+          // The JWT strategy will accept whichever matches the token's app claim.
+          req.cookies['wc_user_access_token'] = token
+          req.cookies['wc_provider_access_token'] = token
+          req.cookies['wc_superadmin_access_token'] = token
         }
       }
       if (req.headers['x-refresh-token']) {
@@ -36,6 +42,10 @@ export class AuthTokenMiddleware implements NestMiddleware {
           req.cookies['wc_provider_refresh_token'] = token
         } else if (isUser) {
           req.cookies['wc_user_refresh_token'] = token
+        } else {
+          req.cookies['wc_user_refresh_token'] = token
+          req.cookies['wc_provider_refresh_token'] = token
+          req.cookies['wc_superadmin_refresh_token'] = token
         }
       }
     }

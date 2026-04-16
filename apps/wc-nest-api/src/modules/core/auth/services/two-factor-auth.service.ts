@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
+import { randomInt } from 'crypto'
 import { PrismaService } from '../../../../prisma/prisma.service'
 import { EmailService } from '@world-schools/global-utils'
 import { EmailTemplateService } from '../../../common/email-templates/email-template.service'
@@ -18,7 +19,7 @@ export class TwoFactorAuthService {
    * Generate a 6-digit verification code
    */
   private generateVerificationCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString()
+    return randomInt(100000, 1000000).toString()
   }
 
   /**

@@ -36,8 +36,8 @@ import {
 import { UpdateProfileDto } from '../../user/auth/dto/update-profile.dto'
 import { PasswordResetService } from '../../core/auth/services/password-reset.service'
 import { ProfilePhotoService } from '../../user/auth/services/profile-photo.service'
-import { TwoFactorAuthService } from './services/two-factor-auth.service'
-import { SessionManagementService } from './services/session-management.service'
+import { TwoFactorAuthService } from '../../core/auth/services/two-factor-auth.service'
+import { SessionManagementService } from '../../core/auth/services/session-management.service'
 
 @ApiTags('SuperAdmin Auth')
 @Controller('superadmin/auth')
@@ -131,6 +131,7 @@ export class SuperAdminAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: 'strict',
       maxAge: parseDuration(accessTokenExpiry),
+      path: '/',
     })
 
     response.cookie('wc_superadmin_refresh_token', appTokens.refreshToken, {
@@ -138,6 +139,7 @@ export class SuperAdminAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: 'strict',
       maxAge: parseDuration(refreshTokenExpiry),
+      path: '/',
     })
 
     // If authUsingRequest is enabled, also send tokens in headers
@@ -189,6 +191,7 @@ export class SuperAdminAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: 'strict',
       maxAge: parseDuration(accessTokenExpiry),
+      path: '/',
     })
 
     response.cookie('wc_superadmin_refresh_token', appTokens.refreshToken, {
@@ -196,6 +199,7 @@ export class SuperAdminAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: 'strict',
       maxAge: parseDuration(refreshTokenExpiry),
+      path: '/',
     })
 
     // If authUsingRequest is enabled, also send tokens in headers
@@ -421,9 +425,9 @@ export class SuperAdminAuthController {
     description: 'Clear authentication cookies and logout the super admin user',
   })
   logout(@Res({ passthrough: true }) response: Response) {
-    // Clear app-specific cookies
-    response.clearCookie('wc_superadmin_access_token')
-    response.clearCookie('wc_superadmin_refresh_token')
+    // Clear app-specific cookies (path must match what was set on login)
+    response.clearCookie('wc_superadmin_access_token', { path: '/' })
+    response.clearCookie('wc_superadmin_refresh_token', { path: '/' })
 
     return ResponseUtil.success(null)
   }
@@ -579,6 +583,7 @@ export class SuperAdminAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+      path: '/',
     })
 
     response.cookie('wc_superadmin_refresh_token', appTokens.refreshToken, {

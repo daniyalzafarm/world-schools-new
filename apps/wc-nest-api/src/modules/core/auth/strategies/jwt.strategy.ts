@@ -31,8 +31,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             return request?.cookies?.wc_user_access_token
           }
 
-          // No cookie for non-app-prefixed paths; rely on Authorization: Bearer if used
-          return false
+          // For shared routes (messaging, notifications, etc.) try any app cookie.
+          // The app claim is not validated against the path for these shared endpoints.
+          return (
+            request?.cookies?.wc_user_access_token ||
+            request?.cookies?.wc_provider_access_token ||
+            request?.cookies?.wc_superadmin_access_token ||
+            null
+          )
         },
       ]),
       ignoreExpiration: false,
@@ -47,9 +53,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const isProvider = request.path.startsWith('/provider')
     const isUser = request.path.startsWith('/user')
 
-    // Validate app-specific claim if present
-    // All endpoints are now app-specific, so we always validate the app claim
-    if (payload.app) {
+    // Validate app-specific claim only on app-prefixed routes.
+    // Shared routes (messaging, notifications, etc.) accept tokens from any app.
+    const isAppPrefixed = isSuperadmin || isProvider || isUser
+    if (payload.app && isAppPrefixed) {
       if (isSuperadmin && payload.app !== 'superadmin') {
         throw new UnauthorizedException(
           'Invalid token: This token is not valid for superadmin endpoints'

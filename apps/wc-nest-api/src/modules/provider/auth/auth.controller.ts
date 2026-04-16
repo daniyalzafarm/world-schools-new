@@ -39,9 +39,9 @@ import { UpdateProfileDto } from '../../user/auth/dto/update-profile.dto'
 import { ResponseUtil } from '../../../common/utils/response.util'
 import { ProfilePhotoService } from '../../user/auth/services/profile-photo.service'
 import { ConfigService } from '../../../config/config.service'
-import { EmailVerificationService } from './services/email-verification.service'
-import { TwoFactorAuthService } from './services/two-factor-auth.service'
-import { SessionManagementService } from './services/session-management.service'
+import { EmailVerificationService } from '../../core/auth/services/email-verification.service'
+import { TwoFactorAuthService } from '../../core/auth/services/two-factor-auth.service'
+import { SessionManagementService } from '../../core/auth/services/session-management.service'
 import { PasswordResetService } from '../../core/auth/services/password-reset.service'
 import * as bcrypt from 'bcryptjs'
 
@@ -137,7 +137,8 @@ export class ProviderAuthController {
     // Send verification email
     await this.emailVerificationService.createAndSendVerificationCode(
       result.user.id,
-      result.user.email
+      result.user.email,
+      this.configService.providerPortalUrl
     )
 
     return ResponseUtil.success({
@@ -202,6 +203,7 @@ export class ProviderAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+      path: '/',
     })
 
     response.cookie('wc_provider_refresh_token', appTokens.refreshToken, {
@@ -209,6 +211,7 @@ export class ProviderAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+      path: '/',
     })
 
     // If authUsingRequest is enabled, also send tokens in headers
@@ -231,7 +234,10 @@ export class ProviderAuthController {
     description: 'Resend verification code to user email',
   })
   async resendVerificationCode(@Body() resendDto: ProviderResendVerificationCodeDto) {
-    await this.emailVerificationService.resendVerificationCode(resendDto.email)
+    await this.emailVerificationService.resendVerificationCode(
+      resendDto.email,
+      this.configService.providerPortalUrl
+    )
 
     return ResponseUtil.success({
       message: 'Verification code sent successfully. Please check your email.',
@@ -305,6 +311,7 @@ export class ProviderAuthController {
       secure: isProduction,
       sameSite: isProduction ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+      path: '/',
     })
 
     response.cookie('wc_provider_refresh_token', appTokens.refreshToken, {
@@ -312,6 +319,7 @@ export class ProviderAuthController {
       secure: isProduction,
       sameSite: isProduction ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+      path: '/',
     })
 
     if (this.configService.jwtConfig.authUsingRequest) {
@@ -361,7 +369,11 @@ export class ProviderAuthController {
 
     if (!dbUser?.emailVerified) {
       // Send a new verification code to help the user verify their email
-      await this.emailVerificationService.createAndSendVerificationCode(user.id, user.email)
+      await this.emailVerificationService.createAndSendVerificationCode(
+        user.id,
+        user.email,
+        this.configService.providerPortalUrl
+      )
 
       // Return a specific error response so frontend can redirect to verification page
       // Using ResponseUtil to return a structured error with additional metadata
@@ -420,6 +432,7 @@ export class ProviderAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+      path: '/',
     })
 
     response.cookie('wc_provider_refresh_token', appTokens.refreshToken, {
@@ -427,6 +440,7 @@ export class ProviderAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+      path: '/',
     })
 
     // If authUsingRequest is enabled, also send tokens in headers
@@ -481,6 +495,7 @@ export class ProviderAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+      path: '/',
     })
 
     response.cookie('wc_provider_refresh_token', appTokens.refreshToken, {
@@ -488,6 +503,7 @@ export class ProviderAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+      path: '/',
     })
 
     // If authUsingRequest is enabled, also send tokens in headers
@@ -761,9 +777,9 @@ export class ProviderAuthController {
     description: 'Clear authentication cookies and logout the provider user',
   })
   logout(@Res({ passthrough: true }) response: Response) {
-    // Clear app-specific cookies
-    response.clearCookie('wc_provider_access_token')
-    response.clearCookie('wc_provider_refresh_token')
+    // Clear app-specific cookies (path must match what was set on login)
+    response.clearCookie('wc_provider_access_token', { path: '/' })
+    response.clearCookie('wc_provider_refresh_token', { path: '/' })
 
     return ResponseUtil.success({ message: 'Logged out successfully' })
   }
@@ -925,6 +941,7 @@ export class ProviderAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+      path: '/',
     })
 
     response.cookie('wc_provider_refresh_token', appTokens.refreshToken, {
@@ -932,6 +949,7 @@ export class ProviderAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+      path: '/',
     })
 
     // If authUsingRequest is enabled, also send tokens in headers

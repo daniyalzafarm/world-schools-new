@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
+import { randomInt } from 'crypto'
 import { PrismaService } from '../../../../prisma/prisma.service'
 import { EmailService } from '@world-schools/global-utils'
 import { EmailTemplateService } from '../../../common/email-templates/email-template.service'
-import { ConfigService } from '../../../../config/config.service'
 
 @Injectable()
 export class EmailVerificationService {
@@ -14,21 +14,25 @@ export class EmailVerificationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
-    private readonly emailTemplateService: EmailTemplateService,
-    private readonly configService: ConfigService
+    private readonly emailTemplateService: EmailTemplateService
   ) {}
 
   /**
    * Generate a 6-digit verification code
    */
   private generateVerificationCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString()
+    return randomInt(100000, 1000000).toString()
   }
 
   /**
-   * Create and send verification code to user's email
+   * Create and send verification code to user's email.
+   * @param portalUrl - The base URL of the app portal (e.g. bookingPortalUrl or providerPortalUrl)
    */
-  async createAndSendVerificationCode(userId: string, email: string): Promise<void> {
+  async createAndSendVerificationCode(
+    userId: string,
+    email: string,
+    portalUrl: string
+  ): Promise<void> {
     // Fetch user data to get name for email template
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -42,11 +46,13 @@ export class EmailVerificationService {
       throw new BadRequestException('User not found')
     }
 
-    // Delete any existing unverified codes for this user
+    // Delete any existing unverified signup codes for this user.
+    // Scoped to type 'signup' so that a pending login_2fa code is not invalidated.
     await this.prisma.emailVerification.deleteMany({
       where: {
         userId,
         verified: false,
+        type: 'signup',
       },
     })
 
@@ -64,8 +70,8 @@ export class EmailVerificationService {
       },
     })
 
-    // Generate verification URL for provider portal
-    const verificationUrl = `${this.configService.providerPortalUrl}/auth/verify-email?code=${code}&email=${encodeURIComponent(email)}`
+    // Generate verification URL for the caller's portal
+    const verificationUrl = `${portalUrl}/auth/verify-email?code=${code}&email=${encodeURIComponent(email)}`
 
     // Prepare user name for email template
     const userName = user.firstName
@@ -148,9 +154,10 @@ export class EmailVerificationService {
   }
 
   /**
-   * Resend verification code
+   * Resend verification code.
+   * @param portalUrl - The base URL of the app portal to build the verification link
    */
-  async resendVerificationCode(email: string): Promise<void> {
+  async resendVerificationCode(email: string, portalUrl: string): Promise<void> {
     // Find user by email
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -202,6 +209,6 @@ export class EmailVerificationService {
     }
 
     // Create and send new code
-    await this.createAndSendVerificationCode(user.id, user.email)
+    await this.createAndSendVerificationCode(user.id, user.email, portalUrl)
   }
 }

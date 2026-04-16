@@ -45,10 +45,10 @@ import {
 } from '../../core/auth/dto/auth.dto'
 import { ResponseUtil } from '../../../common/utils/response.util'
 import { ConfigService } from '../../../config/config.service'
-import { EmailVerificationService } from './services/email-verification.service'
+import { EmailVerificationService } from '../../core/auth/services/email-verification.service'
 import { PasswordResetService } from '../../core/auth/services/password-reset.service'
-import { TwoFactorAuthService } from './services/two-factor-auth.service'
-import { SessionManagementService } from './services/session-management.service'
+import { TwoFactorAuthService } from '../../core/auth/services/two-factor-auth.service'
+import { SessionManagementService } from '../../core/auth/services/session-management.service'
 import { ProfilePhotoService } from './services/profile-photo.service'
 import * as bcrypt from 'bcryptjs'
 
@@ -91,7 +91,10 @@ export class UserAuthController {
     // Generate app-specific tokens with sessionId
     const tokens = this.authService.generateTokensFromUser(user, app, sessionId)
 
-    // Set HTTP-only cookies for tokens with app-specific names
+    // Set HTTP-only cookies for tokens with app-specific names.
+    // path:'/' is required so that WebSocket upgrade requests to /socket.io/ also receive the
+    // cookie. Cross-app token misuse is prevented by the JWT app-claim validation in JwtStrategy,
+    // not by cookie path scoping.
     const cookiePrefix =
       app === 'user' ? 'wc_user' : app === 'provider' ? 'wc_provider' : 'wc_superadmin'
 
@@ -100,6 +103,7 @@ export class UserAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+      path: '/',
     })
 
     response.cookie(`${cookiePrefix}_refresh_token`, tokens.refreshToken, {
@@ -107,6 +111,7 @@ export class UserAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+      path: '/',
     })
 
     // If authUsingRequest is enabled, also send tokens in headers
@@ -192,7 +197,8 @@ export class UserAuthController {
     // Send verification email
     await this.emailVerificationService.createAndSendVerificationCode(
       result.user.id,
-      result.user.email
+      result.user.email,
+      this.configService.bookingPortalUrl
     )
 
     return ResponseUtil.success({
@@ -264,7 +270,10 @@ export class UserAuthController {
     description: 'Resend verification code to user email',
   })
   async resendVerificationCode(@Body() resendDto: UserResendVerificationCodeDto) {
-    await this.emailVerificationService.resendVerificationCode(resendDto.email)
+    await this.emailVerificationService.resendVerificationCode(
+      resendDto.email,
+      this.configService.bookingPortalUrl
+    )
 
     return ResponseUtil.success({
       message: 'Verification code sent successfully. Please check your email.',
@@ -304,7 +313,11 @@ export class UserAuthController {
 
     if (!dbUser?.emailVerified) {
       // Send a new verification code to help the user verify their email
-      await this.emailVerificationService.createAndSendVerificationCode(user.id, user.email)
+      await this.emailVerificationService.createAndSendVerificationCode(
+        user.id,
+        user.email,
+        this.configService.bookingPortalUrl
+      )
 
       // Return a specific error response so frontend can redirect to verification page
       return {
@@ -362,6 +375,7 @@ export class UserAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+      path: '/',
     })
 
     response.cookie('wc_user_refresh_token', appTokens.refreshToken, {
@@ -369,6 +383,7 @@ export class UserAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+      path: '/',
     })
 
     // If authUsingRequest is enabled, also send tokens in headers
@@ -589,6 +604,7 @@ export class UserAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+      path: '/',
     })
 
     response.cookie('wc_user_refresh_token', appTokens.refreshToken, {
@@ -596,6 +612,7 @@ export class UserAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+      path: '/',
     })
 
     // If authUsingRequest is enabled, also send tokens in headers
@@ -1006,9 +1023,9 @@ export class UserAuthController {
     description: 'Clear authentication cookies and logout the parent user',
   })
   logout(@Res({ passthrough: true }) response: Response) {
-    // Clear app-specific cookies
-    response.clearCookie('wc_user_access_token')
-    response.clearCookie('wc_user_refresh_token')
+    // Clear app-specific cookies (path must match what was set on login)
+    response.clearCookie('wc_user_access_token', { path: '/' })
+    response.clearCookie('wc_user_refresh_token', { path: '/' })
 
     return ResponseUtil.success({ message: 'Logged out successfully' })
   }
@@ -1165,6 +1182,7 @@ export class UserAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.expiresIn),
+      path: '/',
     })
 
     response.cookie('wc_user_refresh_token', appTokens.refreshToken, {
@@ -1172,6 +1190,7 @@ export class UserAuthController {
       secure: this.configService.getNodeEnv() === 'production',
       sameSite: this.configService.getNodeEnv() === 'production' ? 'none' : 'lax',
       maxAge: parseDuration(this.configService.jwtConfig.refreshExpiresIn),
+      path: '/',
     })
 
     // If authUsingRequest is enabled, also send tokens in headers

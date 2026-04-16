@@ -154,6 +154,14 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     failedQueue = []
   }
 
+  // Read the CSRF double-submit cookie set by the server on GET requests.
+  // Only relevant in cookie-based auth (production) — not needed in AUTH_USING_REQUEST mode.
+  const getCsrfCookie = (): string | null => {
+    if (typeof document === 'undefined') return null
+    const match = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/)
+    return match ? decodeURIComponent(match[1]) : null
+  }
+
   // Request interceptor for auth
   api.interceptors.request.use(
     axiosConfig => {
@@ -161,6 +169,20 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         // Add Authorization header when using request-based auth
         axiosConfig.headers.Authorization = `Bearer ${accessToken}`
       }
+
+      // In cookie-based auth (production): echo the csrf-token cookie as a header
+      // on mutating requests to satisfy the server's double-submit CSRF check.
+      // Skipped in AUTH_USING_REQUEST mode — localStorage auth is not CSRF-vulnerable.
+      if (!config.usingRequest) {
+        const method = (axiosConfig.method || 'get').toUpperCase()
+        if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+          const csrfToken = getCsrfCookie()
+          if (csrfToken) {
+            axiosConfig.headers['x-csrf-token'] = csrfToken
+          }
+        }
+      }
+
       // Cookies are automatically included with withCredentials: true when not using request headers
       return axiosConfig
     },
