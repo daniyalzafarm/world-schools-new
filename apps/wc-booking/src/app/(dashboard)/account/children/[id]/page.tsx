@@ -4,6 +4,7 @@ import React, { useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Alert, Button, Chip, cn, Progress, Spinner } from '@heroui/react'
 import { Activity, Camera, ChevronRight, Phone, Star, User } from 'lucide-react'
+import { BackButton } from '@world-schools/ui-web'
 import { type Child, getChildDisplayName } from '@/types/child'
 import { useChildrenStore } from '@/stores/children-store'
 
@@ -112,9 +113,12 @@ export default function ChildDetailsPage() {
     <div>
       {/* Page Header */}
       <header className="mb-10">
-        <h1 className="text-3xl font-semibold text-slate-900 dark:text-white mb-2">
-          {child.firstName}'s Profile
-        </h1>
+        <div className="flex items-center gap-4 mb-2">
+          <BackButton href="/account/children" />
+          <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">
+            {child.firstName}'s Profile
+          </h1>
+        </div>
         <p className="text-base text-slate-500 dark:text-slate-400">
           Manage {child.firstName}'s information and preferences
         </p>

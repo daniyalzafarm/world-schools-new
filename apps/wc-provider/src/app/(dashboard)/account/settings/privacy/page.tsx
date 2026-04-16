@@ -13,7 +13,7 @@ import {
 import { AlertCircle, Shield } from 'lucide-react'
 import Link from 'next/link'
 
-import { Input } from '@world-schools/ui-web'
+import { BackButton, Input } from '@world-schools/ui-web'
 
 export default function PrivacyPage() {
   const [exportModalOpen, setExportModalOpen] = useState(false)
@@ -131,7 +131,10 @@ export default function PrivacyPage() {
   return (
     <div className="space-y-6">
       <div className="mb-10">
-        <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">Privacy & Data</h1>
+        <div className="flex items-center gap-4 mb-2">
+          <BackButton href="/account" />
+          <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">Privacy & Data</h1>
+        </div>
         <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
           Manage your data, privacy settings, and account status.
         </p>

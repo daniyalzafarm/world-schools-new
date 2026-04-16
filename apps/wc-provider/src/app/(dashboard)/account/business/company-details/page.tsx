@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { addToast } from '@heroui/react'
+import { BackButton } from '@world-schools/ui-web'
 import { InfoRow } from '@/components/account/info-row'
 import { CompanyInfoModal } from '@/components/account/modals/company-info-modal'
 import { CompanyAddressModal } from '@/components/account/modals/company-address-modal'
@@ -186,9 +187,12 @@ export default function CompanyDetailsPage() {
   return (
     <div className="min-h-full w-full bg-white dark:bg-gray-900">
       <div className="mb-10">
-        <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-          Company Details
-        </h1>
+        <div className="flex items-center gap-4 mb-2">
+          <BackButton href="/account" />
+          <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100">
+            Company Details
+          </h1>
+        </div>
         <p className="text-base text-gray-500 dark:text-gray-400">
           Manage your business information and legal company details.
         </p>

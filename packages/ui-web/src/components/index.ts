@@ -1,3 +1,4 @@
+export { BackButton } from './back-button'
 export { ThemeToggle } from './theme-toggle'
 export { ChipButton } from './chip-button'
 export { Autocomplete } from './autocomplete'

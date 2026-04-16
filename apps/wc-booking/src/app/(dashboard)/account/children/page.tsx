@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Alert, Button, Chip, Spinner } from '@heroui/react'
 import { AlertCircle, Info, Plus } from 'lucide-react'
+import { BackButton } from '@world-schools/ui-web'
 import { type Child, getChildAge, getChildDisplayName } from '@/types/child'
 import { useChildrenStore } from '@/stores/children-store'
 import { AddChildModal } from '@/components/modals/add-child-modal'
@@ -93,7 +94,10 @@ export default function ChildrenPage() {
     <>
       {/* Page Header */}
       <div className="mb-10">
-        <h1 className="text-3xl font-semibold text-slate-900 dark:text-white mb-2">My Children</h1>
+        <div className="flex items-center gap-4 mb-2">
+          <BackButton href="/account" />
+          <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">My Children</h1>
+        </div>
         <p className="text-base text-slate-500 dark:text-slate-400">
           Manage profiles for your children to make booking easier and more personalized.
         </p>

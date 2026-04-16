@@ -3,7 +3,13 @@
 import React, { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { addToast, Divider } from '@heroui/react'
-import { IconTagSelectField, RangeSlider, SelectField, TagSelectField } from '@world-schools/ui-web'
+import {
+  BackButton,
+  IconTagSelectField,
+  RangeSlider,
+  SelectField,
+  TagSelectField,
+} from '@world-schools/ui-web'
 import { useChildrenStore } from '@/stores/children-store'
 import { useBeforeUnload } from '@/hooks/use-before-unload'
 import { useChildDetailContext } from '@/components/children/ChildDetailContext'
@@ -281,8 +287,13 @@ export default function ChildPreferencesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Camp Preferences</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">
+        <div className="flex items-center gap-4 mb-2">
+          <BackButton href={`/account/children/${childId}`} />
+          <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100">
+            Camp Preferences
+          </h1>
+        </div>
+        <p className="text-base text-gray-500 dark:text-gray-400">
           Help us find the perfect camps for your child
         </p>
       </div>

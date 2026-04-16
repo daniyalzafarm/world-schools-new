@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { BackButton } from '@world-schools/ui-web'
 import { InfoRow } from '@/components/account/info-row'
 import { PhoneModal } from '@/components/account/modals/phone-modal'
 import { AddressModal } from '@/components/account/modals/address-modal'
@@ -71,9 +72,12 @@ export default function ContactDetailsPage() {
   return (
     <div className="min-h-full w-full bg-white dark:bg-gray-900">
       <div className="mb-10">
-        <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-          Contact details
-        </h1>
+        <div className="flex items-center gap-4 mb-2">
+          <BackButton href="/account" />
+          <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100">
+            Contact details
+          </h1>
+        </div>
         <p className="text-base text-gray-500 dark:text-gray-400">
           Manage your email, phone number, and address information.
         </p>

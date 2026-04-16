@@ -15,7 +15,14 @@ import {
   ModalHeader,
 } from '@heroui/react'
 import { Edit, Mail, Phone, Plus, Save, Trash2, User } from 'lucide-react'
-import { Input, PhoneInput, SelectField, Textarea, useConfirmDialog } from '@world-schools/ui-web'
+import {
+  BackButton,
+  Input,
+  PhoneInput,
+  SelectField,
+  Textarea,
+  useConfirmDialog,
+} from '@world-schools/ui-web'
 import { isValidPhoneNumber } from 'react-phone-number-input'
 import { useChildrenStore } from '@/stores/children-store'
 import { type EmergencyContact, RELATIONSHIP_SECTIONS } from '@/types/child'
@@ -301,8 +308,13 @@ export default function ChildEmergencyContactsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Emergency Contacts</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">
+        <div className="flex items-center gap-4 mb-2">
+          <BackButton href={`/account/children/${childId}`} />
+          <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100">
+            Emergency Contacts
+          </h1>
+        </div>
+        <p className="text-base text-gray-500 dark:text-gray-400">
           Add up to {MAX_CONTACTS} emergency contacts for your child
         </p>
       </div>

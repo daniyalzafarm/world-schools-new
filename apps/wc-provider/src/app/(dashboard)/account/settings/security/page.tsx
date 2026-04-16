@@ -16,7 +16,7 @@ import { Eye, EyeOff, Monitor, Smartphone, Tablet, X } from 'lucide-react'
 import Link from 'next/link'
 
 import { useAuthStore } from '@/stores/auth-store'
-import { Input } from '@world-schools/ui-web'
+import { BackButton, Input } from '@world-schools/ui-web'
 import {
   getPasswordStrengthHeroColor,
   getPasswordStrengthLabel,
@@ -229,9 +229,12 @@ export default function SecuritySettingsPage() {
   return (
     <div className="min-h-full w-full flex flex-col bg-white dark:bg-gray-900">
       <div className="mb-10">
-        <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-          Login & security
-        </h1>
+        <div className="flex items-center gap-4 mb-2">
+          <BackButton href="/account" />
+          <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100">
+            Login & security
+          </h1>
+        </div>
         <p className="text-base text-gray-500 dark:text-gray-400">
           Manage your password and keep your account secure.
         </p>

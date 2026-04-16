@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { addToast, Button } from '@heroui/react'
 import { Pencil, Plus, X } from 'lucide-react'
-import { useConfirmDialog } from '@world-schools/ui-web'
+import { BackButton, useConfirmDialog } from '@world-schools/ui-web'
 import { useChildrenStore } from '@/stores/children-store'
 import { childrenService } from '@/services/children.services'
 import {
@@ -241,8 +241,13 @@ export default function InterestsAndAbilitiesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Interests & Abilities</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">
+        <div className="flex items-center gap-4 mb-2">
+          <BackButton href={`/account/children/${childId}`} />
+          <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100">
+            Interests & Abilities
+          </h1>
+        </div>
+        <p className="text-base text-gray-500 dark:text-gray-400">
           Helps us match {child.firstName} with the right camps and group {child.firstName} with
           peers at her level.
         </p>

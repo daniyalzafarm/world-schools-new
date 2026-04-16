@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { addToast } from '@heroui/react'
+import { BackButton } from '@world-schools/ui-web'
 import { profileService } from '@/services/profile.services'
 import { ProfilePhotoSection } from '@/components/account/profile-photo-section'
 import { InfoRow } from '@/components/account/info-row'
@@ -124,9 +125,10 @@ export default function PersonalInfoPage() {
   return (
     <div className="min-h-full w-full bg-white dark:bg-gray-900">
       <div className="mb-10">
-        <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-          Personal info
-        </h1>
+        <div className="flex items-center gap-4 mb-2">
+          <BackButton href="/account" />
+          <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100">Personal info</h1>
+        </div>
         <p className="text-base text-gray-500 dark:text-gray-400">
           This is how you appear in the provider portal.
         </p>
