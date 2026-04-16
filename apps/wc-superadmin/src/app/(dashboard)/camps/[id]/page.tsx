@@ -8,6 +8,10 @@ import {
   CardBody,
   Chip,
   type ChipProps,
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownTrigger,
   Pagination,
   Spinner,
   Tab,
@@ -19,20 +23,10 @@ import {
   TableRow,
   Tabs,
 } from '@heroui/react'
-import {
-  Clock,
-  DollarSign,
-  ExternalLink,
-  Flag,
-  Mail,
-  MapPin,
-  Star,
-  Tag,
-  Tent,
-  Users,
-} from 'lucide-react'
+import { Clock, DollarSign, ExternalLink, Mail, MapPin, Star, Tent, Users } from 'lucide-react'
 import { CollapsibleSection, StarRating } from '@world-schools/ui-web'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
+import config from '@/config/config'
 import { PageSlot } from '@/components/layout/page-slot'
 import { useCampsStore } from '@/stores/camps-store'
 import { campsService } from '@/services/camps.services'
@@ -123,6 +117,7 @@ export default function CampDetailPage() {
   const campId = params.id as string
 
   const { detail, isLoading, error, fetchDetail, clearDetail } = useCampsStore()
+  const [selectedTab, setSelectedTab] = useState('overview')
 
   useEffect(() => {
     if (campId) void fetchDetail(campId)
@@ -164,6 +159,8 @@ export default function CampDetailPage() {
             <Tabs
               aria-label="Camp detail sections"
               variant="underlined"
+              selectedKey={selectedTab}
+              onSelectionChange={key => setSelectedTab(String(key))}
               classNames={{
                 base: 'border-b border-default-200 px-4 pt-2',
                 tabList: 'p-0!',
@@ -171,7 +168,12 @@ export default function CampDetailPage() {
               }}
             >
               <Tab key="overview" title="Overview">
-                <OverviewTab detail={detail} router={router} />
+                <OverviewTab
+                  detail={detail}
+                  router={router}
+                  onSwitchToSessions={() => setSelectedTab('sessions')}
+                  onSwitchToReviews={() => setSelectedTab('reviews')}
+                />
               </Tab>
               <Tab key="camp-details" title="Camp Details">
                 <CampDetailsTab detail={detail} />
@@ -211,7 +213,7 @@ function HeroCampCard({
       shadow="sm"
     >
       {/* Hero image / gradient */}
-      <div className="relative h-48 w-full">
+      <div className="relative h-52 w-full">
         {(detail.photos.find(p => p.isPrimary)?.url ?? detail.photos[0]?.url) ? (
           <img
             src={detail.photos.find(p => p.isPrimary)?.url ?? detail.photos[0].url}
@@ -223,91 +225,112 @@ function HeroCampCard({
             <Tent className="h-16 w-16 text-white/30" />
           </div>
         )}
-      </div>
 
-      <CardBody className="p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-foreground">{detail.name}</h1>
+        {/* Dark overlay for text contrast */}
+        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent" />
+
+        {/* Overlaid content: badges, title, provider */}
+        <div className="absolute bottom-0 left-0 right-0 z-10 p-5">
+          <div className="mb-2 flex flex-wrap gap-2">
+            <span className="rounded-xl bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+              {getCampStatusLabel(detail.status)}
+            </span>
+            {detail.isFeatured && (
+              <span className="rounded-xl bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                Featured
+              </span>
+            )}
+            {detail.isVerified && (
+              <span className="rounded-xl bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                Verified
+              </span>
+            )}
+          </div>
+          <h1 className="mb-1 text-3xl font-bold text-white">{detail.name}</h1>
+          <div className="text-sm text-white/90">
+            by{' '}
             <button
-              className="text-sm text-primary hover:underline"
+              className="cursor-pointer underline hover:text-white"
               onClick={() => router.push(`/providers/${detail.providerId}`)}
             >
               {detail.providerName}
             </button>
-            <div className="flex flex-wrap gap-2">
-              <Chip size="sm" color={getCampStatusColor(detail.status)} variant="flat">
-                {getCampStatusLabel(detail.status)}
-              </Chip>
-              {detail.isFeatured && (
-                <Chip
-                  size="sm"
-                  variant="flat"
-                  className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                >
-                  Featured
-                </Chip>
-              )}
-              {detail.isVerified && (
-                <Chip size="sm" color="success" variant="flat">
-                  Verified
-                </Chip>
-              )}
-            </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          {/* Left: key details */}
-          <div className="flex flex-wrap gap-6 text-sm">
-            <span className="flex items-center gap-1.5 text-default-600">
-              <MapPin className="h-4 w-4 text-default-400" />
-              {detail.location || '—'}
-            </span>
-            <span className="flex items-center gap-1.5 text-default-600">
-              <Users className="h-4 w-4 text-default-400" />
-              Ages {formatAgeRange(detail.ageGroups)}
-            </span>
-            <span className="flex items-center gap-1.5 text-default-600">
-              <Tag className="h-4 w-4 text-default-400" />
-              {detail.type === 'day'
-                ? 'Day Camp'
-                : detail.type === 'residential'
-                  ? 'Residential'
-                  : '—'}
-            </span>
-            <span className="flex items-center gap-1.5 text-default-600">
-              <DollarSign className="h-4 w-4 text-default-400" />
-              {detail.priceMin !== null && detail.priceMax !== null
-                ? `${formatCurrency(detail.priceMin)} – ${formatCurrency(detail.priceMax)}`
-                : '—'}
-            </span>
-          </div>
+      </div>
 
-          {/* Right: key stats */}
-          <div className="flex gap-6 text-center text-sm">
-            <div>
-              <div className="text-lg font-bold text-foreground">{detail.sessionsCount}</div>
-              <div className="text-xs text-default-500">Sessions</div>
+      {/* Details bar */}
+      <div className="flex flex-wrap items-center gap-8 px-6 py-5">
+        {/* Left: key details */}
+        <div className="flex flex-wrap gap-8">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 shrink-0 text-primary-600" />
+            <div className="flex flex-col">
+              <span className="text-xs uppercase leading-none text-default-400">Location</span>
+              <span className="text-sm font-semibold text-foreground">
+                {detail.location || '—'}
+              </span>
             </div>
-            <div>
-              <div className="text-lg font-bold text-foreground">{detail.totalBookings}</div>
-              <div className="text-xs text-default-500">Bookings</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 shrink-0 text-primary-600" />
+            <div className="flex flex-col">
+              <span className="text-xs uppercase leading-none text-default-400">Ages</span>
+              <span className="text-sm font-semibold text-foreground">
+                {formatAgeRange(detail.ageGroups)}
+              </span>
             </div>
-            <div>
-              <div className="text-lg font-bold text-foreground">
-                {detail.averageRating !== null ? detail.averageRating.toFixed(1) : '—'}
-              </div>
-              <div className="text-xs text-default-500">Rating</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Tent className="h-5 w-5 shrink-0 text-primary-600" />
+            <div className="flex flex-col">
+              <span className="text-xs uppercase leading-none text-default-400">Type</span>
+              <span className="text-sm font-semibold text-foreground">
+                {detail.type === 'day'
+                  ? 'Day Camp'
+                  : detail.type === 'residential'
+                    ? 'Residential'
+                    : '—'}
+              </span>
             </div>
-            <div>
-              <div className="text-lg font-bold text-foreground">
-                {formatCurrency(detail.totalRevenue)}
-              </div>
-              <div className="text-xs text-default-500">Revenue</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5 shrink-0 text-primary-600" />
+            <div className="flex flex-col">
+              <span className="text-xs uppercase leading-none text-default-400">Price Range</span>
+              <span className="text-sm font-semibold text-foreground">
+                {detail.priceMin !== null && detail.priceMax !== null
+                  ? `${formatCurrency(detail.priceMin)} – ${formatCurrency(detail.priceMax)}`
+                  : '—'}
+              </span>
             </div>
           </div>
         </div>
-      </CardBody>
+
+        {/* Right: key stats */}
+        <div className="ml-auto flex gap-4">
+          <div className="rounded-lg bg-default-100 px-4 py-2 text-center">
+            <div className="text-xl font-bold text-foreground">{detail.sessionsCount}</div>
+            <div className="text-xs text-default-500">Sessions</div>
+          </div>
+          <div className="rounded-lg bg-default-100 px-4 py-2 text-center">
+            <div className="text-xl font-bold text-foreground">{detail.totalBookings}</div>
+            <div className="text-xs text-default-500">Bookings</div>
+          </div>
+          <div className="rounded-lg bg-default-100 px-4 py-2 text-center">
+            <div className="text-xl font-bold text-foreground">
+              {detail.averageRating !== null ? detail.averageRating.toFixed(1) : '—'}
+            </div>
+            <div className="text-xs text-default-500">Rating</div>
+          </div>
+          <div className="rounded-lg bg-default-100 px-4 py-2 text-center">
+            <div className="text-xl font-bold text-foreground">
+              {formatCurrency(detail.totalRevenue)}
+            </div>
+            <div className="text-xs text-default-500">Revenue</div>
+          </div>
+        </div>
+      </div>
     </Card>
   )
 }
@@ -315,24 +338,39 @@ function HeroCampCard({
 function OverviewTab({
   detail,
   router,
+  onSwitchToSessions,
+  onSwitchToReviews,
 }: {
   detail: CampDetail
   router: ReturnType<typeof useRouter>
+  onSwitchToSessions: () => void
+  onSwitchToReviews: () => void
 }) {
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      {/* Left column — 2/3 */}
-      <div className="space-y-6 lg:col-span-2">
-        <StatsGridCard detail={detail} />
-        <CampSummaryCard detail={detail} />
-        <UpcomingSessionsCard sessions={detail.upcomingSessions} />
-      </div>
+    <div className="space-y-6">
+      <StatsGridCard detail={detail} />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Left column — 2/3 */}
+        <div className="space-y-6 lg:col-span-2">
+          <CampSummaryCard detail={detail} />
+          <UpcomingSessionsCard
+            sessions={detail.upcomingSessions}
+            sessionsCount={detail.sessionsCount}
+            onViewAll={onSwitchToSessions}
+          />
+          <RecentReviewsCard
+            campId={detail.id}
+            totalReviews={detail.totalReviews}
+            onViewAll={onSwitchToReviews}
+          />
+        </div>
 
-      {/* Right column — 1/3 */}
-      <div className="space-y-6">
-        <QuickActionsCard detail={detail} router={router} />
-        <ProviderInfoCard detail={detail} router={router} />
-        <RatingSummaryCard detail={detail} />
+        {/* Right column — 1/3 */}
+        <div className="space-y-6">
+          <QuickActionsCard detail={detail} />
+          <ProviderInfoCard detail={detail} router={router} />
+          <RatingSummaryCard detail={detail} />
+        </div>
       </div>
     </div>
   )
@@ -340,33 +378,33 @@ function OverviewTab({
 
 function StatsGridCard({ detail }: { detail: CampDetail }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
       <Card shadow="none" className="border border-default-200">
-        <CardBody className="p-4">
-          <div className="text-xs text-default-500">Total Bookings</div>
-          <div className="text-2xl font-bold text-foreground">{detail.totalBookings}</div>
+        <CardBody className="p-5">
+          <div className="mb-1 text-xs text-default-500">Total Bookings</div>
+          <div className="text-3xl font-bold text-foreground">{detail.totalBookings}</div>
         </CardBody>
       </Card>
       <Card shadow="none" className="border border-default-200">
-        <CardBody className="p-4">
-          <div className="text-xs text-default-500">Total Revenue</div>
-          <div className="text-2xl font-bold text-foreground">
+        <CardBody className="p-5">
+          <div className="mb-1 text-xs text-default-500">Total Revenue</div>
+          <div className="text-3xl font-bold text-foreground">
             {formatCurrency(detail.totalRevenue)}
           </div>
         </CardBody>
       </Card>
       <Card shadow="none" className="border border-default-200">
-        <CardBody className="p-4">
-          <div className="text-xs text-default-500">Avg Occupancy</div>
-          <div className="text-2xl font-bold text-foreground">
+        <CardBody className="p-5">
+          <div className="mb-1 text-xs text-default-500">Avg Occupancy</div>
+          <div className="text-3xl font-bold text-foreground">
             {detail.avgOccupancy !== null ? `${detail.avgOccupancy}%` : '—'}
           </div>
         </CardBody>
       </Card>
       <Card shadow="none" className="border border-default-200">
-        <CardBody className="p-4">
-          <div className="text-xs text-default-500">Avg Rating</div>
-          <div className="text-2xl font-bold text-foreground">
+        <CardBody className="p-5">
+          <div className="mb-1 text-xs text-default-500">Avg Rating</div>
+          <div className="text-3xl font-bold text-foreground">
             {detail.averageRating !== null ? detail.averageRating.toFixed(1) : '—'}
           </div>
         </CardBody>
@@ -412,11 +450,26 @@ function CampSummaryCard({ detail }: { detail: CampDetail }) {
   )
 }
 
-function UpcomingSessionsCard({ sessions }: { sessions: CampUpcomingSession[] }) {
+function UpcomingSessionsCard({
+  sessions,
+  sessionsCount,
+  onViewAll,
+}: {
+  sessions: CampUpcomingSession[]
+  sessionsCount: number
+  onViewAll: () => void
+}) {
   return (
     <Card shadow="none" className="border border-default-200">
-      <CardBody className="p-4 space-y-3">
+      <div className="flex items-center justify-between border-b border-default-200 px-4 py-3">
         <h3 className="font-semibold text-foreground">Upcoming Sessions</h3>
+        {sessionsCount > 0 && (
+          <Button size="sm" variant="bordered" onPress={onViewAll}>
+            View All
+          </Button>
+        )}
+      </div>
+      <CardBody className="p-4 space-y-3">
         {sessions.length === 0 ? (
           <p className="text-sm text-default-400">No upcoming sessions.</p>
         ) : (
@@ -496,40 +549,193 @@ function CapacityBar({ session }: { session: CampUpcomingSession }) {
   )
 }
 
-function QuickActionsCard({
-  detail,
-  router,
+function RecentReviewsCard({
+  campId,
+  totalReviews,
+  onViewAll,
 }: {
-  detail: CampDetail
-  router: ReturnType<typeof useRouter>
+  campId: string
+  totalReviews: number
+  onViewAll: () => void
 }) {
+  const [reviews, setReviews] = useState<CampReviewItem[] | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    campsService
+      .getCampReviews(campId, { limit: 3 })
+      .then(res => setReviews(res.data))
+      .catch(console.error)
+      .finally(() => setIsLoading(false))
+  }, [campId])
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+
+  return (
+    <Card shadow="none" className="border border-default-200">
+      <div className="flex items-center justify-between border-b border-default-200 px-4 py-3">
+        <h3 className="font-semibold text-foreground">Recent Reviews</h3>
+        {totalReviews > 0 && (
+          <Button size="sm" variant="bordered" onPress={onViewAll}>
+            View All
+          </Button>
+        )}
+      </div>
+      <CardBody className="p-4">
+        {isLoading ? (
+          <div className="flex justify-center py-6">
+            <Spinner size="sm" />
+          </div>
+        ) : !reviews || reviews.length === 0 ? (
+          <p className="py-4 text-center text-sm text-default-400">No reviews yet</p>
+        ) : (
+          <div className="divide-y divide-default-100">
+            {reviews.map(review => (
+              <div key={review.id} className="py-4 first:pt-0 last:pb-0">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-foreground">{review.parentName}</span>
+                  <span className="text-xs text-default-400">{formatDate(review.createdAt)}</span>
+                </div>
+                {review.happinessRating !== null && (
+                  <div className="mb-1.5">
+                    <StarRating
+                      rating={review.happinessRating}
+                      color="yellow"
+                      showRating={false}
+                      size={13}
+                    />
+                  </div>
+                )}
+                {review.reviewText && (
+                  <p className="text-sm leading-relaxed text-default-600">{review.reviewText}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardBody>
+    </Card>
+  )
+}
+
+const EMAIL_CLIENTS = [
+  {
+    key: 'default',
+    label: 'Default Mail',
+    url: (email: string) => `mailto:${email}`,
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="1" y="3.5" width="14" height="9" rx="1.5" fill="#6B7280" />
+        <path d="M1.5 4.5L8 8.5L14.5 4.5" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    key: 'gmail',
+    label: 'Gmail',
+    url: (email: string) => `https://mail.google.com/mail/?view=cm&fs=1&to=${email}`,
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16px"
+        height="16px"
+        preserveAspectRatio="xMidYMid"
+        viewBox="0 -31.5 256 256"
+      >
+        <path
+          fill="#4285F4"
+          d="M58.182 192.05V93.14L27.507 65.077 0 49.504v125.091c0 9.658 7.825 17.455 17.455 17.455z"
+        ></path>
+        <path
+          fill="#34A853"
+          d="M197.818 192.05h40.727c9.659 0 17.455-7.826 17.455-17.455V49.505l-31.156 17.837-27.026 25.798z"
+        ></path>
+        <path
+          fill="#EA4335"
+          d="m58.182 93.14-4.174-38.647 4.174-36.989L128 69.868l69.818-52.364 4.67 34.992-4.67 40.644L128 145.504z"
+        ></path>
+        <path
+          fill="#FBBC04"
+          d="M197.818 17.504V93.14L256 49.504V26.231c0-21.585-24.64-33.89-41.89-20.945z"
+        ></path>
+        <path
+          fill="#C5221F"
+          d="m0 49.504 26.759 20.07L58.182 93.14V17.504L41.89 5.286C24.61-7.66 0 4.646 0 26.23z"
+        ></path>
+      </svg>
+    ),
+  },
+  {
+    key: 'outlook',
+    label: 'Outlook',
+    url: (email: string) => `https://outlook.live.com/mail/deeplink/compose?to=${email}`,
+    icon: (
+      <svg width="18px" height="18px" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <title>file_type_outlook</title>
+        <path
+          d="M19.484,7.937v5.477L21.4,14.619a.489.489,0,0,0,.21,0l8.238-5.554a1.174,1.174,0,0,0-.959-1.128Z"
+          style={{ fill: '#0072c6' }}
+        />
+        <path
+          d="M19.484,15.457l1.747,1.2a.522.522,0,0,0,.543,0c-.3.181,8.073-5.378,8.073-5.378V21.345a1.408,1.408,0,0,1-1.49,1.555H19.483V15.457Z"
+          style={{ fill: '#0072c6' }}
+        />
+        <path
+          d="M10.44,12.932a1.609,1.609,0,0,0-1.42.838,4.131,4.131,0,0,0-.526,2.218A4.05,4.05,0,0,0,9.02,18.2a1.6,1.6,0,0,0,2.771.022,4.014,4.014,0,0,0,.515-2.2,4.369,4.369,0,0,0-.5-2.281A1.536,1.536,0,0,0,10.44,12.932Z"
+          style={{ fill: '#0072c6' }}
+        />
+        <path
+          d="M2.153,5.155V26.582L18.453,30V2ZM13.061,19.491a3.231,3.231,0,0,1-2.7,1.361,3.19,3.19,0,0,1-2.64-1.318A5.459,5.459,0,0,1,6.706,16.1a5.868,5.868,0,0,1,1.036-3.616A3.267,3.267,0,0,1,10.486,11.1a3.116,3.116,0,0,1,2.61,1.321,5.639,5.639,0,0,1,1,3.484A5.763,5.763,0,0,1,13.061,19.491Z"
+          style={{ fill: '#0072c6' }}
+        />
+      </svg>
+    ),
+  },
+]
+
+function QuickActionsCard({ detail }: { detail: CampDetail }) {
   return (
     <Card shadow="none" className="border border-default-200">
       <CardBody className="p-4 space-y-2">
         <h3 className="font-semibold text-foreground">Quick Actions</h3>
         <Button
-          variant="flat"
+          color="primary"
           className="w-full justify-start"
           startContent={<ExternalLink className="h-4 w-4" />}
+          onPress={() => window.open(`${config.app.bookingAppUrl}/camps/${detail.slug}`, '_blank')}
         >
           View Public Page
         </Button>
-        <Button
-          variant="flat"
-          className="w-full justify-start"
-          startContent={<Mail className="h-4 w-4" />}
-          onPress={() => router.push(`/providers/${detail.providerId}`)}
-        >
-          Contact Provider
-        </Button>
-        <Button
-          variant="flat"
-          color="warning"
-          className="w-full justify-start"
-          startContent={<Flag className="h-4 w-4" />}
-        >
-          Flag for Review
-        </Button>
+        <Dropdown isDisabled={!detail.providerContactEmail}>
+          <DropdownTrigger>
+            <Button
+              color="secondary"
+              className="w-full justify-start"
+              startContent={<Mail className="h-4 w-4" />}
+              isDisabled={!detail.providerContactEmail}
+            >
+              Contact Provider
+            </Button>
+          </DropdownTrigger>
+          <DropdownMenu
+            aria-label="Choose email client"
+            onAction={key => {
+              const client = EMAIL_CLIENTS.find(c => c.key === key)
+              if (client) window.open(client.url(detail.providerContactEmail!), '_blank')
+            }}
+          >
+            {EMAIL_CLIENTS.map(client => (
+              <DropdownItem key={client.key} startContent={client.icon}>
+                {client.label}
+              </DropdownItem>
+            ))}
+          </DropdownMenu>
+        </Dropdown>
       </CardBody>
     </Card>
   )
@@ -547,8 +753,16 @@ function ProviderInfoCard({
       <CardBody className="p-4 space-y-3">
         <h3 className="font-semibold text-foreground">Provider</h3>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-bold text-white">
-            {getInitials(detail.providerName)}
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white overflow-hidden">
+            {detail.providerLogoUrl ? (
+              <img
+                src={detail.providerLogoUrl}
+                alt={detail.providerName}
+                className="h-full w-full object-contain"
+              />
+            ) : (
+              getInitials(detail.providerName)
+            )}
           </div>
           <div className="min-w-0">
             <div className="truncate font-medium text-foreground">{detail.providerName}</div>
@@ -630,85 +844,654 @@ function RatingSummaryCard({ detail }: { detail: CampDetail }) {
   )
 }
 
-function CampDetailsTab({ detail }: { detail: CampDetail }) {
-  return (
-    <div className="space-y-3">
-      <CollapsibleSection title="Basic Information" defaultOpen>
-        <div className="space-y-2 text-sm">
-          <InfoRow label="Camp Name">{detail.name}</InfoRow>
-          <InfoRow label="Type">
-            {detail.type === 'day'
-              ? 'Day Camp'
-              : detail.type === 'residential'
-                ? 'Residential'
-                : '—'}
-          </InfoRow>
-          <InfoRow label="Gender">
-            {detail.gender === 'coed'
-              ? 'Co-ed'
-              : detail.gender === 'boys'
-                ? 'Boys'
-                : detail.gender === 'girls'
-                  ? 'Girls'
-                  : '—'}
-          </InfoRow>
-          <InfoRow label="Location">{detail.location || '—'}</InfoRow>
-          <InfoRow label="Ages">{formatAgeRange(detail.ageGroups)}</InfoRow>
-          <InfoRow label="Price Range">
-            {detail.priceMin !== null && detail.priceMax !== null
-              ? `${formatCurrency(detail.priceMin)} – ${formatCurrency(detail.priceMax)}`
-              : '—'}
-          </InfoRow>
-          <InfoRow label="Status">
-            <Chip size="sm" color={getCampStatusColor(detail.status)} variant="flat">
-              {getCampStatusLabel(detail.status)}
-            </Chip>
-          </InfoRow>
-          <InfoRow label="Listed">{formatDate(detail.createdAt)}</InfoRow>
-        </div>
-      </CollapsibleSection>
+const fmtLabel = (s: string): string =>
+  s.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
-      <CollapsibleSection title="Focus & Philosophy">
-        <div className="space-y-3">
-          {detail.primaryFocus.length > 0 && (
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-default-500">Primary Focus</p>
+function CampDetailsTab({ detail }: { detail: CampDetail }) {
+  // ── What's Included ──────────────────────────────────────────────────────
+  const includedItems = [
+    ...((detail.whatsIncluded?.autoGenerated as { isSelected: boolean; text: string }[]) ?? [])
+      .filter(i => i.isSelected)
+      .map(i => i.text),
+    ...((detail.whatsIncluded?.manual as { isSelected: boolean; text: string }[]) ?? [])
+      .filter(i => i.isSelected)
+      .map(i => i.text),
+  ]
+
+  // ── Focus & Philosophy ───────────────────────────────────────────────────
+  const focusFull = detail.campFocusFull as Record<string, any> | null | undefined
+  const primaryFocusName = focusFull?.primaryFocus?.activityName as string | undefined
+  const philosophy = focusFull?.philosophy as string | undefined
+  const learningApproach = focusFull?.learningApproach as string | undefined
+  const focusDescription = focusFull?.description as string | undefined
+  const hasFocusData = !!(
+    primaryFocusName ||
+    philosophy ||
+    learningApproach ||
+    focusDescription ||
+    detail.primaryFocus.length > 0
+  )
+
+  // ── Accommodation ────────────────────────────────────────────────────────
+  const accomm = detail.accommodation as Record<string, any> | null | undefined
+  const accommTypes: string[] = accomm?.selectedTypes ?? []
+  const accommAmenities: string[] = accomm?.amenities ?? []
+  const hasAccomm =
+    detail.type === 'residential' &&
+    !!(
+      accommTypes.length ||
+      accommAmenities.length ||
+      accomm?.description ||
+      accomm?.roomCapacity ||
+      accomm?.supervision
+    )
+
+  // ── Meals ────────────────────────────────────────────────────────────────
+  const meals = detail.meals as Record<string, any> | null | undefined
+  const mealTypes: string[] = meals?.mealTypes ?? []
+  const dietaryOptions: string[] = meals?.dietaryOptions ?? []
+  const hasMeals = !!(
+    mealTypes.length ||
+    dietaryOptions.length ||
+    meals?.mealStyle ||
+    meals?.description
+  )
+
+  // ── Daily Schedule ───────────────────────────────────────────────────────
+  const scheduleType = detail.scheduleType
+  const dailySlots: Record<string, any>[] =
+    (detail.dailySchedule as Record<string, any>)?.timeSlots ?? []
+  const weeklySchedule = detail.weeklySchedule as Record<string, any> | null | undefined
+  const hasSchedule = !!(
+    scheduleType &&
+    (dailySlots.length > 0 || (scheduleType === 'weekly' && weeklySchedule))
+  )
+
+  // ── Sports ───────────────────────────────────────────────────────────────
+  const sports = detail.sportsActivities as Record<string, any> | null | undefined
+  const sportItems: string[] = [...(sports?.selectedSports ?? []), ...(sports?.customSports ?? [])]
+  const hasSports = !!(sportItems.length || sports?.description)
+
+  // ── Adventure ────────────────────────────────────────────────────────────
+  const adventure = detail.adventureActivities as Record<string, any> | null | undefined
+  const adventureItems: string[] = [
+    ...(adventure?.selectedActivities ?? []),
+    ...(adventure?.customActivities ?? []),
+  ]
+  const hasAdventure = !!(adventureItems.length || adventure?.description)
+
+  // ── Water ────────────────────────────────────────────────────────────────
+  const water = detail.waterActivities as Record<string, any> | null | undefined
+  const waterItems: string[] = [
+    ...(water?.selectedActivities ?? []),
+    ...(water?.customActivities ?? []),
+  ]
+  const waterFacilities: string[] = water?.facilities ?? []
+  const hasWater = !!(waterItems.length || waterFacilities.length || water?.description)
+
+  // ── Arts ─────────────────────────────────────────────────────────────────
+  const arts = detail.artsAndCrafts as Record<string, any> | null | undefined
+  const artsItems: string[] = [
+    ...(arts?.selectedActivities ?? []),
+    ...(arts?.customActivities ?? []),
+  ]
+  const hasArts = !!(artsItems.length || arts?.description)
+
+  // ── Environmental ────────────────────────────────────────────────────────
+  const env = detail.environmentalActivities as Record<string, any> | null | undefined
+  const envItems: string[] = [...(env?.selectedActivities ?? []), ...(env?.customActivities ?? [])]
+  const hasEnv = !!(envItems.length || env?.description)
+
+  // ── Languages ────────────────────────────────────────────────────────────
+  const campLangs: string[] = detail.languages ?? []
+  const langPrograms = detail.languagePrograms as Record<string, any> | null | undefined
+  const langProgramItems: string[] = [
+    ...(langPrograms?.selectedLanguages ?? []),
+    ...(langPrograms?.customLanguages ?? []),
+  ]
+  const hasLanguages = !!(campLangs.length || langProgramItems.length || langPrograms?.description)
+
+  // ── Academics ────────────────────────────────────────────────────────────
+  const acad = detail.academics as Record<string, any> | null | undefined
+  const acadItems: string[] = [...(acad?.selectedSubjects ?? []), ...(acad?.customSubjects ?? [])]
+  const hasAcademics = !!(acadItems.length || acad?.description)
+
+  // ── Religion ─────────────────────────────────────────────────────────────
+  const religion = detail.religionPrograms as Record<string, any> | null | undefined
+  const religionItems: string[] = [
+    ...(religion?.selectedPrograms ?? []),
+    ...(religion?.customPrograms ?? []),
+  ]
+  const hasReligion = !!(
+    religion?.denomination ||
+    religion?.observance ||
+    religionItems.length ||
+    religion?.description
+  )
+
+  // ── Excursions ───────────────────────────────────────────────────────────
+  const excursions = detail.excursionsTrips as Record<string, any> | null | undefined
+  const excursionItems: string[] = [
+    ...(excursions?.selectedTrips ?? []),
+    ...(excursions?.customTrips ?? []),
+  ]
+  const hasExcursions = !!(excursionItems.length || excursions?.description)
+
+  // ── Location & Campus ─────────────────────────────────────────────────────
+  const campus = detail.campusFacilities as Record<string, any> | null | undefined
+  const campusFacilitiesList: string[] = campus?.selectedFacilities ?? []
+  const hasCampus = !!(
+    campusFacilitiesList.length ||
+    campus?.campusSize ||
+    campus?.campusSetting ||
+    campus?.description ||
+    detail.location
+  )
+
+  // ── Getting There ─────────────────────────────────────────────────────────
+  const gettingThere = detail.gettingThere as Record<string, any> | null | undefined
+  const transportItems: string[] = gettingThere?.selectedTransport ?? []
+  const hasGettingThere = !!(
+    transportItems.length ||
+    gettingThere?.transportIncluded ||
+    gettingThere?.description
+  )
+
+  return (
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start">
+      {/* ── LEFT COLUMN ─────────────────────────────────────────────────── */}
+      <div className="space-y-3">
+        {/* 1. Basic Information */}
+        <CollapsibleSection title="📋 Basic Information" defaultOpen>
+          <div className="space-y-2 text-sm">
+            <InfoRow label="Camp Name">{detail.name}</InfoRow>
+            {detail.description && (
+              <div>
+                <p className="mb-1 text-xs font-medium text-default-500">Description</p>
+                <p className="text-sm leading-relaxed text-foreground">{detail.description}</p>
+              </div>
+            )}
+            <InfoRow label="Camp Type">
+              {detail.type === 'day'
+                ? 'Day Camp'
+                : detail.type === 'residential'
+                  ? 'Residential / Overnight'
+                  : '—'}
+            </InfoRow>
+            <InfoRow label="Age Range">{formatAgeRange(detail.ageGroups)}</InfoRow>
+            <InfoRow label="Gender">
+              {detail.gender === 'coed'
+                ? 'Co-ed'
+                : detail.gender === 'boys'
+                  ? 'Boys Only'
+                  : detail.gender === 'girls'
+                    ? 'Girls Only'
+                    : '—'}
+            </InfoRow>
+          </div>
+        </CollapsibleSection>
+
+        {/* 2. Camp Focus & Philosophy */}
+        {hasFocusData && (
+          <CollapsibleSection title="🎯 Camp Focus & Philosophy" defaultOpen>
+            <div className="space-y-3 text-sm">
+              {(primaryFocusName || detail.primaryFocus.length > 0) && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-default-500">Primary Focus Areas</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {primaryFocusName ? (
+                      <Chip size="sm" color="primary" variant="flat">
+                        {primaryFocusName}
+                      </Chip>
+                    ) : (
+                      detail.primaryFocus.map(f => (
+                        <Chip key={f} size="sm" color="primary" variant="flat">
+                          {f}
+                        </Chip>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+              {philosophy && <InfoRow label="Camp Philosophy">{fmtLabel(philosophy)}</InfoRow>}
+              {learningApproach && (
+                <InfoRow label="Learning Approach">{fmtLabel(learningApproach)}</InfoRow>
+              )}
+              {focusDescription && (
+                <p className="text-sm leading-relaxed text-default-600">{focusDescription}</p>
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* 3. What's Included */}
+        {includedItems.length > 0 && (
+          <CollapsibleSection title="✅ What's Included">
+            <div className="flex flex-wrap gap-1.5">
+              {includedItems.map((item, i) => (
+                <Chip key={i} size="sm" variant="flat">
+                  {item}
+                </Chip>
+              ))}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* 4. Accommodation (residential only) */}
+        {hasAccomm && (
+          <CollapsibleSection title="🏠 Accommodation">
+            <div className="space-y-3 text-sm">
+              {accommTypes.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-default-500">
+                    Sleeping Arrangements
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {accommTypes.map(t => (
+                      <Chip key={t} size="sm" variant="flat">
+                        {fmtLabel(t)}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {accomm?.roomCapacity && (
+                <InfoRow label="Room Capacity">{fmtLabel(accomm.roomCapacity as string)}</InfoRow>
+              )}
+              {accomm?.supervision && (
+                <InfoRow label="Supervision">{fmtLabel(accomm.supervision as string)}</InfoRow>
+              )}
+              {accommAmenities.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-default-500">Amenities</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {accommAmenities.map(a => (
+                      <Chip key={a} size="sm" variant="flat">
+                        {fmtLabel(a)}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {accomm?.description && (
+                <p className="leading-relaxed text-default-600">{accomm.description as string}</p>
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* 5. Meals & Dietary */}
+        {hasMeals && (
+          <CollapsibleSection title="🍽️ Meals & Dietary">
+            <div className="space-y-3 text-sm">
+              {meals?.mealStyle && (
+                <InfoRow label="Meal Style">{fmtLabel(meals.mealStyle as string)}</InfoRow>
+              )}
+              {mealTypes.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-default-500">Meals Provided</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {mealTypes.map(m => (
+                      <Chip key={m} size="sm" variant="flat">
+                        {fmtLabel(m)}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {dietaryOptions.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-default-500">Dietary Options</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {dietaryOptions.map(d => (
+                      <Chip key={d} size="sm" variant="flat">
+                        {fmtLabel(d)}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {meals?.description && (
+                <p className="leading-relaxed text-default-600">{meals.description as string}</p>
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* 6. Daily Schedule */}
+        {hasSchedule && (
+          <CollapsibleSection title="🕐 Daily Schedule">
+            {scheduleType === 'daily' ? (
+              <div className="divide-y divide-default-100">
+                {dailySlots.map((slot, i) => (
+                  <div key={(slot.id as string) ?? i} className="flex gap-4 py-1.5">
+                    <span className="w-20 shrink-0 font-mono text-xs text-default-500">
+                      {slot.time as string}
+                    </span>
+                    <span className="text-sm text-foreground">{slot.activity as string}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(
+                  day => {
+                    const slots: Record<string, any>[] = weeklySchedule?.[day]?.timeSlots ?? []
+                    if (!slots.length) return null
+                    return (
+                      <div key={day}>
+                        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-default-500">
+                          {fmtLabel(day)}
+                        </p>
+                        <div className="divide-y divide-default-100">
+                          {slots.map((slot, i) => (
+                            <div key={(slot.id as string) ?? i} className="flex gap-4 py-1.5">
+                              <span className="w-20 shrink-0 font-mono text-xs text-default-500">
+                                {slot.time as string}
+                              </span>
+                              <span className="text-sm text-foreground">
+                                {slot.activity as string}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  }
+                )}
+              </div>
+            )}
+          </CollapsibleSection>
+        )}
+      </div>
+
+      {/* ── RIGHT COLUMN ────────────────────────────────────────────────── */}
+      <div className="space-y-3">
+        {/* 7. Sports Activities */}
+        {hasSports && (
+          <CollapsibleSection title="⚽ Sports Activities">
+            <div className="space-y-3">
               <div className="flex flex-wrap gap-1.5">
-                {detail.primaryFocus.map(f => (
-                  <Chip key={f} size="sm" color="primary" variant="flat">
-                    {f}
+                {sportItems.map(s => (
+                  <Chip key={s} size="sm" variant="flat">
+                    {fmtLabel(s)}
                   </Chip>
                 ))}
               </div>
+              {sports?.description && (
+                <p className="text-sm leading-relaxed text-default-600">
+                  {sports.description as string}
+                </p>
+              )}
             </div>
-          )}
-          {detail.description && (
-            <p className="text-sm text-default-600 leading-relaxed">{detail.description}</p>
-          )}
-        </div>
-      </CollapsibleSection>
-
-      <CollapsibleSection title="What's Included">
-        {detail.keyActivities.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {detail.keyActivities.map(a => (
-              <Chip key={a} size="sm" variant="flat">
-                {a}
-              </Chip>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-default-400">No activities listed.</p>
+          </CollapsibleSection>
         )}
-      </CollapsibleSection>
 
-      <CollapsibleSection title="Accommodation">
-        <p className="text-sm text-default-400">Accommodation details coming soon.</p>
-      </CollapsibleSection>
+        {/* 8. Adventure & Outdoors */}
+        {hasAdventure && (
+          <CollapsibleSection title="🏔️ Adventure & Outdoors">
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {adventureItems.map(a => (
+                  <Chip key={a} size="sm" variant="flat">
+                    {fmtLabel(a)}
+                  </Chip>
+                ))}
+              </div>
+              {adventure?.description && (
+                <p className="text-sm leading-relaxed text-default-600">
+                  {adventure.description as string}
+                </p>
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
 
-      <CollapsibleSection title="Meals">
-        <p className="text-sm text-default-400">Meals details coming soon.</p>
-      </CollapsibleSection>
+        {/* 9. Water Activities */}
+        {hasWater && (
+          <CollapsibleSection title="🏊 Water Activities">
+            <div className="space-y-3">
+              {waterItems.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {waterItems.map(w => (
+                    <Chip key={w} size="sm" variant="flat">
+                      {fmtLabel(w)}
+                    </Chip>
+                  ))}
+                </div>
+              )}
+              {waterFacilities.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-default-500">Facilities</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {waterFacilities.map(f => (
+                      <Chip key={f} size="sm" variant="flat">
+                        {fmtLabel(f)}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {water?.description && (
+                <p className="text-sm leading-relaxed text-default-600">
+                  {water.description as string}
+                </p>
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* 10. Arts & Creativity */}
+        {hasArts && (
+          <CollapsibleSection title="🎨 Arts & Creativity">
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {artsItems.map(a => (
+                  <Chip key={a} size="sm" variant="flat">
+                    {fmtLabel(a)}
+                  </Chip>
+                ))}
+              </div>
+              {arts?.description && (
+                <p className="text-sm leading-relaxed text-default-600">
+                  {arts.description as string}
+                </p>
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* 11. Nature & Environment */}
+        {hasEnv && (
+          <CollapsibleSection title="🌲 Nature & Environment">
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {envItems.map(e => (
+                  <Chip key={e} size="sm" variant="flat">
+                    {fmtLabel(e)}
+                  </Chip>
+                ))}
+              </div>
+              {env?.description && (
+                <p className="text-sm leading-relaxed text-default-600">
+                  {env.description as string}
+                </p>
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* 12. Languages */}
+        {hasLanguages && (
+          <CollapsibleSection title="🌍 Languages">
+            <div className="space-y-3 text-sm">
+              {campLangs.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-default-500">Camp Languages</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {campLangs.map(l => (
+                      <Chip key={l} size="sm" variant="flat">
+                        {fmtLabel(l)}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {langProgramItems.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-default-500">Language Programs</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {langProgramItems.map(l => (
+                      <Chip key={l} size="sm" variant="flat">
+                        {fmtLabel(l)}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {langPrograms?.description && (
+                <p className="leading-relaxed text-default-600">
+                  {langPrograms.description as string}
+                </p>
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* 13. Academics & Education */}
+        {hasAcademics && (
+          <CollapsibleSection title="📚 Academics & Education">
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {acadItems.map(s => (
+                  <Chip key={s} size="sm" variant="flat">
+                    {fmtLabel(s)}
+                  </Chip>
+                ))}
+              </div>
+              {acad?.description && (
+                <p className="text-sm leading-relaxed text-default-600">
+                  {acad.description as string}
+                </p>
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* 14. Religion & Faith */}
+        {hasReligion && (
+          <CollapsibleSection title="🙏 Religion & Faith">
+            <div className="space-y-3 text-sm">
+              {religion?.denomination && (
+                <InfoRow label="Affiliation">{fmtLabel(religion.denomination as string)}</InfoRow>
+              )}
+              {religion?.observance && (
+                <InfoRow label="Observance">{fmtLabel(religion.observance as string)}</InfoRow>
+              )}
+              {religionItems.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-default-500">Programs</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {religionItems.map(r => (
+                      <Chip key={r} size="sm" variant="flat">
+                        {fmtLabel(r)}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {religion?.description && (
+                <p className="leading-relaxed text-default-600">{religion.description as string}</p>
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* 15. Excursions & Trips */}
+        {hasExcursions && (
+          <CollapsibleSection title="🚌 Excursions & Trips">
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {excursionItems.map(e => (
+                  <Chip key={e} size="sm" variant="flat">
+                    {fmtLabel(e)}
+                  </Chip>
+                ))}
+              </div>
+              {excursions?.description && (
+                <p className="text-sm leading-relaxed text-default-600">
+                  {excursions.description as string}
+                </p>
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* 16. Location & Campus */}
+        {hasCampus && (
+          <CollapsibleSection title="📍 Location & Campus">
+            <div className="space-y-3 text-sm">
+              {detail.location && <InfoRow label="Address">{detail.location}</InfoRow>}
+              {campus?.campusSize && (
+                <InfoRow label="Campus Size">{fmtLabel(campus.campusSize as string)}</InfoRow>
+              )}
+              {campus?.campusSetting && (
+                <InfoRow label="Setting">{fmtLabel(campus.campusSetting as string)}</InfoRow>
+              )}
+              {campusFacilitiesList.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-default-500">Facilities</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {campusFacilitiesList.map(f => (
+                      <Chip key={f} size="sm" variant="flat">
+                        {fmtLabel(f)}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {campus?.description && (
+                <p className="leading-relaxed text-default-600">{campus.description as string}</p>
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* 17. Getting There */}
+        {hasGettingThere && (
+          <CollapsibleSection title="🚗 Getting There">
+            <div className="space-y-3 text-sm">
+              {gettingThere?.transportIncluded && (
+                <InfoRow label="Transport Included">
+                  {fmtLabel(gettingThere.transportIncluded as string)}
+                </InfoRow>
+              )}
+              {gettingThere?.pickupLocations && (
+                <InfoRow label="Pickup Locations">
+                  {fmtLabel(gettingThere.pickupLocations as string)}
+                </InfoRow>
+              )}
+              {transportItems.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-default-500">Transport Options</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {transportItems.map(t => (
+                      <Chip key={t} size="sm" variant="flat">
+                        {fmtLabel(t)}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {gettingThere?.description && (
+                <p className="leading-relaxed text-default-600">
+                  {gettingThere.description as string}
+                </p>
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
+      </div>
     </div>
   )
 }

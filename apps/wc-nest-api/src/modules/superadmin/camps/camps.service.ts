@@ -195,6 +195,8 @@ export class SuperAdminCampsService {
             legalCompanyName: true,
             contactFirstName: true,
             contactLastName: true,
+            contactEmail: true,
+            logoUrl: true,
             createdAt: true,
             _count: { select: { camps: true } },
           },
@@ -299,6 +301,19 @@ export class SuperAdminCampsService {
     const photos =
       rawPhotos.length > 0 ? await this.photoUploadService.generatePhotoUrls(rawPhotos) : rawPhotos
 
+    // Resolve SAS URL for provider logo
+    let providerLogoUrl: string | null = null
+    if (camp.provider.logoUrl) {
+      try {
+        const [resolved] = await this.photoUploadService.generatePhotoUrls([
+          { url: camp.provider.logoUrl },
+        ])
+        providerLogoUrl = resolved.url ?? null
+      } catch {
+        // Fall back to null if SAS generation fails
+      }
+    }
+
     return {
       id: camp.id,
       name: camp.name,
@@ -307,8 +322,11 @@ export class SuperAdminCampsService {
       gender: camp.gender,
       isFeatured: false,
       isVerified: false,
+      slug: camp.slug,
       providerName,
       providerId: camp.providerId,
+      providerLogoUrl,
+      providerContactEmail: camp.provider.contactEmail ?? null,
       providerMemberSince: camp.provider.createdAt.toISOString(),
       providerCampsCount: camp.provider._count.camps,
       providerAvgRating: providerRating._avg?.happinessRating ?? null,
@@ -332,6 +350,26 @@ export class SuperAdminCampsService {
         count: r._count._all,
       })),
       totalReviews: reviewAggregate._count._all,
+      // Camp Details tab: JSON editor fields
+      languages: camp.languages ?? [],
+      campFocusFull: camp.campFocus ?? null,
+      whatsIncluded: camp.whatsIncluded ?? null,
+      meals: camp.meals ?? null,
+      accommodation: camp.accommodation ?? null,
+      scheduleType: camp.scheduleType ?? null,
+      dailySchedule: camp.dailySchedule ?? null,
+      weeklySchedule: camp.weeklySchedule ?? null,
+      sportsActivities: camp.sportsActivities ?? null,
+      waterActivities: camp.waterActivities ?? null,
+      artsAndCrafts: camp.artsAndCrafts ?? null,
+      adventureActivities: camp.adventureActivities ?? null,
+      environmentalActivities: camp.environmentalActivities ?? null,
+      languagePrograms: camp.languagePrograms ?? null,
+      academics: camp.academics ?? null,
+      religionPrograms: camp.religionPrograms ?? null,
+      excursionsTrips: camp.excursionsTrips ?? null,
+      campusFacilities: camp.campusFacilities ?? null,
+      gettingThere: camp.gettingThere ?? null,
     }
   }
 

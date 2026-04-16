@@ -52,6 +52,7 @@ export interface CampUpcomingSession {
 
 export interface CampDetail {
   id: string
+  slug: string
   name: string
   status: AdminCampStatus
   type: CampType
@@ -60,6 +61,8 @@ export interface CampDetail {
   isVerified: boolean
   providerName: string
   providerId: string
+  providerLogoUrl: string | null
+  providerContactEmail: string | null
   providerMemberSince: string
   providerCampsCount: number
   providerAvgRating: number | null
@@ -80,6 +83,43 @@ export interface CampDetail {
   upcomingSessions: CampUpcomingSession[]
   ratingsDistribution: { stars: number; count: number }[]
   totalReviews: number
+  // Camp Details tab: JSON editor fields (optional — null when provider hasn't filled them)
+  languages?: string[]
+
+  campFocusFull?: Record<string, any> | null
+
+  whatsIncluded?: Record<string, any> | null
+
+  meals?: Record<string, any> | null
+
+  accommodation?: Record<string, any> | null
+  scheduleType?: string | null
+
+  dailySchedule?: Record<string, any> | null
+
+  weeklySchedule?: Record<string, any> | null
+
+  sportsActivities?: Record<string, any> | null
+
+  waterActivities?: Record<string, any> | null
+
+  artsAndCrafts?: Record<string, any> | null
+
+  adventureActivities?: Record<string, any> | null
+
+  environmentalActivities?: Record<string, any> | null
+
+  languagePrograms?: Record<string, any> | null
+
+  academics?: Record<string, any> | null
+
+  religionPrograms?: Record<string, any> | null
+
+  excursionsTrips?: Record<string, any> | null
+
+  campusFacilities?: Record<string, any> | null
+
+  gettingThere?: Record<string, any> | null
 }
 
 export interface GetCampsResponse {
