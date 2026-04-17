@@ -179,4 +179,5 @@ export class ApplicationListItemDto {
   contactFirstName: string | null
   contactLastName: string | null
   createdAt: string
+  logoUrl: string | null
 }

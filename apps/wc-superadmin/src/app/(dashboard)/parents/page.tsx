@@ -113,12 +113,16 @@ export default function ParentsPage() {
     clearFilters,
   } = useParentsStore()
 
-  // One-time init
+  // One-time init — stats are fetched globally once and never re-fetched on pagination/filter changes
   useEffect(() => {
     if (!hasInitialized.current) {
       hasInitialized.current = true
-      clearFilters()
       void Promise.all([fetchStats(), fetchParents()])
+    }
+    return () => {
+      // Reset store on unmount so returning users start from a clean state
+      clearFilters()
+      hasInitialized.current = false
     }
   }, [])
 
@@ -175,11 +179,7 @@ export default function ParentsPage() {
         {/* Stats row */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Total Parents" value={stats?.totalParents ?? '—'} />
-          <StatCard
-            label="Children Registered"
-            value={stats?.childrenRegistered ?? '—'}
-            colorClass="text-primary"
-          />
+          <StatCard label="Children Registered" value={stats?.childrenRegistered ?? '—'} />
           <StatCard
             label="Avg Children / Parent"
             value={stats ? stats.avgChildrenPerParent.toFixed(2) : '—'}
@@ -187,7 +187,6 @@ export default function ParentsPage() {
           <StatCard
             label="Repeat Booking Rate"
             value={stats ? `${stats.repeatBookingRate}%` : '—'}
-            colorClass="text-success"
           />
         </div>
 
@@ -294,7 +293,7 @@ export default function ParentsPage() {
                     <TableColumn>TOTAL SPENT</TableColumn>
                     <TableColumn>STATUS</TableColumn>
                     <TableColumn>JOINED</TableColumn>
-                    <TableColumn>ACTIONS</TableColumn>
+                    {/* <TableColumn>ACTIONS</TableColumn> */}
                   </TableHeader>
                   <TableBody items={parents} emptyContent="No parents found">
                     {parent => (
@@ -380,7 +379,7 @@ export default function ParentsPage() {
                         </TableCell>
 
                         {/* Actions cell */}
-                        <TableCell>
+                        {/* <TableCell>
                           <Button
                             isIconOnly
                             size="sm"
@@ -391,7 +390,7 @@ export default function ParentsPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                        </TableCell>
+                        </TableCell> */}
                       </TableRow>
                     )}
                   </TableBody>

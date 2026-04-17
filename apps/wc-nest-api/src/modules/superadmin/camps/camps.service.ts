@@ -3,6 +3,7 @@ import { parse } from 'csv-parse/sync'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { GoogleBusinessService } from '../../provider/onboarding/services/google-business.service'
 import { PhotoUploadService } from '../../provider/camps/services/photo-upload.service'
+import { CampsService } from '../../provider/camps/camps.service'
 import { generateCampSlug, parseCampCsvRow, validateCampCsvRow } from './camps-csv.helpers'
 import { GetCampsQueryDto } from './dto/get-camps-query.dto'
 import { GetCampSessionsQueryDto } from './dto/get-camp-sessions-query.dto'
@@ -28,8 +29,18 @@ export class SuperAdminCampsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly googleBusinessService: GoogleBusinessService,
-    private readonly photoUploadService: PhotoUploadService
+    private readonly photoUploadService: PhotoUploadService,
+    private readonly providerCampsService: CampsService
   ) {}
+
+  async generatePreviewToken(campId: string): Promise<string> {
+    const camp = await this.prisma.camp.findUnique({
+      where: { id: campId },
+      select: { id: true, providerId: true },
+    })
+    if (!camp) throw new NotFoundException('Camp not found')
+    return this.providerCampsService.generatePreviewToken(campId, camp.providerId)
+  }
 
   async findAll(query: GetCampsQueryDto) {
     const page = query.page ?? 1
@@ -73,6 +84,7 @@ export class SuperAdminCampsService {
         where,
         select: {
           id: true,
+          slug: true,
           name: true,
           status: true,
           providerId: true,
@@ -142,6 +154,7 @@ export class SuperAdminCampsService {
 
         return {
           id: camp.id,
+          slug: camp.slug,
           name: camp.name,
           status: camp.status,
           providerName,

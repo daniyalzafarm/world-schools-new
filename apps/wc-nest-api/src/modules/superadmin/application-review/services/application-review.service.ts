@@ -3,6 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter'
 import { PrismaService } from '../../../../prisma/prisma.service'
 import { ConfigService } from '../../../../config/config.service'
 import { TrustScoreService } from '../../../provider/onboarding/services/trust-score.service'
+import { ProviderLogoService } from '../../../provider/onboarding/services/provider-logo.service'
 import { AzureStorageService } from '@world-schools/wc-utils/backend'
 import {
   ApplicationDetailDto,
@@ -25,7 +26,8 @@ export class ApplicationReviewService {
     private readonly configService: ConfigService,
     private readonly trustScoreService: TrustScoreService,
     private readonly applicationNotificationService: ApplicationNotificationService,
-    private readonly eventEmitter: EventEmitter2
+    private readonly eventEmitter: EventEmitter2,
+    private readonly providerLogoService: ProviderLogoService
   ) {
     // Azure Storage Service will be initialized lazily when needed
   }
@@ -110,25 +112,29 @@ export class ApplicationReviewService {
         contactFirstName: true,
         contactLastName: true,
         createdAt: true, // Added for sorting support
+        logoUrl: true,
       },
       orderBy: { [sortBy]: sortOrder },
       skip: (page - 1) * limit,
       take: limit,
     })
 
-    const data: ApplicationListItemDto[] = providers.map(p => ({
-      id: p.id,
-      businessName: p.legalCompanyName || '',
-      email: p.email || '',
-      approvalStatus: p.approvalStatus,
-      trustScore: p.trustScore,
-      onboardingCompletedAt: p.onboardingCompletedAt?.toISOString() || null,
-      submittedAt: p.applicationSubmittedAt?.toISOString() || null,
-      legalCompanyName: p.legalCompanyName,
-      contactFirstName: p.contactFirstName,
-      contactLastName: p.contactLastName,
-      createdAt: p.createdAt.toISOString(),
-    }))
+    const data: ApplicationListItemDto[] = await Promise.all(
+      providers.map(async p => ({
+        id: p.id,
+        businessName: p.legalCompanyName || '',
+        email: p.email || '',
+        approvalStatus: p.approvalStatus,
+        trustScore: p.trustScore,
+        onboardingCompletedAt: p.onboardingCompletedAt?.toISOString() || null,
+        submittedAt: p.applicationSubmittedAt?.toISOString() || null,
+        legalCompanyName: p.legalCompanyName,
+        contactFirstName: p.contactFirstName,
+        contactLastName: p.contactLastName,
+        createdAt: p.createdAt.toISOString(),
+        logoUrl: p.logoUrl ? await this.providerLogoService.generateLogoUrl(p.logoUrl) : null,
+      }))
+    )
 
     return {
       data,

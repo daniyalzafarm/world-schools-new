@@ -19,6 +19,7 @@ export interface CampFilters {
 
 export interface CampSummary {
   id: string
+  slug: string
   name: string
   status: AdminCampStatus
   providerName: string

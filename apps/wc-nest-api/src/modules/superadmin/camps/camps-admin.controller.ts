@@ -32,6 +32,14 @@ export class SuperAdminCampsAdminController {
     return ResponseUtil.success(result)
   }
 
+  @Get(':id/preview-token')
+  @Permissions('camps.read')
+  @ApiOperation({ summary: 'Generate a preview token for a camp (superadmin)' })
+  async generatePreviewToken(@Param('id') id: string) {
+    const token = await this.campsService.generatePreviewToken(id)
+    return ResponseUtil.success({ token })
+  }
+
   @Get(':id')
   @Permissions('camps.read')
   @ApiOperation({ summary: 'Get full camp detail' })

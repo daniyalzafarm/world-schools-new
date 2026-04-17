@@ -38,6 +38,12 @@ export interface ImportSessionsResult {
 }
 
 export const providersService = {
+  async getList(): Promise<{ id: string; legalCompanyName: string }[]> {
+    const response =
+      await apiClient.get<{ id: string; legalCompanyName: string }[]>('/superadmin/providers')
+    return (response.data as { id: string; legalCompanyName: string }[]) ?? []
+  },
+
   async getDetail(id: string): Promise<ProviderDetail> {
     const response = await apiClient.get<ProviderDetail>(`/superadmin/providers/${id}/detail`)
     return response.data as ProviderDetail

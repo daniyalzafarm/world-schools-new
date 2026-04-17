@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
+  addToast,
   Button,
   Card,
   CardBody,
@@ -28,11 +29,13 @@ import {
   Star,
   Upload,
 } from 'lucide-react'
+import { campsService } from '@/services/camps.services'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { PageSlot } from '@/components/layout/page-slot'
 import { useProvidersStore } from '@/stores/providers-store'
 import type { ApprovalStatus } from '@/types/application-review'
 import type { ProviderCampSummary, ProviderDetail, ProviderRecentBooking } from '@/types/providers'
+import config from '@/config/config'
 
 const getStatusColor = (status: ApprovalStatus) => {
   switch (status) {
@@ -178,9 +181,21 @@ export default function ProviderDetailPage() {
           <CardBody className="p-6">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
               {/* Avatar */}
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-white">
-                {getInitials(detail.legalCompanyName ?? detail.businessName)}
-              </div>
+              {detail.logoUrl ? (
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-default-200 bg-white overflow-hidden">
+                  <img
+                    src={detail.logoUrl}
+                    alt="Provider logo"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center shrink-0">
+                  <span className="text-white text-xl font-semibold">
+                    {getInitials(detail.legalCompanyName ?? detail.businessName)}
+                  </span>
+                </div>
+              )}
 
               {/* Main info */}
               <div className="flex-1 space-y-3">
@@ -214,7 +229,7 @@ export default function ProviderDetailPage() {
                       href={detail.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-primary hover:underline"
+                      className="flex items-center gap-1 text-primary-600 hover:underline"
                     >
                       <ExternalLink className="h-4 w-4" /> {detail.website}
                     </a>
@@ -222,7 +237,7 @@ export default function ProviderDetailPage() {
                 </div>
 
                 {detail.description && (
-                  <p className="text-sm text-default-600 max-w-2xl">{detail.description}</p>
+                  <p className="text-sm text-default-600">{detail.description}</p>
                 )}
 
                 {/* Quick stats */}
@@ -386,7 +401,10 @@ function ContactInfoCard({ detail }: { detail: ProviderDetail }) {
           )}
           {detail.contactEmail && (
             <InfoRow label="Email">
-              <a href={`mailto:${detail.contactEmail}`} className="text-primary hover:underline">
+              <a
+                href={`mailto:${detail.contactEmail}`}
+                className="text-primary-600 hover:underline"
+              >
                 {detail.contactEmail}
               </a>
             </InfoRow>
@@ -399,7 +417,7 @@ function ContactInfoCard({ detail }: { detail: ProviderDetail }) {
                 href={detail.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline"
+                className="text-primary-600 hover:underline"
               >
                 {detail.website}
               </a>
@@ -415,6 +433,19 @@ function ContactInfoCard({ detail }: { detail: ProviderDetail }) {
 function CampsCard({ camps, providerId }: { camps: ProviderCampSummary[]; providerId?: string }) {
   const router = useRouter()
 
+  const handleViewCamp = async (camp: ProviderCampSummary) => {
+    try {
+      let url = `${config.app.bookingAppUrl}/camps/${camp.slug}`
+      if (camp.status === 'draft') {
+        const token = await campsService.generatePreviewToken(camp.id)
+        url += `?preview=${token}`
+      }
+      window.open(url, '_blank')
+    } catch {
+      addToast({ title: 'Error', description: 'Failed to open camp preview.', color: 'danger' })
+    }
+  }
+
   return (
     <Card shadow="none" className="border border-default-200">
       <CardBody className="p-4 space-y-3">
@@ -426,7 +457,13 @@ function CampsCard({ camps, providerId }: { camps: ProviderCampSummary[]; provid
                 <Building className="h-5 w-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-foreground truncate">{camp.name}</div>
+                <div
+                  className="font-medium text-foreground hover:text-foreground-600 truncate cursor-pointer underline"
+                  onClick={() => handleViewCamp(camp)}
+                >
+                  {camp.name}
+                </div>
+
                 <div className="text-xs text-default-400 capitalize">{camp.type}</div>
               </div>
               <div className="flex items-center gap-4 shrink-0 text-center text-sm">
@@ -451,7 +488,12 @@ function CampsCard({ camps, providerId }: { camps: ProviderCampSummary[]; provid
                   <div className="font-semibold text-foreground">{camp._count.bookingGroups}</div>
                   <div className="text-xs text-default-400">Bookings</div>
                 </div>
-                <Chip size="sm" color={getCampStatusColor(camp.status)} variant="flat">
+                <Chip
+                  size="sm"
+                  color={getCampStatusColor(camp.status)}
+                  className="capitalize"
+                  variant="flat"
+                >
                   {camp.status}
                 </Chip>
               </div>
@@ -608,20 +650,22 @@ function VerificationDocsCard({
           {documents.map(doc => (
             <div
               key={doc.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-default-100 p-2"
+              className="flex w-full items-center justify-between gap-3 rounded-lg border border-default-100 p-2"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-4/6">
                 <FileText className="h-4 w-4 shrink-0 text-default-400" />
-                <div>
-                  <div className="text-sm font-medium">{doc.fileName}</div>
-                  <div className="text-xs text-default-400">{formatDocType(doc.documentType)}</div>
+                <div className="truncate">
+                  <div className="text-sm font-medium truncate">{doc.fileName}</div>
+                  <div className="text-xs text-default-400 truncate">
+                    {formatDocType(doc.documentType)}
+                  </div>
                 </div>
               </div>
               <Chip
                 size="sm"
                 color={getDocReviewStatusColor(doc.reviewStatus)}
                 variant="flat"
-                className="shrink-0"
+                className="shrink-0 capitalize"
               >
                 {doc.reviewStatus}
               </Chip>
@@ -638,7 +682,7 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
   return (
     <div className="flex justify-between gap-4">
       <span className="text-default-500 shrink-0">{label}</span>
-      <span className="text-foreground text-right">{children}</span>
+      <span className="text-foreground text-right w-4/6">{children}</span>
     </div>
   )
 }

@@ -121,26 +121,10 @@ const NAV_ITEMS: NavItem[] = [
     permission: 'parents.read',
   },
   {
-    name: 'Users',
-    href: '/users',
-    icon: <User size={20} />,
+    name: 'Activity Catalogue',
+    href: '/catalogue',
+    icon: <FolderOpen size={20} />,
     type: 'regular',
-    permission: 'users.read',
-  },
-  {
-    name: 'Roles',
-    href: '/roles',
-    icon: <ShieldCheck size={20} />,
-    type: 'regular',
-    permission: 'roles.read',
-  },
-  {
-    name: 'Notifications',
-    href: '/notifications',
-    icon: <Bell size={20} />,
-    badge: 2,
-    type: 'regular',
-    // No permission required - available to all authenticated users
   },
   {
     name: 'Knowledge Base',
@@ -165,10 +149,26 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    name: 'Activity Catalogue',
-    href: '/catalogue',
-    icon: <FolderOpen size={20} />,
+    name: 'Users',
+    href: '/users',
+    icon: <User size={20} />,
     type: 'regular',
+    permission: 'users.read',
+  },
+  {
+    name: 'Roles',
+    href: '/roles',
+    icon: <ShieldCheck size={20} />,
+    type: 'regular',
+    permission: 'roles.read',
+  },
+  {
+    name: 'Notifications',
+    href: '/notifications',
+    icon: <Bell size={20} />,
+    badge: 2,
+    type: 'regular',
+    // No permission required - available to all authenticated users
   },
   {
     name: 'Help',

@@ -335,9 +335,21 @@ export function AllProvidersView() {
                   <TableRow key={app.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white">
-                          {getInitials(app.businessName)}
-                        </div>
+                        {app.logoUrl ? (
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-default-200 bg-white overflow-hidden">
+                            <img
+                              src={app.logoUrl}
+                              alt="Provider logo"
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center shrink-0">
+                            <span className="text-white text-sm font-semibold">
+                              {getInitials(app.businessName)}
+                            </span>
+                          </div>
+                        )}
                         <div>
                           <div className="font-semibold">{app.businessName}</div>
                           {app.legalCompanyName && (
@@ -381,17 +393,19 @@ export function AllProvidersView() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="light"
-                          color="primary"
-                          aria-label="Login as provider"
-                          isLoading={impersonatingId === app.id}
-                          onPress={() => void handleImpersonate(app)}
-                        >
-                          <LogIn className="h-4 w-4" />
-                        </Button>
+                        {app.approvalStatus === 'approved' && (
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="light"
+                            color="primary"
+                            aria-label="Login as provider"
+                            isLoading={impersonatingId === app.id}
+                            onPress={() => void handleImpersonate(app)}
+                          >
+                            <LogIn className="h-4 w-4 text-primary-600" />
+                          </Button>
+                        )}
                         {activeTab === 'pending-review' && (
                           <Button
                             isIconOnly

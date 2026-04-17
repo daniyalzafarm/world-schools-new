@@ -77,4 +77,9 @@ export const campsService = {
     )
     return response.data as PaginatedCampSubResponse<CampReviewItem>
   },
+
+  async generatePreviewToken(id: string): Promise<string> {
+    const response = await apiClient.get<{ token: string }>(`${CAMPS_ENDPOINT}/${id}/preview-token`)
+    return (response.data as any).token
+  },
 }

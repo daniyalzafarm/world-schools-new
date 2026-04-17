@@ -275,7 +275,6 @@ export default function CampsPage() {
 
         {/* Stats Section */}
         <div>
-          <h2 className="mb-2 text-lg font-bold text-slate-900 dark:text-white">Overview</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card className="border border-slate-200 dark:border-slate-800">
               <CardBody className="p-6">
@@ -466,20 +465,17 @@ export default function CampsPage() {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6 p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {displayedCamps.map(camp => (
-                  <Card
-                    key={camp.id}
-                    className="group cursor-pointer overflow-hidden border border-slate-200 transition-all hover:-translate-y-1 hover:shadow-xl dark:border-slate-800"
-                  >
+                  <Card key={camp.id} className="overflow-hidden border border-slate-200">
                     <CardBody className="p-0">
                       {/* Camp Image */}
-                      <div className="relative aspect-video w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                      <div className="relative h-40 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
                         {getCampImage(camp) ? (
                           <img
                             src={getCampImage(camp)!}
                             alt={camp.name}
-                            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                            className="h-full w-full object-cover"
                           />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900">
@@ -507,7 +503,7 @@ export default function CampsPage() {
                         <div className="mb-4 flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
                           <div className="flex items-center gap-1.5">
                             <MapPin className="h-4 w-4" />
-                            <span>{getLocationText(camp)}</span>
+                            <span className="truncate">{getLocationText(camp)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <Users className="h-4 w-4" />
@@ -517,7 +513,7 @@ export default function CampsPage() {
 
                         {/* Camp Stats or Progress */}
                         {camp.status === 'published' ? (
-                          <div className="grid grid-cols-3 gap-4 border-t border-slate-200 pt-4 dark:border-slate-800">
+                          <div className="h-16 grid grid-cols-3 gap-4 border-t border-slate-200 pt-4 dark:border-slate-800">
                             <div className="text-center">
                               <div className="text-xl font-bold text-slate-900 dark:text-white">
                                 0
@@ -544,7 +540,7 @@ export default function CampsPage() {
                             </div>
                           </div>
                         ) : camp.status === 'draft' ? (
-                          <div className="border-t border-slate-200 pt-4 dark:border-slate-800">
+                          <div className="h-16 border-t border-slate-200 pt-4 dark:border-slate-800">
                             <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
                               <div
                                 className="h-full rounded-full bg-primary transition-all"
@@ -562,9 +558,8 @@ export default function CampsPage() {
                         {/* Action Buttons */}
                         <div className="mt-4 flex gap-2">
                           <Button
-                            isIconOnly
                             color="primary"
-                            className="flex-1"
+                            fullWidth
                             size="sm"
                             onPress={() => handleEditCamp(camp.id)}
                             aria-label={isIncomplete(camp) ? 'Complete camp setup' : 'Edit camp'}
@@ -573,9 +568,8 @@ export default function CampsPage() {
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
-                            isIconOnly
                             variant="bordered"
-                            className="flex-1"
+                            fullWidth
                             size="sm"
                             onPress={() => handleViewCamp(camp)}
                             aria-label="View camp preview"
@@ -585,10 +579,9 @@ export default function CampsPage() {
                           </Button>
                           {camp.status !== 'published' && (
                             <Button
-                              isIconOnly
-                              variant="bordered"
+                              variant="flat"
                               color="danger"
-                              className="flex-1"
+                              fullWidth
                               size="sm"
                               onPress={() => handleDeleteCamp(camp.id, camp.name)}
                               aria-label="Delete camp"

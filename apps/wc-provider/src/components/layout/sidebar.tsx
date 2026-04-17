@@ -542,19 +542,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
               </Tooltip>
             ) : (
               <div className="p-4 pl-6 flex items-center gap-2 cursor-pointer  whitespace-nowrap overflow-hidden">
-                <div className="w-8 h-8 rounded-full border border-default-200 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
-                  {providerLogoUrl ? (
+                {providerLogoUrl ? (
+                  <div className="w-8 h-8 rounded-full border border-default-200 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
                     <img
                       src={providerLogoUrl}
                       alt="Provider logo"
                       className="w-full h-full object-contain"
                     />
-                  ) : (
-                    <span className="text-xs font-semibold text-gray-400 dark:text-gray-500">
-                      {providerInitials}
-                    </span>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center shrink-0">
+                    <span className="text-white text-sm font-semibold">{providerInitials}</span>
+                  </div>
+                )}
                 <span className="text-lg font-medium tracking-tight text-secondary text-nowrap truncate">
                   {providerName.split(' ').slice(0, 2).join(' ')}
                 </span>

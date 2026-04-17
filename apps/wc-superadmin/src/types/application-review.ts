@@ -26,6 +26,7 @@ export interface ApplicationListItem {
   onboardingStartedAt?: string
   onboardingCompletedAt?: string | null
   createdAt: string
+  logoUrl?: string | null
 }
 
 export interface GoogleBusinessProfile {

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  addToast,
   Button,
   Card,
   CardBody,
@@ -23,6 +24,9 @@ import { Eye, FilterX, LayoutGrid, LayoutList, MapPin, Search, Star, Tent } from
 import { Input, PageSlot, SelectField, useDebounce } from '@world-schools/ui-web'
 import { useCampsStore } from '@/stores/camps-store'
 import { CampCard } from '@/components/camps/camp-card'
+import { campsService } from '@/services/camps.services'
+import { providersService } from '@/services/providers.services'
+import config from '@/config/config'
 import type { AdminCampStatus } from '@/types/camps'
 
 const statusColorMap: Record<AdminCampStatus, ChipProps['color']> = {
@@ -50,10 +54,10 @@ interface StatCardProps {
 
 function StatCard({ label, value, colorClass = 'text-foreground' }: StatCardProps) {
   return (
-    <Card shadow="sm" className="border border-default-200">
-      <CardBody className="p-5">
+    <Card className="border border-default-200">
+      <CardBody className="p-6">
+        <div className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-400">{label}</div>
         <div className={`text-3xl font-bold ${colorClass}`}>{value}</div>
-        <div className="mt-1 text-sm text-default-500">{label}</div>
       </CardBody>
     </Card>
   )
@@ -78,6 +82,7 @@ export default function CampsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchInput, setSearchInput] = useState('')
+  const [providerOptions, setProviderOptions] = useState<{ value: string; label: string }[]>([])
   const hasInitialized = useRef(false)
 
   const debouncedSearch = useDebounce(searchInput, 500)
@@ -94,16 +99,26 @@ export default function CampsPage() {
     setPage,
     setLimit,
     setFilters,
-    clearFilters,
   } = useCampsStore()
 
   // One-time init: fetch stats + camps
   useEffect(() => {
     if (!hasInitialized.current) {
       hasInitialized.current = true
-      clearFilters()
       void Promise.all([fetchStats(), fetchCamps()])
     }
+  }, [])
+
+  // Fetch filter option data (providers) once on mount
+  useEffect(() => {
+    void (async () => {
+      try {
+        const providers = await providersService.getList()
+        setProviderOptions(providers.map(p => ({ value: p.id, label: p.legalCompanyName })))
+      } catch {
+        // Non-critical — dropdown remains empty if fetch fails
+      }
+    })()
   }, [])
 
   // Debounced search → update store filters
@@ -126,16 +141,27 @@ export default function CampsPage() {
 
   const handleClearFilters = () => {
     setSearchInput('')
-    setActiveTab('all')
-    clearFilters()
+    setFilters({ search: undefined, providerId: undefined })
   }
 
-  const hasActiveFilters =
-    searchInput !== '' ||
-    filters.status !== undefined ||
-    !!filters.providerId ||
-    !!filters.category ||
-    !!filters.country
+  const handleViewOnBookingApp = async (
+    e: React.MouseEvent,
+    camp: { id: string; slug: string; status: string }
+  ) => {
+    e.stopPropagation()
+    try {
+      let url = `${config.app.bookingAppUrl}/camps/${camp.slug}`
+      if (camp.status === 'draft') {
+        const token = await campsService.generatePreviewToken(camp.id)
+        url += `?preview=${token}`
+      }
+      window.open(url, '_blank')
+    } catch {
+      addToast({ title: 'Error', description: 'Failed to open camp preview.', color: 'danger' })
+    }
+  }
+
+  const hasActiveFilters = searchInput !== '' || !!filters.providerId
 
   const showingFrom = Math.min((pagination.page - 1) * pagination.limit + 1, pagination.total)
   const showingTo = Math.min(pagination.page * pagination.limit, pagination.total)
@@ -163,13 +189,9 @@ export default function CampsPage() {
         {/* Stats row */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Total Camps" value={stats?.totalCamps ?? '—'} />
-          <StatCard label="Published" value={stats?.published ?? '—'} colorClass="text-success" />
+          <StatCard label="Published" value={stats?.published ?? '—'} />
           <StatCard label="Draft" value={stats?.draft ?? '—'} />
-          <StatCard
-            label="Pending Review"
-            value={stats?.pendingReview ?? '—'}
-            colorClass="text-warning"
-          />
+          <StatCard label="Pending Review" value={stats?.pendingReview ?? '—'} />
         </div>
 
         {/* Main card */}
@@ -259,23 +281,7 @@ export default function CampsPage() {
                 className="w-44 shrink-0"
                 value={filters.providerId ?? ''}
                 onChange={val => setFilters({ providerId: val || undefined })}
-                options={[{ value: '', label: 'All Providers' }]}
-              />
-              <SelectField
-                aria-label="Category filter"
-                placeholder="All Categories"
-                className="w-44 shrink-0"
-                value={filters.category ?? ''}
-                onChange={val => setFilters({ category: val || undefined })}
-                options={[{ value: '', label: 'All Categories' }]}
-              />
-              <SelectField
-                aria-label="Country filter"
-                placeholder="All Countries"
-                className="w-44 shrink-0"
-                value={filters.country ?? ''}
-                onChange={val => setFilters({ country: val || undefined })}
-                options={[{ value: '', label: 'All Countries' }]}
+                options={[{ value: '', label: 'All Providers' }, ...providerOptions]}
               />
               {hasActiveFilters && (
                 <Button
@@ -360,7 +366,10 @@ export default function CampsPage() {
                               )}
                             </div>
                             <div className="min-w-0">
-                              <div className="truncate font-medium text-foreground">
+                              <div
+                                className="truncate font-medium text-foreground hover:text-foreground-600 cursor-pointer underline"
+                                onClick={e => handleViewOnBookingApp(e, camp)}
+                              >
                                 {camp.name}
                               </div>
                               <div className="truncate text-xs text-default-400">

@@ -8,6 +8,7 @@ import { RedisService } from '../../redis/redis.service'
 import { ConfigService } from '../../../config/config.service'
 import { EmailTemplateService } from '../../common/email-templates/email-template.service'
 import { GoogleBusinessService } from '../../provider/onboarding/services/google-business.service'
+import { ProviderLogoService } from '../../provider/onboarding/services/provider-logo.service'
 import { CreateProviderDto } from './dto/create-provider.dto'
 import { UpdateProviderDto } from './dto/update-provider.dto'
 import { parseProviderCsvRow, validateProviderCsvRow } from './providers-csv.helpers'
@@ -34,7 +35,8 @@ export class SuperAdminProvidersService {
     private readonly configService: ConfigService,
     private readonly emailTemplateService: EmailTemplateService,
     private readonly emailService: EmailService,
-    private readonly googleBusinessService: GoogleBusinessService
+    private readonly googleBusinessService: GoogleBusinessService,
+    private readonly providerLogoService: ProviderLogoService
   ) {}
 
   async create(createProviderDto: CreateProviderDto) {
@@ -232,8 +234,13 @@ export class SuperAdminProvidersService {
       }),
     ])
 
+    const logoUrl = provider.logoUrl
+      ? await this.providerLogoService.generateLogoUrl(provider.logoUrl)
+      : null
+
     return {
       ...provider,
+      logoUrl,
       stats: {
         activeCampsCount: provider.camps.filter(c => c.status === 'published').length,
         totalSessionsCount: provider.camps.reduce((acc, c) => acc + c._count.sessions, 0),

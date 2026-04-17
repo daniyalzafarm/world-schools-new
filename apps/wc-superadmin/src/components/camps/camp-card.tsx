@@ -1,8 +1,10 @@
 'use client'
 
-import { Button, Card, CardBody, Chip, type ChipProps } from '@heroui/react'
+import { addToast, Button, Card, CardBody, Chip, type ChipProps } from '@heroui/react'
 import { Eye, MapPin, Tent } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { campsService } from '@/services/camps.services'
+import config from '@/config/config'
 import type { AdminCampStatus, CampSummary } from '@/types/camps'
 
 const getCampStatusColor = (status: AdminCampStatus): ChipProps['color'] => {
@@ -36,6 +38,20 @@ export function CampCard({ camp }: CampCardProps) {
 
   const handleView = () => router.push(`/camps/${camp.id}`)
 
+  const handleViewOnBookingApp = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      let url = `${config.app.bookingAppUrl}/camps/${camp.slug}`
+      if (camp.status === 'draft') {
+        const token = await campsService.generatePreviewToken(camp.id)
+        url += `?preview=${token}`
+      }
+      window.open(url, '_blank')
+    } catch {
+      addToast({ title: 'Error', description: 'Failed to open camp preview.', color: 'danger' })
+    }
+  }
+
   return (
     <div className="cursor-pointer" onClick={handleView} role="article">
       <Card
@@ -67,7 +83,12 @@ export function CampCard({ camp }: CampCardProps) {
           {/* Card content */}
           <div className="space-y-2 p-4">
             <p className="truncate text-xs text-default-500">{camp.providerName}</p>
-            <h3 className="truncate font-semibold text-foreground">{camp.name}</h3>
+            <h3
+              className="truncate font-semibold text-foreground hover:text-foreground-600 cursor-pointer underline"
+              onClick={handleViewOnBookingApp}
+            >
+              {camp.name}
+            </h3>
             {camp.location && (
               <div className="flex items-center gap-1 text-xs text-default-400">
                 <MapPin className="h-3 w-3 shrink-0" />

@@ -2,6 +2,7 @@ import type { ApprovalStatus, ProviderSettings, VerificationDocument } from './a
 
 export interface ProviderCampSummary {
   id: string
+  slug: string
   name: string
   type: string
   status: string
@@ -47,6 +48,7 @@ export interface ProviderDetail {
   id: string
   businessName: string
   legalCompanyName: string | null
+  logoUrl: string | null
   email: string | null
   phone: string | null
   website: string | null
