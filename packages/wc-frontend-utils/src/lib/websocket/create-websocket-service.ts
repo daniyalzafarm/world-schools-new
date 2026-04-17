@@ -128,6 +128,16 @@ export function createGlobalWebSocketService(
         return
       }
 
+      // Clean up any non-connected socket (e.g. from React 18 StrictMode double-effect
+      // invocation) before creating a new one.  Without this, both the orphaned socket
+      // and the new socket end up connected, and the server broadcasts message:new to
+      // both, doubling (or more) every unread-count increment.
+      if (socket) {
+        log('Disconnecting non-connected socket before reconnecting')
+        socket.disconnect()
+        socket = null
+      }
+
       const token = getAuthToken()
 
       // For cookie-based auth (withCredentials), token may be null

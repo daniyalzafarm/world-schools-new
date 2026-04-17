@@ -681,10 +681,14 @@ export class MessagesService {
     }
 
     // Determine sort order:
-    // - Initial load (no cursor): ascending order (oldest first) for natural chat UX
+    // - Initial load (no cursor): descending order (newest first) so the client always
+    //   sees the most recent messages on first render. The client reverses the array
+    //   before display so the visual order remains oldest-at-top.
+    //   nextCursor points to the oldest message in the batch — fetchMoreMessages then
+    //   uses direction:'before' to load even older history (scroll-up pagination).
     // - Pagination with cursor: use direction parameter
     const isInitialLoad = !cursor
-    const sortOrder = isInitialLoad ? 'asc' : direction === 'before' ? 'desc' : 'asc'
+    const sortOrder = isInitialLoad ? 'desc' : direction === 'before' ? 'desc' : 'asc'
 
     // Cursor-based pagination using composite index
     if (cursor) {

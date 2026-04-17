@@ -141,6 +141,12 @@ export function createMessagingStore(config: MessagingStoreConfig) {
   // login/logout cycles (each cycle would otherwise double the handler count).
   const wsUnsubscribers: Array<() => void> = []
 
+  // Synchronous guard that prevents a second concurrent call to initialize() from
+  // racing past the Zustand isInitialized check (which is committed only after all
+  // listener registrations complete).  A closure boolean is visible immediately to
+  // any concurrent synchronous caller, unlike the async Zustand state update.
+  let isInitializing = false
+
   const ensureJoined = (conversationId: string) => {
     if (!conversationId) return
     if (!featureFlags.WEBSOCKET_MESSAGES) return
@@ -199,6 +205,11 @@ export function createMessagingStore(config: MessagingStoreConfig) {
           log('Already initialized, skipping')
           return
         }
+        if (isInitializing) {
+          log('Initialization already in progress, skipping')
+          return
+        }
+        isInitializing = true
 
         log('Initializing messaging store...')
 
@@ -508,12 +519,22 @@ export function createMessagingStore(config: MessagingStoreConfig) {
           // user's participant in the affected conversation, regardless of whether
           // WEBSOCKET_MESSAGES is enabled. This keeps the per-conversation badge
           // accurate in real-time without a full API refetch.
+
+          // Deduplication set scoped to this initialize() call.
+          // The backend (redis-pub-sub.service.ts) emits message:new to BOTH the
+          // user's personal room (`user:${id}`) AND the conversation room
+          // (`conversation:${id}`).  A participant who has joined the conversation
+          // room therefore receives the event twice per message.  The content
+          // handler already deduplicates by message ID; this Set applies the same
+          // guard to the badge counter so each message only increments unreadCount once.
+          const processedForUnread = new Set<string>()
+
           wsUnsubscribers.push(
             messagingWebSocket.onMessageNew(
               (data: { message: MessageResponseDto; tempId?: string }) => {
                 const currentUserId = getCurrentUserId?.() ?? null
                 const { activeConversationId } = get()
-                const { conversationId, senderId } = data.message
+                const { conversationId, senderId, id: messageId } = data.message
 
                 // Only update unread count for incoming messages on non-active conversations
                 if (
@@ -522,6 +543,16 @@ export function createMessagingStore(config: MessagingStoreConfig) {
                   conversationId === activeConversationId
                 ) {
                   return
+                }
+
+                // Deduplicate: skip if this message was already counted
+                // (backend sends message:new to both user room and conversation room)
+                if (processedForUnread.has(messageId)) return
+                processedForUnread.add(messageId)
+                // Bound the set to prevent memory growth in long-lived sessions
+                if (processedForUnread.size > 500) {
+                  const entries = Array.from(processedForUnread)
+                  entries.slice(0, 250).forEach(id => processedForUnread.delete(id))
                 }
 
                 log(
@@ -595,6 +626,8 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             draft.isInitialized = true
             draft.conversationsError = error.message || 'Failed to initialize messaging'
           })
+        } finally {
+          isInitializing = false
         }
       },
 
@@ -605,6 +638,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
         // This prevents listener accumulation across login/logout cycles.
         wsUnsubscribers.forEach(unsub => unsub())
         wsUnsubscribers.length = 0
+        isInitializing = false
 
         // Leave any rooms we joined
         if (featureFlags.WEBSOCKET_MESSAGES && messagingWebSocket.isConnected()) {
@@ -786,6 +820,28 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             log('WebSocket connected, ensuring joined conversation:', conversationId)
             ensureJoined(conversationId)
           }
+
+          // Immediately zero the unread badge in local state so the UI responds
+          // without waiting for a round-trip.
+          const currentUserId = getCurrentUserId?.() ?? null
+          if (currentUserId) {
+            set(draft => {
+              const conversation = draft.conversations.find(c => c.id === conversationId)
+              if (conversation) {
+                const participant = conversation.participants?.find(p => p.userId === currentUserId)
+                if (participant && (participant.unreadCount ?? 0) > 0) {
+                  participant.unreadCount = 0
+                }
+              }
+            })
+          }
+
+          // Persist the reset to the database so the count stays 0 after a page
+          // refresh.  Fire-and-forget: a failure here is non-critical (the count
+          // will self-correct on the next fetchConversations call).
+          void conversationsService.markAllAsRead(conversationId).catch(err => {
+            logError('Failed to mark conversation as read on activate:', conversationId, err)
+          })
         }
 
         // Note: message fetching is handled by the page-level useEffect with an AbortController
@@ -849,7 +905,11 @@ export function createMessagingStore(config: MessagingStoreConfig) {
 
           // Backend returns PaginatedMessagesResponseDto: { data: messages[], nextCursor, hasMore }
           const paginatedResponse = response.data
-          const messages = Array.isArray(paginatedResponse.data) ? paginatedResponse.data : []
+          // Server returns newest-first (DESC) for the initial load so the client always
+          // sees the most recent messages. Reverse here for oldest-at-top display order.
+          const messages = Array.isArray(paginatedResponse.data)
+            ? [...paginatedResponse.data].reverse()
+            : []
 
           set(draft => {
             draft.messages[conversationId] = messages
