@@ -26,6 +26,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { eventBus } from '@world-schools/wc-utils'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useUnreadMessagesCount } from '@/hooks/use-unread-messages-count'
+import { onboardingService } from '@/services/onboarding.services'
 
 // Custom hook for sidebar expansion state management
 const useSidebarExpansion = (onToggleCollapse: () => void) => {
@@ -159,6 +160,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   const { user } = useAuthStore()
   const { hasPermission } = usePermissions()
   const unreadCount = useUnreadMessagesCount()
+  const [providerLogoUrl, setProviderLogoUrl] = React.useState<string | null>(null)
+  const [providerName, setProviderName] = React.useState<string>('My Business')
+
+  React.useEffect(() => {
+    void Promise.all([
+      onboardingService.getProviderLogo(),
+      onboardingService.getGoogleBusinessProfile(),
+    ]).then(([logoResult, profileResult]) => {
+      if (logoResult.success) setProviderLogoUrl(logoResult.data?.logoUrl ?? null)
+      if (profileResult.success && profileResult.data) {
+        setProviderName(
+          profileResult.data.legalInfo?.legalCompanyName ?? profileResult.data.businessName ?? null
+        )
+      }
+    })
+  }, [])
+
+  const providerInitials = providerName
+    .split(' ')
+    .map(w => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
 
   // Collapsed state is managed locally within the sidebar
   const [isCollapsed, setIsCollapsed] = React.useState(false) // Start expanded
@@ -495,10 +519,53 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
             onClick={isManuallyExpanded || isHovered ? handleClickableAreaClick : undefined}
           />
 
+          {/* Provider Profile Card */}
+          <div
+            className="cursor-pointer border-t hover:bg-default-100 border-default-200 dark:border-gray-700 shadow-[0_-24px_16px_-2px_rgba(249,249,249,0.8)] dark:shadow-[0_-24px_16px_-2px_rgba(17,24,39,0.8)]"
+            onClick={() => router.push('/account/business/company-details')}
+          >
+            {isCollapsed ? (
+              <Tooltip content={providerName} placement="right" delay={500} closeDelay={0}>
+                <div className="m-4 w-8 h-8 mx-auto rounded-full border border-default-200 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
+                  {providerLogoUrl ? (
+                    <img
+                      src={providerLogoUrl}
+                      alt="Provider logo"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-xs font-semibold text-gray-400 dark:text-gray-500">
+                      {providerInitials}
+                    </span>
+                  )}
+                </div>
+              </Tooltip>
+            ) : (
+              <div className="p-4 pl-6 flex items-center gap-2 cursor-pointer  whitespace-nowrap overflow-hidden">
+                <div className="w-8 h-8 rounded-full border border-default-200 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
+                  {providerLogoUrl ? (
+                    <img
+                      src={providerLogoUrl}
+                      alt="Provider logo"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-xs font-semibold text-gray-400 dark:text-gray-500">
+                      {providerInitials}
+                    </span>
+                  )}
+                </div>
+                <span className="text-lg font-medium tracking-tight text-secondary text-nowrap truncate">
+                  {providerName.split(' ').slice(0, 2).join(' ')}
+                </span>
+              </div>
+            )}
+          </div>
+
           {/* User Section */}
           <div
             ref={userSectionRef}
-            className="p-4 border-t border-default-200 dark:border-gray-700 shadow-[0_-24px_16px_-2px_rgba(249,249,249,0.8)] dark:shadow-[0_-24px_16px_-2px_rgba(17,24,39,0.8)]"
+            className="p-4 border-t border-default-200 dark:border-gray-700"
           >
             <div
               className={cn(
@@ -508,7 +575,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
             >
               <div
                 className={cn(
-                  'cursor-pointer flex items-center gap-3 hover:bg-default-100 dark:hover:bg-gray-800/50 rounded-lg p-2',
+                  'cursor-pointer flex items-center gap-2 hover:bg-default-100 dark:hover:bg-gray-800/50 rounded-lg p-2',
                   !isCollapsed && 'flex-1 min-w-0'
                 )}
                 onClick={() => {
@@ -524,7 +591,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                     <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
                       {userFullName}
                     </p>
-                    <p className="text-sm text-secondary truncate">Provider</p>
+                    <p className="text-xs text-secondary truncate">{user?.email}</p>
                   </div>
                 )}
               </div>

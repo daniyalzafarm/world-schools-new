@@ -15,11 +15,8 @@ import {
   Headphones,
   HelpCircle,
   House,
-  Inbox,
   LayoutGrid,
   List,
-  MessageCircle,
-  MessageCircleWarning,
   Notebook,
   ShieldCheck,
   Tent,
@@ -31,7 +28,6 @@ import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
 import { useApplicationReviewStore } from '@/stores/application-review-store'
 import { eventBus } from '@world-schools/wc-utils'
-import config from '@/config/config'
 import { usePermissions } from '@/hooks/use-permissions'
 import { supportTicketsService } from '@/services/support-tickets.services'
 
@@ -572,7 +568,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
             >
               <div
                 className={cn(
-                  'cursor-pointer flex items-center gap-3 hover:bg-default-100 dark:hover:bg-gray-800/50 rounded-lg p-2',
+                  'cursor-pointer flex items-center gap-2 hover:bg-default-100 dark:hover:bg-gray-800/50 rounded-lg p-2',
                   !isCollapsed && 'w-5/6'
                 )}
                 onClick={() => {
@@ -588,7 +584,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                     <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
                       {userFullName}
                     </p>
-                    <p className="text-sm text-secondary truncate">World Camps HQ</p>
+                    <p className="text-xs text-secondary truncate">{user?.email}</p>
                   </div>
                 )}
               </div>
