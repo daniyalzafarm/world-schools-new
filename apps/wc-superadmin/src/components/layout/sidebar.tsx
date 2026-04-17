@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Tent,
   User,
+  Users,
 } from 'lucide-react'
 import { cn } from '@world-schools/ui-web'
 
@@ -111,6 +112,13 @@ const NAV_ITEMS: NavItem[] = [
     icon: <Tent size={20} />,
     type: 'regular',
     permission: 'camps.read',
+  },
+  {
+    name: 'Parents',
+    href: '/parents',
+    icon: <Users size={20} />,
+    type: 'regular',
+    permission: 'parents.read',
   },
   {
     name: 'Users',

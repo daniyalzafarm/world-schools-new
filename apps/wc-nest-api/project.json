@@ -54,7 +54,8 @@
       },
       "configurations": {
         "development": {
-          "buildTarget": "wc-nest-api:build:development"
+          "buildTarget": "wc-nest-api:build:development",
+          "watch": true
         },
         "production": {
           "buildTarget": "wc-nest-api:build:production"

@@ -138,6 +138,11 @@ const supportTicketsPermissions: PermissionGroup = {
   ],
 }
 
+const parentsPermissions: PermissionGroup = {
+  name: 'Parents',
+  permissions: [{ id: 'parents.read', name: 'Read parents' }],
+}
+
 // Context-based main groups
 export const superadminContext: PermissionContext = {
   name: 'SuperAdmin',
@@ -153,6 +158,7 @@ export const superadminContext: PermissionContext = {
     kbCategoriesPermissions,
     kbArticlesPermissions,
     supportTicketsPermissions,
+    parentsPermissions,
   ],
 }
 
