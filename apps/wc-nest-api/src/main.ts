@@ -28,6 +28,25 @@ async function bootstrap() {
   const trustProxyConfig = configService.trustProxyConfig
   app.set('trust proxy', trustProxyConfig)
 
+  // Enable CORS before all other middleware so that the Access-Control-* headers
+  // (including Access-Control-Expose-Headers) are added to EVERY response, including
+  // 4xx responses emitted by middleware below (e.g. the CSRF 403). Without this,
+  // cross-origin JS cannot read custom headers like X-CSRF-Token from error responses.
+  app.enableCors({
+    origin: configService.corsOrigins, // Use environment-based origin whitelist
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'x-access-token',
+      'x-refresh-token',
+      'x-csrf-token',
+    ],
+    credentials: true,
+    exposedHeaders: ['x-access-token', 'x-refresh-token', 'x-csrf-token'],
+  })
+
   // Enable cookie parsing
   app.use(cookieParser())
 
@@ -56,8 +75,9 @@ async function bootstrap() {
 
       if (SAFE_METHODS.has(req.method)) {
         // Refresh the CSRF cookie if absent (first visit or after cookie expiry)
-        if (!req.cookies[CSRF_COOKIE]) {
-          const token = crypto.randomBytes(32).toString('hex')
+        let token = req.cookies[CSRF_COOKIE]
+        if (!token) {
+          token = crypto.randomBytes(32).toString('hex')
           res.cookie(CSRF_COOKIE, token, {
             httpOnly: false, // Must be readable by JS so the client can echo it as a header
             secure: isProduction,
@@ -66,6 +86,10 @@ async function bootstrap() {
             maxAge: 24 * 60 * 60 * 1000, // 24 h — prevents 403 on first POST after browser reopen
           })
         }
+        // Expose the token via response header so cross-origin JS can read it.
+        // document.cookie only sees cookies for the current page origin, so the
+        // cookie set on the API domain is invisible to frontend JS on a different domain.
+        res.setHeader('X-CSRF-Token', token)
         return next()
       }
 
@@ -74,6 +98,14 @@ async function bootstrap() {
       const headerToken = req.headers['x-csrf-token'] as string | undefined
 
       if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+        // Echo the cookie token back as a header on the 403 so the frontend can
+        // recover without an extra round-trip: the error interceptor reads it,
+        // stores it in memory, and retries the request automatically.
+        // CORS headers are already present (registered first), so cross-origin
+        // JS is allowed to read this header.
+        if (cookieToken) {
+          res.setHeader('X-CSRF-Token', cookieToken)
+        }
         res.status(403).json({
           success: false,
           message: 'Invalid or missing CSRF token',
@@ -118,22 +150,6 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     })
   )
-
-  // Enable CORS with environment-based origin whitelist
-  app.enableCors({
-    origin: configService.corsOrigins, // Use environment-based origin whitelist
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'Accept',
-      'x-access-token',
-      'x-refresh-token',
-      'x-csrf-token',
-    ],
-    credentials: true,
-    exposedHeaders: ['x-access-token', 'x-refresh-token'],
-  })
 
   // Apply global response interceptor and exception filter
   app.useGlobalInterceptors(new ResponseInterceptor())

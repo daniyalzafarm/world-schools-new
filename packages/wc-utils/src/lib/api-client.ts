@@ -154,9 +154,16 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     failedQueue = []
   }
 
-  // Read the CSRF double-submit cookie set by the server on GET requests.
-  // Only relevant in cookie-based auth (production) — not needed in AUTH_USING_REQUEST mode.
-  const getCsrfCookie = (): string | null => {
+  // In-memory store for the CSRF token captured from response headers.
+  // Needed because document.cookie can only read cookies scoped to the current page origin —
+  // the csrf-token cookie set by the API server on a different domain is invisible to frontend JS.
+  let csrfTokenMemory: string | null = null
+
+  // Returns the CSRF token for the double-submit check.
+  // Prefers the in-memory value captured from response headers (cross-origin safe),
+  // then falls back to document.cookie (works only in same-origin / proxied setups).
+  const getCsrfToken = (): string | null => {
+    if (csrfTokenMemory) return csrfTokenMemory
     if (typeof document === 'undefined') return null
     const match = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/)
     return match ? decodeURIComponent(match[1]) : null
@@ -176,7 +183,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       if (!config.usingRequest) {
         const method = (axiosConfig.method || 'get').toUpperCase()
         if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
-          const csrfToken = getCsrfCookie()
+          const csrfToken = getCsrfToken()
           if (csrfToken) {
             axiosConfig.headers['x-csrf-token'] = csrfToken
           }
@@ -194,6 +201,14 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
   // Response interceptor for token refresh and token extraction
   api.interceptors.response.use(
     (response: AxiosResponse) => {
+      // Capture CSRF token exposed by the server on safe (GET/HEAD/OPTIONS) requests.
+      // The server echoes it as X-CSRF-Token so cross-origin JS can read it, since
+      // document.cookie cannot access cookies scoped to a different domain.
+      const newCsrfToken = response.headers['x-csrf-token']
+      if (newCsrfToken) {
+        csrfTokenMemory = newCsrfToken
+      }
+
       // Extract tokens from headers if authUsingRequest is enabled
       if (config.usingRequest) {
         const newAccessToken = response.headers['x-access-token']
@@ -208,6 +223,30 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     },
     async error => {
       const originalRequest = error.config
+
+      // Capture CSRF token from ALL error responses (e.g. 401 from JWT guard, 403 from CSRF
+      // middleware). The server echoes the correct token in X-CSRF-Token even on error paths so
+      // that the client can recover — CORS is registered first on the server so this header is
+      // readable cross-origin on any status code.
+      const csrfFromError = error.response?.headers?.['x-csrf-token']
+      if (csrfFromError) {
+        csrfTokenMemory = csrfFromError
+      }
+
+      // One-shot CSRF retry: if a mutation failed because the CSRF header was missing or stale
+      // (bootstrap race — POST fired before any GET response populated csrfTokenMemory), the
+      // server now returns the correct token in X-CSRF-Token on the 403. Re-attach it and retry.
+      if (
+        !config.usingRequest &&
+        error.response?.status === 403 &&
+        error.response?.data?.message === 'Invalid or missing CSRF token' &&
+        !originalRequest._csrfRetry &&
+        csrfTokenMemory
+      ) {
+        originalRequest._csrfRetry = true
+        originalRequest.headers['x-csrf-token'] = csrfTokenMemory
+        return api(originalRequest)
+      }
 
       // Prevent infinite loop and exclude login/refresh endpoints from auto-refresh
       // Login endpoint should return 400 for invalid credentials, but we exclude it as a safeguard
