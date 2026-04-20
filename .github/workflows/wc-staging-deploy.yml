@@ -5,8 +5,14 @@ on:
     tags:
       - "wc-v*.*.*"
 
+permissions:
+  contents: read
+
+concurrency:
+  group: wc-staging-deploy
+  cancel-in-progress: false
+
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   AZURE_RESOURCE_GROUP: rg-wc-staging-ch-north
   AZURE_LOCATION: switzerlandnorth
   ACR_NAME: acrwc
@@ -19,6 +25,7 @@ jobs:
   extract-version:
     name: Extract Version
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.extract.outputs.version }}
     steps:
@@ -36,6 +43,7 @@ jobs:
   build-and-deploy-api:
     name: Build & Deploy API
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: extract-version
 
     steps:
@@ -47,6 +55,9 @@ jobs:
 
       - run: az acr login --name ${{ env.ACR_NAME }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Buildx cache
         uses: actions/cache@v4
         with:
@@ -57,16 +68,19 @@ jobs:
 
       - name: Build & Push API Image
         run: |
-          docker buildx create --use --name builder || docker buildx use builder
-
           docker buildx build \
             --build-arg VERSION=${{ needs.extract-version.outputs.version }} \
             -t ${{ env.ACR_NAME }}.azurecr.io/wc-nest-api:${{ needs.extract-version.outputs.version }} \
             -f apps/wc-nest-api/Dockerfile \
             --cache-from type=local,src=/tmp/.buildx-cache \
-            --cache-to type=local,dest=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
             --push \
             .
+
+      - name: Rotate build cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       - name: Parse API secrets
         id: api-secrets
@@ -146,6 +160,7 @@ jobs:
   verify-api-health:
     name: Verify API Health
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [extract-version, build-and-deploy-api]
 
     steps:
@@ -154,16 +169,13 @@ jobs:
           echo "⏳ Waiting for API to be ready..."
           sleep 30  # Give Container App time to restart
 
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_STAGING }}
+
       - name: Get API URL
         id: api-url
         run: |
-          # Login to Azure
-          az login --service-principal \
-            -u ${{ fromJson(secrets.AZURE_CREDENTIALS_STAGING).clientId }} \
-            -p ${{ fromJson(secrets.AZURE_CREDENTIALS_STAGING).clientSecret }} \
-            --tenant ${{ fromJson(secrets.AZURE_CREDENTIALS_STAGING).tenantId }}
-
-          # Get the API URL
           API_FQDN=$(az containerapp show \
             --name ${{ env.API_CONTAINER_APP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
@@ -234,6 +246,7 @@ jobs:
   build-and-deploy-frontends:
     name: Build & Deploy Frontend Apps
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     needs: [extract-version, verify-api-health]  # ✅ Wait for backend to be healthy
 
     strategy:
@@ -267,6 +280,9 @@ jobs:
 
       - run: az acr login --name ${{ env.ACR_NAME }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Buildx cache
         uses: actions/cache@v4
         with:
@@ -290,16 +306,19 @@ jobs:
       # ------------------------------
       - name: Build & Push Docker Image
         run: |
-          docker buildx create --use --name builder || docker buildx use builder
-
           docker buildx build \
             --build-arg BUILD_ENV="${{ steps.build-env.outputs.env }}" \
             -t ${{ env.ACR_NAME }}.azurecr.io/wc-${{ matrix.app.id }}:${{ needs.extract-version.outputs.version }} \
             -f ${{ matrix.app.dockerfile }} \
             --cache-from type=local,src=/tmp/.buildx-cache \
-            --cache-to type=local,dest=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
             --push \
             .
+
+      - name: Rotate build cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       # ------------------------------
       # Runtime ENV

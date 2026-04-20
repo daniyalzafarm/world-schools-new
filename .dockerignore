@@ -45,6 +45,7 @@ build
 .nx
 **/.nx
 .nx/cache
+.nx/workspace-data
 
 # ============================================
 # Testing
@@ -78,7 +79,6 @@ jest.config.ts
 *.swp
 *.swo
 *~
-.DS_Store
 *.sublime-project
 *.sublime-workspace
 .project
@@ -114,16 +114,6 @@ LICENSE
 CODE_OF_CONDUCT.md
 
 # ============================================
-# CI/CD Configuration
-# ============================================
-.github
-.gitlab-ci.yml
-.travis.yml
-.circleci
-azure-pipelines.yml
-Jenkinsfile
-
-# ============================================
 # Logs
 # ============================================
 logs
@@ -153,24 +143,21 @@ Thumbs.db
 desktop.ini
 
 # ============================================
-# Nx Specific
-# ============================================
-.nx/cache
-.nx/workspace-data
-
-# ============================================
 # TypeScript
 # ============================================
 *.tsbuildinfo
 .tsbuildinfo
 
 # ============================================
-# ESLint
+# ESLint / Prettier
 # ============================================
 .eslintcache
-
-# ============================================
-# Prettier
-# ============================================
 .prettierignore
 
+# ============================================
+# Tooling Config (not needed in build context)
+# ============================================
+Dockerfile
+**/Dockerfile
+vitest.config.*
+vitest.workspace.*

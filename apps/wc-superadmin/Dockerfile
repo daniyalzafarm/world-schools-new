@@ -11,13 +11,16 @@ COPY nx.json ./
 COPY tsconfig.base.json ./
 
 # Install dependencies
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
 # Build the application
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Accept space-separated environment variables as a single build arg
 # Format: "KEY1=value1 KEY2=value2 KEY3=value3"
@@ -54,9 +57,10 @@ FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser --system --uid 1001 nextjs
 
 # Copy the standalone build
 COPY --from=builder --chown=nextjs:nodejs /app/apps/wc-superadmin/.next/standalone ./
@@ -69,5 +73,8 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget -qO- http://localhost:3000/ > /dev/null || exit 1
 
 CMD ["node", "apps/wc-superadmin/server.js"]

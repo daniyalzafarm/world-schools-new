@@ -81,7 +81,8 @@
     "uuid": "^13.0.0",
     "world-countries": "^5.1.0",
     "yet-another-react-lightbox": "^3.28.0",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "prisma": "^7.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.14.5",
@@ -148,7 +149,6 @@
     "nx": "22.5.1",
     "postcss": "8.4.38",
     "prettier": "^3.6.2",
-    "prisma": "^7.1.0",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.0",
     "ts-node": "10.9.1",
