@@ -2,8 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { addToast, Alert, Button, Chip, Spinner, Tab, Tabs } from '@heroui/react'
+import { addToast, Alert, Button, Chip, Pagination, Spinner, Tab, Tabs } from '@heroui/react'
 import { useConfirmDialog } from '@world-schools/ui-web'
+import {
+  PARENT_BOOKING_TABS,
+  type ParentBookingGroupsListMeta,
+  type ParentBookingTab,
+} from '@world-schools/wc-types'
 import { bookingGroupsService } from '@/services/booking-groups.services'
 import {
   ageFromDateOfBirth,
@@ -12,22 +17,23 @@ import {
   progressPercent,
   statusBadgeClass,
   statusLabel,
-  UPCOMING_STATUSES,
 } from '@world-schools/wc-frontend-utils'
 import type { ParentBookingGroupSummary } from '@/types/camp-booking'
 import Link from 'next/link'
 import { Trash2 } from 'lucide-react'
 
-type BookingsTab = 'upcoming' | 'quotes' | 'past' | 'cancelled'
+const PAGE_SIZE = 10
+const DEFAULT_TAB: ParentBookingTab = 'upcoming'
 
-function filterByTab(
-  items: ParentBookingGroupSummary[],
-  tab: BookingsTab
-): ParentBookingGroupSummary[] {
-  if (tab === 'past') return items.filter(i => i.status === 'completed')
-  if (tab === 'cancelled') return items.filter(i => i.status === 'cancelled')
-  if (tab === 'quotes') return []
-  return items.filter(i => UPCOMING_STATUSES.includes(i.status))
+const EMPTY_TAB_COUNTS: ParentBookingGroupsListMeta['tabCounts'] = {
+  drafts: 0,
+  upcoming: 0,
+  past: 0,
+  cancelled: 0,
+}
+
+function isValidTab(value: string | null): value is ParentBookingTab {
+  return value != null && (PARENT_BOOKING_TABS as readonly string[]).includes(value)
 }
 
 function BookingCard({
@@ -200,61 +206,120 @@ function BookingCard({
 export default function BookingsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [items, setItems] = useState<ParentBookingGroupSummary[] | null>(null)
+
+  const rawTab = searchParams.get('tab')
+  const tab: ParentBookingTab = isValidTab(rawTab) ? rawTab : DEFAULT_TAB
+  const rawPage = Number(searchParams.get('page'))
+  const page = Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1
+
+  const [items, setItems] = useState<ParentBookingGroupSummary[]>([])
+  const [meta, setMeta] = useState<ParentBookingGroupsListMeta>({
+    page: 1,
+    limit: PAGE_SIZE,
+    total: 0,
+    totalPages: 0,
+    tabCounts: EMPTY_TAB_COUNTS,
+  })
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<BookingsTab>('upcoming')
   const [showSubmittedBanner, setShowSubmittedBanner] = useState(false)
 
   useEffect(() => {
     if (searchParams.get('submitted') === '1') {
       setShowSubmittedBanner(true)
-      router.replace('/bookings', { scroll: false })
+      const next = new URLSearchParams(searchParams.toString())
+      next.delete('submitted')
+      const q = next.toString()
+      router.replace(q ? `/bookings?${q}` : '/bookings', { scroll: false })
     }
   }, [searchParams, router])
+
+  useEffect(() => {
+    if (rawTab != null && !isValidTab(rawTab)) {
+      router.replace('/bookings', { scroll: false })
+    }
+  }, [rawTab, router])
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const res = await bookingGroupsService.list()
+    const res = await bookingGroupsService.list({ tab, page, limit: PAGE_SIZE })
     if (res.success && res.data) {
-      setItems(res.data)
+      setItems(Array.isArray(res.data) ? res.data : [])
+      const responseMeta = (res as unknown as { meta?: ParentBookingGroupsListMeta }).meta
+      if (responseMeta) {
+        setMeta(responseMeta)
+        if (responseMeta.totalPages > 0 && page > responseMeta.totalPages) {
+          const params = new URLSearchParams()
+          if (tab !== DEFAULT_TAB) params.set('tab', tab)
+          params.set('page', String(responseMeta.totalPages))
+          router.replace(`/bookings?${params.toString()}`, { scroll: false })
+        }
+      }
     } else {
-      setError((res.data as { message?: string })?.message ?? 'Could not load bookings.')
       setItems([])
+      setError((res.data as { message?: string })?.message ?? 'Could not load bookings.')
     }
     setLoading(false)
-  }, [])
+  }, [tab, page, router])
 
   useEffect(() => {
     void load()
   }, [load])
 
-  const filtered = useMemo(() => {
-    if (!items) return []
-    return filterByTab(items, tab)
-  }, [items, tab])
+  const setTab = useCallback(
+    (nextTab: ParentBookingTab) => {
+      if (nextTab === tab) return
+      const params = new URLSearchParams()
+      if (nextTab !== DEFAULT_TAB) params.set('tab', nextTab)
+      const q = params.toString()
+      router.replace(q ? `/bookings?${q}` : '/bookings', { scroll: false })
+    },
+    [router, tab]
+  )
 
-  const counts = useMemo(() => {
-    if (!items) return { upcoming: 0, past: 0, cancelled: 0, quotes: 0 }
-    return {
-      upcoming: filterByTab(items, 'upcoming').length,
-      past: filterByTab(items, 'past').length,
-      cancelled: filterByTab(items, 'cancelled').length,
-      quotes: 0,
-    }
-  }, [items])
+  const setPage = useCallback(
+    (nextPage: number) => {
+      if (nextPage === page) return
+      const params = new URLSearchParams()
+      if (tab !== DEFAULT_TAB) params.set('tab', tab)
+      if (nextPage > 1) params.set('page', String(nextPage))
+      const q = params.toString()
+      router.replace(q ? `/bookings?${q}` : '/bookings', { scroll: false })
+    },
+    [router, tab, page]
+  )
 
   const subtitle = useMemo(() => {
-    if (!items || items.length === 0) return 'View and manage your camp bookings'
-    const upcoming = filterByTab(items, 'upcoming')
-    const names = new Set<string>()
-    upcoming.forEach(g => g.children.forEach(c => names.add(c.firstName)))
-    const namePart = names.size
-      ? ` for ${[...names].slice(0, 3).join(', ')}${names.size > 3 ? '…' : ''}`
-      : ''
-    return `${upcoming.length} upcoming booking${upcoming.length === 1 ? '' : 's'}${namePart}`
-  }, [items])
+    const upcomingCount = meta.tabCounts.upcoming
+    if (upcomingCount === 0) return 'View and manage your camp bookings'
+    return `${upcomingCount} upcoming booking${upcomingCount === 1 ? '' : 's'}`
+  }, [meta.tabCounts.upcoming])
+
+  const emptyCopy = useMemo(() => {
+    switch (tab) {
+      case 'drafts':
+        return {
+          title: 'No draft bookings',
+          body: 'Incomplete bookings you start will appear here until you submit them.',
+        }
+      case 'past':
+        return {
+          title: 'No past bookings',
+          body: 'Bookings you complete will show up here.',
+        }
+      case 'cancelled':
+        return {
+          title: 'No cancelled bookings',
+          body: 'Bookings you cancel will show up here.',
+        }
+      default:
+        return {
+          title: 'No upcoming bookings',
+          body: 'Explore camps and start a booking request.',
+        }
+    }
+  }, [tab])
 
   return (
     <div className="space-y-8">
@@ -291,7 +356,7 @@ export default function BookingsPage() {
       <Tabs
         aria-label="Booking categories"
         selectedKey={tab}
-        onSelectionChange={key => setTab(key as BookingsTab)}
+        onSelectionChange={key => setTab(key as ParentBookingTab)}
         variant="underlined"
         classNames={{
           base: 'w-full border-b border-divider',
@@ -304,9 +369,22 @@ export default function BookingsPage() {
           title={
             <span className="flex items-center gap-1.5">
               Upcoming
-              {counts.upcoming > 0 ? (
+              {meta.tabCounts.upcoming > 0 ? (
                 <Chip size="sm" color="secondary">
-                  {counts.upcoming}
+                  {meta.tabCounts.upcoming}
+                </Chip>
+              ) : null}
+            </span>
+          }
+        />
+        <Tab
+          key="drafts"
+          title={
+            <span className="flex items-center gap-1.5">
+              Drafts
+              {meta.tabCounts.drafts > 0 ? (
+                <Chip size="sm" color="secondary">
+                  {meta.tabCounts.drafts}
                 </Chip>
               ) : null}
             </span>
@@ -317,9 +395,9 @@ export default function BookingsPage() {
           title={
             <span className="flex items-center gap-1.5">
               Past
-              {counts.past > 0 ? (
+              {meta.tabCounts.past > 0 ? (
                 <Chip size="sm" color="secondary">
-                  {counts.past}
+                  {meta.tabCounts.past}
                 </Chip>
               ) : null}
             </span>
@@ -330,9 +408,9 @@ export default function BookingsPage() {
           title={
             <span className="flex items-center gap-1.5">
               Cancelled
-              {counts.cancelled > 0 ? (
+              {meta.tabCounts.cancelled > 0 ? (
                 <Chip size="sm" color="secondary">
-                  {counts.cancelled}
+                  {meta.tabCounts.cancelled}
                 </Chip>
               ) : null}
             </span>
@@ -344,38 +422,29 @@ export default function BookingsPage() {
         <div className="flex justify-center py-20">
           <Spinner size="lg" color="primary" label="Loading bookings" />
         </div>
-      ) : tab === 'quotes' ? (
-        <div className="rounded-2xl border border-dashed border-default-300 bg-default-50 px-6 py-16 text-center">
-          <p className="text-lg font-medium text-secondary">No quotes or offers yet</p>
-          <p className="mt-2 text-sm text-default-600">
-            When camps send you personalized quotes, they will appear here.
-          </p>
-        </div>
-      ) : filtered.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="rounded-2xl border border-default-200 bg-default-50 px-6 py-16 text-center">
-          <p className="text-lg font-medium text-secondary">
-            {tab === 'upcoming'
-              ? 'No upcoming bookings'
-              : tab === 'past'
-                ? 'No past bookings'
-                : 'No cancelled bookings'}
-          </p>
-          <p className="mt-2 text-sm text-default-600">
-            {tab === 'upcoming'
-              ? 'Explore camps and start a booking request.'
-              : 'Bookings you complete or cancel will show in these tabs.'}
-          </p>
-          {tab === 'upcoming' ? (
-            <Button as={Link} href="/camps" color="primary" className="mt-6">
-              Explore camps
-            </Button>
-          ) : null}
+          <p className="text-lg font-medium text-secondary">{emptyCopy.title}</p>
+          <p className="mt-2 text-sm text-default-600">{emptyCopy.body}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {filtered.map(row => (
+          {items.map(row => (
             <BookingCard key={row.id} row={row} onDraftDeleted={load} />
           ))}
+          {meta.totalPages > 1 ? (
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-sm text-default-500">
+                Showing {items.length} of {meta.total}
+              </span>
+              <Pagination
+                total={meta.totalPages}
+                page={meta.page}
+                onChange={setPage}
+                showControls
+              />
+            </div>
+          ) : null}
         </div>
       )}
     </div>

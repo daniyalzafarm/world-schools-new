@@ -6,6 +6,7 @@ import { Roles } from '../../core/auth/decorators/roles.decorator'
 import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
 import { BookingGroupsService } from '../../booking-groups/booking-groups.service'
 import { CreateDraftBookingGroupDto } from './dto/create-draft-booking-group.dto'
+import { QueryParentBookingGroupsDto } from './dto/query-parent-booking-groups.dto'
 import { SaveBookingGroupAddOnsDto } from './dto/save-booking-group-addons.dto'
 import { UpdateDraftBookingGroupDto } from './dto/update-draft-booking-group.dto'
 
@@ -40,9 +41,9 @@ export class UserBookingGroupsController {
 
   @Get()
   @ApiOperation({ summary: 'List booking groups for the current parent' })
-  async list(@CurrentUser() user: any) {
-    const result = await this.bookingGroupsService.listForParent(user.id)
-    return ResponseUtil.success(result)
+  async list(@CurrentUser() user: any, @Query() query: QueryParentBookingGroupsDto) {
+    const { data, meta } = await this.bookingGroupsService.listForParent(user.id, query)
+    return ResponseUtil.success(data, meta)
   }
 
   @Get(':id')

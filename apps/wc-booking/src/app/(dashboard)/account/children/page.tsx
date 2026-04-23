@@ -3,11 +3,13 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Alert, Button, Chip, Spinner } from '@heroui/react'
-import { AlertCircle, Info, Plus } from 'lucide-react'
+import { AlertCircle, Info, Plus, X } from 'lucide-react'
 import { BackButton } from '@world-schools/ui-web'
 import { type Child, getChildAge, getChildDisplayName } from '@/types/child'
 import { useChildrenStore } from '@/stores/children-store'
 import { AddChildModal } from '@/components/modals/add-child-modal'
+
+const INFO_BANNER_DISMISSED_KEY = 'wc_booking_children_info_banner_dismissed'
 
 // Helper function to get avatar initial from child name
 function getAvatarInitial(child: Child): string {
@@ -71,6 +73,7 @@ function getMockStats(_child: Child) {
 export default function ChildrenPage() {
   const router = useRouter()
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [showInfoBanner, setShowInfoBanner] = useState(false)
 
   // Get children from store
   const { children, isLoading, error, fetchChildren, clearError } = useChildrenStore()
@@ -82,6 +85,13 @@ export default function ChildrenPage() {
     })
   }, [])
 
+  // Default to hidden so SSR/first paint never flashes a dismissed banner.
+  useEffect(() => {
+    if (localStorage.getItem(INFO_BANNER_DISMISSED_KEY) !== 'true') {
+      setShowInfoBanner(true)
+    }
+  }, [])
+
   const handleAddChild = () => {
     setIsModalOpen(true)
   }
@@ -89,6 +99,32 @@ export default function ChildrenPage() {
   const handleEditChild = (childId: string) => {
     router.push(`/account/children/${childId}`)
   }
+
+  const handleDismissInfoBanner = () => {
+    setShowInfoBanner(false)
+    localStorage.setItem(INFO_BANNER_DISMISSED_KEY, 'true')
+  }
+
+  const infoBanner = showInfoBanner && (
+    <div className="flex gap-3 p-4 bg-primary-50 dark:bg-primary-900/20 rounded-xl mt-10">
+      <Info className="w-5 h-5 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
+      <p className="flex-1 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+        Child profiles help camps prepare for your child's needs and personalize recommendations.
+        Information like allergies and dietary requirements are shared with camps when you book.
+      </p>
+      <Button
+        isIconOnly
+        onPress={handleDismissInfoBanner}
+        aria-label="Dismiss"
+        size="sm"
+        variant="flat"
+        radius="full"
+        color="primary"
+      >
+        <X className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+      </Button>
+    </div>
+  )
 
   return (
     <>
@@ -260,15 +296,7 @@ export default function ChildrenPage() {
             </button>
           </div>
 
-          {/* Info Note */}
-          <div className="flex gap-3 p-4 bg-primary-50 dark:bg-primary-900/20 rounded-xl mt-10">
-            <Info className="w-5 h-5 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-              Child profiles help camps prepare for your child's needs and personalize
-              recommendations. Information like allergies and dietary requirements are shared with
-              camps when you book.
-            </p>
-          </div>
+          {infoBanner}
         </>
       )}
 
@@ -284,15 +312,7 @@ export default function ChildrenPage() {
             Add a child
           </button>
 
-          {/* Info Note */}
-          <div className="flex gap-3 p-4 bg-primary-50 dark:bg-primary-900/20 rounded-xl mt-10">
-            <Info className="w-5 h-5 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-              Child profiles help camps prepare for your child's needs and personalize
-              recommendations. Information like allergies and dietary requirements are shared with
-              camps when you book.
-            </p>
-          </div>
+          {infoBanner}
         </>
       )}
 

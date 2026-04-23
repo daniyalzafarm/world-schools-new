@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { Button, Progress } from '@heroui/react'
 import { ArrowLeft, ChevronLeft, ShieldCheck, X } from 'lucide-react'
 import { ProtectedRoute } from '@/components/auth/protected-route'
@@ -9,6 +9,7 @@ import { Logo } from '@/components/layout/logo'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
 
 const steps = ['sessions', 'children', 'addons', 'review-and-pay'] as const
+type Step = (typeof steps)[number]
 
 function CampBookingStepsBar() {
   const currentStep = useCampBookingStore(state => state.currentStep)
@@ -37,6 +38,24 @@ function CampBookingStepsBar() {
 
 export default function CampBookingLayout({ children }: { children: ReactNode }) {
   const router = useRouter()
+  const params = useParams()
+  const campSlug = typeof params.campSlug === 'string' ? params.campSlug : ''
+  const currentStep = useCampBookingStore(state => state.currentStep)
+  const setStep = useCampBookingStore(state => state.setStep)
+
+  const goToPreviousStep = () => {
+    const index = steps.indexOf(currentStep as Step)
+    if (index > 0) {
+      setStep(steps[index - 1])
+      return
+    }
+    router.back()
+  }
+
+  const exitToCampProfile = () => {
+    if (campSlug) router.push(`/camps/${campSlug}`)
+    else router.back()
+  }
 
   return (
     <ProtectedRoute requireAuth requireParentRole>
@@ -69,7 +88,7 @@ export default function CampBookingLayout({ children }: { children: ReactNode })
                 variant="light"
                 radius="sm"
                 aria-label="Back"
-                onPress={() => router.back()}
+                onPress={goToPreviousStep}
               >
                 <ArrowLeft size={18} />
               </Button>
@@ -82,7 +101,7 @@ export default function CampBookingLayout({ children }: { children: ReactNode })
                 variant="light"
                 radius="sm"
                 aria-label="Close"
-                onPress={() => router.back()}
+                onPress={exitToCampProfile}
               >
                 <X size={18} />
               </Button>

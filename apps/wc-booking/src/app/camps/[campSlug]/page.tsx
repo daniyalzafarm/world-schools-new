@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import {
   CAMPUS_SETTING,
   CAMPUS_SIZE,
+  extractCityFromAddress,
   PREDEFINED_FACILITIES,
 } from '@world-schools/wc-frontend-utils'
 import { Button } from '@heroui/react'
@@ -76,13 +77,15 @@ export default function CampPage() {
   const [campReviews, setCampReviews] = useState<CampReviewsData | null>(null)
   const [innerNavReplacesTopbar, setInnerNavReplacesTopbar] = useState(false)
 
+  // Depend on the primitive preview token, not the full `searchParams` object —
+  // the reference can change unexpectedly and re-trigger the fetch.
+  const previewToken = searchParams.get('preview') || ''
   useEffect(() => {
     if (!campSlug) return
     const fetchCamp = async () => {
       try {
         setIsLoading(true)
-        const previewToken = searchParams.get('preview') || undefined
-        const campData = await getCampBySlug(campSlug, previewToken)
+        const campData = await getCampBySlug(campSlug, previewToken || undefined)
         setCamp(campData)
       } catch (err: any) {
         console.error('Failed to fetch camp:', err)
@@ -92,7 +95,7 @@ export default function CampPage() {
       }
     }
     fetchCamp().catch(console.error)
-  }, [campSlug, searchParams])
+  }, [campSlug, previewToken])
 
   // Fetch add-ons after camp loads
   useEffect(() => {
@@ -104,6 +107,22 @@ export default function CampPage() {
       })
       .catch(() => {})
   }, [camp?.id])
+
+  // Auto-select when there's exactly one reservable session (published + not sold out).
+  useEffect(() => {
+    if (!camp) return
+    const reservable = (camp.sessions ?? []).filter(s => {
+      if (s.status !== 'published') return false
+      const spotsLeft =
+        s.totalSpots != null && s.bookedCount != null
+          ? s.totalSpots - s.bookedCount
+          : (s.totalSpots ?? null)
+      return !(spotsLeft !== null && spotsLeft <= 0)
+    })
+    if (reservable.length === 1) {
+      setSelectedSession(reservable[0])
+    }
+  }, [camp])
 
   // Fetch camp reviews after camp loads (used in header + reviews section)
   useEffect(() => {
@@ -202,12 +221,7 @@ export default function CampPage() {
   const campLabel = [camp.type, primaryActivity?.name?.toLowerCase(), 'camp']
     .filter(Boolean)
     .join(' ')
-  const locationParts =
-    camp.locationAddress
-      ?.split(',')
-      .map((p: string) => p.trim())
-      .filter(Boolean) ?? []
-  const locationLabel = locationParts.at(-2) ?? locationParts.at(-1) ?? ''
+  const locationLabel = extractCityFromAddress(camp.locationAddress)
   const descriptiveH2 = locationLabel
     ? `${campLabel.charAt(0).toUpperCase()}${campLabel.slice(1)} in ${locationLabel}`
     : `${campLabel.charAt(0).toUpperCase()}${campLabel.slice(1)}`
@@ -795,7 +809,6 @@ export default function CampPage() {
             sessions={activeSessions}
             currency={currency}
             selectedSession={selectedSession}
-            onSessionSelect={setSelectedSession}
             onOpenSessionsModal={() => setIsSessionsModalOpen(true)}
           />
         </div>

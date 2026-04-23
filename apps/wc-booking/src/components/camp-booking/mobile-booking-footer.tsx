@@ -7,6 +7,7 @@ import { useCampBookingStore } from '@/stores/camp-booking-store'
 import { formatCurrency } from '@/utils/currency'
 import type { Session } from '@/types/sessions'
 import { getSelectedChildrenSubtotal } from '@/components/camp-booking/booking-flow-pricing'
+import { calcExtrasTotal } from '@/utils/addon-pricing'
 
 function getSessionPrice(session: Session | null | undefined) {
   if (!session) return 0
@@ -72,6 +73,8 @@ export function MobileBookingFooter() {
   const camp = useCampBookingStore(state => state.camp)
   const children = useCampBookingStore(state => state.children)
   const selectedChildIds = useCampBookingStore(state => state.selectedChildIds)
+  const addOns = useCampBookingStore(state => state.addOns)
+  const addOnSelectionsById = useCampBookingStore(state => state.addOnSelectionsById)
 
   const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
   const setStep = useCampBookingStore(state => state.setStep)
@@ -131,13 +134,21 @@ export function MobileBookingFooter() {
     (currentStep === 'children' && selectedChildIds.length === 0) ||
     (currentStep === 'review-and-pay' && hasSubmitted)
 
+  const extrasCount = Object.keys(addOnSelectionsById).length
+  const extrasTotal = useMemo(
+    () => calcExtrasTotal(addOns, addOnSelectionsById),
+    [addOns, addOnSelectionsById]
+  )
+
   const label =
     currentStep === 'sessions'
       ? 'Continue'
       : currentStep === 'children'
         ? 'Continue'
         : currentStep === 'addons'
-          ? 'Continue'
+          ? extrasCount === 0
+            ? 'No thanks'
+            : `Add ${extrasCount} extra${extrasCount === 1 ? '' : 's'} · ${formatCurrency(extrasTotal, currency)}`
           : 'Request to book'
 
   return (

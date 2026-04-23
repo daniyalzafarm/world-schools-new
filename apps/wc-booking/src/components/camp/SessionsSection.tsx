@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import type { Session } from '@/types/sessions'
 import type { AgeGroup, CampType, SessionType } from '@/types/camps'
 import { formatCurrency } from '@/utils/currency'
@@ -186,6 +187,7 @@ export function SessionsSection({
                 campAgeLabel={campAgeLabel}
                 campType={campType}
                 campSlug={campSlug}
+                selected={selectedSession?.id === session.id}
               />
             </div>
           </div>
@@ -268,6 +270,7 @@ function SessionCard({
   campAgeLabel,
   campType,
   campSlug,
+  selected,
 }: {
   session: Session
   currency: string
@@ -275,6 +278,7 @@ function SessionCard({
   campAgeLabel: string | null
   campType: CampType
   campSlug: string
+  selected?: boolean
 }) {
   const {
     durationLabel,
@@ -288,21 +292,19 @@ function SessionCard({
     formattedPrice,
   } = getSessionCardData(session, currency, campAgeGroups, campAgeLabel, campType)
 
-  const Wrapper = isSoldOut ? 'div' : 'a'
-  const wrapperProps = isSoldOut ? {} : { href: `/camps/${campSlug}/book?sessionId=${session.id}` }
+  const className = [
+    'no-underline border-2 rounded-xl px-4 py-4 transition-all flex items-center gap-4',
+    isSoldOut
+      ? 'opacity-40 cursor-not-allowed pointer-events-none border-gray-200 bg-white'
+      : selected
+        ? 'border-gray-900 bg-gray-50 shadow-sm cursor-pointer'
+        : isFewSpots
+          ? 'bg-white border-amber-800/30 hover:border-gray-400 hover:bg-gray-50 hover:shadow-sm cursor-pointer'
+          : 'bg-white border-gray-200 hover:border-gray-400 hover:bg-gray-50 hover:shadow-sm cursor-pointer',
+  ].join(' ')
 
-  return (
-    <Wrapper
-      {...(wrapperProps as any)}
-      className={[
-        'no-underline border-2 rounded-xl px-4 py-4 bg-white transition-all flex items-center gap-4',
-        isSoldOut
-          ? 'opacity-40 cursor-not-allowed pointer-events-none border-gray-200'
-          : isFewSpots
-            ? 'border-amber-800/30 hover:border-gray-400 hover:bg-gray-50 hover:shadow-sm cursor-pointer'
-            : 'border-gray-200 hover:border-gray-400 hover:bg-gray-50 hover:shadow-sm cursor-pointer',
-      ].join(' ')}
-    >
+  const body = (
+    <>
       {/* Left: date + meta + pills */}
       <div className="flex-1 min-w-0">
         <p
@@ -351,7 +353,14 @@ function SessionCard({
         </p>
         <p className="text-sm text-gray-400 leading-none">/ {durationLabel}</p>
       </div>
-    </Wrapper>
+    </>
+  )
+
+  if (isSoldOut) return <div className={className}>{body}</div>
+  return (
+    <Link href={`/camps/${campSlug}/book?sessionId=${session.id}`} className={className}>
+      {body}
+    </Link>
   )
 }
 

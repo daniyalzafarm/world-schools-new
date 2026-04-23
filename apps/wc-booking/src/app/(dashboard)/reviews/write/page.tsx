@@ -62,7 +62,7 @@ const CampSelectorPage = () => {
   }, [fetchEligible])
 
   useEffect(() => {
-    void bookingGroupsService.list().then(res => {
+    void bookingGroupsService.list({ tab: 'upcoming', limit: 100 }).then(res => {
       if (res.success && res.data) setBookingGroups(res.data)
       else setBookingGroups([])
     })

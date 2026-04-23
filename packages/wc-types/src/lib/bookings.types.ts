@@ -88,6 +88,49 @@ export interface ProviderBookingGroupsListMeta {
   }
 }
 
+/** Lifecycle tabs for GET /user/booking-groups (parent side) */
+export const PARENT_BOOKING_TABS = ['drafts', 'upcoming', 'past', 'cancelled'] as const
+
+export type ParentBookingTab = (typeof PARENT_BOOKING_TABS)[number]
+
+/** Status values available under each parent lifecycle tab */
+export const PARENT_TAB_STATUS_FILTER: Record<ParentBookingTab, BookingGroupStatus[]> = {
+  drafts: ['draft'],
+  upcoming: ['request', 'accepted', 'deposit_paid', 'fully_paid', 'at_camp', 'expired', 'declined'],
+  past: ['completed'],
+  cancelled: ['cancelled'],
+}
+
+/** Sort fields for GET /user/booking-groups */
+export const PARENT_BOOKING_SORT_FIELDS = [
+  'updatedAt',
+  'requestedAt',
+  'totalAmount',
+  'sessionStart',
+] as const
+
+export type ParentBookingSortField = (typeof PARENT_BOOKING_SORT_FIELDS)[number]
+
+/** Query params for GET /user/booking-groups */
+export interface ParentBookingGroupsQuery {
+  tab?: ParentBookingTab
+  /** Narrow to one status within the current tab group */
+  status?: BookingGroupStatus
+  sortBy?: ParentBookingSortField
+  sortOrder?: 'asc' | 'desc'
+  page?: number
+  limit?: number
+}
+
+/** Pagination + tab counts in GET /user/booking-groups `meta` */
+export interface ParentBookingGroupsListMeta {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+  tabCounts: Record<ParentBookingTab, number>
+}
+
 /** GET /provider/booking-groups — provider dashboard list row */
 export interface ProviderBookingGroupSummary {
   id: string

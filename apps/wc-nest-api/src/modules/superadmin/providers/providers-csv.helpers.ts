@@ -1,3 +1,4 @@
+import { randomInt } from 'crypto'
 import { PROVIDER_IMPORT_COLUMNS } from '@world-schools/wc-types'
 import {
   isStrongPassword,
@@ -6,6 +7,35 @@ import {
 
 const REQUIRED_KEYS = PROVIDER_IMPORT_COLUMNS.filter(c => c.required).map(c => c.key)
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+const LOWER = 'abcdefghijklmnopqrstuvwxyz'
+const DIGIT = '0123456789'
+const SPECIAL = '!@#$%^&*(),.?":{}|<>'
+const ALL_CHARS = UPPER + LOWER + DIGIT + SPECIAL
+
+const pick = (alphabet: string): string => alphabet[randomInt(alphabet.length)]
+
+/**
+ * Generates a password that satisfies isStrongPassword: min length with at
+ * least one uppercase, lowercase, digit, and special character.
+ */
+export function generateStrongPassword(length = 16): string {
+  const minLength = Math.max(length, 8)
+  const chars = [pick(UPPER), pick(LOWER), pick(DIGIT), pick(SPECIAL)]
+  while (chars.length < minLength) {
+    chars.push(pick(ALL_CHARS))
+  }
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1)
+    ;[chars[i], chars[j]] = [chars[j], chars[i]]
+  }
+  const result = chars.join('')
+  if (!isStrongPassword(result)) {
+    throw new Error('generateStrongPassword produced a password that failed isStrongPassword')
+  }
+  return result
+}
 
 /**
  * Validates a raw CSV row against the required column definitions and email format.
@@ -23,7 +53,8 @@ export function validateProviderCsvRow(row: Record<string, string>): string | nu
     return `Invalid email format: ${email}`
   }
 
-  if (!isStrongPassword(row['password'] ?? '')) {
+  const rawPassword = row['password']?.trim() ?? ''
+  if (rawPassword && !isStrongPassword(rawPassword)) {
     return STRONG_PASSWORD_MESSAGE
   }
 
@@ -71,7 +102,7 @@ export function parseProviderCsvRow(row: Record<string, string>): ParsedProvider
 
   return {
     email: row['email'].trim(),
-    password: row['password'].trim(),
+    password: row['password']?.trim() || generateStrongPassword(),
     firstName: row['firstName'].trim(),
     lastName: row['lastName'].trim(),
     jobTitle: row['jobTitle'].trim(),

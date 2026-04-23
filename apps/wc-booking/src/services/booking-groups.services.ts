@@ -1,4 +1,5 @@
 import apiClient, { type ApiResult } from '@/utils/api-client'
+import type { ParentBookingGroupsQuery } from '@world-schools/wc-types'
 import type {
   CreateDraftBookingGroupRequest,
   DraftBookingGroupResponse,
@@ -9,8 +10,18 @@ import type {
 } from '@/types/camp-booking'
 
 export const bookingGroupsService = {
-  async list(): Promise<ApiResult<ParentBookingGroupSummary[]>> {
-    return apiClient.get<ParentBookingGroupSummary[]>('/user/booking-groups')
+  async list(params?: ParentBookingGroupsQuery): Promise<ApiResult<ParentBookingGroupSummary[]>> {
+    const sp = new URLSearchParams()
+    if (params?.tab) sp.set('tab', params.tab)
+    if (params?.status) sp.set('status', params.status)
+    if (params?.sortBy) sp.set('sortBy', params.sortBy)
+    if (params?.sortOrder) sp.set('sortOrder', params.sortOrder)
+    if (params?.page != null) sp.set('page', String(params.page))
+    if (params?.limit != null) sp.set('limit', String(params.limit))
+    const q = sp.toString()
+    return apiClient.get<ParentBookingGroupSummary[]>(
+      q ? `/user/booking-groups?${q}` : '/user/booking-groups'
+    )
   },
 
   async createDraft(

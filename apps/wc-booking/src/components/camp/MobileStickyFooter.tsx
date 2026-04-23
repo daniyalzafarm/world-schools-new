@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { formatCurrency } from '../../utils/currency'
 import type { Session } from '../../types/sessions'
 import type { Camp } from '../../types/camps'
@@ -81,12 +82,12 @@ export function MobileStickyFooter({
               {getSessionDurationLabel(selectedSession, campType)}
             </div>
           </div>
-          <a
+          <Link
             href={`/camps/${campSlug}/book?sessionId=${selectedSession.id}`}
-            className="flex-shrink-0 px-6 py-3 rounded-xl bg-primary hover:brightness-95 text-secondary text-sm font-bold transition-all"
+            className="shrink-0 px-6 py-3 rounded-xl bg-primary hover:brightness-95 text-secondary text-sm font-bold transition-all"
           >
             Reserve →
-          </a>
+          </Link>
         </div>
       ) : (
         /* Default state */

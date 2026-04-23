@@ -17,11 +17,14 @@ import {
   Star,
   User,
   Users,
+  X,
 } from 'lucide-react'
 import { cn, useConfirmDialog } from '@world-schools/ui-web'
 import { profileService, type UserProfile } from '@/services/profile.services'
 import { useAuthStore } from '@/stores/auth-store'
 import { Avatar, Button } from '@heroui/react'
+
+const PROFILE_COMPLETE_BANNER_DISMISSED_KEY = 'wc_booking_account_profile_complete_banner_dismissed'
 
 interface QuickLink {
   title: string
@@ -123,6 +126,7 @@ const AccountHub = () => {
   const router = useRouter()
   const [profileData, setProfileData] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showProfileCompleteBanner, setShowProfileCompleteBanner] = useState(false)
   const { logout } = useAuthStore()
   const { confirm } = useConfirmDialog()
 
@@ -130,6 +134,18 @@ const AccountHub = () => {
   useEffect(() => {
     void loadProfile()
   }, [])
+
+  // Default to hidden so SSR/first paint never flashes a dismissed banner.
+  useEffect(() => {
+    if (localStorage.getItem(PROFILE_COMPLETE_BANNER_DISMISSED_KEY) !== 'true') {
+      setShowProfileCompleteBanner(true)
+    }
+  }, [])
+
+  const handleDismissProfileCompleteBanner = () => {
+    setShowProfileCompleteBanner(false)
+    localStorage.setItem(PROFILE_COMPLETE_BANNER_DISMISSED_KEY, 'true')
+  }
 
   const loadProfile = async () => {
     try {
@@ -272,23 +288,40 @@ const AccountHub = () => {
       </div>
 
       {/* Profile Completion */}
-      <div className="bg-primary-50 dark:bg-primary-900/20 rounded-xl p-5 mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold text-primary-900 dark:text-primary-300">
-            Profile completion
-          </span>
-          <span className="text-sm font-bold text-primary-900 dark:text-primary-300">100%</span>
+      {showProfileCompleteBanner && (
+        <div className="bg-primary-50 dark:bg-primary-900/20 rounded-xl p-5 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-semibold text-primary-900 dark:text-primary-300">
+              Profile completion
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                isIconOnly
+                onPress={handleDismissProfileCompleteBanner}
+                aria-label="Dismiss"
+                size="sm"
+                variant="flat"
+                radius="full"
+                color="primary"
+              >
+                <X className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+              </Button>
+            </div>
+          </div>
+          <div className="h-2 bg-white/60 dark:bg-slate-800/60 rounded-full overflow-hidden mb-3">
+            <div
+              className="h-full bg-primary-700 dark:bg-primary-500 rounded-full transition-all"
+              style={{ width: '100%' }}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-primary-900 dark:text-primary-300">
+              Your account profile is complete
+            </p>
+            <span className="text-sm font-bold text-primary-900 dark:text-primary-300">100%</span>
+          </div>
         </div>
-        <div className="h-2 bg-white/60 dark:bg-slate-800/60 rounded-full overflow-hidden mb-3">
-          <div
-            className="h-full bg-primary-700 dark:bg-primary-500 rounded-full transition-all"
-            style={{ width: '100%' }}
-          />
-        </div>
-        <p className="text-sm text-primary-900 dark:text-primary-300">
-          Your account profile is complete
-        </p>
-      </div>
+      )}
 
       {/* Quick Actions — mobile only (sidebar handles desktop) */}
       <div className="lg:hidden">

@@ -529,12 +529,15 @@ export function SessionForm({
                 aria-label="Session date range"
                 value={dateRange as any}
                 onChange={value => {
-                  setDateRange(value)
-                  if (value) {
+                  const calRange = value
+                    ? { start: toCalDate(value.start), end: toCalDate(value.end) }
+                    : null
+                  setDateRange(calRange)
+                  if (calRange) {
                     setFormData(prev => ({
                       ...prev,
-                      startDate: calendarDateToString(value.start),
-                      endDate: calendarDateToString(value.end),
+                      startDate: calendarDateToString(calRange.start),
+                      endDate: calendarDateToString(calRange.end),
                     }))
                     clearError('dates')
                   }

@@ -21,6 +21,7 @@ import { useCampBookingStore } from '@/stores/camp-booking-store'
 import { getChildAge } from '@/types/child'
 import { formatCurrency } from '@/utils/currency'
 import type { CampBookingAddOnSelectionMode } from '@/types/camp-booking'
+import { getAddOnMode, getAddOnTileLabel, getAddOnUnitNoun } from '@/utils/addon-pricing'
 import { MobileBookingFooter } from '@/components/camp-booking/mobile-booking-footer'
 import { DesktopSessionsSidebar } from '@/components/camp-booking/desktop-sessions-sidebar'
 import { DesktopChildrenSidebar } from '@/components/camp-booking/desktop-children-sidebar'
@@ -412,7 +413,7 @@ function SessionsStep() {
 
             const cardClassName = [
               'cursor-pointer rounded-xl border p-4 text-left transition hover:opacity-hover',
-              isSelected ? 'border-primary bg-primary/10' : 'border-gray-200 hover:border-gray-300',
+              isSelected ? 'border-secondary' : 'border-gray-200 hover:border-gray-300',
               isSoldOut ? 'cursor-not-allowed opacity-40' : '',
             ].join(' ')
 
@@ -431,7 +432,7 @@ function SessionsStep() {
                     <span
                       className={[
                         'mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
-                        isSelected ? 'border-primary bg-primary' : 'border-gray-300 bg-white',
+                        isSelected ? 'border-secondary bg-secondary' : 'border-gray-300 bg-white',
                       ].join(' ')}
                       aria-hidden="true"
                     >
@@ -551,7 +552,7 @@ function ChildrenStep() {
               }}
               className={[
                 'cursor-pointer rounded-xl border p-4 text-left transition hover:opacity-hover',
-                selected ? 'border-primary bg-primary/10' : 'border-gray-200 hover:border-gray-300',
+                selected ? 'border-secondary' : 'border-gray-200 hover:border-gray-300',
                 !isEligible ? 'cursor-not-allowed bg-gray-50 opacity-60' : '',
               ].join(' ')}
             >
@@ -560,7 +561,7 @@ function ChildrenStep() {
                   <span
                     className={[
                       'mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
-                      selected ? 'border-primary bg-primary' : 'border-gray-300 bg-white',
+                      selected ? 'border-secondary bg-secondary' : 'border-gray-300 bg-white',
                     ].join(' ')}
                     aria-hidden="true"
                   >
@@ -660,13 +661,8 @@ function AddonsStep() {
   const selectedChildIds = useCampBookingStore(state => state.selectedChildIds)
   const currency = camp?.provider?.settings?.currency || 'EUR'
 
-  const inferMode = (addon: (typeof addOns)[number]): CampBookingAddOnSelectionMode => {
-    const unit = (addon.quantityUnit || '').toLowerCase()
-    if (unit.includes('trip') || addon.pricingUnit === 'one_time') return 'qty'
-    const maxQuantity = addon.maxQuantity ?? null
-    if (typeof maxQuantity === 'number' && maxQuantity > 1) return 'per_child_qty'
-    return addon.pricingUnit === 'per_child' ? 'per_child' : 'per_child_qty'
-  }
+  const inferMode = (addon: (typeof addOns)[number]): CampBookingAddOnSelectionMode =>
+    getAddOnMode(addon)
 
   const sortedAddOns = addOns.slice().sort((a, b) => a.sortOrder - b.sortOrder)
   const selectedChildren = children.filter(c => selectedChildIds.includes(c.id))
@@ -827,6 +823,11 @@ function AddonsStep() {
     }
     const qty = selection.quantity ?? 0
     if (qty === 0) return null
+    const addon = addOns.find(item => item.addOnId === addOnId)
+    if (addon) {
+      const noun = getAddOnUnitNoun(addon)
+      return `${qty} ${noun}${qty === 1 ? '' : 's'} selected`
+    }
     return `${qty} selected`
   }
 
@@ -855,7 +856,6 @@ function AddonsStep() {
         {sortedAddOns.map(addOn => {
           const selection = addOnSelectionsById[addOn.addOnId]
           const isSelected = !!selection
-          const mode = selection?.mode ?? inferMode(addOn)
           const summary = getAddonSummary(addOn.addOnId)
 
           return (
@@ -872,13 +872,7 @@ function AddonsStep() {
               </div>
               <div className="shrink-0 text-right">
                 <p className="font-bold text-gray-900">{formatCurrency(addOn.price, currency)}</p>
-                <p className="text-sm text-gray-500">
-                  {mode === 'qty'
-                    ? 'per item'
-                    : mode === 'per_child'
-                      ? 'per child'
-                      : 'per unit/child'}
-                </p>
+                <p className="text-sm text-gray-500">{getAddOnTileLabel(addOn)}</p>
               </div>
               <div className="shrink-0">
                 {!isSelected ? (
@@ -912,7 +906,6 @@ function AddonsStep() {
           {sortedAddOns.map(addOn => {
             const selection = addOnSelectionsById[addOn.addOnId]
             const isSelected = !!selection
-            const mode = selection?.mode ?? inferMode(addOn)
 
             return (
               <div
@@ -938,12 +931,7 @@ function AddonsStep() {
                       <p className="line-clamp-2 text-sm text-gray-500">{addOn.description}</p>
                     ) : null}
                     <p className="text-sm font-semibold text-gray-500">
-                      +{formatCurrency(addOn.price, currency)}{' '}
-                      {mode === 'per_child'
-                        ? 'per child'
-                        : mode === 'per_child_qty'
-                          ? 'per child / unit'
-                          : 'per item'}
+                      +{formatCurrency(addOn.price, currency)} {getAddOnTileLabel(addOn)}
                     </p>
                   </div>
                 </div>
@@ -990,6 +978,19 @@ function AddonsStep() {
             <ModalContent>
               <ModalHeader>{sheetAddon.name}</ModalHeader>
               <ModalBody className="max-h-[60vh]">
+                {sheetAddon.description ? (
+                  <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                      <span className="text-sm font-bold text-primary-700">{sheetAddon.icon}</span>
+                    </div>
+                    <div className="min-w-0 text-[13px] leading-snug text-gray-500">
+                      <p className="line-clamp-2">{sheetAddon.description}</p>
+                      <p className="mt-1 font-semibold text-secondary">
+                        {formatCurrency(sheetAddon.price, currency)} {getAddOnTileLabel(sheetAddon)}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
                 {sheetMode === 'per_child' ? (
                   <div className="flex flex-col gap-3 divide-y divide-gray-100">
                     {selectedChildren.map(child => {
@@ -998,6 +999,7 @@ function AddonsStep() {
                         <Checkbox
                           key={child.id}
                           aria-label={`${child.firstName} ${child.lastName}`}
+                          color="secondary"
                           isSelected={checked}
                           onValueChange={() =>
                             setSheetDraft(prev => {
@@ -1121,7 +1123,8 @@ function AddonsStep() {
                     const qty = sheetDraft.quantity ?? 0
                     const maxQuantity = sheetAddon.maxQuantity ?? null
                     const atMax = typeof maxQuantity === 'number' && qty >= maxQuantity
-                    const unitLabel = sheetAddon.quantityUnit ?? 'items'
+                    const noun = getAddOnUnitNoun(sheetAddon)
+                    const unitLabel = `${noun}${noun.endsWith('s') ? '' : 's'}`
                     return (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between gap-3">
@@ -1161,21 +1164,24 @@ function AddonsStep() {
                             </Button>
                           </div>
                         </div>
-                        <div className="rounded-xl border border-gray-200 p-4">
-                          <div className="flex items-center justify-between text-sm text-gray-600">
-                            <span>Total</span>
-                            <span className="font-bold text-gray-900 whitespace-nowrap">
-                              +{formatCurrency(sheetAddon.price * qty, currency)}
-                            </span>
-                          </div>
-                        </div>
                       </div>
                     )
                   })()
                 )}
+                <div className="flex items-center justify-between border-t border-gray-100 pt-3 text-[15px] font-bold text-gray-900">
+                  <span>Total</span>
+                  <span className="whitespace-nowrap">
+                    +{formatCurrency(sheetAddon.price * getSelectionQuantity(sheetDraft), currency)}
+                  </span>
+                </div>
               </ModalBody>
               <ModalFooter>
-                <Button color="primary" className="w-full" onPress={submitAddonConfigurator}>
+                <Button
+                  color="secondary"
+                  radius="sm"
+                  className="w-full"
+                  onPress={submitAddonConfigurator}
+                >
                   {getSelectionQuantity(sheetDraft) > 0
                     ? `Add · ${formatCurrency(sheetAddon.price * getSelectionQuantity(sheetDraft), currency)}`
                     : 'Done'}
@@ -1195,6 +1201,21 @@ function AddonsStep() {
             <DrawerContent>
               <DrawerHeader className="border-b border-gray-200">{sheetAddon.name}</DrawerHeader>
               <DrawerBody className="max-h-[70vh] overflow-y-auto px-6 py-3 pb-28">
+                {sheetAddon.description ? (
+                  <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                      <span className="text-sm font-bold text-primary-700">{sheetAddon.icon}</span>
+                    </div>
+                    <div className="min-w-0 text-[13px] leading-snug text-gray-500">
+                      <p className="line-clamp-2">{sheetAddon.description}</p>
+                      <p className="mt-1">
+                        {formatCurrency(sheetAddon.price, currency)} per{' '}
+                        {sheetMode === 'per_child' ? 'child' : (sheetAddon.quantityUnit ?? 'item')}
+                        {sheetMode === 'per_child_qty' ? '/child' : ''}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
                 {sheetMode === 'per_child' ? (
                   <div className="flex flex-col gap-4 divide-y divide-gray-100">
                     {selectedChildren.map(child => {
@@ -1203,6 +1224,7 @@ function AddonsStep() {
                         <Checkbox
                           key={child.id}
                           aria-label={`${child.firstName} ${child.lastName}`}
+                          color="secondary"
                           isSelected={checked}
                           onValueChange={() =>
                             setSheetDraft(prev => {
@@ -1326,7 +1348,8 @@ function AddonsStep() {
                     const qty = sheetDraft.quantity ?? 0
                     const maxQuantity = sheetAddon.maxQuantity ?? null
                     const atMax = typeof maxQuantity === 'number' && qty >= maxQuantity
-                    const unitLabel = sheetAddon.quantityUnit ?? 'items'
+                    const noun = getAddOnUnitNoun(sheetAddon)
+                    const unitLabel = `${noun}${noun.endsWith('s') ? '' : 's'}`
                     return (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between gap-3">
@@ -1366,21 +1389,24 @@ function AddonsStep() {
                             </Button>
                           </div>
                         </div>
-                        <div className="rounded-xl border border-gray-200 p-4">
-                          <div className="flex items-center justify-between text-sm text-gray-600">
-                            <span>Total</span>
-                            <span className="font-bold text-gray-900 whitespace-nowrap">
-                              +{formatCurrency(sheetAddon.price * qty, currency)}
-                            </span>
-                          </div>
-                        </div>
                       </div>
                     )
                   })()
                 )}
+                <div className="flex items-center justify-between border-t border-gray-100 pt-3 text-[15px] font-bold text-gray-900">
+                  <span>Total</span>
+                  <span className="whitespace-nowrap">
+                    +{formatCurrency(sheetAddon.price * getSelectionQuantity(sheetDraft), currency)}
+                  </span>
+                </div>
               </DrawerBody>
               <div className="border-t border-gray-200 bg-white px-4 py-3">
-                <Button color="primary" className="w-full" onPress={submitAddonConfigurator}>
+                <Button
+                  color="secondary"
+                  radius="sm"
+                  className="w-full"
+                  onPress={submitAddonConfigurator}
+                >
                   {getSelectionQuantity(sheetDraft) > 0
                     ? `Add · ${formatCurrency(sheetAddon.price * getSelectionQuantity(sheetDraft), currency)}`
                     : 'Done'}
@@ -1402,8 +1428,8 @@ function AddonsStep() {
           endContent={<ChevronRight size={16} />}
         >
           {extrasSelectedTypes === 0
-            ? `No thanks · ${formatCurrency(0, currency)}`
-            : `Continue · ${formatCurrency(extrasTotal, currency)}`}
+            ? 'No thanks'
+            : `Add ${extrasSelectedTypes} extra${extrasSelectedTypes === 1 ? '' : 's'} · ${formatCurrency(extrasTotal, currency)}`}
         </Button>
       </div>
     </section>
@@ -1829,6 +1855,7 @@ function ReviewStep() {
 }
 
 export function CampBookingFlow() {
+  const router = useRouter()
   const currentStep = useCampBookingStore(state => state.currentStep)
   const error = useCampBookingStore(state => state.error)
   const isLoading = useCampBookingStore(state => state.isLoading)
@@ -1856,6 +1883,7 @@ export function CampBookingFlow() {
 
   const onSeeDraftBookings = () => {
     clearDuplicateDraftConflict()
+    router.push('/bookings?tab=drafts')
   }
 
   return (
@@ -1905,6 +1933,7 @@ export function CampBookingFlow() {
         onSelectDraft={onSelectDraftPreview}
         onCreateNewBooking={onCreateNewDraft}
         onSeeDraftBookings={onSeeDraftBookings}
+        onClose={clearDuplicateDraftConflict}
       />
     </div>
   )

@@ -10,11 +10,10 @@ export interface IconSelectOption {
   icon?: string // Optional emoji or icon string
 }
 
-export interface IconSelectFieldProps
-  extends Omit<
-    SelectProps,
-    'children' | 'selectedKeys' | 'onSelectionChange' | 'onChange' | 'items'
-  > {
+export interface IconSelectFieldProps extends Omit<
+  SelectProps,
+  'children' | 'selectedKeys' | 'onSelectionChange' | 'onChange' | 'items'
+> {
   value?: string
   onChange: (value: string) => void
   options?: readonly IconSelectOption[] | IconSelectOption[]

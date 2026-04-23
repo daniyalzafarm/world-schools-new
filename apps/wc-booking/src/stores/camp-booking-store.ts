@@ -6,17 +6,17 @@ import { campSessionsService } from '@/services/camp-sessions.services'
 import { campAddOnsService } from '@/services/camp-addons.services'
 import { bookingGroupsService } from '@/services/booking-groups.services'
 import type { Camp } from '@/types/camps'
-import type { Child } from '@/types/child'
+import { type Child, getChildAge } from '@/types/child'
 import type { Session } from '@/types/sessions'
 import type {
   BookingFlowStep,
   CampBookingAddOn,
   CampBookingAddOnSelection,
-  CampBookingAddOnSelectionMode,
   CampBookingChildQuantity,
   DraftBookingPreview,
   SaveBookingGroupAddOnsRequest,
 } from '@/types/camp-booking'
+import { getAddOnMode } from '@/utils/addon-pricing'
 
 interface CampBookingState {
   campSlug: string | null
@@ -42,6 +42,7 @@ interface CampBookingActions {
   setStep: (step: BookingFlowStep) => void
   selectSession: (sessionId: string | null) => void
   toggleChild: (childId: string) => void
+  autoSelectEligibleChildren: () => void
   addChild: (child: {
     firstName: string
     lastName?: string
@@ -255,6 +256,22 @@ export const useCampBookingStore = create<CampBookingStore>()(
         } else {
           state.selectedChildIds.push(childId)
         }
+      })
+    },
+
+    autoSelectEligibleChildren: () => {
+      set(state => {
+        // Respect any existing selection (e.g. from hydrated drafts or prior user input).
+        if (state.selectedChildIds.length > 0) return
+        const session = state.sessions.find(s => s.id === state.selectedSessionId)
+        const maxSpots = session?.totalSpots ?? null
+        const eligibleIds = state.children
+          .filter(c => {
+            const age = getChildAge(c)
+            return age !== null && age >= 8 && age <= 17
+          })
+          .map(c => c.id)
+        state.selectedChildIds = maxSpots !== null ? eligibleIds.slice(0, maxSpots) : eligibleIds
       })
     },
 
@@ -571,28 +588,8 @@ export const useCampBookingStore = create<CampBookingStore>()(
   }))
 )
 
-function inferAddOnMode(
-  addOnConfig: CampBookingAddOn | undefined | null
-): CampBookingAddOnSelectionMode {
-  if (!addOnConfig) return 'per_child'
-
-  // Heuristic mapping to match the reference behavior:
-  // - checkbox per child: fixed 1/unit
-  // - stepper per child: allows multiple quantity per child
-  // - qty: global quantity for the add-on
-  const maxQuantity = addOnConfig.maxQuantity ?? null
-  const unit = addOnConfig.quantityUnit?.toLowerCase() ?? ''
-
-  if (unit.includes('trip') || addOnConfig.pricingUnit === 'one_time') {
-    return 'qty'
-  }
-
-  if (typeof maxQuantity === 'number' && maxQuantity > 1) {
-    return 'per_child_qty'
-  }
-
-  return addOnConfig.pricingUnit === 'per_child' ? 'per_child' : 'per_child_qty'
-}
+const inferAddOnMode = (addOnConfig: CampBookingAddOn | undefined | null) =>
+  addOnConfig ? getAddOnMode(addOnConfig) : 'per_child'
 
 function normalizeAddOnSelectionsForSelectedChildren(
   selections: Record<string, CampBookingAddOnSelection>,

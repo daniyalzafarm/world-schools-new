@@ -12,6 +12,7 @@ interface DuplicateDraftModalProps {
   onSelectDraft: (bookingGroupId: string) => void | Promise<void>
   onCreateNewBooking: () => void | Promise<void>
   onSeeDraftBookings: () => void
+  onClose: () => void
 }
 
 export function DuplicateDraftModal({
@@ -22,14 +23,10 @@ export function DuplicateDraftModal({
   onSelectDraft,
   onCreateNewBooking,
   onSeeDraftBookings,
+  onClose,
 }: DuplicateDraftModalProps) {
   return (
-    <Modal
-      isOpen={isOpen}
-      onOpenChange={open => !open && onSeeDraftBookings()}
-      placement="center"
-      size="lg"
-    >
+    <Modal isOpen={isOpen} onOpenChange={open => !open && onClose()} placement="center" size="lg">
       <ModalContent>
         <ModalHeader className="text-lg font-semibold text-gray-900">
           Existing draft found

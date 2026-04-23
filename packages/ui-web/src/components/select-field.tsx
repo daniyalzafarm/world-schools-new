@@ -16,11 +16,10 @@ export interface SelectFieldOptionObject {
 
 export type SelectFieldOption = string | SelectFieldOptionObject
 
-export interface SelectFieldProps
-  extends Omit<
-    SelectProps,
-    'children' | 'selectedKeys' | 'onSelectionChange' | 'onChange' | 'classNames'
-  > {
+export interface SelectFieldProps extends Omit<
+  SelectProps,
+  'children' | 'selectedKeys' | 'onSelectionChange' | 'onChange' | 'classNames'
+> {
   value?: string
   onChange: (value: string) => void
   /** Flat array of options (for backward compatibility) */

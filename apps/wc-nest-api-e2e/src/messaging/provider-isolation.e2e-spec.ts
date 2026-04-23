@@ -80,51 +80,39 @@ describe('Provider Org Isolation E2E', () => {
 
   // ─── Provider A cannot read Provider B's messages ────────────────────────
 
-  skip(
-    'Provider A cannot GET messages from Provider B conversation → 403',
-    async () => {
-      const res = await providerAClient.get('/provider/messaging/messages', {
-        params: { conversationId: PROVIDER_B_CONV_ID },
-      })
-      expect(res.status).toBe(403)
-    }
-  )
+  skip('Provider A cannot GET messages from Provider B conversation → 403', async () => {
+    const res = await providerAClient.get('/provider/messaging/messages', {
+      params: { conversationId: PROVIDER_B_CONV_ID },
+    })
+    expect(res.status).toBe(403)
+  })
 
   // ─── Provider A cannot send into Provider B's conversation ───────────────
 
-  skip(
-    'Provider A cannot POST a message into Provider B conversation → 403',
-    async () => {
-      const res = await providerAClient.post('/provider/messaging/messages', {
-        conversationId: PROVIDER_B_CONV_ID,
-        content: 'Cross-provider injection attempt',
-        idempotencyKey: `isolation-test-${Date.now()}`,
-      })
-      expect(res.status).toBe(403)
-    }
-  )
+  skip('Provider A cannot POST a message into Provider B conversation → 403', async () => {
+    const res = await providerAClient.post('/provider/messaging/messages', {
+      conversationId: PROVIDER_B_CONV_ID,
+      content: 'Cross-provider injection attempt',
+      idempotencyKey: `isolation-test-${Date.now()}`,
+    })
+    expect(res.status).toBe(403)
+  })
 
   // ─── Provider A can access its own conversations ─────────────────────────
 
-  skip(
-    'Provider A CAN GET messages from its own conversation → 200',
-    async () => {
-      const res = await providerAClient.get('/provider/messaging/messages', {
-        params: { conversationId: PROVIDER_A_CONV_ID },
-      })
-      expect(res.status).toBe(200)
-    }
-  )
+  skip('Provider A CAN GET messages from its own conversation → 200', async () => {
+    const res = await providerAClient.get('/provider/messaging/messages', {
+      params: { conversationId: PROVIDER_A_CONV_ID },
+    })
+    expect(res.status).toBe(200)
+  })
 
   // ─── Provider B can access its own conversations ─────────────────────────
 
-  skip(
-    'Provider B CAN GET messages from its own conversation → 200',
-    async () => {
-      const res = await providerBClient.get('/provider/messaging/messages', {
-        params: { conversationId: PROVIDER_B_CONV_ID },
-      })
-      expect(res.status).toBe(200)
-    }
-  )
+  skip('Provider B CAN GET messages from its own conversation → 200', async () => {
+    const res = await providerBClient.get('/provider/messaging/messages', {
+      params: { conversationId: PROVIDER_B_CONV_ID },
+    })
+    expect(res.status).toBe(200)
+  })
 })

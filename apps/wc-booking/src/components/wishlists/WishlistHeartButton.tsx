@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useWishlistsStore } from '@/stores/wishlists-store'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -23,12 +23,16 @@ export function WishlistHeartButton({
   const { myWishlists, isLoadingList, fetchMyWishlists, openAddToWishlistModal } =
     useWishlistsStore()
 
+  // Re-fetching on myWishlists.length would loop forever for users with zero wishlists,
+  // since an empty response keeps the length at 0 and flips isLoadingList back to false.
+  const didFetchRef = useRef(false)
   useEffect(() => {
     if (!isAuthenticated) return
-    if (myWishlists.length === 0 && !isLoadingList) {
-      void fetchMyWishlists()
-    }
-  }, [isAuthenticated, myWishlists.length, isLoadingList, fetchMyWishlists])
+    if (didFetchRef.current) return
+    if (isLoadingList) return
+    didFetchRef.current = true
+    void fetchMyWishlists()
+  }, [isAuthenticated, isLoadingList, fetchMyWishlists])
 
   const isSaved = myWishlists.some(w => w.campIds.includes(campId))
 

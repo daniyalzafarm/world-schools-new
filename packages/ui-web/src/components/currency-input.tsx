@@ -4,8 +4,10 @@ import React, { useState } from 'react'
 import { Input } from './input'
 import type { CustomInputProps } from './input'
 
-export interface CurrencyInputProps
-  extends Omit<CustomInputProps, 'value' | 'onValueChange' | 'type'> {
+export interface CurrencyInputProps extends Omit<
+  CustomInputProps,
+  'value' | 'onValueChange' | 'type'
+> {
   value?: number | null
   onValueChange?: (value: number | null) => void
   currency?: string

@@ -23,6 +23,12 @@ import type {
   ProviderBookingTab,
   QueryProviderBookingGroupsDto,
 } from '../provider/booking-groups/dto/query-provider-booking-groups.dto'
+import {
+  PARENT_TAB_STATUS_LIST,
+  type ParentBookingSortField,
+  type ParentBookingTab,
+  type QueryParentBookingGroupsDto,
+} from '../user/booking-groups/dto/query-parent-booking-groups.dto'
 
 @Injectable()
 export class BookingGroupsService {
@@ -856,54 +862,111 @@ export class BookingGroupsService {
   /**
    * Parent dashboard: all booking groups with fields needed for list cards.
    */
-  async listForParent(userId: string) {
+  async listForParent(userId: string, query: QueryParentBookingGroupsDto = {}) {
     const parent = await this.prisma.parent.findUnique({
       where: { userId },
       select: { id: true },
     })
     if (!parent) throw new ForbiddenException('Only parents can access bookings')
 
-    const rows = await this.prisma.bookingGroup.findMany({
-      where: { parentId: parent.id },
-      orderBy: { updatedAt: 'desc' },
-      select: {
-        id: true,
-        bookingGroupNumber: true,
-        status: true,
-        totalAmount: true,
-        requestedAt: true,
-        respondedAt: true,
-        expiresAt: true,
-        updatedAt: true,
-        camp: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            photos: true,
+    const tab: ParentBookingTab = query.tab ?? 'upcoming'
+    const page = query.page ?? 1
+    const limit = query.limit ?? 10
+    const sortBy = (query.sortBy ?? 'updatedAt') as ParentBookingSortField
+    const sortOrder = query.sortOrder ?? 'desc'
+
+    const allowedStatuses = PARENT_TAB_STATUS_LIST[tab]
+    if (query.status && !allowedStatuses.includes(query.status)) {
+      throw new BadRequestException('Status does not match the selected tab')
+    }
+
+    const where: Prisma.BookingGroupWhereInput = {
+      parentId: parent.id,
+      status: query.status ?? { in: allowedStatuses },
+    }
+
+    let orderBy: Prisma.BookingGroupOrderByWithRelationInput
+    switch (sortBy) {
+      case 'requestedAt':
+        orderBy = { requestedAt: sortOrder }
+        break
+      case 'totalAmount':
+        orderBy = { totalAmount: sortOrder }
+        break
+      case 'sessionStart':
+        orderBy = { session: { startDate: sortOrder } }
+        break
+      default:
+        orderBy = { updatedAt: sortOrder }
+    }
+
+    const [total, groupedStatuses, rows] = await Promise.all([
+      this.prisma.bookingGroup.count({ where }),
+      this.prisma.bookingGroup.groupBy({
+        by: ['status'],
+        where: { parentId: parent.id },
+        _count: { id: true },
+      }),
+      this.prisma.bookingGroup.findMany({
+        where,
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          bookingGroupNumber: true,
+          status: true,
+          totalAmount: true,
+          requestedAt: true,
+          respondedAt: true,
+          expiresAt: true,
+          updatedAt: true,
+          camp: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              photos: true,
+            },
           },
-        },
-        session: {
-          select: {
-            name: true,
-            startDate: true,
-            endDate: true,
+          session: {
+            select: {
+              name: true,
+              startDate: true,
+              endDate: true,
+            },
           },
-        },
-        bookings: {
-          select: {
-            child: {
-              select: {
-                id: true,
-                firstName: true,
-                dateOfBirth: true,
-                photoUrl: true,
+          bookings: {
+            select: {
+              child: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  dateOfBirth: true,
+                  photoUrl: true,
+                },
               },
             },
           },
         },
-      },
-    })
+      }),
+    ])
+
+    const countByStatus = Object.fromEntries(
+      groupedStatuses.map(g => [g.status, g._count.id])
+    ) as Record<string, number>
+
+    const sum = (statuses: readonly BookingGroupStatus[]) =>
+      statuses.reduce((acc, s) => acc + (countByStatus[s] ?? 0), 0)
+
+    const tabCounts: Record<ParentBookingTab, number> = {
+      drafts: sum(PARENT_TAB_STATUS_LIST.drafts),
+      upcoming: sum(PARENT_TAB_STATUS_LIST.upcoming),
+      past: sum(PARENT_TAB_STATUS_LIST.past),
+      cancelled: sum(PARENT_TAB_STATUS_LIST.cancelled),
+    }
+
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit)
 
     const coverUrlByCampId = new Map<string, string | null>()
 
@@ -919,7 +982,7 @@ export class BookingGroupsService {
       return url
     }
 
-    return Promise.all(
+    const data = await Promise.all(
       rows.map(async row => {
         const coverImageUrl = await resolveCoverImageUrl(row.camp.id, row.camp.photos)
         return {
@@ -953,6 +1016,17 @@ export class BookingGroupsService {
         }
       })
     )
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        tabCounts,
+      },
+    }
   }
 
   async getLatestDraftPreviewsForParent(userId: string, campId: string) {

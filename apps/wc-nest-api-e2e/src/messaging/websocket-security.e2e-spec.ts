@@ -20,8 +20,7 @@ const WS_USER_B_TOKEN = process.env.WS_USER_B_TOKEN
 const USER_A_CONV_ID = process.env.USER_A_CONV_ID
 const USER_B_CONV_ID = process.env.USER_B_CONV_ID
 
-const allEnvPresent =
-  WS_USER_A_TOKEN && WS_USER_B_TOKEN && USER_A_CONV_ID && USER_B_CONV_ID
+const allEnvPresent = WS_USER_A_TOKEN && WS_USER_B_TOKEN && USER_A_CONV_ID && USER_B_CONV_ID
 
 function buildSocket(token?: string): Socket {
   const host = process.env.HOST ?? 'localhost'
@@ -76,58 +75,52 @@ describe('WebSocket Security E2E', () => {
   // USER_A tries to join USER_B's conversation room and should NOT receive
   // subsequent message:new events for that room.
 
-  skip(
-    'join_conversation to unauthorized conversation does not deliver message:new events',
-    async () => {
-      const socketA = buildSocket(WS_USER_A_TOKEN)
-      await waitForEvent(socketA, 'connect')
+  skip('join_conversation to unauthorized conversation does not deliver message:new events', async () => {
+    const socketA = buildSocket(WS_USER_A_TOKEN)
+    await waitForEvent(socketA, 'connect')
 
-      // USER_A emits join_conversation for a room it has no access to
-      socketA.emit('join_conversation', { conversationId: USER_B_CONV_ID })
+    // USER_A emits join_conversation for a room it has no access to
+    socketA.emit('join_conversation', { conversationId: USER_B_CONV_ID })
 
-      // Allow the server side join to be processed
-      await new Promise(r => setTimeout(r, 500))
+    // Allow the server side join to be processed
+    await new Promise(r => setTimeout(r, 500))
 
-      // Listen for message:new — should NOT arrive within the window
-      const messageNotReceived = ensureNotReceived(socketA, 'message:new')
+    // Listen for message:new — should NOT arrive within the window
+    const messageNotReceived = ensureNotReceived(socketA, 'message:new')
 
-      // Connect as USER_B and send a real message into that conversation
-      const socketB = buildSocket(WS_USER_B_TOKEN)
-      await waitForEvent(socketB, 'connect')
-      socketB.emit('send_message', {
-        conversationId: USER_B_CONV_ID,
-        content: 'Security probe',
-        idempotencyKey: `ws-security-test-${Date.now()}`,
-      })
+    // Connect as USER_B and send a real message into that conversation
+    const socketB = buildSocket(WS_USER_B_TOKEN)
+    await waitForEvent(socketB, 'connect')
+    socketB.emit('send_message', {
+      conversationId: USER_B_CONV_ID,
+      content: 'Security probe',
+      idempotencyKey: `ws-security-test-${Date.now()}`,
+    })
 
-      // Verify USER_A did not receive the message
-      await messageNotReceived
+    // Verify USER_A did not receive the message
+    await messageNotReceived
 
-      socketA.close()
-      socketB.close()
-    }
-  )
+    socketA.close()
+    socketB.close()
+  })
 
   // ─── message:read without participant access ──────────────────────────────
 
-  skip(
-    'message:read for a conversation the user is not in → no receipt:read broadcast and no DB write',
-    async () => {
-      const socketA = buildSocket(WS_USER_A_TOKEN)
-      await waitForEvent(socketA, 'connect')
+  skip('message:read for a conversation the user is not in → no receipt:read broadcast and no DB write', async () => {
+    const socketA = buildSocket(WS_USER_A_TOKEN)
+    await waitForEvent(socketA, 'connect')
 
-      // Emit read receipt for USER_B's conversation — USER_A has no access
-      socketA.emit('message:read', {
-        messageId: 'probe-msg-id',
-        conversationId: USER_B_CONV_ID,
-      })
+    // Emit read receipt for USER_B's conversation — USER_A has no access
+    socketA.emit('message:read', {
+      messageId: 'probe-msg-id',
+      conversationId: USER_B_CONV_ID,
+    })
 
-      // receipt:read should NOT be broadcast back to socketA
-      await ensureNotReceived(socketA, 'receipt:read')
+    // receipt:read should NOT be broadcast back to socketA
+    await ensureNotReceived(socketA, 'receipt:read')
 
-      socketA.close()
-    }
-  )
+    socketA.close()
+  })
 
   // ─── Authenticated user can join their own conversation ──────────────────
 

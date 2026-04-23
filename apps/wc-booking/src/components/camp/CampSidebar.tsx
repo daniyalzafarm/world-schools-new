@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ContextType } from '@world-schools/wc-frontend-utils'
 import { useAuth } from '../../hooks/use-auth'
@@ -14,7 +15,6 @@ interface CampSidebarProps {
   sessions: Session[]
   currency: string
   selectedSession: Session | null
-  onSessionSelect: (session: Session | null) => void
   onOpenSessionsModal: () => void
 }
 
@@ -61,20 +61,20 @@ function getSessionSpotsLeft(session: Session): number | null {
 
 interface CompactSessionCardProps {
   session: Session
+  campSlug: string
   campType: Camp['type']
   currency: string
   campAgeLabel: string | null
   isSelected: boolean
-  onSelect: (session: Session) => void
 }
 
 function CompactSessionCard({
   session,
+  campSlug,
   campType,
   currency,
   campAgeLabel,
   isSelected,
-  onSelect,
 }: CompactSessionCardProps) {
   const startDate = new Date(session.startDate)
   const endDate = new Date(session.endDate)
@@ -85,16 +85,22 @@ function CompactSessionCard({
   const metaText = isSoldOut
     ? `Sold out · ${durationLabel}`
     : `${campAgeLabel ? `${campAgeLabel} · ` : ''}${durationLabel}`
-  const dateLabel = session.name || fmtDateRange(startDate, endDate)
+  const dateRange = fmtDateRange(startDate, endDate)
+  const titleLabel = session.name || dateRange
 
   if (isSoldOut) {
     return (
       <div className="border-2 border-gray-200 rounded-xl px-4 py-3.5 mb-2 flex items-center gap-3 bg-white opacity-40 cursor-not-allowed pointer-events-none">
         <div className="flex-1 min-w-0">
           <div className="text-sm font-bold text-gray-400 leading-tight mb-0.5 line-through">
-            {dateLabel}
+            {titleLabel}
           </div>
-          <div className="text-sm text-gray-400 leading-snug">{metaText}</div>
+          {session.name && (
+            <div className="text-xs text-gray-400 leading-snug mb-0.5 line-through">
+              {dateRange}
+            </div>
+          )}
+          <div className="text-xs text-gray-400 leading-snug">{metaText}</div>
         </div>
         {price !== null && (
           <div className="text-xl font-extrabold shrink-0 text-gray-400 line-through">
@@ -106,18 +112,21 @@ function CompactSessionCard({
   }
 
   return (
-    <div
-      onClick={() => onSelect(session)}
+    <Link
+      href={`/camps/${campSlug}/book?sessionId=${session.id}`}
       className={[
-        'border-2 rounded-xl px-4 py-3.5 mb-2 flex items-center gap-3 cursor-pointer transition-all',
+        'no-underline border-2 rounded-xl px-4 py-3.5 mb-2 flex items-center gap-3 cursor-pointer transition-all',
         isSelected
           ? 'border-gray-900 bg-gray-50 shadow-sm'
           : 'border-gray-200 bg-white hover:border-gray-400 hover:bg-gray-50',
       ].join(' ')}
     >
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-bold text-gray-900 leading-tight mb-0.5">{dateLabel}</div>
-        <div className="text-sm text-gray-400 leading-snug">{metaText}</div>
+        <div className="text-sm font-bold text-gray-900 leading-tight mb-0.5">{titleLabel}</div>
+        {session.name && (
+          <div className="text-xs text-gray-500 leading-snug mb-0.5">{dateRange}</div>
+        )}
+        <div className="text-xs text-gray-500 leading-snug">{metaText}</div>
       </div>
       {price !== null && (
         <div
@@ -126,7 +135,7 @@ function CompactSessionCard({
           {formatCurrency(price, currency)}
         </div>
       )}
-    </div>
+    </Link>
   )
 }
 
@@ -137,7 +146,6 @@ export function CampSidebar({
   sessions,
   currency,
   selectedSession,
-  onSessionSelect,
   onOpenSessionsModal,
 }: CampSidebarProps) {
   const router = useRouter()
@@ -300,11 +308,11 @@ export function CampSidebar({
                 <CompactSessionCard
                   key={session.id}
                   session={session}
+                  campSlug={camp.slug}
                   campType={camp.type}
                   currency={currency}
                   campAgeLabel={campAgeLabel}
                   isSelected={selectedSession?.id === session.id}
-                  onSelect={s => onSessionSelect(selectedSession?.id === s.id ? null : s)}
                 />
               ))}
               {previewSessions.length === 0 && (
@@ -322,12 +330,12 @@ export function CampSidebar({
               </button>
             ) : selectedSession ? (
               <>
-                <a
+                <Link
                   href={`/camps/${camp.slug}/book?sessionId=${selectedSession.id}`}
                   className="block w-full py-4 px-5 bg-primary hover:brightness-95 text-secondary text-base font-bold rounded-xl text-center transition-colors mt-3"
                 >
                   Reserve
-                </a>
+                </Link>
                 <p className="text-xs text-gray-400 text-center mt-2">
                   You won&apos;t be charged yet
                 </p>

@@ -14,7 +14,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@heroui/react": "^2.8.10",
     "@heroui/theme": "^2.4.26",
-    "@internationalized/date": "^3.12.1",
+    "@internationalized/date": "3.12.0",
     "@lexical/plain-text": "^0.39.0",
     "@lexical/react": "^0.39.0",
     "@lexical/rich-text": "^0.39.0",
