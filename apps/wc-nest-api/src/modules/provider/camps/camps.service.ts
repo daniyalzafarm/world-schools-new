@@ -505,7 +505,7 @@ export class CampsService {
 
     const camp = await this.prisma.camp.update({
       where: { id: campId },
-      data: { whatsIncluded: dto.whatsIncluded },
+      data: { whatsIncluded: dto.whatsIncluded as any },
     })
 
     return camp
