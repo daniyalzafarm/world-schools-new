@@ -378,8 +378,7 @@ export class SuperAdminProvidersService {
         if (existingUser) throw new Error(`Email already exists: ${email}`)
 
         const parsed = parseProviderCsvRow(row)
-        const tempPassword = this.generateSecurePassword()
-        const passwordHash = await bcrypt.hash(tempPassword, saltRounds)
+        const passwordHash = await bcrypt.hash(parsed.password, saltRounds)
         const now = new Date()
 
         // 3. Resolve GBP before the transaction — external HTTP call cannot run inside a Prisma tx
@@ -494,7 +493,7 @@ export class SuperAdminProvidersService {
         this.sendWelcomeEmail({
           to: parsed.email,
           firstName: parsed.firstName,
-          tempPassword,
+          tempPassword: parsed.password,
           loginUrl,
         }).catch(err => {
           this.logger.warn(
@@ -530,27 +529,5 @@ export class SuperAdminProvidersService {
       subject: 'Welcome to World-Camps — Your Provider Account is Ready',
       html,
     })
-  }
-
-  private generateSecurePassword(): string {
-    const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    const lower = 'abcdefghijklmnopqrstuvwxyz'
-    const digits = '0123456789'
-    const special = '!@#$%^&*'
-    const all = upper + lower + digits + special
-
-    // Guarantee at least one of each required character class
-    const required = [
-      upper[crypto.randomInt(upper.length)],
-      lower[crypto.randomInt(lower.length)],
-      digits[crypto.randomInt(digits.length)],
-      special[crypto.randomInt(special.length)],
-    ]
-
-    // Fill remaining 12 characters from the full character set
-    const rest = Array.from({ length: 12 }, () => all[crypto.randomInt(all.length)])
-
-    // Shuffle and join
-    return [...required, ...rest].sort(() => crypto.randomInt(3) - 1).join('')
   }
 }

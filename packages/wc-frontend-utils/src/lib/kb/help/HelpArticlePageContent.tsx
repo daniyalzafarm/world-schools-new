@@ -138,22 +138,30 @@ export function HelpArticlePageContent() {
             <Button
               disabled={feedbackLoading}
               onPress={() => sendFeedback(true)}
-              variant={feedbackSent === 'yes' ? 'flat' : 'bordered'}
+              variant={feedbackSent === 'yes' ? 'solid' : 'bordered'}
               color={feedbackSent === 'yes' ? 'primary' : 'default'}
-              className={feedbackSent === 'yes' ? 'border-2 border-primary' : ''}
             >
               Yes
             </Button>
             <Button
               disabled={feedbackLoading}
               onPress={() => sendFeedback(false)}
-              variant={feedbackSent === 'no' ? 'flat' : 'bordered'}
+              variant={feedbackSent === 'no' ? 'solid' : 'bordered'}
               color={feedbackSent === 'no' ? 'primary' : 'default'}
-              className={feedbackSent === 'no' ? 'border-2 border-primary' : ''}
             >
               No
             </Button>
           </div>
+          {feedbackSent && (
+            <div role="status" className="my-4" aria-live="polite">
+              <p className="text-base font-semibold text-secondary">Thanks for your feedback!</p>
+              <p className="text-sm text-gray-500">
+                {feedbackSent === 'yes'
+                  ? 'Glad this article helped.'
+                  : "Sorry this wasn't helpful — we'll use your feedback to improve it."}
+              </p>
+            </div>
+          )}
         </div>
 
         {related.length > 0 && (

@@ -5,7 +5,7 @@ import type { Session } from '@/types/sessions'
 import type { AgeGroup, CampType, SessionType } from '@/types/camps'
 import { formatCurrency } from '@/utils/currency'
 
-const PREVIEW_COUNT = 4
+const PREVIEW_COUNT = 3
 
 interface SessionsSectionProps {
   sessions: Session[]

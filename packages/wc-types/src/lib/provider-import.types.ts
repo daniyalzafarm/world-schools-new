@@ -18,6 +18,15 @@ export const PROVIDER_IMPORT_COLUMNS: ProviderImportColumn[] = [
     example: 'john@example.com',
   },
   {
+    key: 'password',
+    label: 'Password',
+    description:
+      'Initial login password for the provider. Must be at least 8 characters and include uppercase, lowercase, digit, and special character.',
+    required: true,
+    type: 'string',
+    example: 'TempPass!2026',
+  },
+  {
     key: 'firstName',
     label: 'First Name',
     description: 'Contact person first name',

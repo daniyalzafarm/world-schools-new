@@ -45,7 +45,7 @@ export const RadioGroupField: React.FC<RadioGroupFieldProps> = ({
               flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-all
               ${
                 isSelected
-                  ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                  ? 'border-secondary bg-secondary/5 dark:bg-secondary/10'
                   : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/50'
               }
               ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
@@ -70,7 +70,7 @@ export const RadioGroupField: React.FC<RadioGroupFieldProps> = ({
                   w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
                   ${
                     isSelected
-                      ? 'border-primary bg-primary'
+                      ? 'border-secondary bg-secondary'
                       : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
                   }
                 `}

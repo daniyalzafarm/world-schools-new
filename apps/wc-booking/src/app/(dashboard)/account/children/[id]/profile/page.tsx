@@ -279,9 +279,17 @@ export default function ChildProfilePage() {
   const params = useParams()
   const childId = params.id as string
 
-  const { getChildById, updateChild, isLoading } = useChildrenStore()
+  const { children, getChildById, updateChild, fetchChildren, isLoading } = useChildrenStore()
   const child = getChildById(childId)
   const { setFormState } = useChildDetailContext()
+
+  useEffect(() => {
+    if (children.length === 0 && !isLoading) {
+      fetchChildren().catch(error => {
+        console.error('Failed to fetch children:', error)
+      })
+    }
+  }, [children.length, isLoading, fetchChildren])
 
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
@@ -512,7 +520,7 @@ export default function ChildProfilePage() {
       if (age !== null && age < 3) {
         newErrors.dateOfBirth = 'Child must be at least 3 years old'
       } else if (age !== null && age > 18) {
-        newErrors.dateOfBirth = 'Child must be at most 18 years old'
+        newErrors.dateOfBirth = 'The child must not exceed 18 years of age'
       }
     }
 

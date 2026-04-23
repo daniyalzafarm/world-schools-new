@@ -24,12 +24,12 @@ export function EmojiCard({ emoji, label, selected, onClick, disabled = false }:
         flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all
         ${
           selected
-            ? 'border-primary bg-primary-50 dark:bg-primary-50/10'
-            : 'border-default-200 bg-white hover:border-primary hover:bg-default-50 dark:bg-default-50 dark:hover:bg-default-100'
+            ? 'border-secondary'
+            : 'border-default-200 bg-white hover:border-secondary hover:bg-default-50 dark:bg-default-50 dark:hover:bg-default-100'
         }
         ${
           !disabled
-            ? 'cursor-pointer hover:border-primary dark:hover:border-primary-400 hover:-tranprimary-y-0.5'
+            ? 'cursor-pointer hover:border-secondary dark:hover:border-secondary-400 hover:-tranprimary-y-0.5'
             : 'cursor-not-allowed opacity-50'
         }
       `}

@@ -142,6 +142,7 @@ export default function CampsPage() {
   }
 
   const handleEditCamp = (campId: string) => {
+    console.log('campId', campId)
     router.push(`/camps/${campId}/edit/basic-info`)
   }
 
@@ -467,133 +468,142 @@ export default function CampsPage() {
             ) : (
               <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {displayedCamps.map(camp => (
-                  <Card key={camp.id} className="overflow-hidden border border-slate-200">
-                    <CardBody className="p-0">
-                      {/* Camp Image */}
-                      <div className="relative h-40 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                        {getCampImage(camp) ? (
-                          <img
-                            src={getCampImage(camp)!}
-                            alt={camp.name}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900">
-                            <ImageIcon className="h-16 w-16 text-slate-400 dark:text-slate-600" />
-                          </div>
-                        )}
-                        <div className="absolute right-3 top-3">
-                          <Chip
-                            size="sm"
-                            color={getStatusColor(camp.status)}
-                            className="font-semibold"
-                          >
-                            {getStatusLabel(camp.status)}
-                          </Chip>
-                        </div>
-                      </div>
-
-                      {/* Camp Content */}
-                      <div className="p-5">
-                        <h3 className="mb-2 text-lg font-bold text-slate-900 dark:text-white">
-                          {camp.name}
-                        </h3>
-
-                        {/* Camp Meta */}
-                        <div className="mb-4 flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
-                          <div className="flex items-center gap-1.5">
-                            <MapPin className="h-4 w-4" />
-                            <span className="truncate">{getLocationText(camp)}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <Users className="h-4 w-4" />
-                            <span>{getAgeRangeText(camp)}</span>
+                  <div
+                    key={camp.id}
+                    onClick={() => handleEditCamp(camp.id)}
+                    className="cursor-pointer transition-transform duration-200 ease-out hover:scale-[1.02]"
+                  >
+                    <Card className="overflow-hidden border border-slate-200">
+                      <CardBody className="p-0">
+                        {/* Camp Image */}
+                        <div className="relative h-40 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                          {getCampImage(camp) ? (
+                            <img
+                              src={getCampImage(camp)!}
+                              alt={camp.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900">
+                              <ImageIcon className="h-16 w-16 text-slate-400 dark:text-slate-600" />
+                            </div>
+                          )}
+                          <div className="absolute right-3 top-3">
+                            <Chip
+                              size="sm"
+                              color={getStatusColor(camp.status)}
+                              className="font-semibold"
+                            >
+                              {getStatusLabel(camp.status)}
+                            </Chip>
                           </div>
                         </div>
 
-                        {/* Camp Stats or Progress */}
-                        {camp.status === 'published' ? (
-                          <div className="h-16 grid grid-cols-3 gap-4 border-t border-slate-200 pt-4 dark:border-slate-800">
-                            <div className="text-center">
-                              <div className="text-xl font-bold text-slate-900 dark:text-white">
-                                0
-                              </div>
-                              <div className="text-xs text-slate-600 dark:text-slate-400">
-                                Bookings
-                              </div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-xl font-bold text-slate-900 dark:text-white">
-                                0.0
-                              </div>
-                              <div className="text-xs text-slate-600 dark:text-slate-400">
-                                Rating
-                              </div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-xl font-bold text-slate-900 dark:text-white">
-                                0
-                              </div>
-                              <div className="text-xs text-slate-600 dark:text-slate-400">
-                                Sessions
-                              </div>
-                            </div>
-                          </div>
-                        ) : camp.status === 'draft' ? (
-                          <div className="h-16 border-t border-slate-200 pt-4 dark:border-slate-800">
-                            <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-                              <div
-                                className="h-full rounded-full bg-primary transition-all"
-                                style={{ width: `${isIncomplete(camp) ? 65 : 85}%` }}
-                              ></div>
-                            </div>
-                            <p className="text-xs text-slate-600 dark:text-slate-400">
-                              {isIncomplete(camp)
-                                ? '65% complete - Add photos to publish'
-                                : '85% complete - Almost ready!'}
-                            </p>
-                          </div>
-                        ) : null}
+                        {/* Camp Content */}
+                        <div className="p-5">
+                          <h3
+                            className="mb-2 truncate text-lg font-bold text-slate-900 dark:text-white"
+                            title={camp.name}
+                          >
+                            {camp.name}
+                          </h3>
 
-                        {/* Action Buttons */}
-                        <div className="mt-4 flex gap-2">
-                          <Button
-                            color="primary"
-                            fullWidth
-                            size="sm"
-                            onPress={() => handleEditCamp(camp.id)}
-                            aria-label={isIncomplete(camp) ? 'Complete camp setup' : 'Edit camp'}
-                            title={isIncomplete(camp) ? 'Complete camp setup' : 'Edit camp'}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="bordered"
-                            fullWidth
-                            size="sm"
-                            onPress={() => handleViewCamp(camp)}
-                            aria-label="View camp preview"
-                            title="View camp preview"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {camp.status !== 'published' && (
+                          {/* Camp Meta */}
+                          <div className="mb-4 flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
+                            <div className="flex items-center gap-1.5">
+                              <MapPin className="h-4 w-4" />
+                              <span className="truncate">{getLocationText(camp)}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <Users className="h-4 w-4" />
+                              <span>{getAgeRangeText(camp)}</span>
+                            </div>
+                          </div>
+
+                          {/* Camp Stats or Progress */}
+                          {camp.status === 'published' ? (
+                            <div className="h-16 grid grid-cols-3 gap-4 border-t border-slate-200 pt-4 dark:border-slate-800">
+                              <div className="text-center">
+                                <div className="text-xl font-bold text-slate-900 dark:text-white">
+                                  0
+                                </div>
+                                <div className="text-xs text-slate-600 dark:text-slate-400">
+                                  Bookings
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-xl font-bold text-slate-900 dark:text-white">
+                                  0.0
+                                </div>
+                                <div className="text-xs text-slate-600 dark:text-slate-400">
+                                  Rating
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-xl font-bold text-slate-900 dark:text-white">
+                                  0
+                                </div>
+                                <div className="text-xs text-slate-600 dark:text-slate-400">
+                                  Sessions
+                                </div>
+                              </div>
+                            </div>
+                          ) : camp.status === 'draft' ? (
+                            <div className="h-16 border-t border-slate-200 pt-4 dark:border-slate-800">
+                              <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                                <div
+                                  className="h-full rounded-full bg-primary transition-all"
+                                  style={{ width: `${isIncomplete(camp) ? 65 : 85}%` }}
+                                ></div>
+                              </div>
+                              <p className="text-xs text-slate-600 dark:text-slate-400">
+                                {isIncomplete(camp)
+                                  ? '65% complete - Add photos to publish'
+                                  : '85% complete - Almost ready!'}
+                              </p>
+                            </div>
+                          ) : null}
+
+                          {/* Action Buttons */}
+                          <div className="mt-4 flex gap-2" onClick={e => e.stopPropagation()}>
                             <Button
-                              variant="flat"
-                              color="danger"
+                              color="primary"
                               fullWidth
                               size="sm"
-                              onPress={() => handleDeleteCamp(camp.id, camp.name)}
-                              aria-label="Delete camp"
-                              title="Delete camp"
+                              onPress={() => handleEditCamp(camp.id)}
+                              aria-label={isIncomplete(camp) ? 'Complete camp setup' : 'Edit camp'}
+                              title={isIncomplete(camp) ? 'Complete camp setup' : 'Edit camp'}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Edit className="h-4 w-4" />
                             </Button>
-                          )}
+                            <Button
+                              variant="bordered"
+                              fullWidth
+                              size="sm"
+                              onPress={() => handleViewCamp(camp)}
+                              aria-label="View camp preview"
+                              title="View camp preview"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {camp.status !== 'published' && (
+                              <Button
+                                variant="flat"
+                                color="danger"
+                                fullWidth
+                                size="sm"
+                                onPress={() => handleDeleteCamp(camp.id, camp.name)}
+                                aria-label="Delete camp"
+                                title="Delete camp"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </CardBody>
-                  </Card>
+                      </CardBody>
+                    </Card>
+                  </div>
                 ))}
               </div>
             )}

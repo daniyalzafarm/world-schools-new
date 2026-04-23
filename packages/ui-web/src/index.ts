@@ -10,6 +10,7 @@ export type { Country } from './constants/countries'
 
 // Export utilities
 export { cn } from './utils/cn'
+export { selectFieldClassNames, selectFieldPortalStyles } from './utils/react-select-styles'
 export {
   formatRelativeTime,
   formatShortRelativeTime,

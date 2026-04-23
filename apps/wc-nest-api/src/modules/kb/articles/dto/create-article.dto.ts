@@ -89,25 +89,25 @@ export class CreateArticleDto {
   @IsString()
   summary?: string
 
-  @ApiProperty({
-    description: 'SEO meta title',
+  @ApiPropertyOptional({
+    description: 'SEO meta title. If omitted or empty, derived from the article title.',
     example: 'How to Book a Camp | World-Camps Help',
     maxLength: 255,
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(255)
-  metaTitle: string
+  metaTitle?: string
 
-  @ApiProperty({
-    description: 'SEO meta description',
+  @ApiPropertyOptional({
+    description: 'SEO meta description. If omitted or empty, derived from the summary or content.',
     example: 'Step-by-step guide to booking a camp on World-Camps platform.',
     maxLength: 500,
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(500)
-  metaDescription: string
+  metaDescription?: string
 
   @ApiPropertyOptional({
     description: 'IDs of related articles (order preserved as sortOrder)',

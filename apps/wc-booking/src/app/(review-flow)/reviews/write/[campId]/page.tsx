@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { Button, Checkbox, Divider } from '@heroui/react'
+import { Button, Checkbox, Divider, Tooltip } from '@heroui/react'
 import { cn, SelectField, Textarea } from '@world-schools/ui-web'
 import { Check, Minus, Plus, Star } from 'lucide-react'
 import { REVIEW_TAG_CONFIG } from '@world-schools/wc-types'
@@ -353,6 +353,20 @@ const WriteReviewCampPage = () => {
   const hasStoryInput = form.reviewText.trim().length > 0
 
   const footerNextDisabled = REQUIRED_STEPS.has(currentStep) && !stepComplete(currentStep)
+
+  const footerNextDisabledReason = (() => {
+    if (!footerNextDisabled) return undefined
+    switch (currentStep) {
+      case 'happiness':
+        return 'Please add star rating to continue.'
+      case 'safety':
+        return 'Please add star rating to continue.'
+      case 'communication':
+        return 'Please add star rating to continue.'
+      default:
+        return undefined
+    }
+  })()
 
   const footerNextLabel = (() => {
     if (currentStep === 'dims') return hasDimsInput ? 'Next' : 'Skip'
@@ -860,16 +874,25 @@ const WriteReviewCampPage = () => {
                 </Checkbox>
               </div>
 
-              <Button
-                radius="lg"
-                onPress={handleSubmit}
-                isDisabled={!form.agreeDisclaimer || isSubmitting}
-                isLoading={isSubmitting}
-                className="w-full"
-                color="secondary"
+              <Tooltip
+                content="Please accept the disclaimer to continue."
+                isDisabled={form.agreeDisclaimer || isSubmitting}
+                placement="top"
+                closeDelay={0}
               >
-                {reviewId ? 'Save changes' : 'Publish review'}
-              </Button>
+                <span className="block w-full">
+                  <Button
+                    radius="lg"
+                    onPress={handleSubmit}
+                    isDisabled={!form.agreeDisclaimer || isSubmitting}
+                    isLoading={isSubmitting}
+                    className="w-full"
+                    color="secondary"
+                  >
+                    {reviewId ? 'Save changes' : 'Publish review'}
+                  </Button>
+                </span>
+              </Tooltip>
             </>
           )}
         </WriteReviewStepContent>
@@ -881,6 +904,7 @@ const WriteReviewCampPage = () => {
         showNext={currentStep !== 'submit'}
         nextLabel={footerNextLabel}
         nextDisabled={footerNextDisabled}
+        nextDisabledReason={footerNextDisabledReason}
         onNext={goNext}
       />
     </div>

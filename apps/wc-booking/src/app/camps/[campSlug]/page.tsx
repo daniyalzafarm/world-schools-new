@@ -9,6 +9,7 @@ import {
 } from '@world-schools/wc-frontend-utils'
 import { Button } from '@heroui/react'
 import { CircleCheck, Images, MapPin, Star } from 'lucide-react'
+import { FcGoogle } from 'react-icons/fc'
 import { cn, StarRating } from '@world-schools/ui-web'
 import { getCampBySlug, getCampReviews } from '@/services/camps.services'
 import { campAddOnsService } from '@/services/camp-addons.services'
@@ -47,6 +48,7 @@ import {
   buildTypeFaq,
 } from '@/utils/faq-builders'
 import { CampPageTopbar } from '@/components/camp/CampPageTopbar'
+import { formatRating, formatReviewCount } from '@/utils/rating-format'
 
 const PREDEFINED_TRANSPORT = [
   { id: 'airport-pickup', name: 'Airport Pickup', icon: '✈️' },
@@ -210,23 +212,20 @@ export default function CampPage() {
     ? `${campLabel.charAt(0).toUpperCase()}${campLabel.slice(1)} in ${locationLabel}`
     : `${campLabel.charAt(0).toUpperCase()}${campLabel.slice(1)}`
 
-  const hasCampReviews = (campReviews?.totalReviews ?? 0) > 0
-  const gbpRating = camp.provider?.googleBusinessProfile?.rating
-  const gbpReviewsCount = camp.provider?.googleBusinessProfile?.reviewsCount
-  const hasGbpReviews = (gbpReviewsCount ?? 0) > 0
-  const headerRating = hasCampReviews
-    ? campReviews!.overallRating
-    : hasGbpReviews && gbpRating != null
-      ? Number(gbpRating)
-      : null
-  const headerReviewsCount = hasCampReviews
-    ? campReviews!.totalReviews
-    : hasGbpReviews
-      ? gbpReviewsCount!
-      : null
+  const systemRating = campReviews?.overallRating ?? null
+  const systemReviewsCount = campReviews?.totalReviews ?? 0
+  const hasSystemReviews = systemReviewsCount > 0
+
+  const gbp = camp.provider?.googleBusinessProfile
+  const googleRating = gbp?.rating != null ? Number(gbp.rating) : null
+  const googleReviewsCount = gbp?.reviewsCount ?? 0
+  const hasGoogleReviews = googleReviewsCount > 0
+  const googleReviewsUrl = gbp?.placeId
+    ? `https://search.google.com/local/reviews?placeid=${gbp.placeId}`
+    : null
+
   const headerAddress = camp.locationAddress || ''
   const isVerifiedProvider = camp.provider?.approvalStatus === 'approved'
-  const headerTrustScore = camp.provider?.trustScore
   const statsLevelLabel = getSkillLevelLabel(camp.sports?.skillLevel) ?? null
   const focusStatEmoji =
     primaryActivity?.emoji?.trim() || camp.campFocusRecord?.category?.emoji?.trim() || undefined
@@ -384,59 +383,97 @@ export default function CampPage() {
                 {camp.name}
               </h1>
 
-              {/* Meta — module-01: two lines, rating row + location row */}
-              {(headerRating != null ||
-                isVerifiedProvider ||
-                headerTrustScore != null ||
-                headerAddress) && (
+              {/* Meta — module-01: rating lines + location row */}
+              {(camp.provider || headerAddress) && (
                 <div className="mb-4 flex flex-col gap-y-1.5 text-base text-gray-600 md:mb-5">
-                  {(headerRating != null || isVerifiedProvider || headerTrustScore != null) && (
+                  {camp.provider && (
                     <div className="flex flex-wrap items-center gap-2 text-sm">
-                      {headerRating != null && (
-                        <span className="flex items-center gap-1">
+                      {/* System reviews */}
+                      {hasSystemReviews && systemRating != null ? (
+                        <a href="#reviews" className="flex items-center gap-1 hover:text-gray-900">
                           <StarRating
-                            rating={headerRating}
+                            rating={systemRating}
                             showRating={false}
                             color="yellow"
                             size={16}
                           />
-                          <span className="font-bold text-gray-900">{headerRating.toFixed(1)}</span>
+                          <span className="font-bold text-gray-900">
+                            {formatRating(systemRating)}
+                          </span>
+                          <span className="underline underline-offset-2">
+                            ({formatReviewCount(systemReviewsCount)} reviews)
+                          </span>
+                        </a>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <StarRating rating={0} showRating={false} color="yellow" size={16} />
+                          <span>(0 reviews)</span>
                         </span>
                       )}
-                      {headerRating != null && !!headerReviewsCount && (
-                        <>
-                          <span className="text-gray-500">·</span>
+
+                      <span className="text-gray-500">·</span>
+
+                      {/* Google reviews */}
+                      {hasGoogleReviews && googleRating != null ? (
+                        googleReviewsUrl ? (
                           <a
-                            href="#reviews"
-                            className="underline underline-offset-2 hover:text-gray-900"
+                            href={googleReviewsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 hover:text-gray-900"
                           >
-                            {headerReviewsCount} reviews
+                            <FcGoogle size={16} aria-label="Google" />
+                            <StarRating
+                              rating={1}
+                              maxRating={1}
+                              showRating={false}
+                              color="yellow"
+                              size={16}
+                            />
+                            <span className="font-bold text-gray-900">
+                              {formatRating(googleRating)}
+                            </span>
+                            <span className="underline underline-offset-2">
+                              ({formatReviewCount(googleReviewsCount)} reviews)
+                            </span>
                           </a>
-                        </>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <FcGoogle size={16} aria-label="Google" />
+                            <StarRating
+                              rating={1}
+                              maxRating={1}
+                              showRating={false}
+                              color="yellow"
+                              size={16}
+                            />
+                            <span className="font-bold text-gray-900">
+                              {formatRating(googleRating)}
+                            </span>
+                            <span>({formatReviewCount(googleReviewsCount)} reviews)</span>
+                          </span>
+                        )
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <FcGoogle size={16} aria-label="Google" />
+                          <StarRating
+                            rating={0}
+                            maxRating={1}
+                            showRating={false}
+                            color="yellow"
+                            size={16}
+                          />
+                          <span>(0 reviews)</span>
+                        </span>
                       )}
+
                       {isVerifiedProvider && (
                         <>
-                          {headerRating != null && <span className="text-gray-500">·</span>}
+                          <span className="text-gray-500">·</span>
                           <span className="inline-flex items-center gap-0.5 text-sm font-bold text-primary-700">
                             <CircleCheck size={16} />
                             Verified
                           </span>
-                        </>
-                      )}
-                      {headerTrustScore != null && (
-                        <>
-                          {/* {(headerRating != null || isVerifiedProvider) && (
-                            <span className="text-gray-500">·</span>
-                          )}
-                          <span className="inline-flex items-center gap-1 text-sm text-gray-600">
-                            🛡
-                            <span>
-                              Trust score{' '}
-                              <span className="underline underline-offset-2">
-                                {headerTrustScore}/100
-                              </span>
-                            </span>
-                          </span> */}
                         </>
                       )}
                     </div>

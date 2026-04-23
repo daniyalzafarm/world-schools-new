@@ -14,7 +14,7 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@heroui/react'
-import { Edit, Mail, Phone, Plus, Save, Trash2, User } from 'lucide-react'
+import { Edit, Mail, Phone, Plus, Trash2, User } from 'lucide-react'
 import {
   BackButton,
   Input,
@@ -53,9 +53,17 @@ export default function ChildEmergencyContactsPage() {
   const params = useParams()
   const childId = params.id as string
 
-  const { getChildById, updateChild, isLoading } = useChildrenStore()
+  const { children, getChildById, updateChild, fetchChildren, isLoading } = useChildrenStore()
   const child = getChildById(childId)
   const { confirm } = useConfirmDialog()
+
+  useEffect(() => {
+    if (children.length === 0 && !isLoading) {
+      fetchChildren().catch(error => {
+        console.error('Failed to fetch children:', error)
+      })
+    }
+  }, [children.length, isLoading, fetchChildren])
 
   const [contacts, setContacts] = useState<EmergencyContact[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -572,12 +580,7 @@ export default function ChildEmergencyContactsPage() {
             >
               Cancel
             </Button>
-            <Button
-              color="secondary"
-              onPress={handleSaveContact}
-              isLoading={isSaving}
-              startContent={!isSaving && <Save className="w-4 h-4" />}
-            >
+            <Button color="secondary" onPress={handleSaveContact} isLoading={isSaving}>
               {isSaving ? 'Saving...' : editingContactId ? 'Update Contact' : 'Add Contact'}
             </Button>
           </ModalFooter>

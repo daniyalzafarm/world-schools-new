@@ -35,8 +35,16 @@ function isCefrScale(scale: CatalogueScale | null | undefined) {
 export default function InterestsAndAbilitiesPage() {
   const params = useParams()
   const childId = params.id as string
-  const { getChildById } = useChildrenStore()
+  const { children, getChildById, fetchChildren, isLoading } = useChildrenStore()
   const { confirm } = useConfirmDialog()
+
+  useEffect(() => {
+    if (children.length === 0 && !isLoading) {
+      fetchChildren().catch(error => {
+        console.error('Failed to fetch children:', error)
+      })
+    }
+  }, [children.length, isLoading, fetchChildren])
 
   const [categories, setCategories] = useState<CatalogueCategory[]>([])
   const [activitiesWithScale, setActivitiesWithScale] = useState<CatalogueActivityWithScale[]>([])

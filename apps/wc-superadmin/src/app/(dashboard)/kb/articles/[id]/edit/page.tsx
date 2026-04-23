@@ -1,5 +1,6 @@
 'use client'
 
+import { addToast } from '@heroui/react'
 import { ArticleForm } from '@/components/kb/article-form'
 import { useKbArticlesStore } from '@/stores/kb-articles-store'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -43,7 +44,16 @@ export default function EditArticlePage() {
 
   const handleSubmit = async (data: CreateArticleData) => {
     // Convert CreateArticleData to UpdateArticleData (all fields are optional in update)
-    return await updateArticle(articleId, data)
+    const success = await updateArticle(articleId, data)
+    if (success) {
+      addToast({
+        title: 'Success',
+        description: 'Article updated successfully',
+        color: 'success',
+        timeout: 3000,
+      })
+    }
+    return success
   }
 
   if (!canUpdate) {

@@ -142,7 +142,7 @@ function validate(values: AddChildFormValues): AddChildFormErrors {
     if (adjustedAge < 3) {
       errors.dateOfBirth = 'Child must be at least 3 years old'
     } else if (adjustedAge > 18) {
-      errors.dateOfBirth = 'Child must be at most 18 years old'
+      errors.dateOfBirth = 'The child must not exceed 18 years of age'
     }
   }
 

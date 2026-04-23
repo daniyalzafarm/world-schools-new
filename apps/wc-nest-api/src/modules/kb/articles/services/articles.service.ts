@@ -31,6 +31,46 @@ export class ArticlesService {
     return 'System'
   }
 
+  /** Return trimmed value if non-empty, otherwise undefined. */
+  private pickNonEmpty(value?: string | null): string | undefined {
+    if (value == null) return undefined
+    return value.trim().length > 0 ? value : undefined
+  }
+
+  /** Strip HTML tags and collapse whitespace for deriving a plain-text meta description. */
+  private stripHtmlToText(html: string): string {
+    return html
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
+  /**
+   * Derive SEO fields with fallbacks when incoming values are missing or empty:
+   * - metaTitle: incoming → title (truncated to 255)
+   * - metaDescription: incoming → summary → stripped contentHtml (truncated to 500)
+   */
+  private deriveSeoFields(input: {
+    title?: string
+    summary?: string | null
+    contentHtml?: string
+    metaTitle?: string
+    metaDescription?: string
+  }): { metaTitle: string; metaDescription: string } {
+    const titleFallback = (input.title ?? '').slice(0, 255)
+    const metaTitle = this.pickNonEmpty(input.metaTitle) ?? titleFallback
+
+    const summaryFallback = this.pickNonEmpty(input.summary)
+    const contentFallback = input.contentHtml ? this.stripHtmlToText(input.contentHtml) : ''
+    const metaDescription =
+      this.pickNonEmpty(input.metaDescription) ?? summaryFallback ?? contentFallback
+
+    return {
+      metaTitle: metaTitle.slice(0, 255),
+      metaDescription: metaDescription.slice(0, 500),
+    }
+  }
+
   private hasContentFieldChanges(
     dto: UpdateArticleDto,
     existingArticle: {
@@ -149,10 +189,19 @@ export class ArticlesService {
     }
 
     const { relatedArticleIds, ...articleData } = dto
+    const seo = this.deriveSeoFields({
+      title: articleData.title,
+      summary: articleData.summary,
+      contentHtml: articleData.contentHtml,
+      metaTitle: articleData.metaTitle,
+      metaDescription: articleData.metaDescription,
+    })
     return await this.prisma.$transaction(async tx => {
       const article = await tx.article.create({
         data: {
           ...articleData,
+          metaTitle: seo.metaTitle,
+          metaDescription: seo.metaDescription,
           status: articleData.status || 'draft',
           author: this.resolveAuthorName(currentUser),
           lastUpdatedAt: new Date(),
@@ -496,7 +545,25 @@ export class ArticlesService {
     }
 
     const { relatedArticleIds, ...restDto } = dto
-    const contentChanged = this.hasContentFieldChanges(dto, existingArticle)
+
+    // If the caller explicitly sent empty/whitespace SEO values, derive fallbacks
+    // from the incoming payload (or existing article values as a last resort) so
+    // the non-nullable DB columns never receive blank strings.
+    const metaTitleProvided = restDto.metaTitle !== undefined
+    const metaDescriptionProvided = restDto.metaDescription !== undefined
+    if (metaTitleProvided || metaDescriptionProvided) {
+      const derived = this.deriveSeoFields({
+        title: restDto.title ?? existingArticle.title,
+        summary: restDto.summary ?? existingArticle.summary,
+        contentHtml: restDto.contentHtml ?? existingArticle.contentHtml,
+        metaTitle: restDto.metaTitle,
+        metaDescription: restDto.metaDescription,
+      })
+      if (metaTitleProvided) restDto.metaTitle = derived.metaTitle
+      if (metaDescriptionProvided) restDto.metaDescription = derived.metaDescription
+    }
+
+    const contentChanged = this.hasContentFieldChanges(restDto, existingArticle)
     const updateData: Prisma.ArticleUpdateInput = {
       ...restDto,
       ...(contentChanged ? { lastUpdatedAt: new Date() } : {}),

@@ -136,8 +136,12 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
   const router = useRouter()
   const { confirm } = useConfirmDialog()
   const { categories, fetchCategories } = useKbCategoriesStore()
-  const { publishArticle: storePublishArticle, unpublishArticle: storeUnpublishArticle } =
-    useKbArticlesStore()
+  const {
+    publishArticle: storePublishArticle,
+    unpublishArticle: storeUnpublishArticle,
+    error: storeError,
+    clearError: clearStoreError,
+  } = useKbArticlesStore()
   const editorLayout = useArticleEditorLayoutOptional()
   const setRightSidebar = editorLayout?.setRightSidebar
   const setTopBarConfig = editorLayout?.setTopBarConfig
@@ -273,8 +277,6 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
     if (!audience?.length) newErrors.audience = 'At least one audience is required'
     if (!categoryId) newErrors.categoryId = 'Category is required'
     if (!contentHtml.trim()) newErrors.contentHtml = 'Content is required'
-    if (!metaTitle.trim()) newErrors.metaTitle = 'Meta title is required'
-    if (!metaDescription.trim()) newErrors.metaDescription = 'Meta description is required'
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -287,8 +289,6 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
     { key: 'categoryId', filled: !!categoryId },
     { key: 'audience', filled: audience.length > 0 },
     { key: 'contentHtml', filled: contentHtml.trim() !== '' },
-    { key: 'metaTitle', filled: metaTitle.trim() !== '' },
-    { key: 'metaDescription', filled: metaDescription.trim() !== '' },
   ]
   useEffect(() => {
     setErrors(prev => {
@@ -301,7 +301,7 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
       }
       return next
     })
-  }, [title, slug, categoryId, audience, contentHtml, metaTitle, metaDescription])
+  }, [title, slug, categoryId, audience, contentHtml])
 
   const [activeEditorTab, setActiveEditorTab] = useState<'code' | 'preview'>('code')
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
@@ -411,6 +411,18 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
       metaDescription.trim() !== '')
   const isDirty = article ? isDirtyEdit : isDirtyCreate
 
+  // Surface backend errors from the store as a toast so failures aren't silent.
+  useEffect(() => {
+    if (!storeError) return
+    addToast({
+      title: 'Save failed',
+      description: storeError,
+      color: 'danger',
+      timeout: 5000,
+    })
+    clearStoreError()
+  }, [storeError, clearStoreError])
+
   const copyToClipboard = useCallback(async (text: string) => {
     if (typeof navigator === 'undefined' || !navigator.clipboard) return
     try {
@@ -438,8 +450,8 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
       status: submitStatus ?? status,
       contentHtml,
       summary: summary || undefined,
-      metaTitle,
-      metaDescription,
+      metaTitle: metaTitle.trim() || undefined,
+      metaDescription: metaDescription.trim() || undefined,
       ...(article
         ? { relatedArticleIds }
         : relatedArticleIds.length > 0
@@ -466,8 +478,8 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
       status: article.status,
       contentHtml,
       summary: summary || undefined,
-      metaTitle,
-      metaDescription,
+      metaTitle: metaTitle.trim() || undefined,
+      metaDescription: metaDescription.trim() || undefined,
       relatedArticleIds,
     }
     const success = await onSubmit(data)
@@ -721,7 +733,10 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
             isInvalid={!!errors.slug || !!slugError}
             startContent={
               <span className="text-sm text-default-500">
-                /help/{categories.find(c => c.id === categoryId)?.slug ?? ''}/
+                {(() => {
+                  const categorySlug = categories.find(c => c.id === categoryId)?.slug
+                  return categorySlug ? `/help/${categorySlug}/` : '/help/'
+                })()}
               </span>
             }
             endContent={
@@ -814,7 +829,6 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
             placeholder="Auto-generated from title"
             value={metaTitle}
             onValueChange={setMetaTitle}
-            isRequired
             errorMessage={errors.metaTitle}
             isInvalid={!!errors.metaTitle}
             description={`${metaTitle.length} / 60 chars`}
@@ -824,7 +838,6 @@ export function ArticleForm({ article, onSubmit, isLoading }: ArticleFormProps) 
             placeholder="Auto-generated from summary"
             value={metaDescription}
             onValueChange={setMetaDescription}
-            isRequired
             errorMessage={errors.metaDescription}
             isInvalid={!!errors.metaDescription}
             description={`${metaDescription.length} / 160 chars`}

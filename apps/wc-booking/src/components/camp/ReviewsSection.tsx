@@ -7,6 +7,7 @@ import { StarRating } from '@world-schools/ui-web'
 import { REVIEW_TAG_CONFIG } from '@world-schools/wc-types'
 import { getCampReviews } from '@/services/camps.services'
 import type { CampReviewsData, PublicCampReview } from '@/types/reviews'
+import { formatRating } from '@/utils/rating-format'
 import { ExpandableText } from '@/components/camp/ExpandableText'
 import { ReviewsDrawer } from './ReviewsDrawer'
 
@@ -178,6 +179,7 @@ export function ReviewsSection({
 
   const hasReviews = data != null && data.totalReviews > 0
   const previewReviews = hasReviews ? data.reviews.slice(0, 4) : []
+  const hasMoreReviews = hasReviews && data.totalReviews > previewReviews.length
 
   return (
     <section
@@ -193,7 +195,7 @@ export function ReviewsSection({
             {/* Score block */}
             <div className="flex flex-col items-center md:items-start md:pr-8 md:border-r md:border-gray-200 pb-6 md:pb-0 border-b md:border-b-0 border-gray-200 min-w-24">
               <div className="text-5xl font-extrabold leading-none tracking-tight text-gray-900">
-                {(data.overallRating ?? 0).toFixed(1)}
+                {formatRating(data.overallRating)}
               </div>
               <div className="my-1.5">
                 <StarRating
@@ -225,7 +227,7 @@ export function ReviewsSection({
                       classNames={{ track: 'h-1.5' }}
                     />
                     <span className="font-bold text-gray-900 text-right min-w-7">
-                      {val.toFixed(1)}
+                      {formatRating(val)}
                     </span>
                   </div>
                 )
@@ -241,13 +243,15 @@ export function ReviewsSection({
           </div>
 
           {/* View all button */}
-          <Button
-            onPress={() => setIsOpen(true)}
-            variant="flat"
-            className="w-full md:w-auto md:px-6 rounded-xl border border-primary/30 text-sm font-semibold text-secondary bg-primary/10 hover:bg-primary/20"
-          >
-            View all {data.totalReviews} reviews
-          </Button>
+          {hasMoreReviews && (
+            <Button
+              onPress={() => setIsOpen(true)}
+              variant="flat"
+              className="w-full md:w-auto md:px-6 rounded-xl border border-primary/30 text-sm font-semibold text-secondary bg-primary/10 hover:bg-primary/20"
+            >
+              View all {data.totalReviews} reviews
+            </Button>
+          )}
 
           <ReviewsDrawer
             campName={campName}

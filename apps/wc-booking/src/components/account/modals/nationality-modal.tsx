@@ -9,9 +9,9 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
-  Select,
-  SelectItem,
 } from '@heroui/react'
+import Select, { type SingleValue } from 'react-select'
+import { selectFieldClassNames, selectFieldPortalStyles } from '@world-schools/ui-web'
 import { profileService } from '@/services/profile.services'
 
 interface NationalityModalProps {
@@ -21,6 +21,8 @@ interface NationalityModalProps {
   currentSecondaryNationality?: string
   onSuccess?: () => void
 }
+
+type NationalityOption = { value: string; label: string }
 
 // Common nationalities list
 const NATIONALITIES = [
@@ -197,6 +199,8 @@ const NATIONALITIES = [
   'Zimbabwean',
 ]
 
+const NATIONALITY_OPTIONS: NationalityOption[] = NATIONALITIES.map(n => ({ value: n, label: n }))
+
 export const NationalityModal: React.FC<NationalityModalProps> = ({
   isOpen,
   onClose,
@@ -271,39 +275,54 @@ export const NationalityModal: React.FC<NationalityModalProps> = ({
             </div>
           )}
 
-          <Select
-            label="Primary nationality"
-            labelPlacement="outside"
-            placeholder="Select primary nationality"
-            selectedKeys={primaryNationality ? [primaryNationality] : []}
-            onSelectionChange={keys => {
-              const value = Array.from(keys)[0] as string
-              setPrimaryNationality(value)
-              if (error) setError(null)
-            }}
-            isRequired
-            isDisabled={isSaving}
-          >
-            {NATIONALITIES.map(nationality => (
-              <SelectItem key={nationality}>{nationality}</SelectItem>
-            ))}
-          </Select>
+          <div>
+            <label
+              htmlFor="primary-nationality"
+              className="block text-sm font-medium text-slate-900 dark:text-white mb-2"
+            >
+              Primary nationality <span className="text-danger">*</span>
+            </label>
+            <Select<NationalityOption>
+              inputId="primary-nationality"
+              unstyled
+              menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+              styles={selectFieldPortalStyles<NationalityOption>()}
+              classNames={selectFieldClassNames<NationalityOption>()}
+              options={NATIONALITY_OPTIONS}
+              value={NATIONALITY_OPTIONS.find(o => o.value === primaryNationality) ?? null}
+              onChange={(selected: SingleValue<NationalityOption>) => {
+                setPrimaryNationality(selected?.value ?? '')
+                if (error) setError(null)
+              }}
+              placeholder="Select primary nationality"
+              isDisabled={isSaving}
+              aria-required
+            />
+          </div>
 
-          <Select
-            label="Secondary nationality (optional)"
-            labelPlacement="outside"
-            placeholder="Select secondary nationality"
-            selectedKeys={secondaryNationality ? [secondaryNationality] : []}
-            onSelectionChange={keys => {
-              const value = Array.from(keys)[0] as string
-              setSecondaryNationality(value)
-            }}
-            isDisabled={isSaving}
-          >
-            {NATIONALITIES.map(nationality => (
-              <SelectItem key={nationality}>{nationality}</SelectItem>
-            ))}
-          </Select>
+          <div>
+            <label
+              htmlFor="secondary-nationality"
+              className="block text-sm font-medium text-slate-900 dark:text-white mb-2"
+            >
+              Secondary nationality (optional)
+            </label>
+            <Select<NationalityOption>
+              inputId="secondary-nationality"
+              unstyled
+              isClearable
+              menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+              styles={selectFieldPortalStyles<NationalityOption>()}
+              classNames={selectFieldClassNames<NationalityOption>()}
+              options={NATIONALITY_OPTIONS}
+              value={NATIONALITY_OPTIONS.find(o => o.value === secondaryNationality) ?? null}
+              onChange={(selected: SingleValue<NationalityOption>) =>
+                setSecondaryNationality(selected?.value ?? '')
+              }
+              placeholder="Select secondary nationality"
+              isDisabled={isSaving}
+            />
+          </div>
         </ModalBody>
         <ModalFooter>
           <Button variant="light" onPress={handleClose} isDisabled={isSaving}>

@@ -16,6 +16,7 @@ import { StarRating } from '@world-schools/ui-web'
 import { REVIEW_TAG_CONFIG } from '@world-schools/wc-types'
 import type { CampReviewCategoryScores, PublicCampReview } from '@/types/reviews'
 import { ExpandableText } from '@/components/camp/ExpandableText'
+import { formatRating } from '@/utils/rating-format'
 
 interface ReviewsDrawerProps {
   campName: string
@@ -202,7 +203,7 @@ export function ReviewsDrawer({
                 {/* Score */}
                 <div className="mb-6">
                   <div className="text-5xl font-extrabold leading-none tracking-tight text-gray-900">
-                    {rating.toFixed(1)}
+                    {formatRating(rating)}
                   </div>
                   <div className="my-2">
                     <StarRating rating={5} color="primary" showRating={false} size={15} />
@@ -228,7 +229,7 @@ export function ReviewsDrawer({
                               classNames={{ track: 'h-1.5 w-full' }}
                             />
                             <span className="font-bold text-gray-900 text-right">
-                              {val.toFixed(1)}
+                              {formatRating(val)}
                             </span>
                           </div>
                         </div>
@@ -243,7 +244,9 @@ export function ReviewsDrawer({
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Mobile score strip */}
               <div className="flex md:hidden items-center gap-3 px-5 py-4 border-b border-gray-100 flex-shrink-0">
-                <span className="text-3xl font-extrabold text-gray-900">{rating.toFixed(1)}</span>
+                <span className="text-3xl font-extrabold text-gray-900">
+                  {formatRating(rating)}
+                </span>
                 <div>
                   <StarRating rating={5} color="primary" showRating={false} size={14} />
                   <p className="text-xs text-gray-400 mt-0.5">{totalReviews} reviews</p>

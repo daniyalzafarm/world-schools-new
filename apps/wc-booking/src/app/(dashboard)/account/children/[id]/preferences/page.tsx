@@ -8,8 +8,10 @@ import {
   IconTagSelectField,
   RangeSlider,
   SelectField,
-  TagSelectField,
+  selectFieldClassNames,
+  selectFieldPortalStyles,
 } from '@world-schools/ui-web'
+import Select, { type MultiValue } from 'react-select'
 import { useChildrenStore } from '@/stores/children-store'
 import { useBeforeUnload } from '@/hooks/use-before-unload'
 import { useChildDetailContext } from '@/components/children/ChildDetailContext'
@@ -55,6 +57,19 @@ interface FormErrors {
 
 const CURRENCY_OPTIONS = ['USD', 'EUR', 'GBP', 'AED']
 
+type RegionOption = { value: string; label: string }
+
+const REGION_OPTIONS: RegionOption[] = [
+  { value: 'Switzerland', label: 'Switzerland' },
+  { value: 'France', label: 'France' },
+  { value: 'Spain', label: 'Spain' },
+  { value: 'USA', label: 'USA' },
+  { value: 'Germany', label: 'Germany' },
+  { value: 'UK', label: 'UK' },
+  { value: 'Italy', label: 'Italy' },
+  { value: 'Austria', label: 'Austria' },
+]
+
 // Currency symbols mapping
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: '$',
@@ -67,9 +82,18 @@ export default function ChildPreferencesPage() {
   const params = useParams()
   const childId = params.id as string
 
-  const { getChildById, updateChild, isLoading } = useChildrenStore()
+  const { children, getChildById, updateChild, fetchChildren, isLoading } = useChildrenStore()
   const child = getChildById(childId)
   const { setFormState } = useChildDetailContext()
+
+  // Fetch children data if store is empty (e.g., after page reload directly on this route)
+  useEffect(() => {
+    if (children.length === 0 && !isLoading) {
+      fetchChildren().catch(error => {
+        console.error('Failed to fetch children:', error)
+      })
+    }
+  }, [children.length, isLoading, fetchChildren])
 
   const [formData, setFormData] = useState<FormData>({
     interests: [],
@@ -309,23 +333,32 @@ export default function ChildPreferencesPage() {
             </p>
           </div>
 
-          <TagSelectField
-            label="Preferred regions"
-            value={formData.preferredAreas}
-            onChange={value => handleFieldChange('preferredAreas', value)}
-            suggestions={[
-              'Switzerland',
-              'France',
-              'Spain',
-              'USA',
-              'Germany',
-              'UK',
-              'Italy',
-              'Austria',
-            ]}
-            placeholder="Add location"
-            aria-label="camp-preferences-add-location"
-          />
+          <div>
+            <label
+              htmlFor="preferred-regions"
+              className="block text-sm font-medium text-slate-900 dark:text-white mb-2"
+            >
+              Preferred regions
+            </label>
+            <Select<RegionOption, true>
+              inputId="preferred-regions"
+              isMulti
+              unstyled
+              menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+              styles={selectFieldPortalStyles<RegionOption, true>()}
+              classNames={selectFieldClassNames<RegionOption, true>()}
+              options={REGION_OPTIONS}
+              value={REGION_OPTIONS.filter(o => formData.preferredAreas.includes(o.value))}
+              onChange={(selected: MultiValue<RegionOption>) =>
+                handleFieldChange(
+                  'preferredAreas',
+                  selected.map(s => s.value)
+                )
+              }
+              placeholder="Add location"
+              aria-label="camp-preferences-add-location"
+            />
+          </div>
           <IconTagSelectField
             label="Preferred camp languages"
             value={formData.languagesSpoken}

@@ -126,10 +126,10 @@ export const SESSION_IMPORT_COLUMNS: SessionImportColumn[] = [
     key: 'status',
     label: 'Status',
     description:
-      "Publication status of the session. 'draft' sessions are not visible to parents; 'published' sessions appear in search results and are open for booking. Defaults to 'draft' if omitted.",
+      "Publication status of the session. 'draft' sessions are not visible to parents; 'published' sessions appear in search results and are open for booking. Defaults to 'published' if omitted.",
     required: false,
     type: 'enum',
     options: ['draft', 'published'],
-    example: 'draft',
+    example: 'published',
   },
 ]

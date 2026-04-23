@@ -164,6 +164,7 @@ export class UserCampsService {
             },
             googleBusinessProfile: {
               select: {
+                placeId: true,
                 businessName: true,
                 formattedAddress: true,
                 rating: true,

@@ -151,8 +151,8 @@ export interface CreateArticleData {
   status?: ArticleStatus
   contentHtml: string
   summary?: string
-  metaTitle: string
-  metaDescription: string
+  metaTitle?: string
+  metaDescription?: string
   relatedArticleIds?: string[]
 }
 

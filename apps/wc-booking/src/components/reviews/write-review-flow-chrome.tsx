@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Button } from '@heroui/react'
+import { Button, Tooltip } from '@heroui/react'
 import { cn } from '@world-schools/ui-web'
 import { ArrowLeft, X } from 'lucide-react'
 
@@ -101,6 +101,7 @@ export function WriteReviewFlowFooter({
   showNext,
   nextLabel,
   nextDisabled,
+  nextDisabledReason,
   onNext,
 }: {
   showBack: boolean
@@ -108,6 +109,7 @@ export function WriteReviewFlowFooter({
   showNext: boolean
   nextLabel: string
   nextDisabled: boolean
+  nextDisabledReason?: string
   onNext: () => void
 }) {
   return (
@@ -121,9 +123,18 @@ export function WriteReviewFlowFooter({
           Back
         </Button>
         {showNext ? (
-          <Button onPress={onNext} isDisabled={nextDisabled} color="secondary">
-            {nextLabel}
-          </Button>
+          <Tooltip
+            content={nextDisabledReason ?? ''}
+            isDisabled={!nextDisabled || !nextDisabledReason}
+            placement="top"
+            closeDelay={0}
+          >
+            <span>
+              <Button onPress={onNext} isDisabled={nextDisabled} color="secondary">
+                {nextLabel}
+              </Button>
+            </span>
+          </Tooltip>
         ) : (
           <span className="min-w-28" aria-hidden />
         )}

@@ -69,9 +69,17 @@ export default function ChildMedicalPage() {
   const params = useParams()
   const childId = params.id as string
 
-  const { getChildById, updateChild, isLoading } = useChildrenStore()
+  const { children, getChildById, updateChild, fetchChildren, isLoading } = useChildrenStore()
   const child = getChildById(childId)
   const { setFormState } = useChildDetailContext()
+
+  useEffect(() => {
+    if (children.length === 0 && !isLoading) {
+      fetchChildren().catch(error => {
+        console.error('Failed to fetch children:', error)
+      })
+    }
+  }, [children.length, isLoading, fetchChildren])
 
   const [formData, setFormData] = useState<FormData>({
     allergyCategories: [],
@@ -438,7 +446,7 @@ export default function ChildMedicalPage() {
                 <label
                   className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
                     isAllergyCategorySelected(category.id)
-                      ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                      ? 'border-secondary bg-secondary/5 dark:bg-secondary/10'
                       : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                   }`}
                   onClick={() => toggleAllergyCategory(category.id)}
@@ -447,7 +455,7 @@ export default function ChildMedicalPage() {
                   <div
                     className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
                       isAllergyCategorySelected(category.id)
-                        ? 'border-primary bg-primary'
+                        ? 'border-secondary bg-secondary'
                         : 'border-slate-300 dark:border-slate-600'
                     }`}
                   >
@@ -516,7 +524,7 @@ export default function ChildMedicalPage() {
                 key={option.id}
                 className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
                   formData.dietaryRequirement === option.id
-                    ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                    ? 'border-secondary bg-secondary/5 dark:bg-secondary/10'
                     : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                 }`}
                 onClick={() => handleFieldChange('dietaryRequirement', option.id)}
@@ -525,7 +533,7 @@ export default function ChildMedicalPage() {
                 <div
                   className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                     formData.dietaryRequirement === option.id
-                      ? 'border-primary bg-primary'
+                      ? 'border-secondary bg-secondary'
                       : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
                   }`}
                 >
@@ -563,7 +571,7 @@ export default function ChildMedicalPage() {
             <label
               className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
                 !formData.hasMedications
-                  ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                  ? 'border-secondary bg-secondary/5 dark:bg-secondary/10'
                   : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/50'
               }`}
               onClick={() => {
@@ -575,7 +583,7 @@ export default function ChildMedicalPage() {
               <div
                 className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                   !formData.hasMedications
-                    ? 'border-primary bg-primary'
+                    ? 'border-secondary bg-secondary'
                     : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
                 }`}
               >
@@ -589,7 +597,7 @@ export default function ChildMedicalPage() {
             <label
               className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
                 formData.hasMedications
-                  ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                  ? 'border-secondary bg-secondary/5 dark:bg-secondary/10'
                   : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/50'
               }`}
               onClick={() => handleFieldChange('hasMedications', true)}
@@ -598,7 +606,7 @@ export default function ChildMedicalPage() {
               <div
                 className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                   formData.hasMedications
-                    ? 'border-primary bg-primary'
+                    ? 'border-secondary bg-secondary'
                     : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
                 }`}
               >
@@ -658,7 +666,7 @@ export default function ChildMedicalPage() {
                 key={level.id}
                 className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
                   formData.swimmingAbility === level.id
-                    ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                    ? 'border-secondary bg-secondary/5 dark:bg-secondary/10'
                     : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                 }`}
                 onClick={() => handleFieldChange('swimmingAbility', level.id)}
@@ -667,7 +675,7 @@ export default function ChildMedicalPage() {
                 <div
                   className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                     formData.swimmingAbility === level.id
-                      ? 'border-primary bg-primary'
+                      ? 'border-secondary bg-secondary'
                       : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
                   }`}
                 >

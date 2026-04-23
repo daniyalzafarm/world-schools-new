@@ -243,7 +243,7 @@ export function parseSessionCsvRow(row: Record<string, string>): ParsedSessionRo
   const departureTime = sessionDayType === 'half_day' ? str('departureTime') : undefined
 
   const rawStatus = str('status')
-  const status: 'draft' | 'published' = rawStatus === 'published' ? 'published' : 'draft'
+  const status: 'draft' | 'published' = rawStatus === 'draft' ? 'draft' : 'published'
 
   return {
     name: row['name'].trim(),

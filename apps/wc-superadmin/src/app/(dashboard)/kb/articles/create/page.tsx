@@ -1,5 +1,6 @@
 'use client'
 
+import { addToast } from '@heroui/react'
 import { ArticleForm } from '@/components/kb/article-form'
 import { useKbArticlesStore } from '@/stores/kb-articles-store'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -21,7 +22,16 @@ export default function CreateArticlePage() {
   }, [canCreate, router])
 
   const handleSubmit = async (data: CreateArticleData) => {
-    return await createArticle(data)
+    const success = await createArticle(data)
+    if (success) {
+      addToast({
+        title: 'Success',
+        description: 'Article created successfully',
+        color: 'success',
+        timeout: 3000,
+      })
+    }
+    return success
   }
 
   if (!canCreate) {

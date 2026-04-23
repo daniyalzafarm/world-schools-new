@@ -2,7 +2,6 @@
 
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { Button, Chip } from '@heroui/react'
-import { Save } from 'lucide-react'
 import { useChildDetailContext } from './ChildDetailContext'
 
 /**
@@ -83,9 +82,8 @@ function ProfileFooterContent({
           color="secondary"
           isLoading={isSaving}
           isDisabled={!isModified}
-          startContent={!isSaving && <Save className="w-4 h-4" />}
         >
-          {isSaving ? 'Saving...' : 'Save Changes'}
+          {isSaving ? 'Saving...' : 'Save'}
         </Button>
       </div>
     </div>
@@ -110,13 +108,11 @@ function MedicalFooterContent({
         type="submit"
         form="medical-form"
         color="primary"
-        size="lg"
         isLoading={isSaving}
         isDisabled={!isModified}
         className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900"
-        startContent={!isSaving && <Save className="w-4 h-4" />}
       >
-        {isSaving ? 'Saving...' : 'Save changes'}
+        {isSaving ? 'Saving...' : 'Save'}
       </Button>
     </div>
   )
@@ -158,9 +154,8 @@ function PreferencesFooterContent({
           color="secondary"
           isLoading={isSaving}
           isDisabled={!isModified}
-          startContent={!isSaving && <Save className="w-4 h-4" />}
         >
-          {isSaving ? 'Saving...' : 'Save Preferences'}
+          {isSaving ? 'Saving...' : 'Save'}
         </Button>
       </div>
     </div>

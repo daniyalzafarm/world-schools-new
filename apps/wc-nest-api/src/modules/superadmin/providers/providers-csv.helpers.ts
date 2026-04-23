@@ -1,4 +1,8 @@
 import { PROVIDER_IMPORT_COLUMNS } from '@world-schools/wc-types'
+import {
+  isStrongPassword,
+  STRONG_PASSWORD_MESSAGE,
+} from '../../../common/validators/is-strong-password.validator'
 
 const REQUIRED_KEYS = PROVIDER_IMPORT_COLUMNS.filter(c => c.required).map(c => c.key)
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -19,12 +23,17 @@ export function validateProviderCsvRow(row: Record<string, string>): string | nu
     return `Invalid email format: ${email}`
   }
 
+  if (!isStrongPassword(row['password'] ?? '')) {
+    return STRONG_PASSWORD_MESSAGE
+  }
+
   return null
 }
 
 export interface ParsedProviderRow {
   // Required
   email: string
+  password: string
   firstName: string
   lastName: string
   jobTitle: string
@@ -62,6 +71,7 @@ export function parseProviderCsvRow(row: Record<string, string>): ParsedProvider
 
   return {
     email: row['email'].trim(),
+    password: row['password'].trim(),
     firstName: row['firstName'].trim(),
     lastName: row['lastName'].trim(),
     jobTitle: row['jobTitle'].trim(),

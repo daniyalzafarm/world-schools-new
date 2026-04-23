@@ -204,6 +204,7 @@ export interface Camp {
     avgReplyTimeMinutes?: number | null
     _count?: { camps: number }
     googleBusinessProfile?: {
+      placeId?: string
       businessName: string
       formattedAddress: string
       rating?: number
