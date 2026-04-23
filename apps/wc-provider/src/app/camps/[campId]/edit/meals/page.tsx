@@ -70,20 +70,19 @@ export default function MealsEditorPage() {
     useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
 
     const timeout = setTimeout(async () => {
-      try {
-        await updateSection(campId, 'meals', { meals: updatedData })
-        setAutoSaveStatus('saved')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-        setHasUnsavedChanges(false)
-        setTimeout(() => {
-          setAutoSaveStatus('idle')
-          useCampsStore.setState({ autoSaveStatus: 'idle' })
-        }, 2000)
-      } catch (error) {
-        console.error('Failed to save meals data:', error)
+      await updateSection(campId, 'meals', { meals: updatedData })
+      if (useCampsStore.getState().error) {
         setAutoSaveStatus('error')
         useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
+        return
       }
+      setAutoSaveStatus('saved')
+      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
+      setHasUnsavedChanges(false)
+      setTimeout(() => {
+        setAutoSaveStatus('idle')
+        useCampsStore.setState({ autoSaveStatus: 'idle' })
+      }, 2000)
     }, 1500)
 
     setSaveTimeout(timeout)

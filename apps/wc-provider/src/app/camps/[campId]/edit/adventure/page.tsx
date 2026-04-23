@@ -78,20 +78,19 @@ export default function AdventureEditorPage() {
     useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
 
     const timeout = setTimeout(async () => {
-      try {
-        await updateSection(campId, 'adventure', { adventureActivities: updatedData })
-        setAutoSaveStatus('saved')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-        setHasUnsavedChanges(false)
-        setTimeout(() => {
-          setAutoSaveStatus('idle')
-          useCampsStore.setState({ autoSaveStatus: 'idle' })
-        }, 2000)
-      } catch (error) {
-        console.error('Failed to save adventure data:', error)
+      await updateSection(campId, 'adventure', { adventureActivities: updatedData })
+      if (useCampsStore.getState().error) {
         setAutoSaveStatus('error')
         useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
+        return
       }
+      setAutoSaveStatus('saved')
+      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
+      setHasUnsavedChanges(false)
+      setTimeout(() => {
+        setAutoSaveStatus('idle')
+        useCampsStore.setState({ autoSaveStatus: 'idle' })
+      }, 2000)
     }, 1500)
 
     setSaveTimeout(timeout)

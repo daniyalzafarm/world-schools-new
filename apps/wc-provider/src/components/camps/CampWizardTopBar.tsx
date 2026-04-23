@@ -28,19 +28,9 @@ export function CampWizardTopBar({ currentStep, campId }: CampWizardTopBarProps)
     if (!campId) return
 
     setIsSaving(true)
-    try {
-      await saveDraft()
-      router.push('/camps')
-    } catch (error) {
-      console.error('Failed to save draft:', error)
-      addToast({
-        title: 'Error',
-        description: 'Failed to save draft. Please try again.',
-        color: 'danger',
-      })
-    } finally {
-      setIsSaving(false)
-    }
+    saveDraft()
+    setIsSaving(false)
+    router.push('/camps')
   }
 
   const handlePublish = async () => {
@@ -57,25 +47,15 @@ export function CampWizardTopBar({ currentStep, campId }: CampWizardTopBarProps)
     }
 
     setIsPublishing(true)
-    try {
-      await publishCamp(campId)
-      // Show success and redirect
-      addToast({
-        title: 'Success',
-        description: 'Camp published successfully!',
-        color: 'success',
-      })
-      router.push('/camps')
-    } catch (error: any) {
-      console.error('Failed to publish camp:', error)
-      addToast({
-        title: 'Error',
-        description: error.message || 'Failed to publish camp. Please try again.',
-        color: 'danger',
-      })
-    } finally {
-      setIsPublishing(false)
-    }
+    await publishCamp(campId)
+    setIsPublishing(false)
+    if (useCampsStore.getState().error) return
+    addToast({
+      title: 'Success',
+      description: 'Camp published successfully!',
+      color: 'success',
+    })
+    router.push('/camps')
   }
 
   return (

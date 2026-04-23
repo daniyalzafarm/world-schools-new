@@ -1,178 +1,223 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { addToast } from '@heroui/react'
 import { useCampsStore } from '../../../../stores/camps-store'
+import * as campsService from '../../../../services/camps.services'
 import type { CampPhoto } from '../../../../types/camps'
 import { PhotosForm, type PhotosFormData } from '../../../../components/camp-forms/PhotosForm'
+
+const sortByOrder = (photos: CampPhoto[]) => [...photos].sort((a, b) => a.order - b.order)
+
+const applyOrderFlags = (photos: CampPhoto[]): CampPhoto[] =>
+  photos.map((photo, index) => ({
+    ...photo,
+    order: index,
+    isPrimary: index === 0,
+  }))
 
 export default function PhotosPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const campId = searchParams.get('id')
 
-  const { uploadCampPhotos, fetchCamp, wizardCamp, setWizardCamp, setWizardStep } = useCampsStore()
+  const { fetchCamp, wizardCamp, setWizardCamp, setWizardStep } = useCampsStore()
 
-  const [formData, setFormData] = useState<PhotosFormData>({
-    photos: [],
-    pendingFiles: [],
-  })
-  const [isUploading, setIsUploading] = useState(false)
-  const [localHasUnsavedChanges, setLocalHasUnsavedChanges] = useState(false)
+  const [formData, setFormData] = useState<PhotosFormData>({ photos: [] })
+  const [busyPhotoIds, setBusyPhotoIds] = useState<Set<string>>(new Set())
+
+  // Latest server-confirmed photo list. Used to revert optimistic changes on failure.
+  const committedPhotosRef = useRef<CampPhoto[]>([])
+  const reorderTimeoutRef = useRef<number | null>(null)
+
+  const addBusy = (ids: string[]) =>
+    setBusyPhotoIds(prev => {
+      const next = new Set(prev)
+      ids.forEach(id => next.add(id))
+      return next
+    })
+
+  const removeBusy = (ids: string[]) =>
+    setBusyPhotoIds(prev => {
+      const next = new Set(prev)
+      ids.forEach(id => next.delete(id))
+      return next
+    })
+
+  const setPendingAutoSave = (pending: boolean, status: 'saving' | 'saved' | 'error' | 'idle') => {
+    useCampsStore.setState({ hasPendingAutoSave: pending, autoSaveStatus: status })
+  }
+
+  const flashSavedThenIdle = () => {
+    setPendingAutoSave(false, 'saved')
+    setTimeout(() => {
+      if (useCampsStore.getState().autoSaveStatus === 'saved') {
+        useCampsStore.setState({ autoSaveStatus: 'idle' })
+      }
+    }, 2000)
+  }
 
   useEffect(() => {
-    setWizardStep(4)
-
-    if (campId) {
-      fetchCamp(campId)
-        .then(() => {
-          // Get the fetched camp from currentCamp and set it as wizardCamp
-          const currentCamp = useCampsStore.getState().currentCamp
-          if (currentCamp) {
-            setWizardCamp(currentCamp)
-          }
-        })
-        .catch(error => {
-          console.error('Failed to fetch camp:', error)
-          router.push('/camps/create/basic-info')
-        })
-    } else {
-      router.push('/camps/create/basic-info')
+    const init = async () => {
+      setWizardStep(4)
+      if (!campId) {
+        router.push('/camps/create/basic-info')
+        return
+      }
+      await fetchCamp(campId)
+      if (useCampsStore.getState().error) {
+        router.push('/camps/create/basic-info')
+        return
+      }
+      const currentCamp = useCampsStore.getState().currentCamp
+      if (currentCamp) setWizardCamp(currentCamp)
     }
+    void init()
   }, [campId, fetchCamp, setWizardCamp, setWizardStep, router])
 
   useEffect(() => {
     if (wizardCamp?.photos) {
-      // Sort photos by order and set them
-      const sortedPhotos = [...(wizardCamp.photos as CampPhoto[])].sort((a, b) => a.order - b.order)
-      setFormData(prev => ({ ...prev, photos: sortedPhotos }))
+      const sorted = sortByOrder(wizardCamp.photos as CampPhoto[])
+      setFormData({ photos: sorted })
+      committedPhotosRef.current = sorted
     }
   }, [wizardCamp])
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (!files || files.length === 0) return
-
-    setIsUploading(true)
-    try {
-      // Create temporary preview objects for selected files
-      const fileArray = Array.from(files)
-      const newPhotos: CampPhoto[] = fileArray.map((file, index) => ({
-        id: `temp-${Date.now()}-${index}`,
-        url: URL.createObjectURL(file),
-        thumbnail: URL.createObjectURL(file),
-        isPrimary: formData.photos.length === 0 && index === 0,
-        order: formData.photos.length + index,
-      }))
-
-      const updatedPhotos = [...formData.photos, ...newPhotos]
-      setFormData(prev => ({
-        ...prev,
-        photos: updatedPhotos,
-        pendingFiles: [...prev.pendingFiles, ...fileArray],
-      }))
-      setLocalHasUnsavedChanges(true)
-    } catch (error) {
-      console.error('Failed to select photos:', error)
-      addToast({
-        title: 'Error',
-        description: 'Failed to select photos. Please try again.',
-        color: 'danger',
-      })
-    } finally {
-      setIsUploading(false)
-    }
-  }
+  // Keep store-level wizard state in sync: photos are persisted per-action, so
+  // there are no "unsaved changes" and no wizardFormSubmit hook — the Next
+  // button just needs the 5-photo minimum.
+  useEffect(() => {
+    useCampsStore.setState({
+      wizardFormValid: formData.photos.length >= 5,
+      wizardFormSubmit: null,
+      hasUnsavedChanges: false,
+    })
+  }, [formData.photos.length])
 
   const handleFilesSelected = async (files: File[]) => {
-    if (!files || files.length === 0) return
+    if (!campId || !files || files.length === 0) return
 
-    setIsUploading(true)
-    try {
-      // Create temporary preview objects for selected files
-      const newPhotos: CampPhoto[] = files.map((file, index) => ({
-        id: `temp-${Date.now()}-${index}`,
-        url: URL.createObjectURL(file),
-        thumbnail: URL.createObjectURL(file),
-        isPrimary: formData.photos.length === 0 && index === 0,
-        order: formData.photos.length + index,
-      }))
-
-      const updatedPhotos = [...formData.photos, ...newPhotos]
-      setFormData(prev => ({
-        ...prev,
-        photos: updatedPhotos,
-        pendingFiles: [...prev.pendingFiles, ...files],
-      }))
-      setLocalHasUnsavedChanges(true)
-    } catch (error) {
-      console.error('Failed to select photos:', error)
-      addToast({
-        title: 'Error',
-        description: 'Failed to select photos. Please try again.',
-        color: 'danger',
-      })
-    } finally {
-      setIsUploading(false)
-    }
-  }
-
-  const handleRemovePhoto = (photoId: string) => {
-    const filteredPhotos = formData.photos.filter(p => p.id !== photoId)
-    // Reorder remaining photos
-    const reorderedPhotos = filteredPhotos.map((photo, index) => ({
-      ...photo,
-      order: index,
-      isPrimary: index === 0,
+    const snapshot = formData.photos
+    const stamp = Date.now()
+    const temps: CampPhoto[] = files.map((file, index) => ({
+      id: `temp-${stamp}-${index}`,
+      url: URL.createObjectURL(file),
+      thumbnail: URL.createObjectURL(file),
+      isPrimary: snapshot.length === 0 && index === 0,
+      order: snapshot.length + index,
     }))
-    setFormData(prev => ({ ...prev, photos: reorderedPhotos }))
-    setLocalHasUnsavedChanges(true)
-  }
+    const tempIds = temps.map(t => t.id)
 
-  const handleSubmit = async () => {
-    if (!campId) return
+    setFormData({ photos: [...snapshot, ...temps] })
+    addBusy(tempIds)
+    setPendingAutoSave(true, 'saving')
 
-    // Update store loading state
-    useCampsStore.setState({ isLoading: true })
-    try {
-      // Separate existing photos (already uploaded) from new ones (temp IDs)
-      const existingPhotos = formData.photos.filter(p => !p.id.startsWith('temp-'))
+    const res = await campsService.uploadCampPhotos(campId, files, snapshot)
+    removeBusy(tempIds)
 
-      // Upload new files along with existing photos metadata
-      // The API now returns the camp with SAS URLs, so no need to fetch again
-      await uploadCampPhotos(campId, formData.pendingFiles, existingPhotos)
-
-      // Clear pending files and mark as saved
-      setFormData(prev => ({ ...prev, pendingFiles: [] }))
-      setLocalHasUnsavedChanges(false)
-    } catch (error) {
-      console.error('Failed to save photos:', error)
+    if (!res.success) {
+      setFormData({ photos: snapshot })
+      setPendingAutoSave(false, 'error')
       addToast({
         title: 'Error',
-        description: 'Failed to save photos. Please try again.',
+        description: res.data.message || 'Failed to upload photos. Please try again.',
         color: 'danger',
       })
-    } finally {
-      useCampsStore.setState({ isLoading: false })
+      return
     }
+
+    const serverPhotos = sortByOrder((res.data.camp.photos as CampPhoto[]) ?? [])
+    committedPhotosRef.current = serverPhotos
+    setFormData({ photos: serverPhotos })
+    useCampsStore.setState({ currentCamp: res.data.camp, wizardCamp: res.data.camp })
+    flashSavedThenIdle()
   }
 
-  // Expose form validation and submit handler to parent layout
-  useEffect(() => {
-    // Require minimum 5 photos
-    const isFormValid = formData.photos.length >= 5
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
+    void handleFilesSelected(Array.from(files))
+  }
 
-    useCampsStore.setState({
-      wizardFormValid: isFormValid,
-      wizardFormSubmit: handleSubmit,
-      hasUnsavedChanges: localHasUnsavedChanges,
-    })
-  }, [formData.photos, campId, localHasUnsavedChanges])
+  const handleRemovePhoto = async (photoId: string) => {
+    if (!campId) return
+    const snapshot = formData.photos
+    const remaining = applyOrderFlags(snapshot.filter(p => p.id !== photoId))
+
+    setFormData({ photos: remaining })
+    addBusy([photoId])
+    setPendingAutoSave(true, 'saving')
+
+    const res = await campsService.uploadCampPhotos(campId, [], remaining)
+    removeBusy([photoId])
+
+    if (!res.success) {
+      setFormData({ photos: snapshot })
+      setPendingAutoSave(false, 'error')
+      addToast({
+        title: 'Error',
+        description: res.data.message || 'Failed to remove photo. Please try again.',
+        color: 'danger',
+      })
+      return
+    }
+
+    const serverPhotos = sortByOrder((res.data.camp.photos as CampPhoto[]) ?? [])
+    committedPhotosRef.current = serverPhotos
+    setFormData({ photos: serverPhotos })
+    useCampsStore.setState({ currentCamp: res.data.camp, wizardCamp: res.data.camp })
+    flashSavedThenIdle()
+  }
+
+  const persistReorder = async (photos: CampPhoto[]) => {
+    if (!campId) return
+    const rollback = committedPhotosRef.current
+    setPendingAutoSave(true, 'saving')
+
+    const res = await campsService.uploadCampPhotos(campId, [], photos)
+    if (!res.success) {
+      setFormData({ photos: rollback })
+      setPendingAutoSave(false, 'error')
+      addToast({
+        title: 'Error',
+        description: res.data.message || 'Failed to reorder photos. Please try again.',
+        color: 'danger',
+      })
+      return
+    }
+
+    const serverPhotos = sortByOrder((res.data.camp.photos as CampPhoto[]) ?? [])
+    committedPhotosRef.current = serverPhotos
+    setFormData({ photos: serverPhotos })
+    useCampsStore.setState({ currentCamp: res.data.camp, wizardCamp: res.data.camp })
+    flashSavedThenIdle()
+  }
+
+  const handleReorder = (photos: CampPhoto[]) => {
+    setFormData({ photos })
+    if (reorderTimeoutRef.current !== null) {
+      window.clearTimeout(reorderTimeoutRef.current)
+    }
+    reorderTimeoutRef.current = window.setTimeout(() => {
+      reorderTimeoutRef.current = null
+      void persistReorder(photos)
+    }, 500)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (reorderTimeoutRef.current !== null) {
+        window.clearTimeout(reorderTimeoutRef.current)
+      }
+      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
+    }
+  }, [])
+
+  const isUploading = busyPhotoIds.size > 0
 
   return (
     <div>
-      {/* Header - matching reference design */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold leading-tight text-foreground">
           Add photos of your camp
@@ -182,17 +227,16 @@ export default function PhotosPage() {
         </p>
       </div>
 
-      {/* Form */}
       <PhotosForm
         formData={formData}
         onChange={data => {
-          setFormData({ ...formData, ...data })
-          setLocalHasUnsavedChanges(true)
+          if (data.photos) handleReorder(data.photos)
         }}
         onFileSelect={handleFileSelect}
-        onFilesSelected={handleFilesSelected}
-        onRemovePhoto={handleRemovePhoto}
+        onFilesSelected={files => void handleFilesSelected(files)}
+        onRemovePhoto={id => void handleRemovePhoto(id)}
         isUploading={isUploading}
+        busyPhotoIds={busyPhotoIds}
       />
     </div>
   )

@@ -179,7 +179,7 @@ export function useSupportTicketConversation({ ticketId }: UseSupportTicketConve
       closedAt?: string | null
       updatedAt?: string
     }) => {
-      if (!ticket || data.ticketId !== ticket.id) return
+      if (data.ticketId !== ticket?.id) return
       setTicket(prev =>
         prev
           ? {
@@ -198,7 +198,7 @@ export function useSupportTicketConversation({ ticketId }: UseSupportTicketConve
       assignedToUserId: string | null
       assignedAt?: string | null
     }) => {
-      if (!ticket || data.ticketId !== ticket.id) return
+      if (data.ticketId !== ticket?.id) return
       if (!data.assignedToUserId) {
         setTicket(prev => (prev ? { ...prev, assignedToUser: null, assignedAt: null } : prev))
         return

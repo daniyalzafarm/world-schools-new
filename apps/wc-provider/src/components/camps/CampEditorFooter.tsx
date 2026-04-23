@@ -39,6 +39,7 @@ const editorSections = [
 
 // Sections that use auto-save only (no manual save button)
 const autoSaveOnlySections = [
+  'photos',
   'whats-included',
   'addons',
   'camp-focus',
@@ -129,36 +130,28 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
   // Check if current section shows only "Save Changes" button (no "Save & Continue")
   const isSaveOnly = currentSection ? saveOnlySections.includes(currentSection) : false
 
-  // Helper to wait for auto-save completion
+  // Helper to wait for auto-save completion — resolves regardless of outcome
   const waitForAutoSave = (): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      // If no pending auto-save, resolve immediately
+    return new Promise(resolve => {
       if (!hasPendingAutoSave && autoSaveStatus !== 'saving') {
         resolve()
         return
       }
 
-      // Set up a polling interval to check auto-save status
       const checkInterval = setInterval(() => {
         const currentStatus = useCampsStore.getState().autoSaveStatus
         const currentPending = useCampsStore.getState().hasPendingAutoSave
 
         if (!currentPending && currentStatus !== 'saving') {
           clearInterval(checkInterval)
-
-          // Check if save was successful
-          if (currentStatus === 'error') {
-            reject(new Error('Auto-save failed'))
-          } else {
-            resolve()
-          }
+          resolve()
         }
-      }, 100) // Check every 100ms
+      }, 100)
 
-      // Timeout after 10 seconds
+      // Safety timeout so navigation is never blocked indefinitely
       setTimeout(() => {
         clearInterval(checkInterval)
-        reject(new Error('Auto-save timeout'))
+        resolve()
       }, 10000)
     })
   }
@@ -169,19 +162,10 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
     // For auto-save only sections, wait for pending auto-save
     if (isAutoSaveOnly && (hasPendingAutoSave || autoSaveStatus === 'saving')) {
       setWaitingButton('previous')
-      try {
-        await waitForAutoSave()
-        router.push(`/camps/${campId}/edit/${previousSection}`)
-      } catch (error) {
-        console.error('Failed to complete auto-save before navigation:', error)
-        // Still navigate even if auto-save failed (user can see error indicator)
-        router.push(`/camps/${campId}/edit/${previousSection}`)
-      } finally {
-        setWaitingButton(null)
-      }
-    } else {
-      router.push(`/camps/${campId}/edit/${previousSection}`)
+      await waitForAutoSave()
+      setWaitingButton(null)
     }
+    router.push(`/camps/${campId}/edit/${previousSection}`)
   }
 
   const handleNext = async () => {
@@ -190,16 +174,9 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
     // For auto-save only sections, wait for pending auto-save
     if (isAutoSaveOnly && (hasPendingAutoSave || autoSaveStatus === 'saving')) {
       setWaitingButton('next')
-      try {
-        await waitForAutoSave()
-        router.push(`/camps/${campId}/edit/${nextSection}`)
-      } catch (error) {
-        console.error('Failed to complete auto-save before navigation:', error)
-        // Still navigate even if auto-save failed (user can see error indicator)
-        router.push(`/camps/${campId}/edit/${nextSection}`)
-      } finally {
-        setWaitingButton(null)
-      }
+      await waitForAutoSave()
+      setWaitingButton(null)
+      router.push(`/camps/${campId}/edit/${nextSection}`)
       return
     }
 
@@ -216,15 +193,9 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
 
       if (shouldSave) {
         // User chose "Save & Continue"
-        try {
-          if (wizardFormSubmit) {
-            await wizardFormSubmit()
-          }
-          router.push(`/camps/${campId}/edit/${nextSection}`)
-        } catch (error) {
-          console.error('Failed to save:', error)
-          // Don't navigate if save failed
-        }
+        if (wizardFormSubmit) await wizardFormSubmit()
+        if (useCampsStore.getState().error) return
+        router.push(`/camps/${campId}/edit/${nextSection}`)
       } else {
         // User chose "Continue without Saving"
         router.push(`/camps/${campId}/edit/${nextSection}`)
@@ -238,30 +209,15 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
   const handleSaveAndNext = async () => {
     if (!nextSection) return
 
-    // Trigger save if there's a submit handler
     if (wizardFormSubmit) {
-      try {
-        await wizardFormSubmit()
-        // Navigate to next section after successful save
-        router.push(`/camps/${campId}/edit/${nextSection}`)
-      } catch (error) {
-        console.error('Failed to save:', error)
-      }
-    } else {
-      // No submit handler, just navigate
-      router.push(`/camps/${campId}/edit/${nextSection}`)
+      await wizardFormSubmit()
+      if (useCampsStore.getState().error) return
     }
+    router.push(`/camps/${campId}/edit/${nextSection}`)
   }
 
   const handleSave = async () => {
-    // Trigger save if there's a submit handler
-    if (wizardFormSubmit) {
-      try {
-        await wizardFormSubmit()
-      } catch (error) {
-        console.error('Failed to save:', error)
-      }
-    }
+    if (wizardFormSubmit) await wizardFormSubmit()
   }
 
   // Determine if save button should be disabled
@@ -309,7 +265,6 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
             // For save-only sections, always show "Save Changes" button (no "Save & Continue")
             <Button
               color="primary"
-              size="lg"
               onPress={handleSave}
               isDisabled={isSaveDisabled}
               isLoading={isLoading}
@@ -322,7 +277,6 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
               {hasNext ? (
                 <Button
                   color="primary"
-                  size="lg"
                   onPress={handleSaveAndNext}
                   isDisabled={isSaveDisabled}
                   isLoading={isLoading}
@@ -332,7 +286,6 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
               ) : (
                 <Button
                   color="primary"
-                  size="lg"
                   onPress={handleSave}
                   isDisabled={isSaveDisabled}
                   isLoading={isLoading}

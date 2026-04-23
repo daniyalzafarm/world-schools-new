@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Radio, RadioGroup, Tab, Tabs } from '@heroui/react'
+import { addToast, Radio, RadioGroup, Tab, Tabs } from '@heroui/react'
 import { useCampsStore } from '../../../../../stores/camps-store'
 import {
   TimelineBuilder,
@@ -222,45 +222,45 @@ export default function DailyScheduleEditorPage() {
       // Validate before submitting
       const isValid = validateAllSchedules()
       if (!isValid) {
-        throw new Error('Please fix validation errors before saving')
-      }
-
-      try {
-        // Always send all three fields to preserve data
-        // The backend will store all of them, and the scheduleType determines which one is active
-        const payload: any = {
-          scheduleType: scheduleType,
-          dailySchedule: { timeSlots: dailyTimeSlots },
-          weeklySchedule: {
-            monday: { timeSlots: weeklyTimeSlots.monday },
-            tuesday: { timeSlots: weeklyTimeSlots.tuesday },
-            wednesday: { timeSlots: weeklyTimeSlots.wednesday },
-            thursday: { timeSlots: weeklyTimeSlots.thursday },
-            friday: { timeSlots: weeklyTimeSlots.friday },
-            saturday: { timeSlots: weeklyTimeSlots.saturday },
-            sunday: { timeSlots: weeklyTimeSlots.sunday },
-          },
-        }
-
-        await updateSection(campId, 'daily-schedule', payload)
-        await fetchCamp(campId)
-
-        // Reset validation state after successful save
-        setHasAttemptedSubmit(false)
-        setDailyErrors({})
-        setWeeklyErrors({
-          monday: {},
-          tuesday: {},
-          wednesday: {},
-          thursday: {},
-          friday: {},
-          saturday: {},
-          sunday: {},
+        useCampsStore.setState({ error: 'Please fix validation errors before saving' })
+        addToast({
+          title: 'Error',
+          description: 'Please fix validation errors before saving',
+          color: 'danger',
         })
-      } catch (error) {
-        console.error('Failed to save schedule:', error)
-        throw error
+        return
       }
+
+      const payload: any = {
+        scheduleType: scheduleType,
+        dailySchedule: { timeSlots: dailyTimeSlots },
+        weeklySchedule: {
+          monday: { timeSlots: weeklyTimeSlots.monday },
+          tuesday: { timeSlots: weeklyTimeSlots.tuesday },
+          wednesday: { timeSlots: weeklyTimeSlots.wednesday },
+          thursday: { timeSlots: weeklyTimeSlots.thursday },
+          friday: { timeSlots: weeklyTimeSlots.friday },
+          saturday: { timeSlots: weeklyTimeSlots.saturday },
+          sunday: { timeSlots: weeklyTimeSlots.sunday },
+        },
+      }
+
+      await updateSection(campId, 'daily-schedule', payload)
+      if (useCampsStore.getState().error) return
+      await fetchCamp(campId)
+
+      // Reset validation state after successful save
+      setHasAttemptedSubmit(false)
+      setDailyErrors({})
+      setWeeklyErrors({
+        monday: {},
+        tuesday: {},
+        wednesday: {},
+        thursday: {},
+        friday: {},
+        saturday: {},
+        sunday: {},
+      })
     }
 
     setWizardFormSubmit(handleFormSubmit)

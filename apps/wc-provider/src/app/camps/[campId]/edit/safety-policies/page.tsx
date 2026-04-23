@@ -129,29 +129,28 @@ export default function SafetyPoliciesEditorPage() {
     useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
 
     saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        const screenPayload =
-          updatedScreenEnabled && updatedScreenDescription.trim()
-            ? { description: updatedScreenDescription }
-            : null
+      const screenPayload =
+        updatedScreenEnabled && updatedScreenDescription.trim()
+          ? { description: updatedScreenDescription }
+          : null
 
-        await updateSection(campId, 'safety-policies', {
-          safetySupervision: updatedSafety,
-          screenPolicy: screenPayload,
-        })
+      await updateSection(campId, 'safety-policies', {
+        safetySupervision: updatedSafety,
+        screenPolicy: screenPayload,
+      })
 
-        setAutoSaveStatus('saved')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-        setHasUnsavedChanges(false)
-        setTimeout(() => {
-          setAutoSaveStatus('idle')
-          useCampsStore.setState({ autoSaveStatus: 'idle' })
-        }, 2000)
-      } catch (error) {
-        console.error('Failed to save safety policies:', error)
+      if (useCampsStore.getState().error) {
         setAutoSaveStatus('error')
         useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
+        return
       }
+      setAutoSaveStatus('saved')
+      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
+      setHasUnsavedChanges(false)
+      setTimeout(() => {
+        setAutoSaveStatus('idle')
+        useCampsStore.setState({ autoSaveStatus: 'idle' })
+      }, 2000)
     }, 1500)
   }
 

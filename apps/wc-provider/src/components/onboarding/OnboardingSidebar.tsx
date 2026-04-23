@@ -136,9 +136,9 @@ export function OnboardingSidebar({
   ]
 
   return (
-    <aside className="fixed left-0 top-0 z-100 flex h-screen w-72 flex-col overflow-y-auto border-r border-default-200 bg-default-50">
+    <aside className="fixed left-0 top-0 z-100 flex h-screen w-72 flex-col overflow-y-auto border-r border-default-200">
       {/* Logo Header */}
-      <div className="flex min-h-16 items-center bg-default-50 px-5 py-5">
+      <div className="flex min-h-16 items-center px-5 py-5">
         <div className="flex items-center">
           <Logo size={'md'} showText={true} />
         </div>

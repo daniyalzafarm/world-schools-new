@@ -7,6 +7,7 @@ import { SessionForm, type SessionFormData } from '@/components/sessions/Session
 import { SessionFormFooter } from '@/components/sessions/SessionFormFooter'
 import { useSessionMutations } from '@/hooks/useSessionMutations'
 import { useCampsStore } from '@/stores/camps-store'
+import { useSessionsStore } from '@/stores/sessions-store'
 import type { CampType } from '@/types/camps'
 import type { GlobalDiscount, SessionSpecificDiscount } from '@/types/discounts'
 import { getGlobalDiscounts } from '@/services/discounts.service'
@@ -25,6 +26,8 @@ export default function CreateSessionPage() {
 
   const { createSession, isCreating } = useSessionMutations(campId)
   const { currentCamp, fetchCamp } = useCampsStore()
+  const sessions = useSessionsStore(state => state.sessions)
+  const loadSessions = useSessionsStore(state => state.loadSessions)
   const [campType, setCampType] = useState<CampType | null>(null)
   const [globalDiscounts, setGlobalDiscounts] = useState<GlobalDiscount[]>([])
   const [selectedDiscountIds, setSelectedDiscountIds] = useState<string[]>([])
@@ -49,6 +52,11 @@ export default function CreateSessionPage() {
         })
     }
   }, [campId, fetchCamp])
+
+  // Load existing sessions so the date pickers can disable their ranges
+  useEffect(() => {
+    if (campId) void loadSessions(campId)
+  }, [campId, loadSessions])
 
   // Fetch global discounts
   useEffect(() => {
@@ -171,6 +179,7 @@ export default function CreateSessionPage() {
           campType={campType}
           camp={currentCamp}
           globalDiscounts={globalDiscounts}
+          existingSessions={sessions}
           selectedDiscountIds={selectedDiscountIds}
           onToggleDiscount={handleToggleDiscount}
           sessionSpecificDiscounts={sessionSpecificDiscounts}

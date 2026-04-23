@@ -33,12 +33,12 @@ export default function AudienceEditorPage() {
   const [hasValidationErrors, setHasValidationErrors] = useState(false)
 
   useEffect(() => {
-    if (campId) {
-      fetchCamp(campId).catch(error => {
-        console.error('Failed to fetch camp:', error)
-        router.push('/camps')
-      })
+    const init = async () => {
+      if (!campId) return
+      await fetchCamp(campId)
+      if (useCampsStore.getState().error) router.push('/camps')
     }
+    void init()
 
     // Cleanup on unmount
     return () => {
@@ -93,13 +93,9 @@ export default function AudienceEditorPage() {
   useEffect(() => {
     const handleFormSubmit = async () => {
       if (!campId) return
-
-      try {
-        await updateCampAudience(campId, formData)
+      await updateCampAudience(campId, formData)
+      if (!useCampsStore.getState().error) {
         await fetchCamp(campId)
-      } catch (error) {
-        console.error('Failed to save audience:', error)
-        throw error
       }
     }
 

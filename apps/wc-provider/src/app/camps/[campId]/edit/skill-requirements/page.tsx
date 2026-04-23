@@ -11,6 +11,7 @@ import {
   getCampEligibility,
   putCampEligibility,
 } from '../../../../../services/camps.services'
+import { useCampsStore } from '../../../../../stores/camps-store'
 import {
   type CatalogueActivity,
   type CatalogueScale,
@@ -51,20 +52,17 @@ export default function SkillRequirementsPage() {
   const load = useCallback(async () => {
     if (!campId) return
     setLoading(true)
-    try {
-      const [eligibilityRes, activitiesRes, scalesRes] = await Promise.all([
-        getCampEligibility(campId),
-        getActivitiesWithScale(),
-        getScales(),
-      ])
-      setItems(eligibilityRes.items ?? [])
-      setActivities(activitiesRes ?? [])
-      setScales(scalesRes ?? [])
-    } catch {
-      setItems([])
-    } finally {
-      setLoading(false)
-    }
+    const [eligibilityRes, activitiesRes, scalesRes] = await Promise.all([
+      getCampEligibility(campId),
+      getActivitiesWithScale(),
+      getScales(),
+    ])
+    const eligibilityItems = eligibilityRes.success ? (eligibilityRes.data.items ?? []) : []
+    setItems(eligibilityItems)
+    setActivities(activitiesRes ?? [])
+    setScales(scalesRes ?? [])
+    useCampsStore.setState({ sidebarEligibilityCount: eligibilityItems.length })
+    setLoading(false)
   }, [campId])
 
   useEffect(() => {
@@ -120,20 +118,20 @@ export default function SkillRequirementsPage() {
   const saveNow = useCallback(
     async (nextItems: CampEligibilityItem[]) => {
       setSaveStatus('saving')
-      try {
-        const normalized = normalizeItemsForSave(nextItems)
-        const res = await putCampEligibility(campId, normalized)
-        const serverItems = res.items ?? normalized
-        // Avoid a loop where server responds with same data but different order/shape.
-        const json = JSON.stringify(serverItems)
-        lastSavedJsonRef.current = json
-        skipNextAutoSaveRef.current = true
-        setItems(serverItems)
-        setSaveStatus('saved')
-        window.setTimeout(() => setSaveStatus('idle'), 2000)
-      } catch {
+      const normalized = normalizeItemsForSave(nextItems)
+      const res = await putCampEligibility(campId, normalized)
+      if (!res.success) {
         setSaveStatus('error')
+        return
       }
+      const serverItems = res.data.items ?? normalized
+      // Avoid a loop where server responds with same data but different order/shape.
+      lastSavedJsonRef.current = JSON.stringify(serverItems)
+      skipNextAutoSaveRef.current = true
+      setItems(serverItems)
+      useCampsStore.setState({ sidebarEligibilityCount: serverItems.length })
+      setSaveStatus('saved')
+      window.setTimeout(() => setSaveStatus('idle'), 2000)
     },
     [campId, normalizeItemsForSave]
   )

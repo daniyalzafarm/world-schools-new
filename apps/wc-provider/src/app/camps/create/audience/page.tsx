@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCampsStore } from '../../../../stores/camps-store'
 import type { AgeGroup } from '../../../../types/camps'
@@ -14,6 +14,8 @@ export default function AudiencePage() {
   const { updateCampAudience, fetchCamp, wizardCamp, setWizardCamp, setWizardStep } =
     useCampsStore()
 
+  const autoSavedRef = useRef(false)
+
   const [formData, setFormData] = useState<AudienceFormData>({
     ageGroups: [{ min: 6, max: 12 }],
     languages: ['english'],
@@ -23,24 +25,21 @@ export default function AudiencePage() {
   const [hasValidationErrors, setHasValidationErrors] = useState(false)
 
   useEffect(() => {
-    setWizardStep(2)
-
-    if (campId) {
-      fetchCamp(campId)
-        .then(() => {
-          // Get the fetched camp from currentCamp and set it as wizardCamp
-          const currentCamp = useCampsStore.getState().currentCamp
-          if (currentCamp) {
-            setWizardCamp(currentCamp)
-          }
-        })
-        .catch(error => {
-          console.error('Failed to fetch camp:', error)
-          router.push('/camps/create/basic-info')
-        })
-    } else {
-      router.push('/camps/create/basic-info')
+    const init = async () => {
+      setWizardStep(2)
+      if (!campId) {
+        router.push('/camps/create/basic-info')
+        return
+      }
+      await fetchCamp(campId)
+      if (useCampsStore.getState().error) {
+        router.push('/camps/create/basic-info')
+        return
+      }
+      const currentCamp = useCampsStore.getState().currentCamp
+      if (currentCamp) setWizardCamp(currentCamp)
     }
+    void init()
   }, [campId, fetchCamp, setWizardCamp, setWizardStep, router])
 
   useEffect(() => {
@@ -60,15 +59,36 @@ export default function AudiencePage() {
     }
   }, [wizardCamp])
 
+  // Auto-save defaults on first visit (camp just created, no audience data yet).
+  // On revisits wizardCamp.ageGroups is already populated, so this is skipped.
+  useEffect(() => {
+    if (!wizardCamp || !campId || autoSavedRef.current) return
+
+    const hasExistingAudienceData =
+      wizardCamp.ageGroups &&
+      Array.isArray(wizardCamp.ageGroups) &&
+      wizardCamp.ageGroups.length > 0 &&
+      wizardCamp.languages &&
+      wizardCamp.languages.length > 0 &&
+      !!wizardCamp.gender
+
+    if (!hasExistingAudienceData) {
+      autoSavedRef.current = true
+      void updateCampAudience(campId, {
+        ageGroups: [{ min: 6, max: 12 }],
+        languages: ['english'],
+        gender: 'coed',
+      }).then(() => {
+        if (useCampsStore.getState().error) autoSavedRef.current = false
+      })
+    }
+  }, [wizardCamp, campId, updateCampAudience])
+
   const handleSubmit = async () => {
     if (!campId) return
-
-    try {
-      await updateCampAudience(campId, formData)
+    await updateCampAudience(campId, formData)
+    if (!useCampsStore.getState().error) {
       setLocalHasUnsavedChanges(false)
-      router.push(`/camps/create/programs?id=${campId}`)
-    } catch (error) {
-      console.error('Failed to save audience:', error)
     }
   }
 

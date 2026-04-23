@@ -74,20 +74,19 @@ export default function AcademicsEditorPage() {
     useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
 
     const timeout = setTimeout(async () => {
-      try {
-        await updateSection(campId, 'academics', { academics: updatedData })
-        setAutoSaveStatus('saved')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-        setHasUnsavedChanges(false)
-        setTimeout(() => {
-          setAutoSaveStatus('idle')
-          useCampsStore.setState({ autoSaveStatus: 'idle' })
-        }, 2000)
-      } catch (error) {
-        console.error('Failed to save academics data:', error)
+      await updateSection(campId, 'academics', { academics: updatedData })
+      if (useCampsStore.getState().error) {
         setAutoSaveStatus('error')
         useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
+        return
       }
+      setAutoSaveStatus('saved')
+      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
+      setHasUnsavedChanges(false)
+      setTimeout(() => {
+        setAutoSaveStatus('idle')
+        useCampsStore.setState({ autoSaveStatus: 'idle' })
+      }, 2000)
     }, 1500)
 
     setSaveTimeout(timeout)

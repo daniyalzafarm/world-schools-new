@@ -62,8 +62,7 @@ function messageToUiMessage(
   // In admin view: isUser = message from requester (customer) → left; admin → right
   const isFromRequester =
     ticket &&
-    ((ticket.requesterUser != null && msg.senderId === ticket.requesterUser.id) ||
-      (ticket.requesterProvider != null && msg.senderId === ticket.requesterProvider.id))
+    (msg.senderId === ticket.requesterUser?.id || msg.senderId === ticket.requesterProvider?.id)
   return {
     id: msg.id,
     text: msg.content,
@@ -307,7 +306,7 @@ export default function SupportTicketsPage() {
         )
       )
       setSelectedTicket(prev =>
-        prev && prev.id === data.ticketId
+        prev?.id === data.ticketId
           ? {
               ...prev,
               status: data.status,

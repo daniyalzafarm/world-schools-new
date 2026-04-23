@@ -235,7 +235,7 @@ export class UserChildrenService {
       where: { id: childId },
     })
 
-    if (!child || child.parentId !== parent.id) {
+    if (child?.parentId !== parent.id) {
       throw new ForbiddenException('You do not have permission to access this child')
     }
 

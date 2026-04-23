@@ -259,11 +259,6 @@ export class CampsService {
       allPhotos = [...sanitizedExistingPhotos, ...uploadedPhotos]
     }
 
-    // Validate minimum 5 photos requirement
-    if (allPhotos.length < 5) {
-      throw new BadRequestException('At least 5 photos are required')
-    }
-
     // Update order and isPrimary flags
     const photosWithMetadata = allPhotos.map((photo, index) => ({
       ...photo,
@@ -315,6 +310,9 @@ export class CampsService {
     }
     if (!camp.activities || camp.activities.length === 0) {
       throw new BadRequestException('Activities are required')
+    }
+    if (!camp.photos || (camp.photos as any[]).length < 5) {
+      throw new BadRequestException('At least 5 photos are required')
     }
 
     const updatedCamp = await this.prisma.camp.update({

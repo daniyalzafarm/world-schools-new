@@ -133,21 +133,18 @@ export default function BasicInfoEditorPage() {
 
     // Check availability
     setIsCheckingSlug(true)
-    try {
-      const result = await checkSlugAvailability(slug, campId)
-      if (!result.available) {
-        setSlugError('This slug is already taken. Please choose a different one.')
-        return false
-      }
-      setSlugError('')
-      return true
-    } catch (error) {
-      console.error('Failed to check slug availability:', error)
-      setSlugError('Failed to validate slug. Please try again.')
+    const response = await checkSlugAvailability(slug, campId)
+    setIsCheckingSlug(false)
+    if (!response.success) {
+      setSlugError(response.data.message || 'Failed to validate slug. Please try again.')
       return false
-    } finally {
-      setIsCheckingSlug(false)
     }
+    if (!response.data.available) {
+      setSlugError('This slug is already taken. Please choose a different one.')
+      return false
+    }
+    setSlugError('')
+    return true
   }
 
   // Update form validity in store
@@ -167,19 +164,12 @@ export default function BasicInfoEditorPage() {
     const handleFormSubmit = async () => {
       if (!campId) return
 
-      // Validate slug before submitting
       const isSlugValid = await validateSlug(formData.slug)
-      if (!isSlugValid) {
-        throw new Error('Invalid slug')
-      }
+      if (!isSlugValid) return
 
-      try {
-        await updateBasicInfo(campId, formData)
-        // Refresh the camp data
+      await updateBasicInfo(campId, formData)
+      if (!useCampsStore.getState().error) {
         await fetchCamp(campId)
-      } catch (error) {
-        console.error('Failed to save basic info:', error)
-        throw error
       }
     }
 

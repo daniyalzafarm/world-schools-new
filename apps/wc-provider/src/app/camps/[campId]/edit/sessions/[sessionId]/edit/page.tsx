@@ -28,6 +28,7 @@ export default function EditSessionPage() {
   const isLoading = useSessionsStore(state => state.isLoading)
   const loadSessions = useSessionsStore(state => state.loadSessions)
   const getSessionById = useSessionsStore(state => state.getSessionById)
+  const sessions = useSessionsStore(state => state.sessions)
 
   const { updateSession, isUpdating } = useSessionMutations(campId)
   const { fetchCamp, currentCamp } = useCampsStore()
@@ -189,6 +190,7 @@ export default function EditSessionPage() {
           campType={campType}
           camp={currentCamp}
           globalDiscounts={globalDiscounts}
+          existingSessions={sessions}
           selectedDiscountIds={selectedDiscountIds}
           onToggleDiscount={handleToggleDiscount}
           sessionSpecificDiscounts={sessionSpecificDiscounts}

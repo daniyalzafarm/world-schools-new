@@ -19,24 +19,21 @@ export default function ProgramsPage() {
   const [localHasUnsavedChanges, setLocalHasUnsavedChanges] = useState(false)
 
   useEffect(() => {
-    setWizardStep(3)
-
-    if (campId) {
-      fetchCamp(campId)
-        .then(() => {
-          // Get the fetched camp from currentCamp and set it as wizardCamp
-          const currentCamp = useCampsStore.getState().currentCamp
-          if (currentCamp) {
-            setWizardCamp(currentCamp)
-          }
-        })
-        .catch(error => {
-          console.error('Failed to fetch camp:', error)
-          router.push('/camps/create/basic-info')
-        })
-    } else {
-      router.push('/camps/create/basic-info')
+    const init = async () => {
+      setWizardStep(3)
+      if (!campId) {
+        router.push('/camps/create/basic-info')
+        return
+      }
+      await fetchCamp(campId)
+      if (useCampsStore.getState().error) {
+        router.push('/camps/create/basic-info')
+        return
+      }
+      const currentCamp = useCampsStore.getState().currentCamp
+      if (currentCamp) setWizardCamp(currentCamp)
     }
+    void init()
   }, [campId, fetchCamp, setWizardCamp, setWizardStep, router])
 
   useEffect(() => {
@@ -51,13 +48,9 @@ export default function ProgramsPage() {
 
   const handleSubmit = async () => {
     if (!campId) return
-
-    try {
-      await updateCampPrograms(campId, formData)
+    await updateCampPrograms(campId, formData)
+    if (!useCampsStore.getState().error) {
       setLocalHasUnsavedChanges(false)
-      router.push(`/camps/create/photos?id=${campId}`)
-    } catch (error) {
-      console.error('Failed to save programs:', error)
     }
   }
 

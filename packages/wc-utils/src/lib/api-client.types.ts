@@ -7,7 +7,7 @@
 
 export interface ApiResponse<T = any> {
   [x: string]: any
-  success: boolean
+  success: true
   data: T
   headers?: any
 }

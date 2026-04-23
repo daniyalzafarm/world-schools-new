@@ -22,24 +22,15 @@ export function CampEditorTopBar({ campId }: CampEditorTopBarProps) {
     if (!campId) return
 
     setIsPublishing(true)
-    try {
-      await publishCamp(campId)
-      addToast({
-        title: 'Success',
-        description: 'Camp published successfully!',
-        color: 'success',
-      })
-      router.push('/camps')
-    } catch (error) {
-      console.error('Failed to publish camp:', error)
-      addToast({
-        title: 'Error',
-        description: 'Failed to publish camp. Please try again.',
-        color: 'danger',
-      })
-    } finally {
-      setIsPublishing(false)
-    }
+    await publishCamp(campId)
+    setIsPublishing(false)
+    if (useCampsStore.getState().error) return
+    addToast({
+      title: 'Success',
+      description: 'Camp published successfully!',
+      color: 'success',
+    })
+    router.push('/camps')
   }
 
   const canPublish = currentCamp?.status !== 'published'
@@ -52,24 +43,18 @@ export function CampEditorTopBar({ campId }: CampEditorTopBarProps) {
     if (!campId || !currentCamp?.slug) return
 
     setIsPreviewing(true)
-    try {
-      // Generate a preview token for the camp
-      const token = await campsService.generatePreviewToken(campId)
-
-      // Redirect to the booking app's camp page with preview token
-      const bookingAppUrl = config.app.bookingAppUrl
-      const campUrl = `${bookingAppUrl}/camps/${currentCamp.slug}?preview=${token}`
-      window.open(campUrl, '_blank')
-    } catch (error) {
-      console.error('Failed to generate preview token:', error)
+    const response = await campsService.generatePreviewToken(campId)
+    setIsPreviewing(false)
+    if (!response.success) {
       addToast({
         title: 'Error',
-        description: 'Failed to open camp preview. Please try again.',
+        description: response.data.message || 'Failed to open camp preview. Please try again.',
         color: 'danger',
       })
-    } finally {
-      setIsPreviewing(false)
+      return
     }
+    const campUrl = `${config.app.bookingAppUrl}/camps/${currentCamp.slug}?preview=${response.data.token}`
+    window.open(campUrl, '_blank')
   }
 
   return (

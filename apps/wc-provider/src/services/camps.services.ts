@@ -11,81 +11,31 @@ import type {
 // Wizard Endpoints
 // ============================================
 
-export const createCamp = async (data: CreateCampDto): Promise<Camp> => {
-  const response = await apiClient.post<{ camp: Camp }>('/provider/camps/create/basic-info', data)
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
+export const createCamp = (data: CreateCampDto) =>
+  apiClient.post<{ camp: Camp }>('/provider/camps/create/basic-info', data)
 
-export const updateCampAudience = async (
-  campId: string,
-  data: UpdateCampAudienceDto
-): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(
-    `/provider/camps/${campId}/create/audience`,
-    data
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
+export const updateCampAudience = (campId: string, data: UpdateCampAudienceDto) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/create/audience`, data)
 
-export const updateCampPrograms = async (
-  campId: string,
-  data: UpdateCampProgramsDto
-): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(
-    `/provider/camps/${campId}/create/programs`,
-    data
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
+export const updateCampPrograms = (campId: string, data: UpdateCampProgramsDto) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/create/programs`, data)
 
-export const updateCampPhotos = async (
-  campId: string,
-  data: UpdateCampPhotosDto
-): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(
-    `/provider/camps/${campId}/create/photos`,
-    data
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
+export const updateCampPhotos = (campId: string, data: UpdateCampPhotosDto) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/create/photos`, data)
 
-export const uploadCampPhotos = async (
-  campId: string,
-  files: File[],
-  existingPhotos: any[]
-): Promise<Camp> => {
+export const uploadCampPhotos = (campId: string, files: File[], existingPhotos: any[]) => {
   const formData = new FormData()
-
-  // Add files to form data
   files.forEach(file => {
     formData.append('photos', file)
   })
-
-  // Add existing photos as JSON string
   formData.append('existingPhotos', JSON.stringify(existingPhotos))
-
-  const response = await apiClient.patch<{ camp: Camp }>(
-    `/provider/camps/${campId}/create/photos`,
-    formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
+  return apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/create/photos`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
 }
 
-export const publishCamp = async (campId: string): Promise<Camp> => {
-  const response = await apiClient.post<{ camp: Camp }>(`/provider/camps/${campId}/publish`, {})
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
+export const publishCamp = (campId: string) =>
+  apiClient.post<{ camp: Camp }>(`/provider/camps/${campId}/publish`, {})
 
 // ============================================
 // Camp Management Endpoints
@@ -108,285 +58,130 @@ export interface CampStatistics {
   averageRating: number
 }
 
-export const getCamps = async (filters?: GetCampsFilters): Promise<Camp[]> => {
-  const response = await apiClient.get<{ camps: Camp[] }>('/provider/camps', { params: filters })
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camps
-}
+export const getCamps = (filters?: GetCampsFilters) =>
+  apiClient.get<{ camps: Camp[] }>('/provider/camps', { params: filters })
 
-export const getCampStatistics = async (): Promise<CampStatistics> => {
-  const response = await apiClient.get<{ stats: CampStatistics }>('/provider/camps/statistics')
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).stats
-}
+export const getCampStatistics = () =>
+  apiClient.get<{ stats: CampStatistics }>('/provider/camps/statistics')
 
-export const getCamp = async (campId: string): Promise<Camp> => {
-  const response = await apiClient.get<{ camp: Camp }>(`/provider/camps/${campId}`)
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
+export const getCamp = (campId: string) =>
+  apiClient.get<{ camp: Camp }>(`/provider/camps/${campId}`)
 
-export const archiveCamp = async (campId: string): Promise<Camp> => {
-  const response = await apiClient.post<{ camp: Camp }>(`/provider/camps/${campId}/archive`, {})
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
+export const archiveCamp = (campId: string) =>
+  apiClient.post<{ camp: Camp }>(`/provider/camps/${campId}/archive`, {})
 
-export const duplicateCamp = async (campId: string): Promise<Camp> => {
-  const response = await apiClient.post<{ camp: Camp }>(`/provider/camps/${campId}/duplicate`, {})
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
+export const duplicateCamp = (campId: string) =>
+  apiClient.post<{ camp: Camp }>(`/provider/camps/${campId}/duplicate`, {})
 
-export const deleteCamp = async (campId: string): Promise<void> => {
-  const response = await apiClient.del(`/provider/camps/${campId}`)
-  if (!response.success) throw new Error((response.data as any).message)
-}
+export const deleteCamp = (campId: string) => apiClient.del(`/provider/camps/${campId}`)
 
-export const checkSlugAvailability = async (
-  slug: string,
-  campId?: string
-): Promise<{ available: boolean }> => {
+export const checkSlugAvailability = (slug: string, campId?: string) => {
   const params = campId ? `?campId=${campId}` : ''
-  const response = await apiClient.get<{ available: boolean }>(
-    `/provider/camps/check-slug/${slug}${params}`
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return response.data as { available: boolean }
+  return apiClient.get<{ available: boolean }>(`/provider/camps/check-slug/${slug}${params}`)
 }
 
 // ============================================
 // Editor Endpoints
 // ============================================
 
-export const updateBasicInfo = async (campId: string, data: Partial<Camp>): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(
-    `/provider/camps/${campId}/basic-info`,
-    data
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
+export const updateBasicInfo = (campId: string, data: Partial<Camp>) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/basic-info`, data)
 
-export const updatePhotos = async (campId: string, photos: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/photos`, {
-    photos,
+export const updatePhotos = (campId: string, photos: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/photos`, { photos })
+
+export const updateWhatsIncluded = (campId: string, whatsIncluded: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/whats-included`, { whatsIncluded })
+
+export const updateDailySchedule = (campId: string, data: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/daily-schedule`, data)
+
+export const updateMeals = (campId: string, meals: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/meals`, { meals })
+
+export const updateSports = (campId: string, sportsActivities: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/sports`, { sportsActivities })
+
+export const updateLanguages = (campId: string, languagePrograms: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/languages`, { languagePrograms })
+
+export const updateArts = (campId: string, artsAndCrafts: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/arts`, { artsAndCrafts })
+
+export const updateAdventure = (campId: string, adventureActivities: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/adventure`, { adventureActivities })
+
+export const updateWater = (campId: string, waterActivities: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/water`, { waterActivities })
+
+export const updateEnvironmental = (campId: string, environmentalActivities: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/environmental`, {
+    environmentalActivities,
   })
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
 
-export const updateWhatsIncluded = async (campId: string, whatsIncluded: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(
-    `/provider/camps/${campId}/whats-included`,
-    {
-      whatsIncluded,
-    }
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
+export const updateAcademics = (campId: string, academics: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/academics`, { academics })
 
-export const updateDailySchedule = async (campId: string, data: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(
-    `/provider/camps/${campId}/daily-schedule`,
-    data
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
+export const updateReligion = (campId: string, religionPrograms: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/religion`, { religionPrograms })
 
-export const updateMeals = async (campId: string, meals: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/meals`, {
-    meals,
+export const updateExcursions = (campId: string, excursionsTrips: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/excursions`, { excursionsTrips })
+
+export const updateLocationCampus = (campId: string, campusFacilities: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/location-campus`, { campusFacilities })
+
+export const updateAccommodation = (campId: string, accommodation: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/accommodation`, { accommodation })
+
+export const updateGettingThere = (campId: string, gettingThere: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/getting-there`, { gettingThere })
+
+export const updateCampFocus = (campId: string, campFocus: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/camp-focus`, { campFocus })
+
+export const updateCampStatus = (campId: string, status: 'draft' | 'published' | 'archived') =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/status`, { status })
+
+export const generatePreviewToken = (campId: string) =>
+  apiClient.get<{ token: string }>(`/provider/camps/${campId}/preview-token`)
+
+export const updateSafetyPolicies = (campId: string, safetySupervision: any, screenPolicy: any) =>
+  apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/safety-policies`, {
+    safetySupervision,
+    screenPolicy,
   })
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
 
-export const updateSports = async (campId: string, sportsActivities: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/sports`, {
-    sportsActivities,
-  })
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
+// ============================================
+// Camp Eligibility (Skill Requirements)
+// ============================================
 
-export const updateLanguages = async (campId: string, languagePrograms: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/languages`, {
-    languagePrograms,
-  })
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
-
-export const updateArts = async (campId: string, artsAndCrafts: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/arts`, {
-    artsAndCrafts,
-  })
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
-
-export const updateAdventure = async (campId: string, adventureActivities: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/adventure`, {
-    adventureActivities,
-  })
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
-
-export const updateWater = async (campId: string, waterActivities: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/water`, {
-    waterActivities,
-  })
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
-
-export const updateEnvironmental = async (
-  campId: string,
-  environmentalActivities: any
-): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(
-    `/provider/camps/${campId}/environmental`,
-    {
-      environmentalActivities,
-    }
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
-
-export const updateAcademics = async (campId: string, academics: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/academics`, {
-    academics,
-  })
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
-
-export const updateReligion = async (campId: string, religionPrograms: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/religion`, {
-    religionPrograms,
-  })
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
-
-export const updateExcursions = async (campId: string, excursionsTrips: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/excursions`, {
-    excursionsTrips,
-  })
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
-
-export const updateLocationCampus = async (
-  campId: string,
-  campusFacilities: any
-): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(
-    `/provider/camps/${campId}/location-campus`,
-    {
-      campusFacilities,
-    }
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
-
-export const updateAccommodation = async (campId: string, accommodation: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(
-    `/provider/camps/${campId}/accommodation`,
-    {
-      accommodation,
-    }
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
-
-export const updateGettingThere = async (campId: string, gettingThere: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(
-    `/provider/camps/${campId}/getting-there`,
-    {
-      gettingThere,
-    }
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
-
-export const updateCampFocus = async (campId: string, campFocus: any): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/camp-focus`, {
-    campFocus,
-  })
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
-
-export const updateCampStatus = async (
-  campId: string,
-  status: 'draft' | 'published' | 'archived'
-): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(`/provider/camps/${campId}/status`, {
-    status,
-  })
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
-}
-
-/**
- * Generate a preview token for a camp
- * Allows providers to preview unpublished camps in the booking app
- */
-export const generatePreviewToken = async (campId: string): Promise<string> => {
-  const response = await apiClient.get<{ token: string }>(`/provider/camps/${campId}/preview-token`)
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).token
-}
-
-/** Camp eligibility requirement (skill requirements) */
 export interface CampEligibilityItem {
   activityId: string
   mode: 'INFO' | 'GATE'
   minimumLevelValue: string | null
 }
 
-export const getCampEligibility = async (
-  campId: string
-): Promise<{ items: CampEligibilityItem[] }> => {
+export const getCampEligibility = async (campId: string) => {
   const response = await apiClient.get<{ items: CampEligibilityItem[] }>(
     `/provider/camps/${campId}/eligibility`
   )
-  if (!response.success) throw new Error((response.data as any)?.message ?? 'Failed to load')
-  const data = (response.data as any)?.data ?? response.data
-  return Array.isArray(data?.items) ? data : { items: data?.items ?? [] }
+  if (!response.success) return response
+  // Normalise response shape differences between API versions
+  const raw = (response.data as any)?.data ?? response.data
+  const items: CampEligibilityItem[] = Array.isArray(raw?.items) ? raw.items : (raw?.items ?? [])
+  return { success: true as const, data: { items } }
 }
 
-export const putCampEligibility = async (
-  campId: string,
-  items: CampEligibilityItem[]
-): Promise<{ items: CampEligibilityItem[] }> => {
+export const putCampEligibility = async (campId: string, items: CampEligibilityItem[]) => {
   const response = await apiClient.patch<{ items: CampEligibilityItem[] }>(
     `/provider/camps/${campId}/eligibility`,
     { items }
   )
-  if (!response.success) throw new Error((response.data as any)?.message ?? 'Failed to save')
-  const data = (response.data as any)?.data ?? response.data
-  return Array.isArray(data?.items) ? data : { items: data?.items ?? [] }
-}
-
-export const updateSafetyPolicies = async (
-  campId: string,
-  safetySupervision: any,
-  screenPolicy: any
-): Promise<Camp> => {
-  const response = await apiClient.patch<{ camp: Camp }>(
-    `/provider/camps/${campId}/safety-policies`,
-    { safetySupervision, screenPolicy }
-  )
-  if (!response.success) throw new Error((response.data as any).message)
-  return (response.data as any).camp
+  if (!response.success) return response
+  const raw = (response.data as any)?.data ?? response.data
+  const resultItems: CampEligibilityItem[] = Array.isArray(raw?.items)
+    ? raw.items
+    : (raw?.items ?? [])
+  return { success: true as const, data: { items: resultItems } }
 }

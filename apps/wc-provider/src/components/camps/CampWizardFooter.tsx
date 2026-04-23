@@ -19,7 +19,8 @@ const STEP_PATHS: Record<number, string> = {
 
 export function CampWizardFooter({ currentStep, campId }: CampWizardFooterProps) {
   const router = useRouter()
-  const { wizardFormValid, wizardFormSubmit, isLoading, hasUnsavedChanges } = useCampsStore()
+  const { wizardFormValid, wizardFormSubmit, isLoading, hasUnsavedChanges, hasPendingAutoSave } =
+    useCampsStore()
 
   const handleBack = () => {
     if (currentStep > 1 && campId) {
@@ -42,40 +43,39 @@ export function CampWizardFooter({ currentStep, campId }: CampWizardFooterProps)
   }
 
   const handleSaveAndNext = async () => {
-    // Save current step data, then navigate to next step
     if (wizardFormSubmit) {
       await wizardFormSubmit()
+      if (useCampsStore.getState().error) return
     }
 
-    // Navigate to next step after successful save
-    if (currentStep < 5 && campId) {
+    // Use store fallback so new-camp creation (where campId prop is still undefined) works
+    const resolvedCampId = campId ?? useCampsStore.getState().wizardCamp?.id
+    if (currentStep < 5 && resolvedCampId) {
       const nextStep = currentStep + 1
-      router.push(`/camps/create/${STEP_PATHS[nextStep]}?id=${campId}`)
-    } else if (currentStep === 5 && campId) {
+      router.push(`/camps/create/${STEP_PATHS[nextStep]}?id=${resolvedCampId}`)
+    } else if (currentStep === 5 && resolvedCampId) {
       router.push('/camps')
-    }
-  }
-
-  const handleSave = async () => {
-    // For step 4 (photos), trigger the save handler
-    if (wizardFormSubmit) {
-      await wizardFormSubmit()
     }
   }
 
   // Determine navigation availability
   const hasNext = currentStep < 5
 
-  // Next button: enabled when form is valid (doesn't require unsaved changes)
-  // For step 1, we need wizardFormValid. For other steps, we need both campId and wizardFormValid
+  // For steps 1–3, when Save & Continue is actionable the user must save before navigating
+  const saveAndContinueIsActive =
+    currentStep <= 3 && hasUnsavedChanges && wizardFormValid && !isLoading
+
   const isNextDisabled =
-    currentStep === 1 ? !wizardFormValid || isLoading : !campId || !wizardFormValid || isLoading
+    currentStep === 1
+      ? !wizardFormValid || isLoading || saveAndContinueIsActive
+      : !campId ||
+        !wizardFormValid ||
+        isLoading ||
+        saveAndContinueIsActive ||
+        (currentStep === 4 && hasPendingAutoSave)
 
   // Save & Continue button: only enabled when there are unsaved changes
   const isSaveAndContinueDisabled = !hasUnsavedChanges || !wizardFormValid || isLoading
-
-  // Save button (step 4): only enabled when there are unsaved changes
-  const isSaveDisabled = !hasUnsavedChanges || !wizardFormValid || isLoading
 
   return (
     <div className="h-20 bg-white px-12 py-4 border-t-2 border-default-100">
@@ -92,31 +92,16 @@ export function CampWizardFooter({ currentStep, campId }: CampWizardFooterProps)
           )}
         </div>
 
-        {/* Right side: Save action buttons */}
+        {/* Right side: Save action buttons (steps 1-3 only; step 4 auto-saves per action) */}
         <div className="flex items-center gap-3">
-          {/* Save & Continue Button for steps 1-3 */}
           {currentStep < 4 && (
             <Button
               color="primary"
-              size="lg"
               onPress={handleSaveAndNext}
               isDisabled={isSaveAndContinueDisabled}
               isLoading={isLoading}
             >
               Save & Continue →
-            </Button>
-          )}
-
-          {/* Save Photos Button for step 4 */}
-          {currentStep === 4 && (
-            <Button
-              color="primary"
-              size="lg"
-              onPress={handleSave}
-              isDisabled={isSaveDisabled}
-              isLoading={isLoading}
-            >
-              {isLoading ? 'Saving...' : 'Save Photos'}
             </Button>
           )}
         </div>

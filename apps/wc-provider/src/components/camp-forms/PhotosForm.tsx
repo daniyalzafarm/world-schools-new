@@ -1,14 +1,13 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Button } from '@heroui/react'
+import { Button, Spinner } from '@heroui/react'
 import { GripVertical, Trash2 } from 'lucide-react'
 import { DocumentDropzone } from '@world-schools/ui-web'
 import type { CampPhoto } from '../../types/camps'
 
 export interface PhotosFormData {
   photos: CampPhoto[]
-  pendingFiles: File[]
 }
 
 export interface PhotosFormProps {
@@ -18,6 +17,7 @@ export interface PhotosFormProps {
   onFilesSelected?: (files: File[]) => void
   onRemovePhoto: (photoId: string) => void
   isUploading?: boolean
+  busyPhotoIds?: Set<string>
 }
 
 export const PhotosForm: React.FC<PhotosFormProps> = ({
@@ -27,11 +27,13 @@ export const PhotosForm: React.FC<PhotosFormProps> = ({
   onFilesSelected,
   onRemovePhoto,
   isUploading = false,
+  busyPhotoIds,
 }) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 
   const { photos } = formData
+  const isBusy = (id: string) => (busyPhotoIds ? busyPhotoIds.has(id) : false)
 
   const handleDragStart = (index: number) => {
     setDraggedIndex(index)
@@ -167,63 +169,81 @@ export const PhotosForm: React.FC<PhotosFormProps> = ({
           {/* Gallery Layout - 4 column grid with 2x2 primary photo */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {/* Primary Photo (First Photo) - 2x2 grid space */}
-            {photos[0] && (
-              <div
-                draggable
-                onDragStart={() => handleDragStart(0)}
-                onDragOver={e => handleDragOver(e, 0)}
-                onDragLeave={handleDragLeave}
-                onDrop={e => handleDrop(e, 0)}
-                onDragEnd={handleDragEnd}
-                className={`group relative col-span-2 row-span-2 cursor-move overflow-hidden rounded-lg border-2 transition-all ${
-                  dragOverIndex === 0 && draggedIndex !== 0
-                    ? 'border-primary bg-primary/5'
-                    : 'border-transparent'
-                } ${draggedIndex === 0 ? 'opacity-50' : ''}`}
-                style={{ aspectRatio: '4/3' }}
-              >
-                <img
-                  src={photos[0].url}
-                  alt="Primary camp photo"
-                  className="h-full w-full object-cover"
-                />
+            {photos[0] &&
+              (() => {
+                const busy = isBusy(photos[0].id)
+                return (
+                  <div
+                    draggable={!busy}
+                    onDragStart={() => handleDragStart(0)}
+                    onDragOver={e => handleDragOver(e, 0)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={e => handleDrop(e, 0)}
+                    onDragEnd={handleDragEnd}
+                    className={`group relative col-span-2 row-span-2 overflow-hidden rounded-lg border-2 transition-all ${
+                      busy ? 'cursor-default' : 'cursor-move'
+                    } ${
+                      dragOverIndex === 0 && draggedIndex !== 0
+                        ? 'border-primary bg-primary/5'
+                        : 'border-transparent'
+                    } ${draggedIndex === 0 ? 'opacity-50' : ''}`}
+                    style={{ aspectRatio: '4/3' }}
+                  >
+                    <img
+                      src={photos[0].url}
+                      alt="Primary camp photo"
+                      className="h-full w-full object-cover"
+                    />
 
-                {/* Primary Badge */}
-                <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-xs font-semibold text-foreground">
-                  Primary
-                </div>
+                    {/* Primary Badge */}
+                    <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-xs font-semibold text-foreground">
+                      Primary
+                    </div>
 
-                {/* Drag Handle */}
-                <div className="absolute right-2 top-2 rounded-md bg-black/50 p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                  <GripVertical className="h-4 w-4 text-white" />
-                </div>
+                    {/* Drag Handle */}
+                    {!busy && (
+                      <div className="absolute right-2 top-2 rounded-md bg-black/50 p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                        <GripVertical className="h-4 w-4 text-white" />
+                      </div>
+                    )}
 
-                {/* Remove Button */}
-                <Button
-                  size="sm"
-                  color="danger"
-                  isIconOnly
-                  onPress={() => onRemovePhoto(photos[0].id)}
-                  className="absolute bottom-2 right-2 h-7 w-7 min-w-0 opacity-0 transition-opacity group-hover:opacity-100"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            )}
+                    {/* Remove Button */}
+                    <Button
+                      size="sm"
+                      color="danger"
+                      isIconOnly
+                      isDisabled={busy}
+                      onPress={() => onRemovePhoto(photos[0].id)}
+                      className="absolute bottom-2 right-2 h-7 w-7 min-w-0 opacity-0 transition-opacity group-hover:opacity-100"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+
+                    {busy && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <Spinner size="lg" color="white" />
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
 
             {/* First 4 Thumbnails (positions 2-5) - 1x1 grid items */}
             {photos.slice(1, 5).map((photo, index) => {
               const actualIndex = index + 1
+              const busy = isBusy(photo.id)
               return (
                 <div
                   key={photo.id}
-                  draggable
+                  draggable={!busy}
                   onDragStart={() => handleDragStart(actualIndex)}
                   onDragOver={e => handleDragOver(e, actualIndex)}
                   onDragLeave={handleDragLeave}
                   onDrop={e => handleDrop(e, actualIndex)}
                   onDragEnd={handleDragEnd}
-                  className={`group relative cursor-move overflow-hidden rounded-lg border-2 transition-all ${
+                  className={`group relative overflow-hidden rounded-lg border-2 transition-all ${
+                    busy ? 'cursor-default' : 'cursor-move'
+                  } ${
                     dragOverIndex === actualIndex && draggedIndex !== actualIndex
                       ? 'border-primary bg-primary/5'
                       : 'border-transparent'
@@ -242,20 +262,29 @@ export const PhotosForm: React.FC<PhotosFormProps> = ({
                   </div>
 
                   {/* Drag Handle */}
-                  <div className="absolute right-2 top-2 rounded-md bg-black/50 p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                    <GripVertical className="h-4 w-4 text-white" />
-                  </div>
+                  {!busy && (
+                    <div className="absolute right-2 top-2 rounded-md bg-black/50 p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      <GripVertical className="h-4 w-4 text-white" />
+                    </div>
+                  )}
 
                   {/* Remove Button */}
                   <Button
                     size="sm"
                     color="danger"
                     isIconOnly
+                    isDisabled={busy}
                     onPress={() => onRemovePhoto(photo.id)}
                     className="absolute bottom-2 right-2 h-7 w-7 min-w-0 opacity-0 transition-opacity group-hover:opacity-100"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
+
+                  {busy && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                      <Spinner color="white" />
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -296,16 +325,19 @@ export const PhotosForm: React.FC<PhotosFormProps> = ({
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               {photos.slice(5).map((photo, index) => {
                 const actualIndex = index + 5
+                const busy = isBusy(photo.id)
                 return (
                   <div
                     key={photo.id}
-                    draggable
+                    draggable={!busy}
                     onDragStart={() => handleDragStart(actualIndex)}
                     onDragOver={e => handleDragOver(e, actualIndex)}
                     onDragLeave={handleDragLeave}
                     onDrop={e => handleDrop(e, actualIndex)}
                     onDragEnd={handleDragEnd}
-                    className={`group relative cursor-move overflow-hidden rounded-lg border-2 transition-all ${
+                    className={`group relative overflow-hidden rounded-lg border-2 transition-all ${
+                      busy ? 'cursor-default' : 'cursor-move'
+                    } ${
                       dragOverIndex === actualIndex && draggedIndex !== actualIndex
                         ? 'border-primary bg-primary/5'
                         : 'border-transparent'
@@ -324,20 +356,29 @@ export const PhotosForm: React.FC<PhotosFormProps> = ({
                     </div>
 
                     {/* Drag Handle */}
-                    <div className="absolute right-2 top-2 rounded-md bg-black/50 p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                      <GripVertical className="h-4 w-4 text-white" />
-                    </div>
+                    {!busy && (
+                      <div className="absolute right-2 top-2 rounded-md bg-black/50 p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                        <GripVertical className="h-4 w-4 text-white" />
+                      </div>
+                    )}
 
                     {/* Remove Button */}
                     <Button
                       size="sm"
                       color="danger"
                       isIconOnly
+                      isDisabled={busy}
                       onPress={() => onRemovePhoto(photo.id)}
                       className="absolute bottom-2 right-2 h-7 w-7 min-w-0 opacity-0 transition-opacity group-hover:opacity-100"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
+
+                    {busy && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <Spinner color="white" />
+                      </div>
+                    )}
                   </div>
                 )
               })}

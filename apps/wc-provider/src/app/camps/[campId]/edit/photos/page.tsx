@@ -1,189 +1,217 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { addToast } from '@heroui/react'
 import { useCampsStore } from '../../../../../stores/camps-store'
+import * as campsService from '../../../../../services/camps.services'
 import type { CampPhoto } from '../../../../../types/camps'
 import { PhotosForm, type PhotosFormData } from '../../../../../components/camp-forms/PhotosForm'
+
+const sortByOrder = (photos: CampPhoto[]) => [...photos].sort((a, b) => a.order - b.order)
+
+const applyOrderFlags = (photos: CampPhoto[]): CampPhoto[] =>
+  photos.map((photo, index) => ({
+    ...photo,
+    order: index,
+    isPrimary: index === 0,
+  }))
 
 export default function PhotosEditorPage() {
   const router = useRouter()
   const params = useParams()
   const campId = params.campId as string
 
-  const {
-    uploadCampPhotos,
-    fetchCamp,
-    currentCamp,
-    setHasUnsavedChanges,
-    setWizardFormValid,
-    setWizardFormSubmit,
-  } = useCampsStore()
+  const { fetchCamp, currentCamp, setHasUnsavedChanges, setWizardFormValid, setWizardFormSubmit } =
+    useCampsStore()
 
-  const [formData, setFormData] = useState<PhotosFormData>({
-    photos: [],
-    pendingFiles: [],
-  })
-  const [originalPhotos, setOriginalPhotos] = useState<CampPhoto[]>([])
-  const [isUploading, setIsUploading] = useState(false)
+  const [formData, setFormData] = useState<PhotosFormData>({ photos: [] })
+  const [busyPhotoIds, setBusyPhotoIds] = useState<Set<string>>(new Set())
+
+  const committedPhotosRef = useRef<CampPhoto[]>([])
+  const reorderTimeoutRef = useRef<number | null>(null)
+
+  const addBusy = (ids: string[]) =>
+    setBusyPhotoIds(prev => {
+      const next = new Set(prev)
+      ids.forEach(id => next.add(id))
+      return next
+    })
+
+  const removeBusy = (ids: string[]) =>
+    setBusyPhotoIds(prev => {
+      const next = new Set(prev)
+      ids.forEach(id => next.delete(id))
+      return next
+    })
+
+  const setPendingAutoSave = (pending: boolean, status: 'saving' | 'saved' | 'error' | 'idle') => {
+    useCampsStore.setState({ hasPendingAutoSave: pending, autoSaveStatus: status })
+  }
+
+  const flashSavedThenIdle = () => {
+    setPendingAutoSave(false, 'saved')
+    setTimeout(() => {
+      if (useCampsStore.getState().autoSaveStatus === 'saved') {
+        useCampsStore.setState({ autoSaveStatus: 'idle' })
+      }
+    }, 2000)
+  }
 
   useEffect(() => {
-    if (campId) {
-      fetchCamp(campId).catch(error => {
-        console.error('Failed to fetch camp:', error)
-        router.push('/camps')
-      })
+    const init = async () => {
+      if (!campId) return
+      await fetchCamp(campId)
+      if (useCampsStore.getState().error) router.push('/camps')
     }
+    void init()
 
-    // Cleanup on unmount
     return () => {
       setHasUnsavedChanges(false)
       setWizardFormValid(false)
       setWizardFormSubmit(null)
+      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
     }
   }, [campId, fetchCamp, router, setHasUnsavedChanges, setWizardFormValid, setWizardFormSubmit])
 
   useEffect(() => {
     if (currentCamp?.photos) {
-      // Sort photos by order and set them
-      const sortedPhotos = [...(currentCamp.photos as CampPhoto[])].sort(
-        (a, b) => a.order - b.order
-      )
-      setFormData({ photos: sortedPhotos, pendingFiles: [] })
-      setOriginalPhotos(sortedPhotos)
+      const sorted = sortByOrder(currentCamp.photos as CampPhoto[])
+      setFormData({ photos: sorted })
+      committedPhotosRef.current = sorted
     }
   }, [currentCamp])
 
-  // Detect form changes
+  // Per-action persistence means there are never "unsaved changes" and no
+  // submit hook to register. Keep validity gate for the 5-photo minimum.
   useEffect(() => {
-    if (originalPhotos.length === 0 && formData.photos.length === 0) return
-
-    const hasChanges =
-      formData.pendingFiles.length > 0 ||
-      formData.photos.length !== originalPhotos.length ||
-      JSON.stringify(formData.photos.map(p => ({ id: p.id, order: p.order }))) !==
-        JSON.stringify(originalPhotos.map(p => ({ id: p.id, order: p.order })))
-
-    setHasUnsavedChanges(hasChanges)
-  }, [formData, originalPhotos, setHasUnsavedChanges])
-
-  // Update form validity
-  useEffect(() => {
-    const isValid = formData.photos.length >= 5
-
-    setWizardFormValid(isValid)
-  }, [formData.photos, setWizardFormValid])
-
-  // Register submit handler for footer
-  useEffect(() => {
-    const handleFormSubmit = async () => {
-      if (!campId) return
-
-      try {
-        // Separate existing photos (already uploaded) from new ones (temp IDs)
-        const existingPhotos = formData.photos.filter(p => !p.id.startsWith('temp-'))
-
-        // Upload new files along with existing photos metadata
-        await uploadCampPhotos(campId, formData.pendingFiles, existingPhotos)
-
-        // Clear pending files and update original photos
-        setFormData({ ...formData, pendingFiles: [] })
-        setOriginalPhotos(formData.photos)
-
-        // Refresh camp data to get updated photos with SAS URLs
-        await fetchCamp(campId)
-      } catch (error) {
-        console.error('Failed to save photos:', error)
-        throw error
-      }
-    }
-
-    setWizardFormSubmit(handleFormSubmit)
-
-    return () => {
-      setWizardFormSubmit(null)
-    }
-  }, [campId, formData, uploadCampPhotos, fetchCamp, setWizardFormSubmit])
-
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (!files || files.length === 0) return
-
-    setIsUploading(true)
-    try {
-      // Create temporary preview objects for selected files
-      const fileArray = Array.from(files)
-      const newPhotos: CampPhoto[] = fileArray.map((file, index) => ({
-        id: `temp-${Date.now()}-${index}`,
-        url: URL.createObjectURL(file),
-        thumbnail: URL.createObjectURL(file),
-        isPrimary: formData.photos.length === 0 && index === 0,
-        order: formData.photos.length + index,
-      }))
-
-      const updatedPhotos = [...formData.photos, ...newPhotos]
-      setFormData({
-        photos: updatedPhotos,
-        pendingFiles: [...formData.pendingFiles, ...fileArray],
-      })
-    } catch (error) {
-      console.error('Failed to select photos:', error)
-      addToast({
-        title: 'Error',
-        description: 'Failed to select photos. Please try again.',
-        color: 'danger',
-      })
-    } finally {
-      setIsUploading(false)
-    }
-  }
+    setWizardFormValid(formData.photos.length >= 5)
+    setHasUnsavedChanges(false)
+    setWizardFormSubmit(null)
+  }, [formData.photos.length, setHasUnsavedChanges, setWizardFormValid, setWizardFormSubmit])
 
   const handleFilesSelected = async (files: File[]) => {
-    if (!files || files.length === 0) return
+    if (!campId || !files || files.length === 0) return
 
-    setIsUploading(true)
-    try {
-      // Create temporary preview objects for selected files
-      const newPhotos: CampPhoto[] = files.map((file, index) => ({
-        id: `temp-${Date.now()}-${index}`,
-        url: URL.createObjectURL(file),
-        thumbnail: URL.createObjectURL(file),
-        isPrimary: formData.photos.length === 0 && index === 0,
-        order: formData.photos.length + index,
-      }))
+    const snapshot = formData.photos
+    const stamp = Date.now()
+    const temps: CampPhoto[] = files.map((file, index) => ({
+      id: `temp-${stamp}-${index}`,
+      url: URL.createObjectURL(file),
+      thumbnail: URL.createObjectURL(file),
+      isPrimary: snapshot.length === 0 && index === 0,
+      order: snapshot.length + index,
+    }))
+    const tempIds = temps.map(t => t.id)
 
-      const updatedPhotos = [...formData.photos, ...newPhotos]
-      setFormData({
-        photos: updatedPhotos,
-        pendingFiles: [...formData.pendingFiles, ...files],
-      })
-    } catch (error) {
-      console.error('Failed to select photos:', error)
+    setFormData({ photos: [...snapshot, ...temps] })
+    addBusy(tempIds)
+    setPendingAutoSave(true, 'saving')
+
+    const res = await campsService.uploadCampPhotos(campId, files, snapshot)
+    removeBusy(tempIds)
+
+    if (!res.success) {
+      setFormData({ photos: snapshot })
+      setPendingAutoSave(false, 'error')
       addToast({
         title: 'Error',
-        description: 'Failed to select photos. Please try again.',
+        description: res.data.message || 'Failed to upload photos. Please try again.',
         color: 'danger',
       })
-    } finally {
-      setIsUploading(false)
+      return
     }
+
+    const serverPhotos = sortByOrder((res.data.camp.photos as CampPhoto[]) ?? [])
+    committedPhotosRef.current = serverPhotos
+    setFormData({ photos: serverPhotos })
+    useCampsStore.setState({ currentCamp: res.data.camp })
+    flashSavedThenIdle()
   }
 
-  const handleRemovePhoto = (photoId: string) => {
-    const filteredPhotos = formData.photos.filter(p => p.id !== photoId)
-    // Reorder remaining photos
-    const reorderedPhotos = filteredPhotos.map((photo, index) => ({
-      ...photo,
-      order: index,
-      isPrimary: index === 0,
-    }))
-    setFormData({ ...formData, photos: reorderedPhotos })
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
+    void handleFilesSelected(Array.from(files))
   }
+
+  const handleRemovePhoto = async (photoId: string) => {
+    if (!campId) return
+    const snapshot = formData.photos
+    const remaining = applyOrderFlags(snapshot.filter(p => p.id !== photoId))
+
+    setFormData({ photos: remaining })
+    addBusy([photoId])
+    setPendingAutoSave(true, 'saving')
+
+    const res = await campsService.uploadCampPhotos(campId, [], remaining)
+    removeBusy([photoId])
+
+    if (!res.success) {
+      setFormData({ photos: snapshot })
+      setPendingAutoSave(false, 'error')
+      addToast({
+        title: 'Error',
+        description: res.data.message || 'Failed to remove photo. Please try again.',
+        color: 'danger',
+      })
+      return
+    }
+
+    const serverPhotos = sortByOrder((res.data.camp.photos as CampPhoto[]) ?? [])
+    committedPhotosRef.current = serverPhotos
+    setFormData({ photos: serverPhotos })
+    useCampsStore.setState({ currentCamp: res.data.camp })
+    flashSavedThenIdle()
+  }
+
+  const persistReorder = async (photos: CampPhoto[]) => {
+    if (!campId) return
+    const rollback = committedPhotosRef.current
+    setPendingAutoSave(true, 'saving')
+
+    const res = await campsService.uploadCampPhotos(campId, [], photos)
+    if (!res.success) {
+      setFormData({ photos: rollback })
+      setPendingAutoSave(false, 'error')
+      addToast({
+        title: 'Error',
+        description: res.data.message || 'Failed to reorder photos. Please try again.',
+        color: 'danger',
+      })
+      return
+    }
+
+    const serverPhotos = sortByOrder((res.data.camp.photos as CampPhoto[]) ?? [])
+    committedPhotosRef.current = serverPhotos
+    setFormData({ photos: serverPhotos })
+    useCampsStore.setState({ currentCamp: res.data.camp })
+    flashSavedThenIdle()
+  }
+
+  const handleReorder = (photos: CampPhoto[]) => {
+    setFormData({ photos })
+    if (reorderTimeoutRef.current !== null) {
+      window.clearTimeout(reorderTimeoutRef.current)
+    }
+    reorderTimeoutRef.current = window.setTimeout(() => {
+      reorderTimeoutRef.current = null
+      void persistReorder(photos)
+    }, 500)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (reorderTimeoutRef.current !== null) {
+        window.clearTimeout(reorderTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const isUploading = busyPhotoIds.size > 0
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-8">
         <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Edit Camp Photos</h1>
         <p className="text-base leading-normal text-default-500">
@@ -191,14 +219,16 @@ export default function PhotosEditorPage() {
         </p>
       </div>
 
-      {/* Form */}
       <PhotosForm
         formData={formData}
-        onChange={data => setFormData({ ...formData, ...data })}
+        onChange={data => {
+          if (data.photos) handleReorder(data.photos)
+        }}
         onFileSelect={handleFileSelect}
-        onFilesSelected={handleFilesSelected}
-        onRemovePhoto={handleRemovePhoto}
+        onFilesSelected={files => void handleFilesSelected(files)}
+        onRemovePhoto={id => void handleRemovePhoto(id)}
         isUploading={isUploading}
+        busyPhotoIds={busyPhotoIds}
       />
     </div>
   )

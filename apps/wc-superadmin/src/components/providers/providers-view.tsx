@@ -188,6 +188,7 @@ export function AllProvidersView() {
         color: 'success',
       })
       void fetchTabCounts()
+      void fetchApplications()
     } catch {
       addToast({
         title: 'Approval failed',

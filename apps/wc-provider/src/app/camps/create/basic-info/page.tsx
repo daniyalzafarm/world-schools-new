@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useCampsStore } from '../../../../stores/camps-store'
 import { useOnboardingStore } from '../../../../stores/onboarding-store'
 import { GoogleMapsLoader } from '../../../../components/onboarding/GoogleMapsLoader'
@@ -23,7 +23,6 @@ const generateSlug = (name: string): string => {
 }
 
 export default function BasicInfoPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const campId = searchParams.get('id')
 
@@ -127,46 +126,31 @@ export default function BasicInfoPage() {
 
     // Check availability
     setIsCheckingSlug(true)
-    try {
-      const result = await checkSlugAvailability(slug, campId || undefined)
-      if (!result.available) {
-        setSlugError('This slug is already taken. Please choose a different one.')
-        return false
-      }
-      setSlugError('')
-      return true
-    } catch (error) {
-      console.error('Failed to check slug availability:', error)
-      setSlugError('Failed to validate slug. Please try again.')
+    const response = await checkSlugAvailability(slug, campId || undefined)
+    setIsCheckingSlug(false)
+    if (!response.success) {
+      setSlugError(response.data.message || 'Failed to validate slug. Please try again.')
       return false
-    } finally {
-      setIsCheckingSlug(false)
     }
+    if (!response.data.available) {
+      setSlugError('This slug is already taken. Please choose a different one.')
+      return false
+    }
+    setSlugError('')
+    return true
   }
 
   const handleSubmit = async () => {
-    // Validate slug before submitting
     const isSlugValid = await validateSlug(formData.slug)
-    if (!isSlugValid) {
-      return
-    }
+    if (!isSlugValid) return
 
-    try {
-      if (campId) {
-        // Update existing camp with new data
-        const camp = await updateBasicInfo(campId, formData)
-        setWizardCamp(camp)
-        setLocalHasUnsavedChanges(false)
-        router.push(`/camps/create/audience?id=${campId}`)
-      } else {
-        // Create new camp
-        const camp = await createCamp(formData)
-        setWizardCamp(camp)
-        setLocalHasUnsavedChanges(false)
-        router.push(`/camps/create/audience?id=${camp.id}`)
-      }
-    } catch (error) {
-      console.error('Failed to save basic info:', error)
+    if (campId) {
+      await updateBasicInfo(campId, formData)
+    } else {
+      await createCamp(formData)
+    }
+    if (!useCampsStore.getState().error) {
+      setLocalHasUnsavedChanges(false)
     }
   }
 

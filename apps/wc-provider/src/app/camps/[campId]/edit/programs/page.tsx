@@ -29,12 +29,12 @@ export default function ProgramsEditorPage() {
   const [originalData, setOriginalData] = useState<ProgramsFormData | null>(null)
 
   useEffect(() => {
-    if (campId) {
-      fetchCamp(campId).catch(error => {
-        console.error('Failed to fetch camp:', error)
-        router.push('/camps')
-      })
+    const init = async () => {
+      if (!campId) return
+      await fetchCamp(campId)
+      if (useCampsStore.getState().error) router.push('/camps')
     }
+    void init()
 
     // Cleanup on unmount
     return () => {
@@ -76,13 +76,9 @@ export default function ProgramsEditorPage() {
   useEffect(() => {
     const handleFormSubmit = async () => {
       if (!campId) return
-
-      try {
-        await updateCampPrograms(campId, formData)
+      await updateCampPrograms(campId, formData)
+      if (!useCampsStore.getState().error) {
         await fetchCamp(campId)
-      } catch (error) {
-        console.error('Failed to save programs:', error)
-        throw error
       }
     }
 

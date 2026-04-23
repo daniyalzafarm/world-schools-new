@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Button, Switch } from '@heroui/react'
+import { addToast, Button, Switch } from '@heroui/react'
 import { useCampsStore } from '../../../../../stores/camps-store'
 import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import { ADD_ON_TYPE_BADGES, formatPrice } from '../../../../../types/add-ons'
@@ -27,20 +27,21 @@ export default function CampAddOnsEditorPage() {
   // Load camp add-ons
   useEffect(() => {
     const loadAddOns = async () => {
-      try {
-        setIsLoading(true)
-        const response = await campAddOnsService.getCampAddOns(campId)
-        setAddOns(response.addOns)
-      } catch (error) {
-        console.error('Failed to load add-ons:', error)
-      } finally {
-        setIsLoading(false)
+      setIsLoading(true)
+      const response = await campAddOnsService.getCampAddOns(campId)
+      setIsLoading(false)
+      if (!response.success) {
+        addToast({ title: 'Error', description: response.data.message, color: 'danger' })
+        return
       }
+      setAddOns(response.data.addOns)
+      useCampsStore.setState({
+        sidebarAddonEnabledCount: response.data.addOns.filter(a => a.isEnabled).length,
+        sidebarAddonTotalCount: response.data.addOns.length,
+      })
     }
 
-    loadAddOns().catch(error => {
-      console.error('Failed to load add-ons:', error)
-    })
+    void loadAddOns()
   }, [campId])
 
   // Cleanup on unmount - clear pending auto-save state
@@ -51,7 +52,7 @@ export default function CampAddOnsEditorPage() {
   }, [])
 
   // Auto-save handler
-  const handleSave = async (updatedAddOns: CampAddOn[]) => {
+  const handleSave = (updatedAddOns: CampAddOn[]) => {
     if (saveTimeout) {
       clearTimeout(saveTimeout)
     }
@@ -61,26 +62,30 @@ export default function CampAddOnsEditorPage() {
     useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
 
     const timeout = setTimeout(async () => {
-      try {
-        const updateData: UpdateCampAddOnItem[] = updatedAddOns.map((addOn, index) => ({
-          addOnId: addOn.id,
-          isEnabled: addOn.isEnabled,
-          sortOrder: index,
-        }))
+      const updateData: UpdateCampAddOnItem[] = updatedAddOns.map((addOn, index) => ({
+        addOnId: addOn.id,
+        isEnabled: addOn.isEnabled,
+        sortOrder: index,
+      }))
 
-        await campAddOnsService.updateCampAddOns(campId, { addOns: updateData })
-        setAutoSaveStatus('saved')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-
-        setTimeout(() => {
-          setAutoSaveStatus('idle')
-          useCampsStore.setState({ autoSaveStatus: 'idle' })
-        }, 2000)
-      } catch (error) {
-        console.error('Failed to save add-ons:', error)
+      const response = await campAddOnsService.updateCampAddOns(campId, { addOns: updateData })
+      if (!response.success) {
         setAutoSaveStatus('error')
         useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
+        addToast({ title: 'Error', description: response.data.message, color: 'danger' })
+        return
       }
+      setAutoSaveStatus('saved')
+      useCampsStore.setState({
+        hasPendingAutoSave: false,
+        autoSaveStatus: 'saved',
+        sidebarAddonEnabledCount: updatedAddOns.filter(a => a.isEnabled).length,
+      })
+
+      setTimeout(() => {
+        setAutoSaveStatus('idle')
+        useCampsStore.setState({ autoSaveStatus: 'idle' })
+      }, 2000)
     }, 1000)
 
     setSaveTimeout(timeout)
@@ -92,9 +97,7 @@ export default function CampAddOnsEditorPage() {
       addOn.id === addOnId ? { ...addOn, isEnabled } : addOn
     )
     setAddOns(updatedAddOns)
-    handleSave(updatedAddOns).catch(error => {
-      console.error('Failed to save add-ons:', error)
-    })
+    handleSave(updatedAddOns)
   }
 
   // Navigate to global add-ons management

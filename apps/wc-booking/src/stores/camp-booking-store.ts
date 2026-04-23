@@ -194,7 +194,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
                 else sel.childQuantities.push({ childId: booking.childId, quantity: savedQty })
               } else {
                 // qty mode: take from the first booking only.
-                if (firstBooking && booking.childId === firstBooking.childId) {
+                if (booking.childId === firstBooking?.childId) {
                   sel.quantity = savedQty
                 }
               }

@@ -131,7 +131,7 @@ export class MessagesService {
         },
       })
 
-      if (!attachmentRecords || attachmentRecords.length !== attachmentIds.length) {
+      if (attachmentRecords?.length !== attachmentIds.length) {
         throw new BadRequestException(
           'One or more attachments are invalid, already attached, or not owned by the sender'
         )

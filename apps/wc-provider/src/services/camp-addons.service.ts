@@ -22,23 +22,8 @@ export interface UpdateCampAddOnsDto {
   addOns: UpdateCampAddOnItem[]
 }
 
-/**
- * Get all add-ons for a camp with their enabled status
- */
-export async function getCampAddOns(campId: string): Promise<CampAddOnsResponse> {
-  const response = await apiClient.get<CampAddOnsResponse>(`${BASE_URL}/${campId}/addons`)
-  if (!response.success) throw new Error((response.data as any).message)
-  return response.data as CampAddOnsResponse
-}
+export const getCampAddOns = (campId: string) =>
+  apiClient.get<CampAddOnsResponse>(`${BASE_URL}/${campId}/addons`)
 
-/**
- * Update camp add-ons (enable/disable and reorder)
- */
-export async function updateCampAddOns(
-  campId: string,
-  data: UpdateCampAddOnsDto
-): Promise<{ message: string }> {
-  const response = await apiClient.patch(`${BASE_URL}/${campId}/addons`, data)
-  if (!response.success) throw new Error((response.data as any).message)
-  return response.data as { message: string }
-}
+export const updateCampAddOns = (campId: string, data: UpdateCampAddOnsDto) =>
+  apiClient.patch<{ message: string }>(`${BASE_URL}/${campId}/addons`, data)

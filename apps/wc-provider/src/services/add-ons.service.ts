@@ -11,63 +11,32 @@ export interface AddOnResponse {
   addOn: AddOn
 }
 
-/**
- * Get all add-ons for the provider
- */
-export async function getAddOns(query?: QueryAddOnsDto): Promise<AddOnsResponse> {
+export function getAddOns(query?: QueryAddOnsDto) {
   const params = new URLSearchParams()
-
   if (query?.type) params.append('type', query.type)
   if (query?.isActive !== undefined) params.append('isActive', query.isActive)
   if (query?.search) params.append('search', query.search)
-
   const queryString = params.toString()
   const url = queryString ? `${BASE_URL}?${queryString}` : BASE_URL
-
-  const response = await apiClient.get<AddOnsResponse>(url)
-  if (!response.success) throw new Error((response.data as any).message)
-  return response.data as AddOnsResponse
+  return apiClient.get<AddOnsResponse>(url)
 }
 
-/**
- * Get a single add-on
- */
-export async function getAddOn(id: string): Promise<AddOnResponse> {
-  const response = await apiClient.get<AddOnResponse>(`${BASE_URL}/${id}`)
-  if (!response.success) throw new Error((response.data as any).message)
-  return response.data as AddOnResponse
+export function getAddOn(id: string) {
+  return apiClient.get<AddOnResponse>(`${BASE_URL}/${id}`)
 }
 
-/**
- * Create a new add-on
- */
-export async function createAddOn(data: CreateAddOnDto): Promise<AddOnResponse> {
-  const response = await apiClient.post<AddOnResponse>(BASE_URL, data)
-  if (!response.success) throw new Error((response.data as any).message)
-  return response.data as AddOnResponse
+export function createAddOn(data: CreateAddOnDto) {
+  return apiClient.post<AddOnResponse>(BASE_URL, data)
 }
 
-/**
- * Update an add-on
- */
-export async function updateAddOn(id: string, data: UpdateAddOnDto): Promise<AddOnResponse> {
-  const response = await apiClient.patch<AddOnResponse>(`${BASE_URL}/${id}`, data)
-  if (!response.success) throw new Error((response.data as any).message)
-  return response.data as AddOnResponse
+export function updateAddOn(id: string, data: UpdateAddOnDto) {
+  return apiClient.patch<AddOnResponse>(`${BASE_URL}/${id}`, data)
 }
 
-/**
- * Delete an add-on
- */
-export async function deleteAddOn(id: string): Promise<{ message: string }> {
-  const response = await apiClient.del(`${BASE_URL}/${id}`)
-  if (!response.success) throw new Error((response.data as any).message)
-  return response.data as { message: string }
+export function deleteAddOn(id: string) {
+  return apiClient.del(`${BASE_URL}/${id}`)
 }
 
-/**
- * Bulk update sort order
- */
 export async function updateAddOnsSortOrder(
   updates: { id: string; sortOrder: number }[]
 ): Promise<void> {
