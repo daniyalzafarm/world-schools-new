@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { addToast, Button, Switch } from '@heroui/react'
 import { useCampsStore } from '../../../../../stores/camps-store'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import { ADD_ON_TYPE_BADGES, formatPrice } from '../../../../../types/add-ons'
 import type { CampAddOn, UpdateCampAddOnItem } from '../../../../../services/camp-addons.service'
 import * as campAddOnsService from '../../../../../services/camp-addons.service'
@@ -14,17 +14,11 @@ export default function CampAddOnsEditorPage() {
   const router = useRouter()
   const campId = params.campId as string
 
-  const { currentCamp } = useCampsStore()
-
   const [addOns, setAddOns] = useState<CampAddOn[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
   const [showInfoBanner, setShowInfoBanner] = useState(true)
 
-  // Load camp add-ons
   useEffect(() => {
     const loadAddOns = async () => {
       setIsLoading(true)
@@ -35,6 +29,7 @@ export default function CampAddOnsEditorPage() {
         return
       }
       setAddOns(response.data.addOns)
+      setIsLoaded(true)
       useCampsStore.setState({
         sidebarAddonEnabledCount: response.data.addOns.filter(a => a.isEnabled).length,
         sidebarAddonTotalCount: response.data.addOns.length,
@@ -44,60 +39,29 @@ export default function CampAddOnsEditorPage() {
     void loadAddOns()
   }, [campId])
 
-  // Cleanup on unmount - clear pending auto-save state
-  useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
-
-  // Auto-save handler
-  const handleSave = (updatedAddOns: CampAddOn[]) => {
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
-
-    setAutoSaveStatus('saving')
-    // Update store to indicate pending auto-save (debounce period)
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
-
-    const timeout = setTimeout(async () => {
+  useAutosave(addOns, {
+    enabled: isLoaded,
+    debounceMs: 1000,
+    save: async updatedAddOns => {
       const updateData: UpdateCampAddOnItem[] = updatedAddOns.map((addOn, index) => ({
         addOnId: addOn.id,
         isEnabled: addOn.isEnabled,
         sortOrder: index,
       }))
-
       const response = await campAddOnsService.updateCampAddOns(campId, { addOns: updateData })
       if (!response.success) {
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
         addToast({ title: 'Error', description: response.data.message, color: 'danger' })
+        useCampsStore.setState({ error: response.data.message })
         return
       }
-      setAutoSaveStatus('saved')
       useCampsStore.setState({
-        hasPendingAutoSave: false,
-        autoSaveStatus: 'saved',
         sidebarAddonEnabledCount: updatedAddOns.filter(a => a.isEnabled).length,
       })
+    },
+  })
 
-      setTimeout(() => {
-        setAutoSaveStatus('idle')
-        useCampsStore.setState({ autoSaveStatus: 'idle' })
-      }, 2000)
-    }, 1000)
-
-    setSaveTimeout(timeout)
-  }
-
-  // Toggle add-on enabled status
   const handleToggle = (addOnId: string, isEnabled: boolean) => {
-    const updatedAddOns = addOns.map(addOn =>
-      addOn.id === addOnId ? { ...addOn, isEnabled } : addOn
-    )
-    setAddOns(updatedAddOns)
-    handleSave(updatedAddOns)
+    setAddOns(prev => prev.map(addOn => (addOn.id === addOnId ? { ...addOn, isEnabled } : addOn)))
   }
 
   // Navigate to global add-ons management
@@ -110,15 +74,11 @@ export default function CampAddOnsEditorPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Optional Add-ons</h1>
-          <p className="text-base leading-normal text-default-500">
-            Enable or disable add-ons for this camp. Add-ons are shared across all your camps.
-          </p>
-        </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Optional Add-ons</h1>
+        <p className="text-base leading-normal text-default-500">
+          Enable or disable add-ons for this camp. Add-ons are shared across all your camps.
+        </p>
       </div>
 
       {/* Info Banner */}

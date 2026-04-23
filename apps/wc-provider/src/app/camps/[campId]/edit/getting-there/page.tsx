@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Checkbox, Radio, RadioGroup } from '@heroui/react'
 import { Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import {
   PICKUP_LOCATIONS,
   PREDEFINED_TRANSPORT,
@@ -32,7 +32,7 @@ export default function GettingThereEditorPage() {
   const router = useRouter()
   const campId = params.campId as string
 
-  const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const { currentCamp, updateSection } = useCampsStore()
 
   const [gettingThereData, setGettingThereData] = useState<GettingThereData>({
     description: '',
@@ -41,11 +41,7 @@ export default function GettingThereEditorPage() {
     selectedTransport: [],
     transportDetails: {},
   })
-
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
     if (currentCamp && currentCamp.type !== 'residential') {
@@ -62,58 +58,32 @@ export default function GettingThereEditorPage() {
         selectedTransport: gt.selectedTransport || [],
         transportDetails: gt.transportDetails || {},
       })
+      setIsLoaded(true)
+    } else if (currentCamp) {
+      setIsLoaded(true)
     }
   }, [currentCamp, campId, router])
 
-  useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
-
-  const triggerAutoSave = (updatedData: GettingThereData) => {
-    setHasUnsavedChanges(true)
-
-    if (saveTimeout) clearTimeout(saveTimeout)
-
-    setAutoSaveStatus('saving')
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
-
-    const timeout = setTimeout(async () => {
-      await updateSection(campId, 'getting-there', { gettingThere: updatedData })
-      if (useCampsStore.getState().error) {
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
-        return
-      }
-      setAutoSaveStatus('saved')
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-      setHasUnsavedChanges(false)
-      setTimeout(() => {
-        setAutoSaveStatus('idle')
-        useCampsStore.setState({ autoSaveStatus: 'idle' })
-      }, 2000)
-    }, 1500)
-
-    setSaveTimeout(timeout)
-  }
+  useAutosave(gettingThereData, {
+    enabled: isLoaded,
+    save: async data => {
+      await updateSection(campId, 'getting-there', { gettingThere: data })
+    },
+  })
 
   const handleDescriptionChange = (value: string) => {
     const updated = { ...gettingThereData, description: value }
     setGettingThereData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleTransportIncludedChange = (value: string) => {
     const updated = { ...gettingThereData, transportIncluded: value }
     setGettingThereData(updated)
-    triggerAutoSave(updated)
   }
 
   const handlePickupLocationsChange = (value: string) => {
     const updated = { ...gettingThereData, pickupLocations: value }
     setGettingThereData(updated)
-    triggerAutoSave(updated)
   }
 
   const toggleTransport = (transportId: string) => {
@@ -132,7 +102,6 @@ export default function GettingThereEditorPage() {
       transportDetails: nextDetails,
     }
     setGettingThereData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleTransportDetailChange = (
@@ -151,21 +120,17 @@ export default function GettingThereEditorPage() {
       },
     }
     setGettingThereData(updated)
-    triggerAutoSave(updated)
   }
 
   if (currentCamp && currentCamp.type !== 'residential') return null
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Getting There</h1>
-          <p className="text-base leading-normal text-default-500">
-            Provide transportation and arrival information
-          </p>
-        </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Getting There</h1>
+        <p className="text-base leading-normal text-default-500">
+          Provide transportation and arrival information
+        </p>
       </div>
 
       <div className="space-y-8">

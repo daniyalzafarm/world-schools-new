@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation'
 import { Radio, RadioGroup } from '@heroui/react'
 import { Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import { CustomActivityInput } from '../../../../../components/camp-editor/CustomActivityInput'
 import {
   ART_SUPPLIES,
@@ -30,7 +30,7 @@ export default function ArtsEditorPage() {
   const params = useParams()
   const campId = params.campId as string
 
-  const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const { currentCamp, updateSection } = useCampsStore()
 
   const [artsData, setArtsData] = useState<ArtsData>({
     description: '',
@@ -40,13 +40,8 @@ export default function ArtsEditorPage() {
     customArts: [],
     supplies: [],
   })
+  const [isLoaded, setIsLoaded] = useState(false)
 
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
-
-  // Load existing data
   useEffect(() => {
     if (currentCamp?.artsAndCrafts) {
       setArtsData({
@@ -57,63 +52,32 @@ export default function ArtsEditorPage() {
         customArts: (currentCamp.artsAndCrafts as any).customArts || [],
         supplies: (currentCamp.artsAndCrafts as any).supplies || [],
       })
+      setIsLoaded(true)
+    } else if (currentCamp) {
+      setIsLoaded(true)
     }
   }, [currentCamp])
 
-  // Cleanup on unmount - clear pending auto-save state
-  useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
-
-  // Auto-save handler
-  const triggerAutoSave = (updatedData: ArtsData) => {
-    setHasUnsavedChanges(true)
-
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
-
-    setAutoSaveStatus('saving')
-    // Update store to indicate pending auto-save (debounce period)
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
-
-    const timeout = setTimeout(async () => {
-      await updateSection(campId, 'arts', { artsAndCrafts: updatedData })
-      if (useCampsStore.getState().error) {
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
-        return
-      }
-      setAutoSaveStatus('saved')
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-      setHasUnsavedChanges(false)
-      setTimeout(() => {
-        setAutoSaveStatus('idle')
-        useCampsStore.setState({ autoSaveStatus: 'idle' })
-      }, 2000)
-    }, 1500)
-
-    setSaveTimeout(timeout)
-  }
+  useAutosave(artsData, {
+    enabled: isLoaded,
+    save: async data => {
+      await updateSection(campId, 'arts', { artsAndCrafts: data })
+    },
+  })
 
   const handleDescriptionChange = (value: string) => {
     const updated = { ...artsData, description: value }
     setArtsData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleSkillLevelChange = (value: string) => {
     const updated = { ...artsData, skillLevel: value }
     setArtsData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleInstructionTypeChange = (value: string) => {
     const updated = { ...artsData, instructionType: value }
     setArtsData(updated)
-    triggerAutoSave(updated)
   }
 
   const toggleArt = (artId: string) => {
@@ -124,7 +88,6 @@ export default function ArtsEditorPage() {
         : [...artsData.selectedArts, artId],
     }
     setArtsData(updated)
-    triggerAutoSave(updated)
   }
 
   const addCustomArt = (artName: string) => {
@@ -133,7 +96,6 @@ export default function ArtsEditorPage() {
       customArts: [...artsData.customArts, artName],
     }
     setArtsData(updated)
-    triggerAutoSave(updated)
   }
 
   const removeCustomArt = (index: number) => {
@@ -142,7 +104,6 @@ export default function ArtsEditorPage() {
       customArts: artsData.customArts.filter((_, i) => i !== index),
     }
     setArtsData(updated)
-    triggerAutoSave(updated)
   }
 
   const toggleSupply = (supplyId: string) => {
@@ -153,20 +114,15 @@ export default function ArtsEditorPage() {
         : [...artsData.supplies, supplyId],
     }
     setArtsData(updated)
-    triggerAutoSave(updated)
   }
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Arts & Crafts</h1>
-          <p className="text-base leading-normal text-default-500">
-            Describe the arts and creative programs at your camp
-          </p>
-        </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Arts & Crafts</h1>
+        <p className="text-base leading-normal text-default-500">
+          Describe the arts and creative programs at your camp
+        </p>
       </div>
 
       <div className="space-y-8">

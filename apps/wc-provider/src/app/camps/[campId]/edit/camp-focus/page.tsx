@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { Radio, RadioGroup } from '@heroui/react'
 import { Textarea, useConfirmDialog } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import { SingleSelectActivityGrid } from '../../../../../components/camp-editor/SingleSelectActivityGrid'
 import { CampFocusDisplayCard } from '../../../../../components/camp-editor/CampFocusDisplayCard'
 import { CAMP_PHILOSOPHY, LEARNING_APPROACH } from '../../../../../constants/camp-focus-activities'
@@ -28,7 +28,7 @@ export default function CampFocusEditorPage() {
   const params = useParams()
   const campId = params.campId as string
 
-  const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const { currentCamp, updateSection } = useCampsStore()
   const { confirm } = useConfirmDialog()
 
   const [focusData, setFocusData] = useState<CampFocusData>({
@@ -37,13 +37,8 @@ export default function CampFocusEditorPage() {
     philosophy: 'holistic',
     learningApproach: 'experiential',
   })
+  const [isLoaded, setIsLoaded] = useState(false)
 
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
-
-  // Get activities organized by category based on camp's programs
   const activityCategories = getActivitiesByCategory(currentCamp)
 
   useEffect(() => {
@@ -54,78 +49,18 @@ export default function CampFocusEditorPage() {
         philosophy: (currentCamp.campFocus as any).philosophy || 'holistic',
         learningApproach: (currentCamp.campFocus as any).learningApproach || 'experiential',
       })
+      setIsLoaded(true)
+    } else if (currentCamp) {
+      setIsLoaded(true)
     }
   }, [currentCamp])
 
-  // Cleanup on unmount - clear pending auto-save state
-  useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
-
-  const triggerAutoSave = (updatedData: CampFocusData) => {
-    setHasUnsavedChanges(true)
-
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
-
-    setAutoSaveStatus('saving')
-    // Update store to indicate pending auto-save (debounce period)
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
-
-    const timeout = setTimeout(async () => {
-      await updateSection(campId, 'camp-focus', { campFocus: updatedData })
-      if (useCampsStore.getState().error) {
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
-        return
-      }
-      setAutoSaveStatus('saved')
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-      setHasUnsavedChanges(false)
-      setTimeout(() => {
-        setAutoSaveStatus('idle')
-        useCampsStore.setState({ autoSaveStatus: 'idle' })
-      }, 2000)
-    }, 1500)
-
-    setSaveTimeout(timeout)
-  }
-
-  const handleDescriptionChange = (value: string) => {
-    const updated = { ...focusData, description: value }
-    setFocusData(updated)
-    triggerAutoSave(updated)
-  }
-
-  const handlePhilosophyChange = (value: string) => {
-    const updated = { ...focusData, philosophy: value }
-    setFocusData(updated)
-    triggerAutoSave(updated)
-  }
-
-  const handleLearningApproachChange = (value: string) => {
-    const updated = { ...focusData, learningApproach: value }
-    setFocusData(updated)
-    triggerAutoSave(updated)
-  }
-
-  const handleActivitySelect = (activity: ActivityWithCategory) => {
-    const updated = {
-      ...focusData,
-      primaryFocus: {
-        activityId: activity.id,
-        activityName: activity.name,
-        categoryId: activity.categoryId,
-        categoryName: activity.categoryName,
-        icon: activity.icon,
-      },
-    }
-    setFocusData(updated)
-    triggerAutoSave(updated)
-  }
+  useAutosave(focusData, {
+    enabled: isLoaded,
+    save: async data => {
+      await updateSection(campId, 'camp-focus', { campFocus: data })
+    },
+  })
 
   const handleRemoveFocus = async () => {
     if (!focusData.primaryFocus) return
@@ -139,22 +74,27 @@ export default function CampFocusEditorPage() {
     })
 
     if (confirmed) {
-      const updated = {
-        ...focusData,
-        primaryFocus: null,
-      }
-      setFocusData(updated)
-      triggerAutoSave(updated)
+      setFocusData({ ...focusData, primaryFocus: null })
     }
+  }
+
+  const handleActivitySelect = (activity: ActivityWithCategory) => {
+    setFocusData({
+      ...focusData,
+      primaryFocus: {
+        activityId: activity.id,
+        activityName: activity.name,
+        categoryId: activity.categoryId,
+        categoryName: activity.categoryName,
+        icon: activity.icon,
+      },
+    })
   }
 
   return (
     <div>
       <div className="mb-8">
-        <div className="flex items-start justify-between">
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Camp Focus</h1>
-          <AutoSaveIndicator status={autoSaveStatus} />
-        </div>
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Camp Focus</h1>
         <p className="text-base leading-normal text-default-500">
           Does your camp specialize in a specific activity? Select your primary focus to
           differentiate your camp (e.g., "Soccer Camp" vs a camp that offers soccer). This will be
@@ -164,10 +104,8 @@ export default function CampFocusEditorPage() {
       </div>
 
       <div className="space-y-8">
-        {/* Current Focus Display */}
         <CampFocusDisplayCard primaryFocus={focusData.primaryFocus} onRemove={handleRemoveFocus} />
 
-        {/* Activity Selection by Category */}
         {activityCategories.length === 0 ? (
           <div className="rounded-xl border-2 border-dashed border-default-300 bg-default-50 p-8 text-center">
             <p className="text-default-600">
@@ -193,13 +131,12 @@ export default function CampFocusEditorPage() {
           ))
         )}
 
-        {/* Camp Focus Description */}
         <div className="form-group">
           <Textarea
             label="Camp Focus Description (Optional)"
             placeholder="Describe why this activity is your camp's focus and what makes your program special..."
             value={focusData.description}
-            onChange={e => handleDescriptionChange(e.target.value)}
+            onChange={e => setFocusData({ ...focusData, description: e.target.value })}
             minRows={4}
             maxLength={MAX_DESCRIPTION_LENGTH}
             showCharacterCount
@@ -207,7 +144,6 @@ export default function CampFocusEditorPage() {
           />
         </div>
 
-        {/* Camp Philosophy */}
         <div className="form-group">
           <div className="mb-2.5 flex items-center gap-2">
             <label className="text-sm font-medium text-foreground">Camp Philosophy</label>
@@ -217,7 +153,7 @@ export default function CampFocusEditorPage() {
           </p>
           <RadioGroup
             value={focusData.philosophy}
-            onValueChange={handlePhilosophyChange}
+            onValueChange={value => setFocusData({ ...focusData, philosophy: value })}
             classNames={{
               wrapper: 'flex flex-row flex-wrap gap-3',
             }}
@@ -242,7 +178,6 @@ export default function CampFocusEditorPage() {
           </RadioGroup>
         </div>
 
-        {/* Learning Approach */}
         <div className="form-group">
           <div className="mb-2.5 flex items-center gap-2">
             <label className="text-sm font-medium text-foreground">Learning Approach</label>
@@ -252,7 +187,7 @@ export default function CampFocusEditorPage() {
           </p>
           <RadioGroup
             value={focusData.learningApproach}
-            onValueChange={handleLearningApproachChange}
+            onValueChange={value => setFocusData({ ...focusData, learningApproach: value })}
             classNames={{
               wrapper: 'flex flex-row flex-wrap gap-3',
             }}

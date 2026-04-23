@@ -10,8 +10,8 @@ import {
   PREDEFINED_DIETARY_OPTIONS,
 } from '@world-schools/wc-frontend-utils'
 import { useCampsStore } from '../../../../../stores/camps-store'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 
 const MAX_DESCRIPTION_LENGTH = 1200
 
@@ -26,7 +26,7 @@ export default function MealsEditorPage() {
   const params = useParams()
   const campId = params.campId as string
 
-  const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const { currentCamp, updateSection } = useCampsStore()
 
   const [mealsData, setMealsData] = useState<MealsData>({
     description: '',
@@ -34,11 +34,7 @@ export default function MealsEditorPage() {
     mealStyle: '',
     dietaryOptions: [],
   })
-
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
     if (currentCamp?.meals) {
@@ -48,62 +44,32 @@ export default function MealsEditorPage() {
         mealStyle: (currentCamp.meals as any).mealStyle || '',
         dietaryOptions: (currentCamp.meals as any).dietaryOptions || [],
       })
+      setIsLoaded(true)
+    } else if (currentCamp) {
+      setIsLoaded(true)
     }
   }, [currentCamp])
 
-  // Cleanup on unmount - clear pending auto-save state
-  useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
-
-  const triggerAutoSave = (updatedData: MealsData) => {
-    setHasUnsavedChanges(true)
-
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
-
-    setAutoSaveStatus('saving')
-    // Update store to indicate pending auto-save (debounce period)
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
-
-    const timeout = setTimeout(async () => {
-      await updateSection(campId, 'meals', { meals: updatedData })
-      if (useCampsStore.getState().error) {
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
-        return
-      }
-      setAutoSaveStatus('saved')
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-      setHasUnsavedChanges(false)
-      setTimeout(() => {
-        setAutoSaveStatus('idle')
-        useCampsStore.setState({ autoSaveStatus: 'idle' })
-      }, 2000)
-    }, 1500)
-
-    setSaveTimeout(timeout)
-  }
+  useAutosave(mealsData, {
+    enabled: isLoaded,
+    save: async data => {
+      await updateSection(campId, 'meals', { meals: data })
+    },
+  })
 
   const handleDescriptionChange = (value: string) => {
     const updated = { ...mealsData, description: value }
     setMealsData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleMealTypesChange = (values: string[]) => {
     const updated = { ...mealsData, mealTypes: values }
     setMealsData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleMealStyleChange = (value: string) => {
     const updated = { ...mealsData, mealStyle: value }
     setMealsData(updated)
-    triggerAutoSave(updated)
   }
 
   const toggleDietaryOption = (optionId: string) => {
@@ -114,19 +80,15 @@ export default function MealsEditorPage() {
         : [...mealsData.dietaryOptions, optionId],
     }
     setMealsData(updated)
-    triggerAutoSave(updated)
   }
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Meals</h1>
-          <p className="text-base leading-normal text-default-500">
-            Describe the meals and dietary options at your camp
-          </p>
-        </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Meals</h1>
+        <p className="text-base leading-normal text-default-500">
+          Describe the meals and dietary options at your camp
+        </p>
       </div>
 
       <div className="space-y-8">

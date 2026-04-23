@@ -1,10 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Button } from '@heroui/react'
 import { Plus, Search, Trash2, X } from 'lucide-react'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import { useConfirmDialog } from '@world-schools/ui-web'
 import {
   type CampEligibilityItem,
@@ -12,6 +11,7 @@ import {
   putCampEligibility,
 } from '../../../../../services/camps.services'
 import { useCampsStore } from '../../../../../stores/camps-store'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import {
   type CatalogueActivity,
   type CatalogueScale,
@@ -33,7 +33,6 @@ export default function SkillRequirementsPage() {
   const [activities, setActivities] = useState<CatalogueActivity[]>([])
   const [scales, setScales] = useState<CatalogueScale[]>([])
   const [loading, setLoading] = useState(true)
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
 
   // Modal state (3-step flow)
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -42,10 +41,6 @@ export default function SkillRequirementsPage() {
   const [mActivityId, setMActivityId] = useState<string | null>(null)
   const [mMode, setMMode] = useState<UiMode | null>(null)
   const [mMinLevelValue, setMMinLevelValue] = useState<string | null>(null)
-
-  const autoSaveTimerRef = useRef<number | null>(null)
-  const skipNextAutoSaveRef = useRef(true)
-  const lastSavedJsonRef = useRef<string>('')
 
   const { confirm } = useConfirmDialog()
 
@@ -115,54 +110,22 @@ export default function SkillRequirementsPage() {
     [getScaleForActivity]
   )
 
-  const saveNow = useCallback(
-    async (nextItems: CampEligibilityItem[]) => {
-      setSaveStatus('saving')
+  useAutosave(items, {
+    enabled: !loading,
+    debounceMs: 750,
+    save: async nextItems => {
       const normalized = normalizeItemsForSave(nextItems)
       const res = await putCampEligibility(campId, normalized)
       if (!res.success) {
-        setSaveStatus('error')
+        useCampsStore.setState({ error: res.data.message ?? 'Failed to save' })
         return
       }
       const serverItems = res.data.items ?? normalized
-      // Avoid a loop where server responds with same data but different order/shape.
-      lastSavedJsonRef.current = JSON.stringify(serverItems)
-      skipNextAutoSaveRef.current = true
       setItems(serverItems)
       useCampsStore.setState({ sidebarEligibilityCount: serverItems.length })
-      setSaveStatus('saved')
-      window.setTimeout(() => setSaveStatus('idle'), 2000)
+      return serverItems
     },
-    [campId, normalizeItemsForSave]
-  )
-
-  // Debounced auto-save (auto-save only; no manual Save button)
-  useEffect(() => {
-    if (loading) return
-    if (skipNextAutoSaveRef.current) {
-      skipNextAutoSaveRef.current = false
-      lastSavedJsonRef.current = JSON.stringify(items)
-      return
-    }
-
-    const json = JSON.stringify(items)
-    if (json === lastSavedJsonRef.current) return
-
-    if (autoSaveTimerRef.current) {
-      window.clearTimeout(autoSaveTimerRef.current)
-    }
-
-    autoSaveTimerRef.current = window.setTimeout(() => {
-      void saveNow(items)
-    }, 750)
-
-    return () => {
-      if (autoSaveTimerRef.current) {
-        window.clearTimeout(autoSaveTimerRef.current)
-        autoSaveTimerRef.current = null
-      }
-    }
-  }, [items, loading, saveNow])
+  })
 
   const handleRemove = async (activityId: string) => {
     const act = getActivity(activityId)
@@ -410,18 +373,11 @@ export default function SkillRequirementsPage() {
   return (
     <div>
       <div className="mb-9">
-        <div className="flex items-start justify-between gap-6">
-          <div>
-            <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-semibold leading-tight">Skills &amp; Levels Required</h1>
-              <AutoSaveIndicator status={saveStatus} />
-            </div>
-            <p className="text-sm text-default-500 mt-2 leading-6">
-              Specify which skills you want to know about or require for enrollment. This helps you
-              group participants by level and filter applicants automatically.
-            </p>
-          </div>
-        </div>
+        <h1 className="text-3xl font-semibold leading-tight">Skills &amp; Levels Required</h1>
+        <p className="text-sm text-default-500 mt-2 leading-6">
+          Specify which skills you want to know about or require for enrollment. This helps you
+          group participants by level and filter applicants automatically.
+        </p>
       </div>
 
       <div className="flex flex-col gap-3 mb-4">

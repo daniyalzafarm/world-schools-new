@@ -5,8 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { Radio, RadioGroup } from '@heroui/react'
 import { Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import {
   PREDEFINED_ACCOMMODATION,
   ROOM_AMENITIES,
@@ -29,7 +29,7 @@ export default function AccommodationEditorPage() {
   const router = useRouter()
   const campId = params.campId as string
 
-  const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const { currentCamp, updateSection } = useCampsStore()
 
   const [accommodationData, setAccommodationData] = useState<AccommodationData>({
     description: '',
@@ -38,14 +38,9 @@ export default function AccommodationEditorPage() {
     selectedTypes: [],
     amenities: [],
   })
-
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    // Redirect if not a residential camp
     if (currentCamp && currentCamp.type !== 'residential') {
       router.push(`/camps/${campId}/edit/basic-info`)
       return
@@ -59,62 +54,32 @@ export default function AccommodationEditorPage() {
         selectedTypes: (currentCamp.accommodation as any).selectedTypes || [],
         amenities: (currentCamp.accommodation as any).amenities || [],
       })
+      setIsLoaded(true)
+    } else if (currentCamp) {
+      setIsLoaded(true)
     }
   }, [currentCamp, campId, router])
 
-  // Cleanup on unmount - clear pending auto-save state
-  useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
-
-  const triggerAutoSave = (updatedData: AccommodationData) => {
-    setHasUnsavedChanges(true)
-
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
-
-    setAutoSaveStatus('saving')
-    // Update store to indicate pending auto-save (debounce period)
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
-
-    const timeout = setTimeout(async () => {
-      await updateSection(campId, 'accommodation', { accommodation: updatedData })
-      if (useCampsStore.getState().error) {
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
-        return
-      }
-      setAutoSaveStatus('saved')
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-      setHasUnsavedChanges(false)
-      setTimeout(() => {
-        setAutoSaveStatus('idle')
-        useCampsStore.setState({ autoSaveStatus: 'idle' })
-      }, 2000)
-    }, 1500)
-
-    setSaveTimeout(timeout)
-  }
+  useAutosave(accommodationData, {
+    enabled: isLoaded,
+    save: async data => {
+      await updateSection(campId, 'accommodation', { accommodation: data })
+    },
+  })
 
   const handleDescriptionChange = (value: string) => {
     const updated = { ...accommodationData, description: value }
     setAccommodationData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleRoomCapacityChange = (value: string) => {
     const updated = { ...accommodationData, roomCapacity: value }
     setAccommodationData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleSupervisionChange = (value: string) => {
     const updated = { ...accommodationData, supervision: value }
     setAccommodationData(updated)
-    triggerAutoSave(updated)
   }
 
   const toggleType = (typeId: string) => {
@@ -125,7 +90,6 @@ export default function AccommodationEditorPage() {
         : [...accommodationData.selectedTypes, typeId],
     }
     setAccommodationData(updated)
-    triggerAutoSave(updated)
   }
 
   const toggleAmenity = (amenityId: string) => {
@@ -136,7 +100,6 @@ export default function AccommodationEditorPage() {
         : [...accommodationData.amenities, amenityId],
     }
     setAccommodationData(updated)
-    triggerAutoSave(updated)
   }
 
   // Don't render if not residential
@@ -146,14 +109,11 @@ export default function AccommodationEditorPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Accommodation</h1>
-          <p className="text-base leading-normal text-default-500">
-            Describe the accommodation facilities for residential campers
-          </p>
-        </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Accommodation</h1>
+        <p className="text-base leading-normal text-default-500">
+          Describe the accommodation facilities for residential campers
+        </p>
       </div>
 
       <div className="space-y-8">

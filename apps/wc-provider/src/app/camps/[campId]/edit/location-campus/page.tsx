@@ -10,8 +10,8 @@ import {
   PREDEFINED_FACILITIES,
 } from '@world-schools/wc-frontend-utils'
 import { useCampsStore } from '../../../../../stores/camps-store'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 
 const MAX_DESCRIPTION_LENGTH = 1200
 
@@ -26,7 +26,7 @@ export default function LocationCampusEditorPage() {
   const params = useParams()
   const campId = params.campId as string
 
-  const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const { currentCamp, updateSection } = useCampsStore()
 
   const [locationData, setLocationData] = useState<LocationCampusData>({
     description: '',
@@ -34,11 +34,7 @@ export default function LocationCampusEditorPage() {
     campusSetting: 'suburban',
     selectedFacilities: [],
   })
-
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
     if (currentCamp?.campusFacilities) {
@@ -48,62 +44,32 @@ export default function LocationCampusEditorPage() {
         campusSetting: (currentCamp.campusFacilities as any).campusSetting || 'suburban',
         selectedFacilities: (currentCamp.campusFacilities as any).selectedFacilities || [],
       })
+      setIsLoaded(true)
+    } else if (currentCamp) {
+      setIsLoaded(true)
     }
   }, [currentCamp])
 
-  // Cleanup on unmount - clear pending auto-save state
-  useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
-
-  const triggerAutoSave = (updatedData: LocationCampusData) => {
-    setHasUnsavedChanges(true)
-
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
-
-    setAutoSaveStatus('saving')
-    // Update store to indicate pending auto-save (debounce period)
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
-
-    const timeout = setTimeout(async () => {
-      await updateSection(campId, 'location-campus', { campusFacilities: updatedData })
-      if (useCampsStore.getState().error) {
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
-        return
-      }
-      setAutoSaveStatus('saved')
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-      setHasUnsavedChanges(false)
-      setTimeout(() => {
-        setAutoSaveStatus('idle')
-        useCampsStore.setState({ autoSaveStatus: 'idle' })
-      }, 2000)
-    }, 1500)
-
-    setSaveTimeout(timeout)
-  }
+  useAutosave(locationData, {
+    enabled: isLoaded,
+    save: async data => {
+      await updateSection(campId, 'location-campus', { campusFacilities: data })
+    },
+  })
 
   const handleDescriptionChange = (value: string) => {
     const updated = { ...locationData, description: value }
     setLocationData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleCampusSizeChange = (value: string) => {
     const updated = { ...locationData, campusSize: value }
     setLocationData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleCampusSettingChange = (value: string) => {
     const updated = { ...locationData, campusSetting: value }
     setLocationData(updated)
-    triggerAutoSave(updated)
   }
 
   const toggleFacility = (facilityId: string) => {
@@ -114,19 +80,15 @@ export default function LocationCampusEditorPage() {
         : [...locationData.selectedFacilities, facilityId],
     }
     setLocationData(updated)
-    triggerAutoSave(updated)
   }
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Location & Campus</h1>
-          <p className="text-base leading-normal text-default-500">
-            Describe your camp location and campus facilities
-          </p>
-        </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Location & Campus</h1>
+        <p className="text-base leading-normal text-default-500">
+          Describe your camp location and campus facilities
+        </p>
       </div>
 
       <div className="space-y-8">

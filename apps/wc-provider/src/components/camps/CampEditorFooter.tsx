@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Button } from '@heroui/react'
-import { useConfirmDialog } from '@world-schools/ui-web'
 import { useCampsStore } from '../../stores/camps-store'
+import { AutoSaveIndicator } from '../camp-editor/AutoSaveIndicator'
 
 interface CampEditorFooterProps {
   campId: string
@@ -37,58 +37,19 @@ const editorSections = [
   'getting-there',
 ]
 
-// Sections that use auto-save only (no manual save button)
-const autoSaveOnlySections = [
-  'photos',
-  'whats-included',
-  'addons',
-  'camp-focus',
-  'skill-requirements',
-  'sports',
-  'languages',
-  'arts',
-  'adventure',
-  'water',
-  'environmental',
-  'academics',
-  'religion',
-  'excursions',
-  'accommodation',
-  'meals',
-  'safety-policies',
-  'location-campus',
-  'getting-there',
-]
-
-// Sections that are navigation/listing pages only (no save functionality at all)
 const navigationOnlySections = ['sessions']
-
-// Sections that show only "Save Changes" button (no "Save & Continue")
-const saveOnlySections = ['daily-schedule']
 
 export function CampEditorFooter({ campId }: CampEditorFooterProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const {
-    hasUnsavedChanges,
-    isLoading,
-    wizardFormValid,
-    wizardFormSubmit,
-    hasPendingAutoSave,
-    autoSaveStatus,
-    currentCamp,
-  } = useCampsStore()
-  const { confirm } = useConfirmDialog()
+  const { autoSaveStatus, currentCamp } = useCampsStore()
   const [waitingButton, setWaitingButton] = useState<'previous' | 'next' | null>(null)
 
-  // Filter sections based on camp configuration (same logic as sidebar)
   const shouldShowSection = (section: string) => {
-    // Filter residential-only sections
     if (section === 'accommodation' || section === 'getting-there') {
       if (currentCamp?.type !== 'residential') return false
     }
 
-    // Filter activity sections based on selected activities
     const activitySections: Record<string, string> = {
       sports: 'sports',
       languages: 'languages',
@@ -109,10 +70,7 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
     return true
   }
 
-  // Get filtered sections
   const filteredSections = editorSections.filter(shouldShowSection)
-
-  // Get current section from pathname
   const currentSection = filteredSections.find(section => pathname.includes(section))
   const currentIndex = currentSection ? filteredSections.indexOf(currentSection) : -1
 
@@ -120,181 +78,80 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
   const hasNext = currentIndex >= 0 && currentIndex < filteredSections.length - 1
   const previousSection = hasPrevious ? filteredSections[currentIndex - 1] : null
   const nextSection = hasNext ? filteredSections[currentIndex + 1] : null
-
-  // Check if current section uses auto-save only
-  const isAutoSaveOnly = currentSection ? autoSaveOnlySections.includes(currentSection) : false
-
-  // Check if current section is navigation-only (no save functionality)
   const isNavigationOnly = currentSection ? navigationOnlySections.includes(currentSection) : false
 
-  // Check if current section shows only "Save Changes" button (no "Save & Continue")
-  const isSaveOnly = currentSection ? saveOnlySections.includes(currentSection) : false
-
-  // Helper to wait for auto-save completion — resolves regardless of outcome
-  const waitForAutoSave = (): Promise<void> => {
-    return new Promise(resolve => {
-      if (!hasPendingAutoSave && autoSaveStatus !== 'saving') {
+  const waitForPendingSave = (): Promise<void> =>
+    new Promise(resolve => {
+      if (!useCampsStore.getState().hasPendingAutoSave) {
         resolve()
         return
       }
-
-      const checkInterval = setInterval(() => {
-        const currentStatus = useCampsStore.getState().autoSaveStatus
-        const currentPending = useCampsStore.getState().hasPendingAutoSave
-
-        if (!currentPending && currentStatus !== 'saving') {
-          clearInterval(checkInterval)
+      const interval = setInterval(() => {
+        if (!useCampsStore.getState().hasPendingAutoSave) {
+          clearInterval(interval)
           resolve()
         }
       }, 100)
-
-      // Safety timeout so navigation is never blocked indefinitely
       setTimeout(() => {
-        clearInterval(checkInterval)
+        clearInterval(interval)
         resolve()
       }, 10000)
     })
-  }
 
-  const handlePrevious = async () => {
-    if (!previousSection) return
-
-    // For auto-save only sections, wait for pending auto-save
-    if (isAutoSaveOnly && (hasPendingAutoSave || autoSaveStatus === 'saving')) {
-      setWaitingButton('previous')
-      await waitForAutoSave()
-      setWaitingButton(null)
-    }
-    router.push(`/camps/${campId}/edit/${previousSection}`)
-  }
-
-  const handleNext = async () => {
-    if (!nextSection) return
-
-    // For auto-save only sections, wait for pending auto-save
-    if (isAutoSaveOnly && (hasPendingAutoSave || autoSaveStatus === 'saving')) {
-      setWaitingButton('next')
-      await waitForAutoSave()
-      setWaitingButton(null)
-      router.push(`/camps/${campId}/edit/${nextSection}`)
-      return
-    }
-
-    // For non-auto-save sections, check if there are unsaved changes
-    if (hasUnsavedChanges) {
-      // Show confirmation dialog
-      const shouldSave = await confirm({
-        title: 'Unsaved Changes',
-        message: 'You have unsaved changes. What would you like to do?',
-        confirmText: 'Save & Continue',
-        cancelText: 'Continue without Saving',
-        variant: 'warning',
-      })
-
-      if (shouldSave) {
-        // User chose "Save & Continue"
-        if (wizardFormSubmit) await wizardFormSubmit()
-        if (useCampsStore.getState().error) return
-        router.push(`/camps/${campId}/edit/${nextSection}`)
-      } else {
-        // User chose "Continue without Saving"
-        router.push(`/camps/${campId}/edit/${nextSection}`)
+  const flushAndNavigate = async (target: string, button: 'previous' | 'next') => {
+    const flush = useCampsStore.getState().autoSaveFlush
+    const hasWork = !!flush || useCampsStore.getState().hasPendingAutoSave
+    if (hasWork) {
+      setWaitingButton(button)
+      try {
+        if (flush) await flush()
+        await waitForPendingSave()
+      } finally {
+        setWaitingButton(null)
       }
-    } else {
-      // No unsaved changes, navigate directly
-      router.push(`/camps/${campId}/edit/${nextSection}`)
     }
+    router.push(`/camps/${campId}/edit/${target}`)
   }
 
-  const handleSaveAndNext = async () => {
+  const handlePrevious = () => {
+    if (!previousSection) return
+    void flushAndNavigate(previousSection, 'previous')
+  }
+
+  const handleNext = () => {
     if (!nextSection) return
-
-    if (wizardFormSubmit) {
-      await wizardFormSubmit()
-      if (useCampsStore.getState().error) return
-    }
-    router.push(`/camps/${campId}/edit/${nextSection}`)
+    void flushAndNavigate(nextSection, 'next')
   }
 
-  const handleSave = async () => {
-    if (wizardFormSubmit) await wizardFormSubmit()
-  }
-
-  // Determine if save button should be disabled
-  const isSaveDisabled = !hasUnsavedChanges || !wizardFormValid || isLoading
-
-  // Check if we're waiting for auto-save
-  const isWaitingForAutoSave = waitingButton !== null
+  const isWaiting = waitingButton !== null
 
   return (
     <div className="border-t border-default-100 bg-white px-12 py-4">
-      <div className="mx-auto max-w-4xl px-12 flex items-center justify-between">
-        {/* Section Navigation Buttons */}
-        <div className="flex items-center gap-3">
+      <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-12">
+        <div className="flex-1">
           <Button
             variant="bordered"
             onPress={handlePrevious}
-            isDisabled={!hasPrevious || isWaitingForAutoSave}
+            isDisabled={!hasPrevious || isWaiting}
             isLoading={waitingButton === 'previous'}
           >
             Back
           </Button>
+        </div>
+
+        <div className="flex flex-1 justify-center">
+          {!isNavigationOnly && <AutoSaveIndicator status={autoSaveStatus} />}
+        </div>
+
+        <div className="flex flex-1 justify-end">
           <Button
             color="secondary"
             onPress={handleNext}
-            isDisabled={!hasNext || isWaitingForAutoSave}
+            isDisabled={!hasNext || isWaiting}
             isLoading={waitingButton === 'next'}
           >
             Next
           </Button>
-        </div>
-
-        {/* Save Action Buttons or Auto-Save Message */}
-        <div className="flex items-center gap-3">
-          {isNavigationOnly ? (
-            // For navigation-only sections (like sessions list), show nothing
-            // These pages don't have any save functionality
-            <div />
-          ) : isAutoSaveOnly ? (
-            // For auto-save only sections, show a message instead of save button
-            <div className="flex items-center gap-2 text-sm text-default-500">
-              <div className="h-2 w-2 animate-pulse rounded-full bg-success-500" />
-              {isWaitingForAutoSave ? 'Saving changes...' : 'Changes are saved automatically'}
-            </div>
-          ) : isSaveOnly ? (
-            // For save-only sections, always show "Save Changes" button (no "Save & Continue")
-            <Button
-              color="primary"
-              onPress={handleSave}
-              isDisabled={isSaveDisabled}
-              isLoading={isLoading}
-            >
-              Save Changes
-            </Button>
-          ) : (
-            // For other sections, show save buttons based on navigation
-            <>
-              {hasNext ? (
-                <Button
-                  color="primary"
-                  onPress={handleSaveAndNext}
-                  isDisabled={isSaveDisabled}
-                  isLoading={isLoading}
-                >
-                  Save & Continue →
-                </Button>
-              ) : (
-                <Button
-                  color="primary"
-                  onPress={handleSave}
-                  isDisabled={isSaveDisabled}
-                  isLoading={isLoading}
-                >
-                  Save Changes
-                </Button>
-              )}
-            </>
-          )}
         </div>
       </div>
     </div>

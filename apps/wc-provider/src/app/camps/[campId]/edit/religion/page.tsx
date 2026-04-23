@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation'
 import { Radio, RadioGroup } from '@heroui/react'
 import { Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import { CustomActivityInput } from '../../../../../components/camp-editor/CustomActivityInput'
 import {
   DENOMINATIONS,
@@ -28,7 +28,7 @@ export default function ReligionEditorPage() {
   const params = useParams()
   const campId = params.campId as string
 
-  const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const { currentCamp, updateSection } = useCampsStore()
 
   const [religionData, setReligionData] = useState<ReligionData>({
     description: '',
@@ -37,11 +37,7 @@ export default function ReligionEditorPage() {
     selectedPrograms: [],
     customPrograms: [],
   })
-
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
     if (currentCamp?.religionPrograms) {
@@ -52,62 +48,32 @@ export default function ReligionEditorPage() {
         selectedPrograms: (currentCamp.religionPrograms as any).selectedPrograms || [],
         customPrograms: (currentCamp.religionPrograms as any).customPrograms || [],
       })
+      setIsLoaded(true)
+    } else if (currentCamp) {
+      setIsLoaded(true)
     }
   }, [currentCamp])
 
-  // Cleanup on unmount - clear pending auto-save state
-  useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
-
-  const triggerAutoSave = (updatedData: ReligionData) => {
-    setHasUnsavedChanges(true)
-
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
-
-    setAutoSaveStatus('saving')
-    // Update store to indicate pending auto-save (debounce period)
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
-
-    const timeout = setTimeout(async () => {
-      await updateSection(campId, 'religion', { religionPrograms: updatedData })
-      if (useCampsStore.getState().error) {
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
-        return
-      }
-      setAutoSaveStatus('saved')
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-      setHasUnsavedChanges(false)
-      setTimeout(() => {
-        setAutoSaveStatus('idle')
-        useCampsStore.setState({ autoSaveStatus: 'idle' })
-      }, 2000)
-    }, 1500)
-
-    setSaveTimeout(timeout)
-  }
+  useAutosave(religionData, {
+    enabled: isLoaded,
+    save: async data => {
+      await updateSection(campId, 'religion', { religionPrograms: data })
+    },
+  })
 
   const handleDescriptionChange = (value: string) => {
     const updated = { ...religionData, description: value }
     setReligionData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleDenominationChange = (value: string) => {
     const updated = { ...religionData, denomination: value }
     setReligionData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleObservanceChange = (value: string) => {
     const updated = { ...religionData, observance: value }
     setReligionData(updated)
-    triggerAutoSave(updated)
   }
 
   const toggleActivity = (activityId: string) => {
@@ -118,7 +84,6 @@ export default function ReligionEditorPage() {
         : [...religionData.selectedPrograms, activityId],
     }
     setReligionData(updated)
-    triggerAutoSave(updated)
   }
 
   const addCustomActivity = (activityName: string) => {
@@ -127,7 +92,6 @@ export default function ReligionEditorPage() {
       customPrograms: [...religionData.customPrograms, activityName],
     }
     setReligionData(updated)
-    triggerAutoSave(updated)
   }
 
   const removeCustomActivity = (index: number) => {
@@ -136,19 +100,15 @@ export default function ReligionEditorPage() {
       customPrograms: religionData.customPrograms.filter((_, i) => i !== index),
     }
     setReligionData(updated)
-    triggerAutoSave(updated)
   }
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Religious Programs</h1>
-          <p className="text-base leading-normal text-default-500">
-            Describe any religious or spiritual programs at your camp
-          </p>
-        </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Religious Programs</h1>
+        <p className="text-base leading-normal text-default-500">
+          Describe any religious or spiritual programs at your camp
+        </p>
       </div>
 
       <div className="space-y-8">

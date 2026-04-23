@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Button, Checkbox } from '@heroui/react'
 import { Input, Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import { Plus, Trash2 } from 'lucide-react'
 
 const MAX_SUPERVISION_LENGTH = 600
@@ -69,7 +69,7 @@ export default function SafetyPoliciesEditorPage() {
   const params = useParams()
   const campId = params.campId as string
 
-  const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const { currentCamp, updateSection } = useCampsStore()
 
   // Safety & supervision state
   const [safetyData, setSafetyData] = useState<SafetySupervisionData>({
@@ -83,11 +83,7 @@ export default function SafetyPoliciesEditorPage() {
   const [screenEnabled, setScreenEnabled] = useState(false)
   const [screenDescription, setScreenDescription] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState('free-time')
-
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
     if (currentCamp) {
@@ -107,77 +103,42 @@ export default function SafetyPoliciesEditorPage() {
         const matched = SCREEN_TEMPLATES.find(t => t.id !== 'custom' && t.text === desc)
         setSelectedTemplate(matched ? matched.id : 'custom')
       }
+      setIsLoaded(true)
     }
   }, [currentCamp])
 
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
+  const allRatiosValid = safetyData.staffRatios.every(
+    r => r.label.trim() !== '' && RATIO_VALUE_REGEX.test(r.value)
+  )
 
-  const triggerAutoSave = (
-    updatedSafety: SafetySupervisionData,
-    updatedScreenEnabled: boolean,
-    updatedScreenDescription: string
-  ) => {
-    setHasUnsavedChanges(true)
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+  const autosavePayload = useMemo(
+    () => ({ safetyData, screenEnabled, screenDescription }),
+    [safetyData, screenEnabled, screenDescription]
+  )
 
-    setAutoSaveStatus('saving')
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
-
-    saveTimeoutRef.current = setTimeout(async () => {
-      const screenPayload =
-        updatedScreenEnabled && updatedScreenDescription.trim()
-          ? { description: updatedScreenDescription }
-          : null
-
+  useAutosave(autosavePayload, {
+    enabled: isLoaded && allRatiosValid,
+    save: async ({ safetyData: safety, screenEnabled: enabled, screenDescription: desc }) => {
+      const screenPayload = enabled && desc.trim() ? { description: desc } : null
       await updateSection(campId, 'safety-policies', {
-        safetySupervision: updatedSafety,
+        safetySupervision: safety,
         screenPolicy: screenPayload,
       })
-
-      if (useCampsStore.getState().error) {
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
-        return
-      }
-      setAutoSaveStatus('saved')
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-      setHasUnsavedChanges(false)
-      setTimeout(() => {
-        setAutoSaveStatus('idle')
-        useCampsStore.setState({ autoSaveStatus: 'idle' })
-      }, 2000)
-    }, 1500)
-  }
-
-  // ── Staff ratio handlers ──────────────────────────────────────────────────
+    },
+  })
 
   const updateRatioLabel = (index: number, label: string) => {
-    const updated = {
-      ...safetyData,
-      staffRatios: safetyData.staffRatios.map((r, i) => (i === index ? { ...r, label } : r)),
-    }
-    setSafetyData(updated)
-    const ratio = updated.staffRatios[index]
-    if (ratio.label.trim() && RATIO_VALUE_REGEX.test(ratio.value)) {
-      triggerAutoSave(updated, screenEnabled, screenDescription)
-    }
+    setSafetyData(prev => ({
+      ...prev,
+      staffRatios: prev.staffRatios.map((r, i) => (i === index ? { ...r, label } : r)),
+    }))
   }
 
   const updateRatioValue = (index: number, value: string) => {
-    const updated = {
-      ...safetyData,
-      staffRatios: safetyData.staffRatios.map((r, i) => (i === index ? { ...r, value } : r)),
-    }
-    setSafetyData(updated)
-    const ratio = updated.staffRatios[index]
-    if (ratio.label.trim() && RATIO_VALUE_REGEX.test(ratio.value)) {
-      triggerAutoSave(updated, screenEnabled, screenDescription)
-    }
+    setSafetyData(prev => ({
+      ...prev,
+      staffRatios: prev.staffRatios.map((r, i) => (i === index ? { ...r, value } : r)),
+    }))
   }
 
   const handleAddRatio = () => {
@@ -188,83 +149,60 @@ export default function SafetyPoliciesEditorPage() {
   }
 
   const handleRemoveRatio = (index: number) => {
-    const updated = {
-      ...safetyData,
-      staffRatios: safetyData.staffRatios.filter((_, i) => i !== index),
-    }
-    setSafetyData(updated)
-    triggerAutoSave(updated, screenEnabled, screenDescription)
+    setSafetyData(prev => ({
+      ...prev,
+      staffRatios: prev.staffRatios.filter((_, i) => i !== index),
+    }))
   }
 
-  // ── Safety features handlers ──────────────────────────────────────────────
-
   const toggleFeature = (item: string) => {
-    const updated = {
-      ...safetyData,
-      items: safetyData.items.includes(item)
-        ? safetyData.items.filter(i => i !== item)
-        : [...safetyData.items, item],
-    }
-    setSafetyData(updated)
-    triggerAutoSave(updated, screenEnabled, screenDescription)
+    setSafetyData(prev => ({
+      ...prev,
+      items: prev.items.includes(item) ? prev.items.filter(i => i !== item) : [...prev.items, item],
+    }))
   }
 
   const handleRemoveCustomFeature = (item: string) => {
-    const updated = { ...safetyData, items: safetyData.items.filter(i => i !== item) }
-    setSafetyData(updated)
-    triggerAutoSave(updated, screenEnabled, screenDescription)
+    setSafetyData(prev => ({ ...prev, items: prev.items.filter(i => i !== item) }))
   }
 
   const handleAddCustomFeature = () => {
     if (!newItem.trim() || safetyData.items.includes(newItem.trim())) return
-    const updated = { ...safetyData, items: [...safetyData.items, newItem.trim()] }
-    setSafetyData(updated)
-    triggerAutoSave(updated, screenEnabled, screenDescription)
+    setSafetyData(prev => ({ ...prev, items: [...prev.items, newItem.trim()] }))
     setNewItem('')
   }
 
-  // ── Supervision description handlers ─────────────────────────────────────
-
   const handleDescriptionChange = (value: string) => {
-    const updated = { ...safetyData, description: value }
-    setSafetyData(updated)
-    triggerAutoSave(updated, screenEnabled, screenDescription)
+    setSafetyData(prev => ({ ...prev, description: value }))
   }
-
-  // ── Screen policy handlers ────────────────────────────────────────────────
 
   const handleScreenToggle = (enabled: boolean) => {
     setScreenEnabled(enabled)
-    triggerAutoSave(safetyData, enabled, screenDescription)
+    if (enabled && !screenDescription && selectedTemplate !== 'custom') {
+      const template = SCREEN_TEMPLATES.find(t => t.id === selectedTemplate)
+      if (template) setScreenDescription(template.text)
+    }
   }
 
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId)
     if (templateId !== 'custom') {
       const template = SCREEN_TEMPLATES.find(t => t.id === templateId)
-      if (template) {
-        setScreenDescription(template.text)
-        triggerAutoSave(safetyData, screenEnabled, template.text)
-      }
+      if (template) setScreenDescription(template.text)
     } else {
       setScreenDescription('')
-      triggerAutoSave(safetyData, screenEnabled, '')
     }
   }
 
   const handleScreenDescriptionChange = (value: string) => {
     if (selectedTemplate !== 'custom') setSelectedTemplate('custom')
     setScreenDescription(value)
-    triggerAutoSave(safetyData, screenEnabled, value)
   }
 
   return (
     <div>
       <div className="mb-8">
-        <div className="flex justify-between">
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Safety & Policies</h1>
-          <AutoSaveIndicator status={autoSaveStatus} />
-        </div>
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Safety & Policies</h1>
         <p className="text-base leading-normal text-default-500">
           Tell parents how you keep children safe and what your camp rules are. This appears on your
           public profile and contributes to your trust score.

@@ -13,7 +13,7 @@ interface SessionsEmptyStateProps {
  */
 export function SessionsEmptyState({ onCreateSession }: SessionsEmptyStateProps) {
   return (
-    <Card className='shadow-sm border border-default-200'>
+    <Card className="shadow-sm border border-default-200">
       <CardBody className="p-8">
         <div className="text-center flex flex-col gap-6">
           {/* Icon */}

@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation'
 import { Radio, RadioGroup } from '@heroui/react'
 import { Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import { CustomActivityInput } from '../../../../../components/camp-editor/CustomActivityInput'
 import {
   EXCURSION_FREQUENCY,
@@ -28,7 +28,7 @@ export default function ExcursionsEditorPage() {
   const params = useParams()
   const campId = params.campId as string
 
-  const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const { currentCamp, updateSection } = useCampsStore()
 
   const [excursionsData, setExcursionsData] = useState<ExcursionsData>({
     description: '',
@@ -37,11 +37,7 @@ export default function ExcursionsEditorPage() {
     selectedTrips: [],
     customTrips: [],
   })
-
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
     if (currentCamp?.excursionsTrips) {
@@ -52,62 +48,32 @@ export default function ExcursionsEditorPage() {
         selectedTrips: (currentCamp.excursionsTrips as any).selectedTrips || [],
         customTrips: (currentCamp.excursionsTrips as any).customTrips || [],
       })
+      setIsLoaded(true)
+    } else if (currentCamp) {
+      setIsLoaded(true)
     }
   }, [currentCamp])
 
-  // Cleanup on unmount - clear pending auto-save state
-  useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
-
-  const triggerAutoSave = (updatedData: ExcursionsData) => {
-    setHasUnsavedChanges(true)
-
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
-
-    setAutoSaveStatus('saving')
-    // Update store to indicate pending auto-save (debounce period)
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
-
-    const timeout = setTimeout(async () => {
-      await updateSection(campId, 'excursions', { excursionsTrips: updatedData })
-      if (useCampsStore.getState().error) {
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
-        return
-      }
-      setAutoSaveStatus('saved')
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-      setHasUnsavedChanges(false)
-      setTimeout(() => {
-        setAutoSaveStatus('idle')
-        useCampsStore.setState({ autoSaveStatus: 'idle' })
-      }, 2000)
-    }, 1500)
-
-    setSaveTimeout(timeout)
-  }
+  useAutosave(excursionsData, {
+    enabled: isLoaded,
+    save: async data => {
+      await updateSection(campId, 'excursions', { excursionsTrips: data })
+    },
+  })
 
   const handleDescriptionChange = (value: string) => {
     const updated = { ...excursionsData, description: value }
     setExcursionsData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleTransportationChange = (value: string) => {
     const updated = { ...excursionsData, transportIncluded: value }
     setExcursionsData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleFrequencyChange = (value: string) => {
     const updated = { ...excursionsData, frequency: value }
     setExcursionsData(updated)
-    triggerAutoSave(updated)
   }
 
   const toggleExcursion = (excursionId: string) => {
@@ -118,7 +84,6 @@ export default function ExcursionsEditorPage() {
         : [...excursionsData.selectedTrips, excursionId],
     }
     setExcursionsData(updated)
-    triggerAutoSave(updated)
   }
 
   const addCustomExcursion = (excursionName: string) => {
@@ -127,7 +92,6 @@ export default function ExcursionsEditorPage() {
       customTrips: [...excursionsData.customTrips, excursionName],
     }
     setExcursionsData(updated)
-    triggerAutoSave(updated)
   }
 
   const removeCustomExcursion = (index: number) => {
@@ -136,19 +100,15 @@ export default function ExcursionsEditorPage() {
       customTrips: excursionsData.customTrips.filter((_, i) => i !== index),
     }
     setExcursionsData(updated)
-    triggerAutoSave(updated)
   }
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Excursions & Trips</h1>
-          <p className="text-base leading-normal text-default-500">
-            Describe the excursions and trips included in your camp program
-          </p>
-        </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Excursions & Trips</h1>
+        <p className="text-base leading-normal text-default-500">
+          Describe the excursions and trips included in your camp program
+        </p>
       </div>
 
       <div className="space-y-8">

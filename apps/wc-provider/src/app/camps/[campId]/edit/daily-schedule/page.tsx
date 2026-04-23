@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { addToast, Radio, RadioGroup, Tab, Tabs } from '@heroui/react'
+import { Radio, RadioGroup, Tab, Tabs } from '@heroui/react'
 import { useCampsStore } from '../../../../../stores/camps-store'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import {
   TimelineBuilder,
   type TimeSlotError,
@@ -21,19 +22,27 @@ const DAY_LABELS: Record<string, string> = {
   sunday: 'Sunday',
 }
 
+const isSlotIncomplete = (slot: TimeSlot): boolean =>
+  !slot.time || slot.time.trim() === '' || !slot.activity || slot.activity.trim() === ''
+
+const buildSlotErrors = (timeSlots: TimeSlot[]): Record<string, TimeSlotError> => {
+  const errors: Record<string, TimeSlotError> = {}
+  timeSlots.forEach(slot => {
+    const slotErrors: TimeSlotError = {}
+    if (!slot.time || slot.time.trim() === '') slotErrors.time = 'Time is required'
+    if (!slot.activity || slot.activity.trim() === '')
+      slotErrors.activity = 'Activity name is required'
+    if (Object.keys(slotErrors).length > 0) errors[slot.id] = slotErrors
+  })
+  return errors
+}
+
 export default function DailyScheduleEditorPage() {
   const router = useRouter()
   const params = useParams()
   const campId = params.campId as string
 
-  const {
-    currentCamp,
-    updateSection,
-    fetchCamp,
-    setHasUnsavedChanges,
-    setWizardFormValid,
-    setWizardFormSubmit,
-  } = useCampsStore()
+  const { currentCamp, updateSection, fetchCamp } = useCampsStore()
 
   const [scheduleType, setScheduleType] = useState<'daily' | 'weekly'>('daily')
   const [dailyTimeSlots, setDailyTimeSlots] = useState<TimeSlot[]>([])
@@ -47,96 +56,8 @@ export default function DailyScheduleEditorPage() {
     sunday: [],
   })
   const [selectedDay, setSelectedDay] = useState<string>('monday')
+  const [isLoaded, setIsLoaded] = useState(false)
 
-  const [originalData, setOriginalData] = useState<{
-    scheduleType: 'daily' | 'weekly'
-    dailyTimeSlots: TimeSlot[]
-    weeklyTimeSlots: Record<string, TimeSlot[]>
-  } | null>(null)
-
-  // Validation errors state
-  const [dailyErrors, setDailyErrors] = useState<Record<string, TimeSlotError>>({})
-  const [weeklyErrors, setWeeklyErrors] = useState<Record<string, Record<string, TimeSlotError>>>({
-    monday: {},
-    tuesday: {},
-    wednesday: {},
-    thursday: {},
-    friday: {},
-    saturday: {},
-    sunday: {},
-  })
-  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
-
-  // Validation function
-  const validateTimeSlots = (timeSlots: TimeSlot[]): Record<string, TimeSlotError> => {
-    const errors: Record<string, TimeSlotError> = {}
-
-    timeSlots.forEach(slot => {
-      const slotErrors: TimeSlotError = {}
-
-      // Validate time field
-      if (!slot.time || slot.time.trim() === '') {
-        slotErrors.time = 'Time is required'
-      }
-
-      // Validate activity name field
-      if (!slot.activity || slot.activity.trim() === '') {
-        slotErrors.activity = 'Activity name is required'
-      }
-
-      // Only add to errors if there are any errors for this slot
-      if (Object.keys(slotErrors).length > 0) {
-        errors[slot.id] = slotErrors
-      }
-    })
-
-    return errors
-  }
-
-  // Validate all schedules and return true if valid
-  const validateAllSchedules = (): boolean => {
-    if (scheduleType === 'daily') {
-      const errors = validateTimeSlots(dailyTimeSlots)
-      setDailyErrors(errors)
-      return Object.keys(errors).length === 0
-    } else {
-      // Validate all days for weekly schedule
-      const allErrors: Record<string, Record<string, TimeSlotError>> = {}
-      let hasErrors = false
-
-      DAYS_OF_WEEK.forEach(day => {
-        const errors = validateTimeSlots(weeklyTimeSlots[day])
-        allErrors[day] = errors
-        if (Object.keys(errors).length > 0) {
-          hasErrors = true
-        }
-      })
-
-      setWeeklyErrors(allErrors)
-      return !hasErrors
-    }
-  }
-
-  // Clear errors when user makes changes (only if validation has been attempted)
-  const handleDailyTimeSlotsChange = (timeSlots: TimeSlot[]) => {
-    setDailyTimeSlots(timeSlots)
-    // Clear errors for modified slots only if user has attempted to submit
-    if (hasAttemptedSubmit && Object.keys(dailyErrors).length > 0) {
-      const errors = validateTimeSlots(timeSlots)
-      setDailyErrors(errors)
-    }
-  }
-
-  const handleWeeklyTimeSlotsChange = (day: string, timeSlots: TimeSlot[]) => {
-    setWeeklyTimeSlots({ ...weeklyTimeSlots, [day]: timeSlots })
-    // Clear errors for modified day only if user has attempted to submit
-    if (hasAttemptedSubmit && Object.keys(weeklyErrors[day]).length > 0) {
-      const errors = validateTimeSlots(timeSlots)
-      setWeeklyErrors({ ...weeklyErrors, [day]: errors })
-    }
-  }
-
-  // Fetch camp data on mount
   useEffect(() => {
     if (campId) {
       fetchCamp(campId).catch(error => {
@@ -144,16 +65,8 @@ export default function DailyScheduleEditorPage() {
         router.push('/camps')
       })
     }
+  }, [campId, fetchCamp, router])
 
-    // Cleanup on unmount
-    return () => {
-      setHasUnsavedChanges(false)
-      setWizardFormValid(false)
-      setWizardFormSubmit(null)
-    }
-  }, [campId, fetchCamp, router, setHasUnsavedChanges, setWizardFormValid, setWizardFormSubmit])
-
-  // Load existing data from currentCamp
   useEffect(() => {
     if (currentCamp) {
       const type = (currentCamp.scheduleType as 'daily' | 'weekly') || 'daily'
@@ -184,107 +97,54 @@ export default function DailyScheduleEditorPage() {
       setScheduleType(type)
       setDailyTimeSlots(dailySlots)
       setWeeklyTimeSlots(weeklySlots)
-      setOriginalData({
-        scheduleType: type,
-        dailyTimeSlots: dailySlots,
-        weeklyTimeSlots: weeklySlots,
-      })
+      setIsLoaded(true)
     }
   }, [currentCamp])
 
-  // Detect form changes
-  useEffect(() => {
-    if (!originalData) return
+  const dailyErrors = useMemo(() => buildSlotErrors(dailyTimeSlots), [dailyTimeSlots])
+  const weeklyErrors = useMemo(
+    () =>
+      DAYS_OF_WEEK.reduce<Record<string, Record<string, TimeSlotError>>>((acc, day) => {
+        acc[day] = buildSlotErrors(weeklyTimeSlots[day])
+        return acc
+      }, {}),
+    [weeklyTimeSlots]
+  )
 
-    const hasChanges =
-      scheduleType !== originalData.scheduleType ||
-      JSON.stringify(dailyTimeSlots) !== JSON.stringify(originalData.dailyTimeSlots) ||
-      JSON.stringify(weeklyTimeSlots) !== JSON.stringify(originalData.weeklyTimeSlots)
+  const hasIncompleteSlots =
+    scheduleType === 'daily'
+      ? dailyTimeSlots.some(isSlotIncomplete)
+      : DAYS_OF_WEEK.some(day => weeklyTimeSlots[day].some(isSlotIncomplete))
 
-    setHasUnsavedChanges(hasChanges)
-  }, [scheduleType, dailyTimeSlots, weeklyTimeSlots, originalData, setHasUnsavedChanges])
+  const payload = useMemo(
+    () => ({
+      scheduleType,
+      dailySchedule: { timeSlots: dailyTimeSlots },
+      weeklySchedule: {
+        monday: { timeSlots: weeklyTimeSlots.monday },
+        tuesday: { timeSlots: weeklyTimeSlots.tuesday },
+        wednesday: { timeSlots: weeklyTimeSlots.wednesday },
+        thursday: { timeSlots: weeklyTimeSlots.thursday },
+        friday: { timeSlots: weeklyTimeSlots.friday },
+        saturday: { timeSlots: weeklyTimeSlots.saturday },
+        sunday: { timeSlots: weeklyTimeSlots.sunday },
+      },
+    }),
+    [scheduleType, dailyTimeSlots, weeklyTimeSlots]
+  )
 
-  // Update form validity - always valid until user attempts to submit
-  useEffect(() => {
-    // Form is always valid until user attempts to submit
-    // This prevents the "Save Changes" button from being disabled prematurely
-    setWizardFormValid(true)
-  }, [setWizardFormValid])
-
-  // Register submit handler
-  useEffect(() => {
-    const handleFormSubmit = async () => {
-      if (!campId) return
-
-      // Mark that user has attempted to submit
-      setHasAttemptedSubmit(true)
-
-      // Validate before submitting
-      const isValid = validateAllSchedules()
-      if (!isValid) {
-        useCampsStore.setState({ error: 'Please fix validation errors before saving' })
-        addToast({
-          title: 'Error',
-          description: 'Please fix validation errors before saving',
-          color: 'danger',
-        })
-        return
+  useAutosave(payload, {
+    enabled: isLoaded && !hasIncompleteSlots,
+    save: async data => {
+      await updateSection(campId, 'daily-schedule', data)
+      if (!useCampsStore.getState().error) {
+        await fetchCamp(campId)
       }
-
-      const payload: any = {
-        scheduleType: scheduleType,
-        dailySchedule: { timeSlots: dailyTimeSlots },
-        weeklySchedule: {
-          monday: { timeSlots: weeklyTimeSlots.monday },
-          tuesday: { timeSlots: weeklyTimeSlots.tuesday },
-          wednesday: { timeSlots: weeklyTimeSlots.wednesday },
-          thursday: { timeSlots: weeklyTimeSlots.thursday },
-          friday: { timeSlots: weeklyTimeSlots.friday },
-          saturday: { timeSlots: weeklyTimeSlots.saturday },
-          sunday: { timeSlots: weeklyTimeSlots.sunday },
-        },
-      }
-
-      await updateSection(campId, 'daily-schedule', payload)
-      if (useCampsStore.getState().error) return
-      await fetchCamp(campId)
-
-      // Reset validation state after successful save
-      setHasAttemptedSubmit(false)
-      setDailyErrors({})
-      setWeeklyErrors({
-        monday: {},
-        tuesday: {},
-        wednesday: {},
-        thursday: {},
-        friday: {},
-        saturday: {},
-        sunday: {},
-      })
-    }
-
-    setWizardFormSubmit(handleFormSubmit)
-
-    return () => {
-      setWizardFormSubmit(null)
-    }
-  }, [
-    campId,
-    scheduleType,
-    dailyTimeSlots,
-    weeklyTimeSlots,
-    updateSection,
-    fetchCamp,
-    setWizardFormSubmit,
-  ])
-
-  const handleScheduleTypeChange = (type: 'daily' | 'weekly') => {
-    setScheduleType(type)
-  }
+    },
+  })
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-8">
         <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Daily Schedule</h1>
         <p className="text-base leading-normal text-default-500">
@@ -293,7 +153,6 @@ export default function DailyScheduleEditorPage() {
       </div>
 
       <div className="space-y-8">
-        {/* Schedule Type Selector */}
         <div className="form-group">
           <div className="mb-2.5 flex items-center gap-2">
             <label className="text-sm font-medium text-foreground">Schedule Type</label>
@@ -304,7 +163,7 @@ export default function DailyScheduleEditorPage() {
           </p>
           <RadioGroup
             value={scheduleType}
-            onValueChange={value => handleScheduleTypeChange(value as 'daily' | 'weekly')}
+            onValueChange={value => setScheduleType(value as 'daily' | 'weekly')}
             classNames={{
               wrapper: 'flex flex-row flex-wrap gap-3',
             }}
@@ -340,7 +199,6 @@ export default function DailyScheduleEditorPage() {
           </RadioGroup>
         </div>
 
-        {/* Daily Schedule */}
         {scheduleType === 'daily' && (
           <div className="form-group">
             <div className="mb-4">
@@ -351,13 +209,12 @@ export default function DailyScheduleEditorPage() {
             </div>
             <TimelineBuilder
               timeSlots={dailyTimeSlots}
-              onChange={handleDailyTimeSlotsChange}
-              errors={hasAttemptedSubmit ? dailyErrors : {}}
+              onChange={setDailyTimeSlots}
+              errors={dailyErrors}
             />
           </div>
         )}
 
-        {/* Weekly Schedule */}
         {scheduleType === 'weekly' && (
           <div className="form-group">
             <Tabs
@@ -376,8 +233,10 @@ export default function DailyScheduleEditorPage() {
                   <div className="mt-6">
                     <TimelineBuilder
                       timeSlots={weeklyTimeSlots[day]}
-                      onChange={timeSlots => handleWeeklyTimeSlotsChange(day, timeSlots)}
-                      errors={hasAttemptedSubmit ? weeklyErrors[day] : {}}
+                      onChange={timeSlots =>
+                        setWeeklyTimeSlots(prev => ({ ...prev, [day]: timeSlots }))
+                      }
+                      errors={weeklyErrors[day]}
                     />
                   </div>
                 </Tab>
@@ -386,7 +245,6 @@ export default function DailyScheduleEditorPage() {
           </div>
         )}
 
-        {/* Help Text */}
         <div className="rounded-lg bg-default-50 p-4">
           <div className="text-sm text-default-600">
             <p className="mb-2 font-semibold">Tips for creating a great schedule:</p>

@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation'
 import { Radio, RadioGroup } from '@heroui/react'
 import { Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import { CustomActivityInput } from '../../../../../components/camp-editor/CustomActivityInput'
 import {
   COACHING_TYPES,
@@ -30,7 +30,7 @@ export default function SportsEditorPage() {
   const params = useParams()
   const campId = params.campId as string
 
-  const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const { currentCamp, updateSection } = useCampsStore()
 
   const [sportsData, setSportsData] = useState<SportsData>({
     description: '',
@@ -40,13 +40,8 @@ export default function SportsEditorPage() {
     customSports: [],
     facilities: [],
   })
+  const [isLoaded, setIsLoaded] = useState(false)
 
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
-
-  // Load existing data
   useEffect(() => {
     if (currentCamp?.sportsActivities) {
       setSportsData({
@@ -57,67 +52,32 @@ export default function SportsEditorPage() {
         customSports: (currentCamp.sportsActivities as any).customSports || [],
         facilities: (currentCamp.sportsActivities as any).facilities || [],
       })
+      setIsLoaded(true)
+    } else if (currentCamp) {
+      setIsLoaded(true)
     }
   }, [currentCamp])
 
-  // Cleanup on unmount - clear pending auto-save state
-  useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
-
-  // Auto-save handler
-  const triggerAutoSave = (updatedData: SportsData) => {
-    setHasUnsavedChanges(true)
-
-    // Clear existing timeout
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
-
-    setAutoSaveStatus('saving')
-    // Update store to indicate pending auto-save (debounce period)
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
-
-    // Set new timeout
-    const timeout = setTimeout(async () => {
-      await updateSection(campId, 'sports', { sportsActivities: updatedData })
-      if (useCampsStore.getState().error) {
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
-        return
-      }
-      setAutoSaveStatus('saved')
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-      setHasUnsavedChanges(false)
-
-      // Hide indicator after 2 seconds
-      setTimeout(() => {
-        setAutoSaveStatus('idle')
-        useCampsStore.setState({ autoSaveStatus: 'idle' })
-      }, 2000)
-    }, 1500)
-
-    setSaveTimeout(timeout)
-  }
+  useAutosave(sportsData, {
+    enabled: isLoaded,
+    save: async data => {
+      await updateSection(campId, 'sports', { sportsActivities: data })
+    },
+  })
 
   const handleDescriptionChange = (value: string) => {
     const updated = { ...sportsData, description: value }
     setSportsData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleSkillLevelChange = (value: string) => {
     const updated = { ...sportsData, skillLevel: value }
     setSportsData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleCoachingTypeChange = (value: string) => {
     const updated = { ...sportsData, coachingType: value }
     setSportsData(updated)
-    triggerAutoSave(updated)
   }
 
   const toggleSport = (sportId: string) => {
@@ -128,7 +88,6 @@ export default function SportsEditorPage() {
         : [...sportsData.selectedSports, sportId],
     }
     setSportsData(updated)
-    triggerAutoSave(updated)
   }
 
   const addCustomSport = (sportName: string) => {
@@ -137,7 +96,6 @@ export default function SportsEditorPage() {
       customSports: [...sportsData.customSports, sportName],
     }
     setSportsData(updated)
-    triggerAutoSave(updated)
   }
 
   const removeCustomSport = (index: number) => {
@@ -146,7 +104,6 @@ export default function SportsEditorPage() {
       customSports: sportsData.customSports.filter((_, i) => i !== index),
     }
     setSportsData(updated)
-    triggerAutoSave(updated)
   }
 
   const toggleFacility = (facilityId: string) => {
@@ -157,20 +114,15 @@ export default function SportsEditorPage() {
         : [...sportsData.facilities, facilityId],
     }
     setSportsData(updated)
-    triggerAutoSave(updated)
   }
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Sports Activities</h1>
-          <p className="text-base leading-normal text-default-500">
-            Describe the sports programs and facilities at your camp
-          </p>
-        </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Sports Activities</h1>
+        <p className="text-base leading-normal text-default-500">
+          Describe the sports programs and facilities at your camp
+        </p>
       </div>
 
       <div className="space-y-8">

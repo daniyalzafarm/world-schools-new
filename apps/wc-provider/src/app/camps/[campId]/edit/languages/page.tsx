@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation'
 import { Radio, RadioGroup } from '@heroui/react'
 import { Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import { CustomActivityInput } from '../../../../../components/camp-editor/CustomActivityInput'
 import {
   LANGUAGE_PROFICIENCY_LEVELS,
@@ -28,7 +28,7 @@ export default function LanguagesEditorPage() {
   const params = useParams()
   const campId = params.campId as string
 
-  const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const { currentCamp, updateSection } = useCampsStore()
 
   const [languagesData, setLanguagesData] = useState<LanguagesData>({
     description: '',
@@ -37,13 +37,8 @@ export default function LanguagesEditorPage() {
     selectedLanguages: [],
     customLanguages: [],
   })
+  const [isLoaded, setIsLoaded] = useState(false)
 
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
-
-  // Load existing data
   useEffect(() => {
     if (currentCamp?.languagePrograms) {
       setLanguagesData({
@@ -53,63 +48,32 @@ export default function LanguagesEditorPage() {
         selectedLanguages: (currentCamp.languagePrograms as any).selectedLanguages || [],
         customLanguages: (currentCamp.languagePrograms as any).customLanguages || [],
       })
+      setIsLoaded(true)
+    } else if (currentCamp) {
+      setIsLoaded(true)
     }
   }, [currentCamp])
 
-  // Cleanup on unmount - clear pending auto-save state
-  useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
-
-  // Auto-save handler
-  const triggerAutoSave = (updatedData: LanguagesData) => {
-    setHasUnsavedChanges(true)
-
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
-
-    setAutoSaveStatus('saving')
-    // Update store to indicate pending auto-save (debounce period)
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
-
-    const timeout = setTimeout(async () => {
-      await updateSection(campId, 'languages', { languagePrograms: updatedData })
-      if (useCampsStore.getState().error) {
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
-        return
-      }
-      setAutoSaveStatus('saved')
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-      setHasUnsavedChanges(false)
-      setTimeout(() => {
-        setAutoSaveStatus('idle')
-        useCampsStore.setState({ autoSaveStatus: 'idle' })
-      }, 2000)
-    }, 1500)
-
-    setSaveTimeout(timeout)
-  }
+  useAutosave(languagesData, {
+    enabled: isLoaded,
+    save: async data => {
+      await updateSection(campId, 'languages', { languagePrograms: data })
+    },
+  })
 
   const handleDescriptionChange = (value: string) => {
     const updated = { ...languagesData, description: value }
     setLanguagesData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleProficiencyLevelChange = (value: string) => {
     const updated = { ...languagesData, proficiency: value }
     setLanguagesData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleTeachingMethodChange = (value: string) => {
     const updated = { ...languagesData, methodology: value }
     setLanguagesData(updated)
-    triggerAutoSave(updated)
   }
 
   const toggleLanguage = (languageId: string) => {
@@ -120,7 +84,6 @@ export default function LanguagesEditorPage() {
         : [...languagesData.selectedLanguages, languageId],
     }
     setLanguagesData(updated)
-    triggerAutoSave(updated)
   }
 
   const addCustomLanguage = (languageName: string) => {
@@ -129,7 +92,6 @@ export default function LanguagesEditorPage() {
       customLanguages: [...languagesData.customLanguages, languageName],
     }
     setLanguagesData(updated)
-    triggerAutoSave(updated)
   }
 
   const removeCustomLanguage = (index: number) => {
@@ -138,20 +100,15 @@ export default function LanguagesEditorPage() {
       customLanguages: languagesData.customLanguages.filter((_, i) => i !== index),
     }
     setLanguagesData(updated)
-    triggerAutoSave(updated)
   }
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Language Programs</h1>
-          <p className="text-base leading-normal text-default-500">
-            Describe the language learning programs at your camp
-          </p>
-        </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Language Programs</h1>
+        <p className="text-base leading-normal text-default-500">
+          Describe the language learning programs at your camp
+        </p>
       </div>
 
       <div className="space-y-8">

@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation'
 import { Radio, RadioGroup } from '@heroui/react'
 import { Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
 import { CustomActivityInput } from '../../../../../components/camp-editor/CustomActivityInput'
 import {
   LIFEGUARD_CERTIFICATIONS,
@@ -30,7 +30,7 @@ export default function WaterEditorPage() {
   const params = useParams()
   const campId = params.campId as string
 
-  const { currentCamp, updateSection, setHasUnsavedChanges } = useCampsStore()
+  const { currentCamp, updateSection } = useCampsStore()
 
   const [waterData, setWaterData] = useState<WaterData>({
     description: '',
@@ -40,11 +40,7 @@ export default function WaterEditorPage() {
     facilities: [],
     lifeguardCertification: 'certified',
   })
-
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
     if (currentCamp?.waterActivities) {
@@ -57,56 +53,27 @@ export default function WaterEditorPage() {
         lifeguardCertification:
           (currentCamp.waterActivities as any).lifeguardCertification || 'certified',
       })
+      setIsLoaded(true)
+    } else if (currentCamp) {
+      setIsLoaded(true)
     }
   }, [currentCamp])
 
-  // Cleanup on unmount - clear pending auto-save state
-  useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
-
-  const triggerAutoSave = (updatedData: WaterData) => {
-    setHasUnsavedChanges(true)
-
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
-
-    setAutoSaveStatus('saving')
-    // Update store to indicate pending auto-save (debounce period)
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
-
-    const timeout = setTimeout(async () => {
-      await updateSection(campId, 'water', { waterActivities: updatedData })
-      if (useCampsStore.getState().error) {
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
-        return
-      }
-      setAutoSaveStatus('saved')
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-      setHasUnsavedChanges(false)
-      setTimeout(() => {
-        setAutoSaveStatus('idle')
-        useCampsStore.setState({ autoSaveStatus: 'idle' })
-      }, 2000)
-    }, 1500)
-
-    setSaveTimeout(timeout)
-  }
+  useAutosave(waterData, {
+    enabled: isLoaded,
+    save: async data => {
+      await updateSection(campId, 'water', { waterActivities: data })
+    },
+  })
 
   const handleDescriptionChange = (value: string) => {
     const updated = { ...waterData, description: value }
     setWaterData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleSwimLevelChange = (value: string) => {
     const updated = { ...waterData, swimLevel: value }
     setWaterData(updated)
-    triggerAutoSave(updated)
   }
 
   const toggleActivity = (activityId: string) => {
@@ -117,7 +84,6 @@ export default function WaterEditorPage() {
         : [...waterData.selectedActivities, activityId],
     }
     setWaterData(updated)
-    triggerAutoSave(updated)
   }
 
   const addCustomActivity = (activityName: string) => {
@@ -126,7 +92,6 @@ export default function WaterEditorPage() {
       customActivities: [...waterData.customActivities, activityName],
     }
     setWaterData(updated)
-    triggerAutoSave(updated)
   }
 
   const removeCustomActivity = (index: number) => {
@@ -135,7 +100,6 @@ export default function WaterEditorPage() {
       customActivities: waterData.customActivities.filter((_, i) => i !== index),
     }
     setWaterData(updated)
-    triggerAutoSave(updated)
   }
 
   const toggleFacility = (facilityId: string) => {
@@ -146,25 +110,20 @@ export default function WaterEditorPage() {
         : [...waterData.facilities, facilityId],
     }
     setWaterData(updated)
-    triggerAutoSave(updated)
   }
 
   const handleLifeguardCertificationChange = (value: string) => {
     const updated = { ...waterData, lifeguardCertification: value }
     setWaterData(updated)
-    triggerAutoSave(updated)
   }
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Water Activities</h1>
-          <p className="text-base leading-normal text-default-500">
-            Describe the water-based activities at your camp
-          </p>
-        </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Water Activities</h1>
+        <p className="text-base leading-normal text-default-500">
+          Describe the water-based activities at your camp
+        </p>
       </div>
 
       <div className="space-y-8">

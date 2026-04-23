@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useCampsStore } from '../../../../../stores/camps-store'
 import { useOnboardingStore } from '../../../../../stores/onboarding-store'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import { GoogleMapsLoader } from '../../../../../components/onboarding/GoogleMapsLoader'
 import { checkSlugAvailability } from '../../../../../services/camps.services'
 import {
@@ -11,21 +12,12 @@ import {
   type BasicInfoFormData,
 } from '../../../../../components/camp-forms/BasicInfoForm'
 
-// Google Maps API types are loaded via script tag
-
 export default function BasicInfoEditorPage() {
   const router = useRouter()
   const params = useParams()
   const campId = params.campId as string
 
-  const {
-    updateBasicInfo,
-    fetchCamp,
-    currentCamp,
-    setHasUnsavedChanges,
-    setWizardFormValid,
-    setWizardFormSubmit,
-  } = useCampsStore()
+  const { updateBasicInfo, fetchCamp, currentCamp } = useCampsStore()
 
   const { googleBusinessProfile, fetchGoogleBusinessProfile } = useOnboardingStore()
 
@@ -44,9 +36,7 @@ export default function BasicInfoEditorPage() {
     locationLng: undefined,
   })
 
-  // Store original data for comparison
-  const [originalData, setOriginalData] = useState<BasicInfoFormData | null>(null)
-
+  const [isLoaded, setIsLoaded] = useState(false)
   const [slugError, setSlugError] = useState<string>('')
   const [isCheckingSlug, setIsCheckingSlug] = useState(false)
 
@@ -57,30 +47,12 @@ export default function BasicInfoEditorPage() {
         router.push('/camps')
       })
     }
-
-    // Fetch Google Business Profile for provider address display
     void fetchGoogleBusinessProfile()
-
-    // Cleanup on unmount
-    return () => {
-      setHasUnsavedChanges(false)
-      setWizardFormValid(false)
-      setWizardFormSubmit(null)
-    }
-  }, [
-    campId,
-    fetchCamp,
-    router,
-    fetchGoogleBusinessProfile,
-    setHasUnsavedChanges,
-    setWizardFormValid,
-    setWizardFormSubmit,
-  ])
+  }, [campId, fetchCamp, router, fetchGoogleBusinessProfile])
 
   useEffect(() => {
-    // Populate form with existing data
     if (currentCamp) {
-      const campData: BasicInfoFormData = {
+      setFormData({
         name: currentCamp.name,
         slug: currentCamp.slug,
         type: currentCamp.type,
@@ -89,49 +61,24 @@ export default function BasicInfoEditorPage() {
         locationPlaceId: currentCamp.locationPlaceId || '',
         locationName: currentCamp.locationName || '',
         locationAddress: currentCamp.locationAddress || '',
-        // Convert Decimal to number (Prisma may serialize Decimal as string in JSON)
         locationLat: currentCamp.locationLat ? Number(currentCamp.locationLat) : undefined,
         locationLng: currentCamp.locationLng ? Number(currentCamp.locationLng) : undefined,
-      }
-
-      setFormData(campData)
-      setOriginalData(campData)
+      })
+      setIsLoaded(true)
     }
   }, [currentCamp])
 
-  // Detect form changes and update store state
-  useEffect(() => {
-    if (!originalData) return
-
-    // Compare current form data with original data
-    const hasChanges =
-      formData.name !== originalData.name ||
-      formData.type !== originalData.type ||
-      formData.description !== originalData.description ||
-      formData.locationType !== originalData.locationType ||
-      formData.locationPlaceId !== originalData.locationPlaceId ||
-      formData.locationName !== originalData.locationName ||
-      formData.locationAddress !== originalData.locationAddress ||
-      formData.locationLat !== originalData.locationLat ||
-      formData.locationLng !== originalData.locationLng
-
-    setHasUnsavedChanges(hasChanges)
-  }, [formData, originalData, setHasUnsavedChanges])
-
-  // Validate slug availability
   const validateSlug = async (slug: string) => {
     if (!slug) {
       setSlugError('Slug is required')
       return false
     }
 
-    // Check format
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
       setSlugError('Slug must be lowercase, alphanumeric, and use hyphens to separate words')
       return false
     }
 
-    // Check availability
     setIsCheckingSlug(true)
     const response = await checkSlugAvailability(slug, campId)
     setIsCheckingSlug(false)
@@ -147,44 +94,28 @@ export default function BasicInfoEditorPage() {
     return true
   }
 
-  // Update form validity in store
-  useEffect(() => {
-    const isValid =
-      formData.name.trim() !== '' &&
-      formData.slug.trim() !== '' &&
-      !slugError &&
-      formData.description.trim() !== '' &&
-      (formData.locationType === 'provider' || formData.locationPlaceId !== '')
+  const autosaveEnabled =
+    isLoaded &&
+    formData.name.trim() !== '' &&
+    formData.slug.trim() !== '' &&
+    !slugError &&
+    !isCheckingSlug &&
+    formData.description.trim() !== '' &&
+    (formData.locationType === 'provider' || formData.locationPlaceId !== '')
 
-    setWizardFormValid(isValid)
-  }, [formData, slugError, setWizardFormValid])
-
-  // Register submit handler for footer
-  useEffect(() => {
-    const handleFormSubmit = async () => {
-      if (!campId) return
-
-      const isSlugValid = await validateSlug(formData.slug)
-      if (!isSlugValid) return
-
-      await updateBasicInfo(campId, formData)
+  useAutosave(formData, {
+    enabled: autosaveEnabled,
+    save: async data => {
+      await updateBasicInfo(campId, data)
       if (!useCampsStore.getState().error) {
         await fetchCamp(campId)
       }
-    }
-
-    setWizardFormSubmit(handleFormSubmit)
-
-    // Cleanup
-    return () => {
-      setWizardFormSubmit(null)
-    }
-  }, [campId, formData, updateBasicInfo, fetchCamp, setWizardFormSubmit])
+    },
+  })
 
   return (
     <GoogleMapsLoader apiKey={googleMapsApiKey}>
       <div>
-        {/* Header */}
         <div className="mb-8">
           <h1 className="mb-1.5 text-2xl font-semibold text-foreground">Edit Basic Information</h1>
           <p className="text-base leading-normal text-default-500">
@@ -192,7 +123,6 @@ export default function BasicInfoEditorPage() {
           </p>
         </div>
 
-        {/* Form */}
         <BasicInfoForm
           formData={formData}
           onChange={data => setFormData(prev => ({ ...prev, ...data }))}

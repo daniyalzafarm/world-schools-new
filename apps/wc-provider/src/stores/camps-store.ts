@@ -27,6 +27,7 @@ interface CampsState {
   // Auto-save state (for sections using auto-save only)
   autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error'
   hasPendingAutoSave: boolean
+  autoSaveFlush: (() => Promise<void>) | null
 
   // Sidebar completion counts for sections not stored in Camp object
   sidebarEligibilityCount: number | null
@@ -64,6 +65,7 @@ interface CampsState {
   setHasUnsavedChanges: (hasChanges: boolean) => void
   setWizardFormValid: (isValid: boolean) => void
   setWizardFormSubmit: (submitFn: (() => Promise<void>) | null) => void
+  setAutoSaveFlush: (flushFn: (() => Promise<void>) | null) => void
   resetWizard: () => void
 
   // General helpers
@@ -88,6 +90,7 @@ export const useCampsStore = create<CampsState>((set, get) => ({
   wizardFormSubmit: null,
   autoSaveStatus: 'idle',
   hasPendingAutoSave: false,
+  autoSaveFlush: null,
   sidebarEligibilityCount: null,
   sidebarAddonEnabledCount: null,
   sidebarAddonTotalCount: null,
@@ -367,6 +370,7 @@ export const useCampsStore = create<CampsState>((set, get) => ({
   setWizardFormValid: (isValid: boolean) => set({ wizardFormValid: isValid }),
   setWizardFormSubmit: (submitFn: (() => Promise<void>) | null) =>
     set({ wizardFormSubmit: submitFn }),
+  setAutoSaveFlush: (flushFn: (() => Promise<void>) | null) => set({ autoSaveFlush: flushFn }),
   resetWizard: () => set({ wizardCamp: null, wizardStep: 1, hasUnsavedChanges: false }),
 
   // General helpers

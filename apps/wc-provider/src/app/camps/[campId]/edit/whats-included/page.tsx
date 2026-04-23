@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { Button } from '@heroui/react'
 import { IconRenderer, type IconValue, Input, LucideIconPicker } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
-import { AutoSaveIndicator } from '../../../../../components/camp-editor/AutoSaveIndicator'
+import { useAutosave } from '../../../../../hooks/useAutosave'
 import { generateAutoInclusions } from '../../../../../utils/generate-inclusions'
 import type { InclusionItem, WhatsIncludedData } from '../../../../../types/whats-included'
 
@@ -25,10 +25,7 @@ export default function WhatsIncludedEditorPage() {
 
   const [newItemText, setNewItemText] = useState('')
   const [newItemIcon, setNewItemIcon] = useState<IconValue>({ type: 'lucide', name: 'Check' })
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
-    'idle'
-  )
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   // Load and generate inclusions
   useEffect(() => {
@@ -106,43 +103,16 @@ export default function WhatsIncludedEditorPage() {
           manual: [],
         })
       }
+      setIsLoaded(true)
     }
   }, [currentCamp])
 
-  // Auto-save handler
-  const triggerAutoSave = (updatedData: WhatsIncludedData) => {
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
-
-    setAutoSaveStatus('saving')
-    // Update store to indicate pending auto-save (debounce period)
-    useCampsStore.setState({ hasPendingAutoSave: true, autoSaveStatus: 'saving' })
-
-    const timeout = setTimeout(async () => {
-      await updateSection(campId, 'whats-included', { whatsIncluded: updatedData })
-      if (useCampsStore.getState().error) {
-        setAutoSaveStatus('error')
-        useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'error' })
-        return
-      }
-      setAutoSaveStatus('saved')
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'saved' })
-      setTimeout(() => {
-        setAutoSaveStatus('idle')
-        useCampsStore.setState({ autoSaveStatus: 'idle' })
-      }, 2000)
-    }, 1500)
-
-    setSaveTimeout(timeout)
-  }
-
-  // Cleanup on unmount - clear pending auto-save state
-  useEffect(() => {
-    return () => {
-      useCampsStore.setState({ hasPendingAutoSave: false, autoSaveStatus: 'idle' })
-    }
-  }, [])
+  useAutosave(data, {
+    enabled: isLoaded,
+    save: async payload => {
+      await updateSection(campId, 'whats-included', { whatsIncluded: payload })
+    },
+  })
 
   const toggleAutoItem = (itemId: string) => {
     const updated = {
@@ -152,7 +122,6 @@ export default function WhatsIncludedEditorPage() {
       ),
     }
     setData(updated)
-    triggerAutoSave(updated)
   }
 
   const addManualItem = () => {
@@ -174,7 +143,6 @@ export default function WhatsIncludedEditorPage() {
     setData(updated)
     setNewItemText('')
     setNewItemIcon({ type: 'lucide', name: 'Check' })
-    triggerAutoSave(updated)
   }
 
   const deleteManualItem = (itemId: string) => {
@@ -183,7 +151,6 @@ export default function WhatsIncludedEditorPage() {
       manual: data.manual.filter(item => item.id !== itemId),
     }
     setData(updated)
-    triggerAutoSave(updated)
   }
 
   const totalSelected =
@@ -194,15 +161,11 @@ export default function WhatsIncludedEditorPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-foreground">What's Included</h1>
-          <p className="text-base leading-normal text-default-500">
-            Choose up to {MAX_SELECTED_ITEMS} items to display on your camp profile
-          </p>
-        </div>
-        <AutoSaveIndicator status={autoSaveStatus} />
+      <div className="mb-8">
+        <h1 className="mb-1.5 text-2xl font-semibold text-foreground">What's Included</h1>
+        <p className="text-base leading-normal text-default-500">
+          Choose up to {MAX_SELECTED_ITEMS} items to display on your camp profile
+        </p>
       </div>
 
       <div className="space-y-8">

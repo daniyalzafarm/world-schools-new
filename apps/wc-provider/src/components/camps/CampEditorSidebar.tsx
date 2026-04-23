@@ -204,7 +204,7 @@ function getSectionProgress(
       let c = 0
       if ((camp.ageGroups?.length ?? 0) > 0) c++
       if ((camp.languages?.length ?? 0) > 0) c++
-      if (!!camp.gender) c++
+      if (camp.gender) c++
       return { completed: c, total: 3 }
     }
     case 'programs':

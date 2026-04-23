@@ -5,10 +5,14 @@ interface AutoSaveIndicatorProps {
 }
 
 export function AutoSaveIndicator({ status }: AutoSaveIndicatorProps) {
-  if (status === 'idle') return null
-
   return (
     <div className="flex items-center gap-2 text-sm">
+      {status === 'idle' && (
+        <>
+          <div className="h-2 w-2 animate-pulse rounded-full bg-success-500" />
+          <span className="text-default-500">Changes are saved automatically</span>
+        </>
+      )}
       {status === 'saving' && (
         <>
           <div className="h-2 w-2 animate-pulse rounded-full bg-primary-500" />
