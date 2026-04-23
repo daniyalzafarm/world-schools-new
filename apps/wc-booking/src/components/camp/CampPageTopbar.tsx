@@ -53,7 +53,8 @@ export function CampPageTopbar({ suppressed = false, camp }: CampPageTopbarProps
           >
             <Menu size={22} strokeWidth={2} />
           </Button>
-          <Logo showText className="min-w-0 flex-1 sm:flex-none" />
+          <Logo showText={false} className="min-w-0 flex-1 sm:hidden" />
+          <Logo className="hidden min-w-0 sm:flex sm:flex-none" />
           {isInitialized && !isAuthenticated ? (
             <div className="ml-auto flex shrink-0 items-center gap-2">
               <Button as={Link} href="/auth/signin" variant="light">

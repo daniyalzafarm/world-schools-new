@@ -527,7 +527,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
             {isCollapsed ? (
               <Tooltip content={providerName} placement="right" delay={500} closeDelay={0}>
                 {providerLogoUrl ? (
-                  <div className="m-4 mx-auto w-8 h-8 rounded-full flex items-center justify-center shrink-0">
+                  <div className="m-4 mx-auto w-8 h-8 rounded-full overflow-hidden flex items-center justify-center shrink-0">
                     <img
                       src={providerLogoUrl}
                       alt="Provider logo"
@@ -583,9 +583,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                   if (sidebarOpen) setSidebarOpen(false)
                 }}
               >
-                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
-                  <span className="text-secondary text-sm font-semibold">{userInitials}</span>
-                </div>
+                {user?.profilePhotoUrl ? (
+                  <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
+                    <img
+                      src={user.profilePhotoUrl}
+                      alt={userFullName}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
+                    <span className="text-secondary text-sm font-semibold">{userInitials}</span>
+                  </div>
+                )}
                 {!isCollapsed && (
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 dark:text-gray-100 truncate">

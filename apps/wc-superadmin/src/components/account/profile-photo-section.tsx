@@ -50,8 +50,12 @@ export const ProfilePhotoSection: React.FC<ProfilePhotoSectionProps> = ({
 
   return (
     <div className="flex items-center gap-6 pb-8 border-b border-slate-200 dark:border-slate-700">
-      <div className="shrink-0">
-        <Avatar src={photoUrl || undefined} name={userName} className="w-24 h-24 text-4xl" />
+      <div className="w-24 h-24 rounded-full bg-linear-to-br from-primary-100 to-secondary-50 flex items-center justify-center text-2xl font-semibold text-secondary dark:text-white shrink-0">
+        {userName
+          ?.split(' ')
+          .map(name => name[0].toUpperCase())
+          .slice(0, 2)
+          .join('')}
       </div>
 
       <div className="flex-1">

@@ -68,7 +68,7 @@ function KbArticleLayoutContent({ children }: { children: ReactNode }) {
           <div className="px-4 py-6 lg:px-10 lg:py-8">{children}</div>
         </div>
 
-        <aside className="hidden h-full w-80 shrink-0 overflow-y-auto border-l border-default-200 bg-background xl:block">
+        <aside className="hidden h-full w-96 lg:w-[480px] shrink-0 overflow-y-auto border-l border-default-200 bg-background xl:block">
           {rightSidebar}
         </aside>
       </div>

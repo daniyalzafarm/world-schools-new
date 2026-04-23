@@ -225,7 +225,7 @@ export default function AccountHubPage() {
                 />
               </div>
             ) : (
-              <div className="w-24 h-24 rounded-full bg-linear-to-br from-rose-100 to-teal-50 dark:from-rose-900/30 dark:to-teal-900/30 flex items-center justify-center text-2xl font-semibold text-slate-900 dark:text-white shrink-0">
+              <div className="w-24 h-24 rounded-full bg-linear-to-br from-primary-100 to-secondary-50 flex items-center justify-center text-2xl font-semibold text-secondary dark:text-white shrink-0">
                 {getInitials()}
               </div>
             )}

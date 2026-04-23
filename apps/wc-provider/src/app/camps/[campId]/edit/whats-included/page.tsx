@@ -10,7 +10,8 @@ import { generateAutoInclusions } from '../../../../../utils/generate-inclusions
 import type { InclusionItem, WhatsIncludedData } from '../../../../../types/whats-included'
 
 const MAX_SELECTED_ITEMS = 12
-const MAX_ITEM_LENGTH = 150
+const MAX_ITEM_LENGTH = 40
+const WARN_THRESHOLD = 35
 
 export default function WhatsIncludedEditorPage() {
   const params = useParams()
@@ -298,20 +299,39 @@ export default function WhatsIncludedEditorPage() {
               onChange={name => setNewItemIcon({ type: 'lucide', name })}
               pickerPosition="top"
             />
-            <Input
-              placeholder="e.g., Camp t-shirt and water bottle"
-              value={newItemText}
-              onValueChange={setNewItemText}
-              maxLength={MAX_ITEM_LENGTH}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  addManualItem()
-                }
-              }}
-              classNames={{ input: 'text-sm' }}
-              isDisabled={!canAddMore}
-            />
+            <div className="w-full flex flex-col gap-1">
+              <Input
+                placeholder="e.g., Camp t-shirt and water bottle"
+                value={newItemText}
+                onValueChange={setNewItemText}
+                maxLength={MAX_ITEM_LENGTH}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addManualItem()
+                  }
+                }}
+                classNames={{ input: 'text-sm' }}
+                isDisabled={!canAddMore}
+              />
+              {!canAddMore && (
+                <div className="text-xs text-warning">
+                  Maximum {MAX_SELECTED_ITEMS} items selected. Deselect items to add more.
+                </div>
+              )}
+              <div
+                className={`text-xs flex items-center gap-1 ${
+                  newItemText.length >= WARN_THRESHOLD ? 'text-warning-600' : 'text-default-500'
+                }`}
+              >
+                {newItemText.length}/{MAX_ITEM_LENGTH}
+                {newItemText.length >= WARN_THRESHOLD && (
+                  <div className="text-xs text-warning-600">
+                    - Keep it short — long labels will be cut off
+                  </div>
+                )}
+              </div>
+            </div>
             <Button
               color="primary"
               onPress={addManualItem}
@@ -319,14 +339,6 @@ export default function WhatsIncludedEditorPage() {
             >
               Add Item
             </Button>
-          </div>
-          {!canAddMore && (
-            <div className="mt-2 text-xs text-warning">
-              Maximum {MAX_SELECTED_ITEMS} items selected. Deselect items to add more.
-            </div>
-          )}
-          <div className="mt-1.5 text-xs text-default-500">
-            {newItemText.length} / {MAX_ITEM_LENGTH} characters
           </div>
         </div>
       </div>

@@ -541,7 +541,7 @@ const WriteReviewCampPage = () => {
   return (
     <div className="flex min-h-dvh flex-col">
       <WriteReviewFlowHeader
-        onBack={goBack}
+        onBack={stepIndex > 0 ? goBack : handleClose}
         onClose={handleClose}
         showBack
         camp={{

@@ -978,19 +978,17 @@ function AddonsStep() {
             <ModalContent>
               <ModalHeader>{sheetAddon.name}</ModalHeader>
               <ModalBody className="max-h-[60vh]">
-                {sheetAddon.description ? (
-                  <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                      <span className="text-sm font-bold text-primary-700">{sheetAddon.icon}</span>
-                    </div>
-                    <div className="min-w-0 text-[13px] leading-snug text-gray-500">
-                      <p className="line-clamp-2">{sheetAddon.description}</p>
-                      <p className="mt-1 font-semibold text-secondary">
-                        {formatCurrency(sheetAddon.price, currency)} {getAddOnTileLabel(sheetAddon)}
-                      </p>
-                    </div>
+                <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                    <span className="text-sm font-bold text-primary-700">{sheetAddon.icon}</span>
                   </div>
-                ) : null}
+                  <div className="min-w-0 text-[13px] leading-snug text-gray-500">
+                    <p className="line-clamp-2">{sheetAddon.description || sheetAddon.name}</p>
+                    <p className="mt-1 font-semibold text-secondary">
+                      {formatCurrency(sheetAddon.price, currency)} {getAddOnTileLabel(sheetAddon)}
+                    </p>
+                  </div>
+                </div>
                 {sheetMode === 'per_child' ? (
                   <div className="flex flex-col gap-3 divide-y divide-gray-100">
                     {selectedChildren.map(child => {

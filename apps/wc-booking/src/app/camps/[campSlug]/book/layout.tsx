@@ -59,7 +59,7 @@ export default function CampBookingLayout({ children }: { children: ReactNode })
 
   return (
     <ProtectedRoute requireAuth requireParentRole>
-      <div className="h-screen bg-white overflow-hidden">
+      <div className="h-screen bg-gray-50 overflow-hidden">
         {/* Keep scroll local to this route. Sticky header/steps stay visible. */}
         <div className="h-full overflow-y-auto">
           <header className="hidden lg:block sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
@@ -67,7 +67,7 @@ export default function CampBookingLayout({ children }: { children: ReactNode })
               <button
                 type="button"
                 className="cursor-pointer flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-700"
-                onClick={() => router.back()}
+                onClick={exitToCampProfile}
               >
                 <ChevronLeft size={18} /> Back to camp
               </button>

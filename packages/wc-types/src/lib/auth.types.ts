@@ -23,6 +23,7 @@ export interface User {
   firstName?: string
   lastName?: string
   bio?: string | null
+  profilePhotoUrl?: string | null
   roles: Role[]
   permissions: string[]
   passwordChangedAt?: Date | string
