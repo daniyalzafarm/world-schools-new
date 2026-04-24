@@ -63,3 +63,6 @@ graph.html
 
 # Claude Code — local user settings (project settings.json is tracked)
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+.nx/self-healing
