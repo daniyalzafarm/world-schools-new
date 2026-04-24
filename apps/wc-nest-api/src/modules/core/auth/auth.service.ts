@@ -140,9 +140,14 @@ export class AuthService {
     }
   }
 
-  async refreshToken(refreshToken: string): Promise<AuthResponseDto> {
+  async refreshToken(refreshToken: string): Promise<
+    AuthResponseDto & {
+      impersonatedBy?: { id: string; email: string; name: string }
+      impersonationProviderId?: string
+    }
+  > {
     try {
-      const payload = this.jwtService.verify(refreshToken, {
+      const payload: JwtPayload = this.jwtService.verify(refreshToken, {
         secret: this.configService.jwtConfig.refreshSecret,
       })
 
@@ -175,11 +180,23 @@ export class AuthService {
         throw new UnauthorizedException('Invalid refresh token')
       }
 
-      const tokens = this.generateTokensFromUser(user)
+      // Preserve impersonation claims so the refreshed tokens don't silently demote the
+      // session to a regular provider session when a superadmin is impersonating.
+      const tokens = this.generateTokensFromUser(
+        user,
+        undefined,
+        undefined,
+        payload.impersonatedBy,
+        payload.impersonationProviderId
+      )
 
       return {
         ...tokens,
         user: this.buildUserResponse(user),
+        ...(payload.impersonatedBy && { impersonatedBy: payload.impersonatedBy }),
+        ...(payload.impersonationProviderId && {
+          impersonationProviderId: payload.impersonationProviderId,
+        }),
       }
     } catch {
       throw new UnauthorizedException('Invalid refresh token')

@@ -474,11 +474,15 @@ export class ProviderAuthController {
 
     const result = await this.authService.refreshToken(refreshToken)
 
-    // Verify user still has Provider Admin role or provider-specific role
+    // Verify user still has Provider Admin role or provider-specific role.
+    // Impersonated sessions bypass this check — the superadmin's access was granted by the
+    // server-issued impersonation JWT, not by the provider owner's current DB roles.
     const user = result.user
-    const hasProviderRole = user.roles?.some(
-      (role: any) => role.name === 'Provider Admin' || role.providerId !== null
-    )
+    const hasProviderRole =
+      !!result.impersonatedBy ||
+      user.roles?.some(
+        (role: any) => role.name === 'Provider Admin' || role.providerId !== null
+      )
 
     if (!hasProviderRole) {
       throw new UnauthorizedException(
@@ -486,8 +490,15 @@ export class ProviderAuthController {
       )
     }
 
-    // Generate app-specific tokens with 'provider' claim for token isolation
-    const appTokens = this.authService.generateTokensFromUser(user, 'provider')
+    // Generate app-specific tokens with 'provider' claim for token isolation.
+    // Carry impersonation claims through so refreshed tokens keep the superadmin context.
+    const appTokens = this.authService.generateTokensFromUser(
+      user,
+      'provider',
+      undefined,
+      result.impersonatedBy,
+      result.impersonationProviderId
+    )
 
     // Set HTTP-only cookies for tokens with app-specific names
     response.cookie('wc_provider_access_token', appTokens.accessToken, {

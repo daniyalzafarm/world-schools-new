@@ -1,16 +1,22 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Spinner } from '@heroui/react'
 import apiClient from '@/utils/api-client'
-import config from '@/config/config'
 
 function ImpersonateContent() {
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
+  // Guard against React StrictMode double-invoking this effect in dev. The second call
+  // would 401 (the impersonation token is single-use), which would trigger the apiClient's
+  // refresh interceptor and overwrite the freshly-minted impersonation cookies.
+  const hasExchanged = useRef(false)
 
   useEffect(() => {
+    if (hasExchanged.current) return
+    hasExchanged.current = true
+
     const token = searchParams.get('token')
 
     if (!token) {
@@ -19,41 +25,19 @@ function ImpersonateContent() {
     }
 
     const exchange = async () => {
-      try {
-        const response = await fetch(`${config.app.apiUrl}provider/auth/impersonate/exchange`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ token }),
-        })
+      const result = await apiClient.post('/provider/auth/impersonate/exchange', { token })
 
-        if (!response.ok) {
-          setError(
-            'This link has expired or is invalid. Please ask your administrator to generate a new one.'
-          )
-          return
-        }
-
-        const body = await response.json()
-
-        // If using request-based auth, store tokens in localStorage via the api client
-        if (config.auth.usingRequest) {
-          const accessToken = response.headers.get('x-access-token')
-          const refreshToken = response.headers.get('x-refresh-token')
-          if (accessToken && refreshToken) {
-            apiClient.setTokens(accessToken, refreshToken)
-          } else if (body?.data?.accessToken && body?.data?.refreshToken) {
-            apiClient.setTokens(body.data.accessToken, body.data.refreshToken)
-          }
-        }
-
-        // Use a full page reload so the auth store re-initialises from scratch with the
-        // newly set cookies/tokens in place. A client-side router.replace('/') would keep
-        // the already-initialised auth store (isAuthenticated: false) and redirect to signin.
-        window.location.replace('/')
-      } catch {
-        setError('Something went wrong. Please try again.')
+      if (!result.success) {
+        setError(
+          'This link has expired or is invalid. Please ask your administrator to generate a new one.'
+        )
+        return
       }
+
+      // Use a full page reload so the auth store re-initialises from scratch with the
+      // newly set cookies/tokens in place. A client-side router.replace('/') would keep
+      // the already-initialised auth store (isAuthenticated: false) and redirect to signin.
+      window.location.replace('/')
     }
 
     void exchange()

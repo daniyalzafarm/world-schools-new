@@ -94,18 +94,36 @@ async function bootstrap() {
       }
 
       // For mutating requests validate that header == cookie (double-submit)
-      const cookieToken = req.cookies[CSRF_COOKIE]
+      let cookieToken = req.cookies[CSRF_COOKIE]
       const headerToken = req.headers['x-csrf-token'] as string | undefined
 
-      if (!cookieToken || !headerToken || cookieToken !== headerToken) {
-        // Echo the cookie token back as a header on the 403 so the frontend can
-        // recover without an extra round-trip: the error interceptor reads it,
-        // stores it in memory, and retries the request automatically.
-        // CORS headers are already present (registered first), so cross-origin
-        // JS is allowed to read this header.
-        if (cookieToken) {
-          res.setHeader('X-CSRF-Token', cookieToken)
-        }
+      if (!cookieToken) {
+        // Cold-start POST: first visit in this browsing context (e.g. an
+        // impersonation tab opened straight into a public endpoint). Mint a
+        // token, set the cookie, and echo it as X-CSRF-Token so the client
+        // can retry — mirrors what the safe-method branch does for GETs.
+        cookieToken = crypto.randomBytes(32).toString('hex')
+        res.cookie(CSRF_COOKIE, cookieToken, {
+          httpOnly: false,
+          secure: isProduction,
+          sameSite: isProduction ? 'none' : 'lax',
+          path: '/',
+          maxAge: 24 * 60 * 60 * 1000,
+        })
+        res.setHeader('X-CSRF-Token', cookieToken)
+        res.status(403).json({
+          success: false,
+          message: 'Invalid or missing CSRF token',
+          statusCode: 403,
+        })
+        return
+      }
+
+      if (!headerToken || cookieToken !== headerToken) {
+        // Cookie exists but header missing or mismatched. Echo the current
+        // cookie value so the client's error interceptor can capture it and
+        // retry. CORS exposes X-CSRF-Token to whitelisted origins only.
+        res.setHeader('X-CSRF-Token', cookieToken)
         res.status(403).json({
           success: false,
           message: 'Invalid or missing CSRF token',
