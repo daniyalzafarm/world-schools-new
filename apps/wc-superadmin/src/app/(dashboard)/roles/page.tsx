@@ -167,7 +167,7 @@ export default function RolesPage() {
         </div>
 
         {/* Roles Table */}
-        <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
+        <Card className="border border-slate-200 dark:border-slate-800">
           <CardBody className="p-0">
             <Table
               aria-label="Roles table"

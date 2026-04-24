@@ -65,8 +65,8 @@ export class AddOnsController {
   @ApiResponse({ status: 200, description: 'Add-ons retrieved successfully' })
   async findAll(@CurrentUser() user: any, @Query() query: QueryAddOnsDto) {
     const providerId = await this.getProviderIdForUser(user)
-    const addOns = await this.addOnsService.findAll(providerId, query)
-    return ResponseUtil.success({ addOns })
+    const result = await this.addOnsService.findAll(providerId, query)
+    return ResponseUtil.success({ addOns: result.data }, result.meta)
   }
 
   /**

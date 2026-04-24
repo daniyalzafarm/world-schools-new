@@ -86,17 +86,34 @@ export class AddOnsService {
       ]
     }
 
-    const addOns = await this.prisma.addOn.findMany({
-      where,
-      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
-      include: {
-        _count: {
-          select: { campAddOns: true },
-        },
-      },
-    })
+    const page = query.page ?? 1
+    const limit = query.limit ?? 10
+    const skip = (page - 1) * limit
 
-    return addOns.map(addOn => this.serializeAddOn(addOn))
+    const [addOns, total] = await Promise.all([
+      this.prisma.addOn.findMany({
+        where,
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+        include: {
+          _count: {
+            select: { campAddOns: true },
+          },
+        },
+        skip,
+        take: limit,
+      }),
+      this.prisma.addOn.count({ where }),
+    ])
+
+    return {
+      data: addOns.map(addOn => this.serializeAddOn(addOn)),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    }
   }
 
   /**

@@ -177,7 +177,7 @@ export default function ProviderDetailPage() {
         />
 
         {/* Profile Header Card */}
-        <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
+        <Card className="border border-slate-200 dark:border-slate-800">
           <CardBody className="p-6">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
               {/* Avatar */}
@@ -284,7 +284,7 @@ export default function ProviderDetailPage() {
         </Card>
 
         {/* Detail Tabs */}
-        <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
+        <Card className="border border-slate-200 dark:border-slate-800">
           <CardBody className="p-0">
             <Tabs
               aria-label="Provider detail sections"

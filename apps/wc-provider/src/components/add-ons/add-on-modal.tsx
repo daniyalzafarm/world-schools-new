@@ -2,24 +2,22 @@
 
 import { useEffect, useState } from 'react'
 import {
+  addToast,
   Button,
-  Input,
   Modal,
   ModalBody,
   ModalContent,
   ModalFooter,
   ModalHeader,
-  Select,
-  SelectItem,
-  Textarea,
 } from '@heroui/react'
-import { EmojiPicker } from '@world-schools/ui-web'
+import { CurrencyInput, EmojiPicker, Input, SelectField, Textarea } from '@world-schools/ui-web'
 import {
   ADD_ON_TYPES,
   type AddOn,
   type AddOnType,
   type CreateAddOnDto,
   PRICING_UNITS,
+  type PricingUnit,
 } from '@/types/add-ons'
 import { useAddOnsStore } from '@/stores/add-ons.store'
 
@@ -30,52 +28,47 @@ interface AddOnModalProps {
   addOn?: AddOn | null
 }
 
-export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProps) {
-  const { createAddOn, updateAddOn, isLoading } = useAddOnsStore()
+const DEFAULT_TYPE: AddOnType = 'activity'
+const typeDefaultIcon = (type: AddOnType): string =>
+  ADD_ON_TYPES.find(t => t.value === type)?.icon ?? ''
 
-  const [formData, setFormData] = useState<CreateAddOnDto>({
+const buildInitialFormData = (addOn?: AddOn | null): CreateAddOnDto => {
+  if (addOn) {
+    return {
+      name: addOn.name,
+      description: addOn.description || '',
+      icon: addOn.icon || typeDefaultIcon(addOn.type),
+      type: addOn.type,
+      price: addOn.price,
+      pricingUnit: addOn.pricingUnit,
+      maxQuantity: addOn.maxQuantity,
+      quantityUnit: addOn.quantityUnit || '',
+      minAge: addOn.minAge,
+      maxAge: addOn.maxAge,
+    }
+  }
+  return {
     name: '',
     description: '',
-    icon: '🎾',
-    type: 'activity',
+    icon: typeDefaultIcon(DEFAULT_TYPE),
+    type: DEFAULT_TYPE,
     price: 0,
     pricingUnit: 'per_child',
     maxQuantity: undefined,
     quantityUnit: '',
     minAge: undefined,
     maxAge: undefined,
-  })
+  }
+}
 
+export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProps) {
+  const { createAddOn, updateAddOn, isLoading } = useAddOnsStore()
+
+  const [formData, setFormData] = useState<CreateAddOnDto>(() => buildInitialFormData(addOn))
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    if (addOn) {
-      setFormData({
-        name: addOn.name,
-        description: addOn.description || '',
-        icon: addOn.icon || '🎾',
-        type: addOn.type,
-        price: addOn.price,
-        pricingUnit: addOn.pricingUnit,
-        maxQuantity: addOn.maxQuantity,
-        quantityUnit: addOn.quantityUnit || '',
-        minAge: addOn.minAge,
-        maxAge: addOn.maxAge,
-      })
-    } else {
-      setFormData({
-        name: '',
-        description: '',
-        icon: '🎾',
-        type: 'activity',
-        price: 0,
-        pricingUnit: 'per_child',
-        maxQuantity: undefined,
-        quantityUnit: '',
-        minAge: undefined,
-        maxAge: undefined,
-      })
-    }
+    setFormData(buildInitialFormData(addOn))
     setErrors({})
   }, [addOn, isOpen])
 
@@ -101,26 +94,29 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
   const handleSubmit = async () => {
     if (!validate()) return
 
-    try {
-      if (addOn) {
-        await updateAddOn(addOn.id, formData)
-      } else {
-        await createAddOn(formData)
-      }
-      onSuccess()
-    } catch (error) {
-      console.error('Failed to save add-on:', error)
-    }
+    const result = addOn ? await updateAddOn(addOn.id, formData) : await createAddOn(formData)
+    if (!result) return // store has already shown an error toast
+
+    addToast({
+      title: addOn ? 'Add-on updated' : 'Add-on created',
+      color: 'success',
+    })
+    onSuccess()
   }
 
   const handleTypeSelect = (type: AddOnType) => {
-    setFormData(prev => ({ ...prev, type }))
-    // Set default icon based on type
-    const typeConfig = ADD_ON_TYPES.find(t => t.value === type)
-    if (typeConfig) {
-      setFormData(prev => ({ ...prev, icon: typeConfig.icon }))
-    }
+    setFormData(prev => {
+      const prevDefault = typeDefaultIcon(prev.type)
+      const userCustomized = prev.icon && prev.icon !== prevDefault
+      return {
+        ...prev,
+        type,
+        icon: userCustomized ? prev.icon : typeDefaultIcon(type),
+      }
+    })
   }
+
+  const currency = addOn?.currency ?? 'CHF'
 
   return (
     <Modal
@@ -137,43 +133,53 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
           {addOn ? 'Edit Add-on' : 'Create Add-on'}
         </ModalHeader>
         <ModalBody className="gap-5">
-          {/* Type Selection */}
           <div>
             <label className="block text-sm font-semibold text-default-900 mb-2">
               Add-on Type <span className="text-danger">*</span>
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              {ADD_ON_TYPES.map(type => (
-                <button
-                  key={type.value}
-                  type="button"
-                  onClick={() => handleTypeSelect(type.value as AddOnType)}
-                  className={`p-3 rounded-lg border-2 transition-all text-left ${
-                    formData.type === type.value
-                      ? 'border-primary bg-primary-50'
-                      : 'border-default-200 hover:border-primary'
-                  }`}
-                >
-                  <div className="text-xl mb-1">{type.icon}</div>
-                  <div className="text-sm font-semibold text-default-900">{type.label}</div>
-                  <div className="text-xs text-default-500 mt-0.5">{type.description}</div>
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Add-on type">
+              {ADD_ON_TYPES.map(type => {
+                const selected = formData.type === type.value
+                return (
+                  <button
+                    key={type.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => handleTypeSelect(type.value as AddOnType)}
+                    className={`p-3 rounded-lg border-2 text-left transition-colors ${
+                      selected
+                        ? 'border-primary bg-primary-50 dark:bg-primary-900/20'
+                        : 'border-default-200 hover:border-default-300 bg-content1'
+                    }`}
+                  >
+                    <div className="text-xl mb-1">{type.icon}</div>
+                    <div className="text-sm font-semibold text-default-900">{type.label}</div>
+                    <div className="text-xs text-default-500 mt-0.5">{type.description}</div>
+                  </button>
+                )
+              })}
             </div>
           </div>
 
-          {/* Name */}
-          <Input
-            label="Name"
-            placeholder="e.g., Tennis Lessons, Airport Transfer"
-            value={formData.name}
-            onValueChange={value => setFormData(prev => ({ ...prev, name: value }))}
-            isRequired
-            errorMessage={errors.name}
-            isInvalid={!!errors.name}
-          />
+          <div className="flex items-center gap-4">
+            <EmojiPicker
+              value={formData.icon}
+              onChange={value => setFormData(prev => ({ ...prev, icon: value }))}
+              label="Icon"
+              classNames={{ button: 'h-10' }}
+            />
+            <Input
+              label="Name"
+              placeholder="e.g., Tennis Lessons, Airport Transfer"
+              value={formData.name}
+              onValueChange={value => setFormData(prev => ({ ...prev, name: value }))}
+              isRequired
+              errorMessage={errors.name}
+              isInvalid={!!errors.name}
+            />
+          </div>
 
-          {/* Description */}
           <Textarea
             label="Description"
             placeholder="Describe what's included in this add-on..."
@@ -183,64 +189,50 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
             minRows={3}
           />
 
-          {/* Icon */}
-          <EmojiPicker
-            value={formData.icon}
-            onChange={value => setFormData(prev => ({ ...prev, icon: value }))}
-            label="Icon"
-            description="Choose an emoji to represent this add-on"
-          />
-
-          {/* Pricing */}
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              type="number"
+          <div className="grid grid-cols-2 gap-4">
+            <CurrencyInput
               label="Price"
               placeholder="75"
-              value={formData.price.toString()}
-              onValueChange={value =>
-                setFormData(prev => ({ ...prev, price: parseFloat(value) || 0 }))
-              }
+              value={formData.price}
+              onValueChange={value => setFormData(prev => ({ ...prev, price: value ?? 0 }))}
+              currency={currency}
               isRequired
               errorMessage={errors.price}
               isInvalid={!!errors.price}
-              startContent={<span className="text-default-400">CHF</span>}
             />
-            <Select
+            <SelectField
+              aria-label="Charged per"
               label="Charged Per"
-              selectedKeys={[formData.pricingUnit]}
-              onSelectionChange={keys => {
-                const value = Array.from(keys)[0] as string
-                setFormData(prev => ({ ...prev, pricingUnit: value as any }))
-              }}
               isRequired
-            >
-              {PRICING_UNITS.map(unit => (
-                <SelectItem key={unit.value}>{unit.label}</SelectItem>
-              ))}
-            </Select>
+              value={formData.pricingUnit}
+              onChange={value =>
+                setFormData(prev => ({ ...prev, pricingUnit: value as PricingUnit }))
+              }
+              options={PRICING_UNITS.map(unit => ({ value: unit.value, label: unit.label }))}
+            />
           </div>
 
-          {/* Quantity Limits */}
           <div>
             <label className="block text-sm font-semibold text-default-900 mb-2">
               Quantity Limits
             </label>
-            <div className="flex items-center gap-3">
+            <div className="flex items-end gap-4">
               <Input
+                aria-label="Maximum quantity"
                 type="number"
                 placeholder="3"
                 value={formData.maxQuantity?.toString() || ''}
                 onValueChange={value =>
                   setFormData(prev => ({
                     ...prev,
-                    maxQuantity: value ? parseInt(value) : undefined,
+                    maxQuantity: value ? parseInt(value, 10) : undefined,
                   }))
                 }
-                className="max-w-28"
-                startContent={<span className="text-default-400 text-sm">Max:</span>}
+                className="max-w-32"
+                startContent={<span className="text-sm text-default-400">Max:</span>}
               />
               <Input
+                aria-label="Quantity unit"
                 placeholder="per week"
                 value={formData.quantityUnit}
                 onValueChange={value => setFormData(prev => ({ ...prev, quantityUnit: value }))}
@@ -250,12 +242,11 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
             <p className="text-sm text-default-400 mt-1.5">Leave empty for no limit</p>
           </div>
 
-          {/* Age Restriction */}
           <div>
             <label className="block text-sm font-semibold text-default-900 mb-2">
               Age Restriction (optional)
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 type="number"
                 label="Min Age"
@@ -264,7 +255,7 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
                 onValueChange={value =>
                   setFormData(prev => ({
                     ...prev,
-                    minAge: value ? parseInt(value) : undefined,
+                    minAge: value ? parseInt(value, 10) : undefined,
                   }))
                 }
                 errorMessage={errors.minAge}
@@ -278,7 +269,7 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
                 onValueChange={value =>
                   setFormData(prev => ({
                     ...prev,
-                    maxAge: value ? parseInt(value) : undefined,
+                    maxAge: value ? parseInt(value, 10) : undefined,
                   }))
                 }
               />
@@ -287,7 +278,7 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="flat" onPress={onClose}>
+          <Button variant="flat" onPress={onClose} isDisabled={isLoading}>
             Cancel
           </Button>
           <Button color="primary" onPress={handleSubmit} isLoading={isLoading}>

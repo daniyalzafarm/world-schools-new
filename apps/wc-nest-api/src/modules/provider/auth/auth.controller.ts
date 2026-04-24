@@ -480,9 +480,7 @@ export class ProviderAuthController {
     const user = result.user
     const hasProviderRole =
       !!result.impersonatedBy ||
-      user.roles?.some(
-        (role: any) => role.name === 'Provider Admin' || role.providerId !== null
-      )
+      user.roles?.some((role: any) => role.name === 'Provider Admin' || role.providerId !== null)
 
     if (!hasProviderRole) {
       throw new UnauthorizedException(

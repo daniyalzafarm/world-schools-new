@@ -8,10 +8,8 @@ import {
   Card,
   CardBody,
   Chip,
-  Input,
   Pagination,
-  Select,
-  SelectItem,
+  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -19,8 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from '@heroui/react'
-import { Crown, FilterX, Pencil, Plus, Trash, User as UserIcon } from 'lucide-react'
-import { useConfirmDialog, useDebounce } from '@world-schools/ui-web'
+import { Crown, FilterX, Pencil, Plus, Search, Trash, User as UserIcon } from 'lucide-react'
+import { Input, SelectField, useConfirmDialog, useDebounce } from '@world-schools/ui-web'
 import { useUsersStore } from '@/stores/users-store'
 import { useRolesStore } from '@/stores/roles-store'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -42,21 +40,18 @@ export default function UsersPage() {
     fetchUsers,
     deleteUser,
     setPage,
-    setLimit,
     setFilters,
     clearFilters,
   } = useUsersStore()
 
   const { roles, fetchRoles } = useRolesStore()
 
-  // Debounce the search input with 500ms delay
   const debouncedSearch = useDebounce(searchInput, 500)
 
   useEffect(() => {
     void fetchRoles()
   }, [fetchRoles])
 
-  // Update filters when debounced search changes
   useEffect(() => {
     setFilters({ search: debouncedSearch || undefined })
   }, [debouncedSearch, setFilters])
@@ -101,29 +96,42 @@ export default function UsersPage() {
   }
 
   const handleClearAllFilters = () => {
-    setSearchInput('') // Clear the search input immediately
+    setSearchInput('')
     clearFilters()
   }
 
-  const hasActiveFilters = () => {
-    return (
-      searchInput !== '' ||
-      (Object.keys(filters).length > 0 && Object.values(filters).some(v => v !== undefined))
-    )
-  }
+  const hasActiveFilters =
+    searchInput !== '' ||
+    (Object.keys(filters).length > 0 && Object.values(filters).some(v => v !== undefined))
 
-  // Separate provider owner from regular users
   const providerOwner = users.find(user => user.ownedProvider?.id)
   const regularUsers = users.filter(user => !user.ownedProvider?.id)
+
+  const totalUsersCount = providerOwner ? pagination.total - 1 : pagination.total
+
+  const paginationFooter = pagination.total > 0 && (
+    <div className="flex flex-col gap-3 border-t border-default-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <span className="text-sm text-default-500">
+        Showing {regularUsers.length} of {totalUsersCount} users
+      </span>
+      {pagination.totalPages > 1 ? (
+        <Pagination
+          total={pagination.totalPages}
+          page={pagination.page}
+          onChange={setPage}
+          showControls
+        />
+      ) : null}
+    </div>
+  )
 
   return (
     <PageSlot>
       <section className="space-y-6">
-        {/* Header */}
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Users</h1>
-            <p className="text-slate-500 mt-1">Manage system users and their access</p>
+            <p className="text-default-600 mt-1">Manage system users and their access</p>
           </div>
           {hasPermission('users.create') && (
             <Button
@@ -136,19 +144,9 @@ export default function UsersPage() {
           )}
         </header>
 
-        {/* Error Alert */}
-        {error && (
-          <Card className="bg-danger-50 border-danger-200">
-            <CardBody>
-              <p className="text-danger">{error}</p>
-            </CardBody>
-          </Card>
-        )}
-
-        {/* Provider Owner Section */}
         {providerOwner && (
-          <Card className="rounded-3xl border border-primary bg-primary-50/30">
-            <CardBody className="px-6 py-3">
+          <Card className="border border-primary bg-primary-50/30">
+            <CardBody className="p-3">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="bg-primary text-white text-sm font-medium min-w-10 min-h-10 rounded-full flex items-center justify-center shrink-0">
@@ -188,191 +186,271 @@ export default function UsersPage() {
           </Card>
         )}
 
-        {/* Search and Filters */}
-        <div className="flex gap-4 flex-wrap items-end">
-          <Input
-            label="Search"
-            labelPlacement="outside"
-            placeholder="Search users by name or email..."
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-            className="w-72"
-            startContent={<UserIcon className="h-5 w-5 text-gray-400" />}
-          />
-          <Select
-            label="Role"
-            labelPlacement="outside"
-            placeholder="Select role"
-            className="w-44"
-            selectedKeys={filters.roleId ? [filters.roleId] : ['all']}
-            onSelectionChange={keys => {
-              const value = Array.from(keys)[0] as string | undefined
-              setFilters({ roleId: value === 'all' ? undefined : value })
-            }}
-          >
-            {[
-              <SelectItem key="all">All</SelectItem>,
-              ...roles.map(role => <SelectItem key={role.id}>{role.name}</SelectItem>),
-            ]}
-          </Select>
-          <Select
-            label="Email Status"
-            labelPlacement="outside"
-            placeholder="Select status"
-            className="w-44"
-            selectedKeys={
-              filters.emailVerified !== undefined ? [String(filters.emailVerified)] : ['all']
-            }
-            onSelectionChange={keys => {
-              const value = Array.from(keys)[0] as string | undefined
-              setFilters({ emailVerified: value === 'all' ? undefined : value === 'true' })
-            }}
-          >
-            <SelectItem key="all">All</SelectItem>
-            <SelectItem key="true">Verified</SelectItem>
-            <SelectItem key="false">Unverified</SelectItem>
-          </Select>
-          <Button
-            variant="flat"
-            color="default"
-            startContent={<FilterX className="h-4 w-4" />}
-            onPress={handleClearAllFilters}
-            isDisabled={!hasActiveFilters()}
-          >
-            Clear Filters
-          </Button>
-        </div>
+        {error ? (
+          <div className="rounded-lg border border-danger-200 bg-danger-50 p-6 dark:border-danger-900/40 dark:bg-danger-950/30">
+            <p className="text-danger-800 dark:text-danger-200">{error}</p>
+            <Button className="mt-4" variant="flat" onPress={() => void fetchUsers()}>
+              Retry
+            </Button>
+          </div>
+        ) : (
+          <Card>
+            <CardBody className="p-0">
+              <div className="flex flex-wrap items-end gap-4 border-b border-default-200 px-4 py-3">
+                <Input
+                  aria-label="Search users"
+                  placeholder="Search users by name or email…"
+                  className="w-full max-w-sm shrink-0"
+                  value={searchInput}
+                  onValueChange={setSearchInput}
+                  isClearable
+                  onClear={() => setSearchInput('')}
+                  startContent={<Search className="size-4 shrink-0 text-default-500" aria-hidden />}
+                />
+                <SelectField
+                  aria-label="Role"
+                  placeholder="Role"
+                  className="w-44 shrink-0"
+                  value={filters.roleId ?? 'all'}
+                  onChange={value => {
+                    setFilters({ roleId: value === 'all' ? undefined : value })
+                  }}
+                  options={[
+                    { value: 'all', label: 'All roles' },
+                    ...roles.map(role => ({ value: role.id, label: role.name })),
+                  ]}
+                />
+                <SelectField
+                  aria-label="Email status"
+                  placeholder="Email status"
+                  className="w-44 shrink-0"
+                  value={
+                    filters.emailVerified !== undefined ? String(filters.emailVerified) : 'all'
+                  }
+                  onChange={value => {
+                    setFilters({ emailVerified: value === 'all' ? undefined : value === 'true' })
+                  }}
+                  options={[
+                    { value: 'all', label: 'All statuses' },
+                    { value: 'true', label: 'Verified' },
+                    { value: 'false', label: 'Unverified' },
+                  ]}
+                />
+                {hasActiveFilters ? (
+                  <Button
+                    variant="flat"
+                    className="ml-auto shrink-0"
+                    startContent={<FilterX className="h-4 w-4" />}
+                    onPress={handleClearAllFilters}
+                  >
+                    Clear filters
+                  </Button>
+                ) : null}
+              </div>
 
-        {/* Users Table */}
-        <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
-          <CardBody className="p-0">
-            <Table
-              aria-label="Users table"
-              classNames={{
-                wrapper: 'rounded-3xl',
-              }}
-              bottomContent={
-                <div className="flex w-full justify-between items-center px-4 py-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">Rows per page:</span>
-                    <Select
-                      aria-label="Rows per page"
-                      size="sm"
-                      className="w-20"
-                      selectedKeys={[String(pagination.limit)]}
-                      onSelectionChange={keys => {
-                        const value = Array.from(keys)[0] as string
-                        setLimit(Number(value))
-                      }}
-                    >
-                      <SelectItem key="5">5</SelectItem>
-                      <SelectItem key="10">10</SelectItem>
-                      <SelectItem key="20">20</SelectItem>
-                      <SelectItem key="50">50</SelectItem>
-                    </Select>
-                  </div>
-                  {pagination.totalPages > 1 ? (
-                    <Pagination
-                      showControls
-                      total={pagination.totalPages}
-                      page={pagination.page}
-                      onChange={setPage}
-                    />
-                  ) : (
-                    <div />
-                  )}
-                  <div className="text-sm text-gray-500">
-                    Total: {providerOwner ? pagination.total - 1 : pagination.total} users
-                  </div>
-                </div>
-              }
-            >
-              <TableHeader>
-                <TableColumn>USER</TableColumn>
-                <TableColumn>EMAIL</TableColumn>
-                <TableColumn>ROLES</TableColumn>
-                <TableColumn>STATUS</TableColumn>
-                <TableColumn>CREATED</TableColumn>
-                <TableColumn>ACTIONS</TableColumn>
-              </TableHeader>
-              <TableBody
-                items={regularUsers}
-                isLoading={isLoading}
-                emptyContent={isLoading ? 'Loading...' : 'No users found'}
-              >
-                {(user: User) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="bg-primary text-white text-sm font-medium min-w-10 min-h-10 rounded-full flex items-center justify-center">
-                          {getUserInitials(user)}
-                        </div>
-                        <div>
-                          <div className="font-semibold">
-                            {user.firstName} {user.lastName}
+              <div className="hidden overflow-x-auto md:block">
+                <Table
+                  aria-label="Users table"
+                  classNames={{
+                    wrapper: 'shadow-none',
+                  }}
+                >
+                  <TableHeader>
+                    <TableColumn className="text-xs font-semibold uppercase tracking-wide text-default-500">
+                      User
+                    </TableColumn>
+                    <TableColumn className="text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Email
+                    </TableColumn>
+                    <TableColumn className="text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Roles
+                    </TableColumn>
+                    <TableColumn className="text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Status
+                    </TableColumn>
+                    <TableColumn className="text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Created
+                    </TableColumn>
+                    <TableColumn className="text-right text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Actions
+                    </TableColumn>
+                  </TableHeader>
+                  <TableBody
+                    items={regularUsers}
+                    isLoading={isLoading}
+                    emptyContent={
+                      <div className="py-12 text-center">
+                        <p className="text-default-500">
+                          {isLoading ? 'Loading…' : 'No users found.'}
+                        </p>
+                      </div>
+                    }
+                  >
+                    {(user: User) => (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="bg-primary text-white text-sm font-medium min-w-10 min-h-10 rounded-full flex items-center justify-center">
+                              {getUserInitials(user)}
+                            </div>
+                            <div className="font-semibold text-foreground">
+                              {user.firstName} {user.lastName}
+                            </div>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-default-600">{user.email}</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {user.roles.length > 0 ? (
+                              user.roles.map(userRole => (
+                                <Chip
+                                  key={userRole.roleId}
+                                  variant="flat"
+                                  size="sm"
+                                  color="primary"
+                                >
+                                  {userRole.role.name}
+                                </Chip>
+                              ))
+                            ) : (
+                              <span className="text-sm text-default-500">No roles</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            color={user.emailVerified ? 'success' : 'warning'}
+                            variant="flat"
+                            size="sm"
+                          >
+                            {user.emailVerified ? 'Verified' : 'Unverified'}
+                          </Chip>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-default-500">
+                            {formatDate(user.createdAt)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            {hasPermission('users.update') && (
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="light"
+                                onPress={() => handleEditUser(user)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {hasPermission('users.delete') && (
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="light"
+                                color="danger"
+                                onPress={() => handleDeleteUser(user)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="md:hidden">
+                {isLoading ? (
+                  <div className="flex justify-center py-20">
+                    <Spinner size="lg" label="Loading users" />
+                  </div>
+                ) : regularUsers.length === 0 ? (
+                  <div className="m-4 rounded-xl border border-dashed border-default-300 py-16 text-center text-default-500">
+                    No users found.
+                  </div>
+                ) : (
+                  <div className="space-y-3 p-4">
+                    {regularUsers.map(user => (
+                      <div
+                        key={user.id}
+                        className="rounded-xl border border-default-200 bg-content1 p-4 shadow-sm dark:border-default-100/20"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-primary text-white text-sm font-medium min-w-10 min-h-10 rounded-full flex items-center justify-center">
+                              {getUserInitials(user)}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-default-900 dark:text-default-100">
+                                {user.firstName} {user.lastName}
+                              </p>
+                              <p className="text-xs text-default-500">{user.email}</p>
+                            </div>
+                          </div>
+                          <Chip
+                            color={user.emailVerified ? 'success' : 'warning'}
+                            variant="flat"
+                            size="sm"
+                          >
+                            {user.emailVerified ? 'Verified' : 'Unverified'}
+                          </Chip>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-1">
+                          {user.roles.length > 0 ? (
+                            user.roles.map(userRole => (
+                              <Chip key={userRole.roleId} variant="flat" size="sm" color="primary">
+                                {userRole.role.name}
+                              </Chip>
+                            ))
+                          ) : (
+                            <span className="text-xs text-default-500">No roles</span>
+                          )}
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                          <span className="text-xs text-default-500">
+                            {formatDate(user.createdAt)}
+                          </span>
+                          {(hasPermission('users.update') || hasPermission('users.delete')) && (
+                            <div className="flex gap-1">
+                              {hasPermission('users.update') && (
+                                <Button
+                                  isIconOnly
+                                  size="sm"
+                                  variant="light"
+                                  onPress={() => handleEditUser(user)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {hasPermission('users.delete') && (
+                                <Button
+                                  isIconOnly
+                                  size="sm"
+                                  variant="light"
+                                  color="danger"
+                                  onPress={() => handleDeleteUser(user)}
+                                >
+                                  <Trash className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{user.email}</span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {user.roles.length > 0 ? (
-                          user.roles.map(userRole => (
-                            <Chip key={userRole.roleId} variant="flat" size="sm" color="primary">
-                              {userRole.role.name}
-                            </Chip>
-                          ))
-                        ) : (
-                          <span className="text-sm text-gray-500">No roles</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        color={user.emailVerified ? 'success' : 'warning'}
-                        variant="flat"
-                        size="sm"
-                      >
-                        {user.emailVerified ? 'Verified' : 'Unverified'}
-                      </Chip>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-gray-500">{formatDate(user.createdAt)}</span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {hasPermission('users.update') && (
-                          <Button
-                            isIconOnly
-                            size="sm"
-                            variant="light"
-                            onPress={() => handleEditUser(user)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {hasPermission('users.delete') && (
-                          <Button
-                            isIconOnly
-                            size="sm"
-                            variant="light"
-                            color="danger"
-                            onPress={() => handleDeleteUser(user)}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                    ))}
+                  </div>
                 )}
-              </TableBody>
-            </Table>
-          </CardBody>
-        </Card>
+              </div>
+
+              {paginationFooter}
+            </CardBody>
+          </Card>
+        )}
       </section>
     </PageSlot>
   )

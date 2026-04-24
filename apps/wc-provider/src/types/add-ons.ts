@@ -1,3 +1,5 @@
+import { formatCurrency } from '@world-schools/wc-utils'
+
 export type AddOnType = 'activity' | 'service' | 'equipment' | 'language'
 export type PricingUnit =
   | 'per_child'
@@ -65,6 +67,15 @@ export interface QueryAddOnsDto {
   type?: AddOnType
   isActive?: string
   search?: string
+  page?: number
+  limit?: number
+}
+
+export interface AddOnsPaginationMeta {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
 }
 
 // Constants for UI
@@ -105,5 +116,5 @@ export function formatPricingUnit(unit: PricingUnit): string {
 }
 
 export function formatPrice(price: number, currency: string, unit: PricingUnit): string {
-  return `${currency} ${price.toFixed(0)} ${formatPricingUnit(unit)}`
+  return `${formatCurrency(price, currency)} ${formatPricingUnit(unit)}`
 }

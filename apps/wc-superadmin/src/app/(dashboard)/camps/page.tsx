@@ -195,7 +195,7 @@ export default function CampsPage() {
         </div>
 
         {/* Main card */}
-        <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
+        <Card className="border border-slate-200 dark:border-slate-800">
           <CardBody className="p-0">
             {/* Tabs */}
             <div className="border-b border-default-200 px-4 pt-2">

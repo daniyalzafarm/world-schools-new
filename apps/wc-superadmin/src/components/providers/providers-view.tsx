@@ -216,7 +216,7 @@ export function AllProvidersView() {
             <p className="mt-1 text-slate-500">Manage camp providers and their applications</p>
           </div>
         </header>
-        <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
+        <Card className="border border-slate-200 dark:border-slate-800">
           <CardBody className="p-0">
             {/* Tabs */}
             <div className="flex border-b border-default-200 px-4 pt-3">

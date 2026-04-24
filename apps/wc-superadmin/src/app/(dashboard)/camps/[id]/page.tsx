@@ -154,7 +154,7 @@ export default function CampDetailPage() {
         <HeroCampCard detail={detail} router={router} />
 
         {/* Tabbed content */}
-        <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
+        <Card className="border border-slate-200 dark:border-slate-800">
           <CardBody className="p-0">
             <Tabs
               aria-label="Camp detail sections"

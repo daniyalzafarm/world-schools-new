@@ -120,7 +120,7 @@ export default function ImportProvidersPage() {
         {phase === 'select' && (
           <div className="flex flex-col gap-6">
             {/* Step 1: template */}
-            <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
+            <Card className="border border-slate-200 dark:border-slate-800">
               <CardBody className="p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -144,7 +144,7 @@ export default function ImportProvidersPage() {
             </Card>
 
             {/* Step 2: upload */}
-            <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
+            <Card className="border border-slate-200 dark:border-slate-800">
               <CardBody className="space-y-4 p-5">
                 <p className="text-sm font-semibold">2. Upload CSV File</p>
                 <DocumentDropzone
@@ -178,7 +178,7 @@ export default function ImportProvidersPage() {
             </Card>
 
             {/* Field reference */}
-            <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
+            <Card className="border border-slate-200 dark:border-slate-800">
               <CardBody className="p-0">
                 <div className="border-b border-default-200 px-6 py-4">
                   <h2 className="text-sm font-semibold">Field Reference</h2>
@@ -251,7 +251,7 @@ export default function ImportProvidersPage() {
 
         {/* ── Phase: uploading ── */}
         {phase === 'uploading' && (
-          <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
+          <Card className="border border-slate-200 dark:border-slate-800">
             <CardBody className="p-10">
               <DocumentDropzone
                 accept=".csv,text/csv"
@@ -269,7 +269,7 @@ export default function ImportProvidersPage() {
         {phase === 'results' && result && (
           <div className="space-y-4">
             {/* Summary card */}
-            <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
+            <Card className="border border-slate-200 dark:border-slate-800">
               <CardBody className="space-y-5 p-6">
                 {/* Banner */}
                 <div

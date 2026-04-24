@@ -21,7 +21,7 @@ import { Rocket } from 'lucide-react'
 
 export function ComingSoon() {
   return (
-    <Card className="rounded-3xl border border-slate-200 dark:border-slate-800" shadow="sm">
+    <Card className="border border-slate-200 dark:border-slate-800">
       <CardBody className="py-16">
         <div className="flex flex-col items-center justify-center text-center space-y-6">
           <div className="relative">

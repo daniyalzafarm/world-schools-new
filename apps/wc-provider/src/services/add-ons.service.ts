@@ -16,6 +16,8 @@ export function getAddOns(query?: QueryAddOnsDto) {
   if (query?.type) params.append('type', query.type)
   if (query?.isActive !== undefined) params.append('isActive', query.isActive)
   if (query?.search) params.append('search', query.search)
+  if (query?.page) params.append('page', String(query.page))
+  if (query?.limit) params.append('limit', String(query.limit))
   const queryString = params.toString()
   const url = queryString ? `${BASE_URL}?${queryString}` : BASE_URL
   return apiClient.get<AddOnsResponse>(url)

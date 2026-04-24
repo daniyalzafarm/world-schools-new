@@ -18,7 +18,7 @@ import {
   TableRow,
   Tabs,
 } from '@heroui/react'
-import { FilterX } from 'lucide-react'
+import { FilterX, Search } from 'lucide-react'
 import { formatCurrency } from '@world-schools/wc-utils'
 import {
   formatSessionRange,
@@ -320,6 +320,7 @@ export function BookingRequestsView() {
                 onValueChange={setSearchInput}
                 isClearable
                 onClear={() => setSearchInput('')}
+                startContent={<Search className="size-4 shrink-0 text-default-500" aria-hidden />}
               />
               <SelectField
                 aria-label="Booking status"

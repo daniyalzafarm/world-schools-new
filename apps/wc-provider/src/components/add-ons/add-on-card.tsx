@@ -1,8 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, Chip } from '@heroui/react'
-import { ADD_ON_TYPE_BADGES, type AddOn, formatPrice } from '@/types/add-ons'
+import { addToast, Button, Chip } from '@heroui/react'
+import { Package, Pencil, Trash } from 'lucide-react'
+import { formatCurrency } from '@world-schools/wc-utils'
+import { useConfirmDialog } from '@world-schools/ui-web'
+import { ADD_ON_TYPE_BADGES, type AddOn, formatPricingUnit } from '@/types/add-ons'
 import { useAddOnsStore } from '@/stores/add-ons.store'
 
 interface AddOnCardProps {
@@ -12,22 +15,23 @@ interface AddOnCardProps {
 
 export function AddOnCard({ addOn, onEdit }: AddOnCardProps) {
   const { deleteAddOn } = useAddOnsStore()
+  const { confirm } = useConfirmDialog()
   const [isDeleting, setIsDeleting] = useState(false)
 
   const handleDelete = async () => {
-    if (
-      !confirm(
-        "Delete this add-on?\n\nThis will remove it from ALL camps where it's currently used."
-      )
-    ) {
-      return
-    }
+    const confirmed = await confirm({
+      title: 'Delete Add-on?',
+      message: `Are you sure you want to delete "${addOn.name}"? This will remove it from ALL camps where it's currently used.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    })
+    if (!confirmed) return
 
     setIsDeleting(true)
     try {
       await deleteAddOn(addOn.id)
-    } catch (error) {
-      console.error('Failed to delete add-on:', error)
+      addToast({ title: 'Add-on deleted', color: 'success' })
     } finally {
       setIsDeleting(false)
     }
@@ -40,15 +44,13 @@ export function AddOnCard({ addOn, onEdit }: AddOnCardProps) {
   const price = typeof addOn.price === 'number' ? addOn.price : parseFloat(String(addOn.price))
 
   return (
-    <div className="flex items-center gap-4 p-4 bg-default-50 rounded-xl border border-default-200 hover:border-default-300 transition-colors">
-      {/* Icon */}
+    <div className="flex items-center gap-4 px-4 py-4 hover:bg-default-50 transition-colors">
       <div className="shrink-0 w-12 h-12 rounded-lg bg-default-100 flex items-center justify-center text-2xl">
-        {addOn.icon || '📦'}
+        {addOn.icon || <Package className="h-6 w-6 text-default-400" />}
       </div>
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-semibold text-default-900 mb-1">{addOn.name}</div>
+        <div className="text-sm font-semibold text-default-900 mb-1 truncate">{addOn.name}</div>
         {addOn.description && (
           <div className="text-sm text-default-500 mb-2 line-clamp-1">{addOn.description}</div>
         )}
@@ -62,46 +64,42 @@ export function AddOnCard({ addOn, onEdit }: AddOnCardProps) {
         </div>
       </div>
 
-      {/* Pricing */}
       <div className="shrink-0 text-right min-w-24">
         <div className="text-lg font-bold text-default-900">
-          {addOn.currency} {price.toFixed(0)}
+          {formatCurrency(price, addOn.currency)}
         </div>
         <div className="text-xs text-default-400">
-          {formatPrice(price, addOn.currency, addOn.pricingUnit).split(' ').slice(2).join(' ')}
-          {addOn.maxQuantity && (
+          {formatPricingUnit(addOn.pricingUnit)}
+          {addOn.maxQuantity ? (
             <span>
               {' '}
               (max {addOn.maxQuantity}
               {addOn.quantityUnit ? ` ${addOn.quantityUnit}` : ''})
             </span>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1 shrink-0">
         <Button
           isIconOnly
           size="sm"
-          variant="flat"
+          variant="light"
           onPress={onEdit}
-          className="w-9 h-9"
-          title="Edit"
+          aria-label={`Edit ${addOn.name}`}
         >
-          ✏️
+          <Pencil className="h-4 w-4" />
         </Button>
         <Button
           isIconOnly
           size="sm"
-          variant="flat"
+          variant="light"
           color="danger"
           onPress={handleDelete}
           isLoading={isDeleting}
-          className="w-9 h-9"
-          title="Delete"
+          aria-label={`Delete ${addOn.name}`}
         >
-          {!isDeleting && '🗑️'}
+          {!isDeleting && <Trash className="h-4 w-4" />}
         </Button>
       </div>
     </div>

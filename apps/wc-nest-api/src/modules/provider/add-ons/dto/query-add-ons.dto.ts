@@ -1,4 +1,5 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator'
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
+import { Type } from 'class-transformer'
 import { ApiPropertyOptional } from '@nestjs/swagger'
 
 export class QueryAddOnsDto {
@@ -19,9 +20,33 @@ export class QueryAddOnsDto {
   isActive?: string
 
   @ApiPropertyOptional({
-    description: 'Search by name',
+    description: 'Search by name or description',
   })
   @IsOptional()
   @IsString()
   search?: string
+
+  @ApiPropertyOptional({
+    description: 'Page number (default: 1)',
+    type: Number,
+    minimum: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number
+
+  @ApiPropertyOptional({
+    description: 'Items per page (default: 10, max: 100)',
+    type: Number,
+    minimum: 1,
+    maximum: 100,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number
 }

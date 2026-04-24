@@ -154,6 +154,18 @@ export function LucideIconPicker({
     }
   }, [isOpen])
 
+  // When portaled, default to document.body — but if a dialog is open, portal
+  // *into* the topmost dialog instead. HeroUI/React-Aria's outside-click check
+  // is essentially `dialogContent.contains(event.target)`; with the popup in
+  // document.body, a click inside it is treated as outside the dialog and the
+  // dialog dismisses itself. Portaling inside the dialog keeps `contains` true
+  // while `position: fixed` keeps the popup visually anchored to the viewport.
+  const portalTarget = useMemo<HTMLElement | null>(() => {
+    if (!isOpen || !portal || typeof document === 'undefined') return null
+    const dialogs = document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"]')
+    return dialogs[dialogs.length - 1] ?? document.body
+  }, [isOpen, portal])
+
   const handleSelect = (iconName: string) => {
     onChange?.(iconName)
     setIsOpen(false)
@@ -267,11 +279,7 @@ export function LucideIconPicker({
           </div>
         </Button>
 
-        {portal
-          ? typeof document !== 'undefined'
-            ? createPortal(popup, document.body)
-            : null
-          : popup}
+        {portal ? (portalTarget ? createPortal(popup, portalTarget) : null) : popup}
       </div>
 
       {description && (
