@@ -1,8 +1,13 @@
-/**
- * Page Slot for WC Superadmin
- *
- * This component re-exports the shared PageSlot from @world-schools/ui-web
- * for backward compatibility.
- */
+import type { ReactNode } from 'react'
+import { cn, PageSlot as SharedPageSlot } from '@world-schools/ui-web'
 
-export { PageSlot } from '@world-schools/ui-web'
+interface PageSlotProps {
+  children: ReactNode
+  className?: string
+}
+
+export function PageSlot({ children, className }: PageSlotProps) {
+  return (
+    <SharedPageSlot className={cn('max-w-400 space-y-6', className)}>{children}</SharedPageSlot>
+  )
+}

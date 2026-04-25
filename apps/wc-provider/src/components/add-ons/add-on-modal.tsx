@@ -167,7 +167,6 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
               value={formData.icon}
               onChange={value => setFormData(prev => ({ ...prev, icon: value }))}
               label="Icon"
-              classNames={{ button: 'h-10' }}
             />
             <Input
               label="Name"

@@ -260,7 +260,7 @@ export function EmojiPicker({
           onPress={handleToggle}
           disabled={disabled}
           className={cn(
-            'h-auto min-h-10 px-3 py-2',
+            'h-10 min-h-10 px-3 py-2',
             'rounded-lg bg-white',
             'border border-gray-200',
             'hover:border-gray-300',

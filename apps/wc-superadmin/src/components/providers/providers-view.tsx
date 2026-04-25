@@ -19,7 +19,8 @@ import {
   Tabs,
 } from '@heroui/react'
 import { Check, Eye, FilterX, LogIn, Search, Upload } from 'lucide-react'
-import { Input, PageSlot, useDebounce } from '@world-schools/ui-web'
+import { Input, useDebounce } from '@world-schools/ui-web'
+import { PageSlot } from '@/components/layout/page-slot'
 import { useApplicationReviewStore } from '@/stores/application-review-store'
 import { providersService } from '@/services/providers.services'
 import config from '@/config/config'
@@ -213,10 +214,10 @@ export function AllProvidersView() {
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white">All Providers</h1>
-            <p className="mt-1 text-slate-500">Manage camp providers and their applications</p>
+            <p className="mt-1 text-default-600">Manage camp providers and their applications</p>
           </div>
         </header>
-        <Card className="border border-slate-200 dark:border-slate-800">
+        <Card>
           <CardBody className="p-0">
             {/* Tabs */}
             <div className="flex border-b border-default-200 px-4 pt-3">
@@ -275,7 +276,7 @@ export function AllProvidersView() {
                 onValueChange={setSearchInput}
                 isClearable
                 onClear={() => setSearchInput('')}
-                startContent={<Search className="h-4 w-4 text-default-400" />}
+                startContent={<Search className="size-4 shrink-0 text-default-500" aria-hidden />}
               />
               {hasActiveFilters && (
                 <Button
@@ -330,7 +331,13 @@ export function AllProvidersView() {
               <TableBody
                 items={applications}
                 isLoading={isLoading}
-                emptyContent={isLoading ? 'Loading…' : 'No providers found'}
+                emptyContent={
+                  <div className="py-12 text-center">
+                    <p className="text-default-500">
+                      {isLoading ? 'Loading…' : 'No providers found.'}
+                    </p>
+                  </div>
+                }
               >
                 {app => (
                   <TableRow key={app.id}>

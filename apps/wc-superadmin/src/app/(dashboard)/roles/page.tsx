@@ -8,10 +8,8 @@ import {
   Card,
   CardBody,
   Chip,
-  Input,
   Pagination,
-  Select,
-  SelectItem,
+  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -20,8 +18,8 @@ import {
   TableRow,
   Tooltip,
 } from '@heroui/react'
-import { FilterX, Pencil, Plus, ShieldCheck, Trash } from 'lucide-react'
-import { useConfirmDialog, useDebounce } from '@world-schools/ui-web'
+import { Pencil, Plus, Search, ShieldCheck, Trash } from 'lucide-react'
+import { Input, useConfirmDialog, useDebounce } from '@world-schools/ui-web'
 import { useRolesStore } from '@/stores/roles-store'
 import { usePermissions } from '@/hooks/use-permissions'
 import type { Role } from '@/types/roles'
@@ -42,15 +40,11 @@ export default function RolesPage() {
     fetchRoles,
     deleteRole,
     setPage,
-    setLimit,
     setFilters,
-    clearFilters,
   } = useRolesStore()
 
-  // Debounce the search input with 500ms delay
   const debouncedSearch = useDebounce(searchInput, 500)
 
-  // Update filters when debounced search changes
   useEffect(() => {
     setFilters({ search: debouncedSearch || undefined })
   }, [debouncedSearch, setFilters])
@@ -64,7 +58,6 @@ export default function RolesPage() {
   }
 
   const handleEditRole = (role: Role) => {
-    // Prevent editing Super Admin system role
     if (role.name === 'Super Admin' && role.isSystemRole) {
       return
     }
@@ -72,7 +65,6 @@ export default function RolesPage() {
   }
 
   const handleDeleteRole = async (role: Role) => {
-    // Prevent deleting Super Admin system role
     if (role.name === 'Super Admin' && role.isSystemRole) {
       return
     }
@@ -100,28 +92,31 @@ export default function RolesPage() {
     })
   }
 
-  const handleClearAllFilters = () => {
-    setSearchInput('') // Clear the search input immediately
-    clearFilters()
-  }
-
-  const hasActiveFilters = () => {
-    return (
-      searchInput !== '' ||
-      (Object.keys(filters).length > 0 && Object.values(filters).some(v => v !== undefined))
-    )
-  }
+  const paginationFooter = pagination.total > 0 && (
+    <div className="flex flex-col gap-3 border-t border-default-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <span className="text-sm text-default-500">
+        Showing {roles.length} of {pagination.total} roles
+      </span>
+      {pagination.totalPages > 1 ? (
+        <Pagination
+          total={pagination.totalPages}
+          page={pagination.page}
+          onChange={setPage}
+          showControls
+        />
+      ) : null}
+    </div>
+  )
 
   return (
     <PageSlot>
       <section className="space-y-6">
-        {/* Header */}
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
               Roles & Permissions
             </h1>
-            <p className="text-slate-500 mt-1">Manage system-wide roles and their permissions</p>
+            <p className="text-default-600 mt-1">Manage system-wide roles and their permissions</p>
           </div>
           {hasPermission('roles.create') && (
             <Button
@@ -134,196 +129,246 @@ export default function RolesPage() {
           )}
         </header>
 
-        {/* Error Alert */}
-        {error && (
-          <Card className="bg-danger-50 border-danger-200">
-            <CardBody>
-              <p className="text-danger">{error}</p>
-            </CardBody>
-          </Card>
-        )}
+        {error ? (
+          <div className="rounded-lg border border-danger-200 bg-danger-50 p-6 dark:border-danger-900/40 dark:bg-danger-950/30">
+            <p className="text-danger-800 dark:text-danger-200">{error}</p>
+            <Button className="mt-4" variant="flat" onPress={() => void fetchRoles()}>
+              Retry
+            </Button>
+          </div>
+        ) : (
+          <Card>
+            <CardBody className="p-0">
+              <div className="border-b border-default-200 px-4 py-3">
+                <Input
+                  aria-label="Search roles"
+                  placeholder="Search roles…"
+                  className="w-full max-w-sm"
+                  value={searchInput}
+                  onValueChange={setSearchInput}
+                  isClearable
+                  onClear={() => setSearchInput('')}
+                  startContent={<Search className="size-4 shrink-0 text-default-500" aria-hidden />}
+                />
+              </div>
 
-        {/* Search and Filters */}
-        <div className="flex gap-4 flex-wrap items-end">
-          <Input
-            label="Search"
-            labelPlacement="outside"
-            placeholder="Search roles..."
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-            className="w-72"
-            startContent={<ShieldCheck className="h-5 w-5 text-gray-400" />}
-          />
-
-          <Button
-            variant="flat"
-            color="default"
-            startContent={<FilterX className="h-4 w-4" />}
-            onPress={handleClearAllFilters}
-            isDisabled={!hasActiveFilters()}
-          >
-            Clear Filters
-          </Button>
-        </div>
-
-        {/* Roles Table */}
-        <Card className="border border-slate-200 dark:border-slate-800">
-          <CardBody className="p-0">
-            <Table
-              aria-label="Roles table"
-              classNames={{
-                wrapper: 'rounded-3xl',
-              }}
-              bottomContent={
-                <div className="flex w-full justify-between items-center px-4 py-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">Rows per page:</span>
-                    <Select
-                      aria-label="Rows per page"
-                      size="sm"
-                      className="w-20"
-                      selectedKeys={[String(pagination.limit)]}
-                      onSelectionChange={keys => {
-                        const value = Array.from(keys)[0] as string
-                        setLimit(Number(value))
-                      }}
-                    >
-                      <SelectItem key="5">5</SelectItem>
-                      <SelectItem key="10">10</SelectItem>
-                      <SelectItem key="20">20</SelectItem>
-                      <SelectItem key="50">50</SelectItem>
-                    </Select>
-                  </div>
-                  {pagination.totalPages > 1 ? (
-                    <Pagination
-                      showControls
-                      total={pagination.totalPages}
-                      page={pagination.page}
-                      onChange={setPage}
-                    />
-                  ) : (
-                    <div />
-                  )}
-                  <div className="text-sm text-gray-500">Total: {pagination.total} roles</div>
-                </div>
-              }
-            >
-              <TableHeader>
-                <TableColumn>ROLE NAME</TableColumn>
-                <TableColumn>PERMISSIONS</TableColumn>
-                <TableColumn>USERS</TableColumn>
-                <TableColumn>CREATED</TableColumn>
-                <TableColumn>ACTIONS</TableColumn>
-              </TableHeader>
-              <TableBody
-                items={roles}
-                isLoading={isLoading}
-                emptyContent={isLoading ? 'Loading...' : 'No roles found'}
-              >
-                {(role: Role) => (
-                  <TableRow key={role.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck className="h-5 w-5 text-primary" />
-                        <span className="font-semibold">{role.name}</span>
-                        {role.name === 'Super Admin' && role.isSystemRole && (
-                          <Chip color="primary" variant="flat" size="sm">
-                            System
-                          </Chip>
-                        )}
+              <div className="hidden overflow-x-auto md:block">
+                <Table
+                  aria-label="Roles table"
+                  classNames={{
+                    wrapper: 'shadow-none',
+                  }}
+                >
+                  <TableHeader>
+                    <TableColumn className="text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Role name
+                    </TableColumn>
+                    <TableColumn className="text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Permissions
+                    </TableColumn>
+                    <TableColumn className="text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Users
+                    </TableColumn>
+                    <TableColumn className="text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Created
+                    </TableColumn>
+                    <TableColumn className="text-right text-xs font-semibold uppercase tracking-wide text-default-500">
+                      Actions
+                    </TableColumn>
+                  </TableHeader>
+                  <TableBody
+                    items={roles}
+                    isLoading={isLoading}
+                    emptyContent={
+                      <div className="py-12 text-center">
+                        <p className="text-default-500">
+                          {isLoading ? 'Loading…' : 'No roles found.'}
+                        </p>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Chip variant="flat" size="sm">
-                        {role.permissions.length} permissions
-                      </Chip>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{role._count?.users ?? 0} users</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-gray-500">{formatDate(role.createdAt)}</span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {hasPermission('roles.update') &&
-                          (isSystemRoleNonEditable(role) ? (
-                            <Tooltip content="System role cannot be edited">
-                              <span>
+                    }
+                  >
+                    {(role: Role) => (
+                      <TableRow key={role.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className="h-5 w-5 text-primary" />
+                            <span className="font-semibold text-foreground">{role.name}</span>
+                            {role.name === 'Super Admin' && role.isSystemRole && (
+                              <Chip color="primary" variant="flat" size="sm">
+                                System
+                              </Chip>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Chip variant="flat" size="sm">
+                            {role.permissions.length} permissions
+                          </Chip>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-default-600">
+                            {role._count?.users ?? 0} users
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-default-500">
+                            {formatDate(role.createdAt)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            {hasPermission('roles.update') &&
+                              (isSystemRoleNonEditable(role) ? (
+                                <Tooltip content="System role cannot be edited">
+                                  <span>
+                                    <Button isIconOnly size="sm" variant="light" isDisabled>
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                  </span>
+                                </Tooltip>
+                              ) : (
                                 <Button
                                   isIconOnly
                                   size="sm"
                                   variant="light"
                                   onPress={() => handleEditRole(role)}
-                                  isDisabled
                                 >
                                   <Pencil className="h-4 w-4" />
                                 </Button>
-                              </span>
-                            </Tooltip>
-                          ) : (
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="light"
-                              onPress={() => handleEditRole(role)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          ))}
-                        {hasPermission('roles.delete') &&
-                          (isSystemRoleNonEditable(role) ? (
-                            <Tooltip content="System role cannot be deleted" color="danger">
-                              <span>
+                              ))}
+                            {hasPermission('roles.delete') &&
+                              (isSystemRoleNonEditable(role) ? (
+                                <Tooltip content="System role cannot be deleted" color="danger">
+                                  <span>
+                                    <Button
+                                      isIconOnly
+                                      size="sm"
+                                      variant="light"
+                                      color="danger"
+                                      isDisabled
+                                    >
+                                      <Trash className="h-4 w-4" />
+                                    </Button>
+                                  </span>
+                                </Tooltip>
+                              ) : (role._count?.users ?? 0) > 0 ? (
+                                <Tooltip
+                                  content="Cannot delete role with assigned users"
+                                  color="danger"
+                                >
+                                  <span>
+                                    <Button
+                                      isIconOnly
+                                      size="sm"
+                                      variant="light"
+                                      color="danger"
+                                      isDisabled
+                                    >
+                                      <Trash className="h-4 w-4" />
+                                    </Button>
+                                  </span>
+                                </Tooltip>
+                              ) : (
                                 <Button
                                   isIconOnly
                                   size="sm"
                                   variant="light"
                                   color="danger"
                                   onPress={() => handleDeleteRole(role)}
-                                  isDisabled
                                 >
                                   <Trash className="h-4 w-4" />
                                 </Button>
+                              ))}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="md:hidden">
+                {isLoading ? (
+                  <div className="flex justify-center py-20">
+                    <Spinner size="lg" label="Loading roles" />
+                  </div>
+                ) : roles.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-default-300 m-4 py-16 text-center text-default-500">
+                    No roles found.
+                  </div>
+                ) : (
+                  <div className="space-y-3 p-4">
+                    {roles.map(role => {
+                      const userCount = role._count?.users ?? 0
+                      const systemLocked = isSystemRoleNonEditable(role)
+                      const canEdit = hasPermission('roles.update') && !systemLocked
+                      const canDelete =
+                        hasPermission('roles.delete') && !systemLocked && userCount === 0
+                      return (
+                        <div
+                          key={role.id}
+                          className="rounded-xl border border-default-200 bg-content1 p-4 shadow-sm dark:border-default-100/20"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <ShieldCheck className="h-5 w-5 text-primary" />
+                              <span className="font-semibold text-default-900 dark:text-default-100">
+                                {role.name}
                               </span>
-                            </Tooltip>
-                          ) : (role._count?.users ?? 0) > 0 ? (
-                            <Tooltip
-                              content="Cannot delete role with assigned users"
-                              color="danger"
-                            >
-                              <span>
+                            </div>
+                            {role.name === 'Super Admin' && role.isSystemRole ? (
+                              <Chip color="primary" variant="flat" size="sm">
+                                System
+                              </Chip>
+                            ) : null}
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-default-500">
+                            <Chip variant="flat" size="sm">
+                              {role.permissions.length} permissions
+                            </Chip>
+                            <span>•</span>
+                            <span>{userCount} users</span>
+                            <span>•</span>
+                            <span>{formatDate(role.createdAt)}</span>
+                          </div>
+                          {(hasPermission('roles.update') || hasPermission('roles.delete')) && (
+                            <div className="mt-3 flex justify-end gap-1">
+                              {hasPermission('roles.update') && (
+                                <Button
+                                  isIconOnly
+                                  size="sm"
+                                  variant="light"
+                                  isDisabled={!canEdit}
+                                  onPress={() => handleEditRole(role)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {hasPermission('roles.delete') && (
                                 <Button
                                   isIconOnly
                                   size="sm"
                                   variant="light"
                                   color="danger"
+                                  isDisabled={!canDelete}
                                   onPress={() => handleDeleteRole(role)}
-                                  isDisabled
                                 >
                                   <Trash className="h-4 w-4" />
                                 </Button>
-                              </span>
-                            </Tooltip>
-                          ) : (
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="light"
-                              color="danger"
-                              onPress={() => handleDeleteRole(role)}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          ))}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 )}
-              </TableBody>
-            </Table>
-          </CardBody>
-        </Card>
+              </div>
+
+              {paginationFooter}
+            </CardBody>
+          </Card>
+        )}
       </section>
     </PageSlot>
   )

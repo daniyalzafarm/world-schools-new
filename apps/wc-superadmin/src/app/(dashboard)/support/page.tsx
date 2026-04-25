@@ -563,7 +563,7 @@ export default function SupportTicketsPage() {
   const openStat = stats?.open ?? 0
 
   return (
-    <PageSlot className="max-w-400 space-y-6">
+    <PageSlot>
       {/* Page Header - matches KB articles */}
       <div className="flex justify-between items-center mb-6">
         <div>

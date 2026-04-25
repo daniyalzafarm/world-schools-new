@@ -21,7 +21,8 @@ import {
   Tabs,
 } from '@heroui/react'
 import { Eye, FilterX, LayoutGrid, LayoutList, MapPin, Search, Star, Tent } from 'lucide-react'
-import { Input, PageSlot, SelectField, useDebounce } from '@world-schools/ui-web'
+import { Input, SelectField, useDebounce } from '@world-schools/ui-web'
+import { PageSlot } from '@/components/layout/page-slot'
 import { useCampsStore } from '@/stores/camps-store'
 import { CampCard } from '@/components/camps/camp-card'
 import { campsService } from '@/services/camps.services'
@@ -54,10 +55,10 @@ interface StatCardProps {
 
 function StatCard({ label, value, colorClass = 'text-foreground' }: StatCardProps) {
   return (
-    <Card className="border border-default-200">
-      <CardBody className="p-6">
-        <div className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-400">{label}</div>
+    <Card shadow="sm" className="border border-default-200">
+      <CardBody className="p-5">
         <div className={`text-3xl font-bold ${colorClass}`}>{value}</div>
+        <div className="mt-1 text-sm text-default-500">{label}</div>
       </CardBody>
     </Card>
   )
@@ -173,17 +174,18 @@ export default function CampsPage() {
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Camps</h1>
-            <p className="mt-1 text-slate-500">Manage camp listings and content moderation</p>
+            <p className="mt-1 text-default-600">Manage camp listings and content moderation</p>
           </div>
         </header>
 
         {/* Error alert */}
         {error && (
-          <Card className="border-danger-200 bg-danger-50">
-            <CardBody>
-              <p className="text-danger">{error}</p>
-            </CardBody>
-          </Card>
+          <div className="rounded-lg border border-danger-200 bg-danger-50 p-6 dark:border-danger-900/40 dark:bg-danger-950/30">
+            <p className="text-danger-800 dark:text-danger-200">{error}</p>
+            <Button className="mt-4" variant="flat" onPress={() => void fetchCamps()}>
+              Retry
+            </Button>
+          </div>
         )}
 
         {/* Stats row */}
@@ -195,7 +197,7 @@ export default function CampsPage() {
         </div>
 
         {/* Main card */}
-        <Card className="border border-slate-200 dark:border-slate-800">
+        <Card>
           <CardBody className="p-0">
             {/* Tabs */}
             <div className="border-b border-default-200 px-4 pt-2">
@@ -273,7 +275,7 @@ export default function CampsPage() {
                 onValueChange={setSearchInput}
                 isClearable
                 onClear={() => setSearchInput('')}
-                startContent={<Search className="h-4 w-4 text-default-400" />}
+                startContent={<Search className="size-4 shrink-0 text-default-500" aria-hidden />}
               />
               <SelectField
                 aria-label="Provider filter"
@@ -324,7 +326,9 @@ export default function CampsPage() {
                 <Spinner size="lg" color="primary" />
               </div>
             ) : camps.length === 0 ? (
-              <div className="py-16 text-center text-default-400">No camps found</div>
+              <div className="m-4 rounded-xl border border-dashed border-default-300 py-16 text-center text-default-500">
+                No camps found.
+              </div>
             ) : viewMode === 'grid' ? (
               <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {camps.map(camp => (

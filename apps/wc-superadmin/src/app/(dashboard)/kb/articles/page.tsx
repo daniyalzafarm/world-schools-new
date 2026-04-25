@@ -29,6 +29,7 @@ import {
   MoreVertical,
   Pencil,
   Plus,
+  Search,
   SquareCheck,
   SquareChevronDown,
   Trash,
@@ -386,14 +387,14 @@ export default function KbArticlesPage() {
   ]
 
   return (
-    <PageSlot className="max-w-400 space-y-6">
+    <PageSlot>
       {/* Page Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="mb-6">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
             Public Knowledge Base
           </h1>
-          <p className="text-default-500 mt-1">
+          <p className="text-default-600 mt-1">
             Articles visible to parents, providers, and staff in their Help Centers. Published
             articles are public.
           </p>
@@ -401,13 +402,13 @@ export default function KbArticlesPage() {
         {canCreate && (
           <Button
             color="primary"
-            startContent={<Plus className="h-4 w-4" />}
+            startContent={<Plus className="h-5 w-5" />}
             onPress={() => router.push('/kb/articles/create')}
           >
             Create Article
           </Button>
         )}
-      </div>
+      </header>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -478,13 +479,14 @@ export default function KbArticlesPage() {
           {/* Filter Controls */}
           <div className="flex flex-wrap items-end gap-4 border-b border-default-200 px-4 py-3">
             <Input
-              aria-label="Search"
-              placeholder="Search articles..."
+              aria-label="Search articles"
+              placeholder="Search articles…"
               className="w-full max-w-sm shrink-0"
               value={searchInput}
               onValueChange={setSearchInput}
               isClearable
               onClear={() => setSearchInput('')}
+              startContent={<Search className="size-4 shrink-0 text-default-500" aria-hidden />}
             />
 
             <SelectField
@@ -568,7 +570,7 @@ export default function KbArticlesPage() {
                   startContent={<FilterX className="h-4 w-4" />}
                   onPress={handleClearFilters}
                 >
-                  Clear Filters
+                  Clear filters
                 </Button>
               )}
 
@@ -665,8 +667,10 @@ export default function KbArticlesPage() {
                 isLoading={isLoading}
                 emptyContent={
                   <div className="py-12 text-center">
-                    <p className="text-default-500">No articles found</p>
-                    {canCreate && (
+                    <p className="text-default-500">
+                      {isLoading ? 'Loading…' : 'No articles found.'}
+                    </p>
+                    {!isLoading && canCreate && (
                       <Button
                         color="primary"
                         className="mt-4"
@@ -845,7 +849,7 @@ export default function KbArticlesPage() {
 
           {/* Table Footer */}
           {pagination.total > 0 && (
-            <div className="flex items-center justify-between border-t border-default-200 px-6 py-4">
+            <div className="flex flex-col gap-3 border-t border-default-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <span className="text-sm text-default-500">
                 Showing {articles.length} of {pagination.total} articles
               </span>

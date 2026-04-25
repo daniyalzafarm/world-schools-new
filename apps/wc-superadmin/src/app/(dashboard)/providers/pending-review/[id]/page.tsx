@@ -14,7 +14,7 @@ import { DocumentsSection } from '../../../../../components/application-review/D
 import { SettingsSection } from '../../../../../components/application-review/SettingsSection'
 import { TrustScoreSection } from '../../../../../components/application-review/TrustScoreSection'
 import type { ApprovalStatus } from '../../../../../types/application-review'
-import { PageSlot } from '@world-schools/ui-web'
+import { PageSlot } from '@/components/layout/page-slot'
 
 export default function PendingReviewProviderDetailPage() {
   const params = useParams()

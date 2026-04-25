@@ -19,7 +19,8 @@ import {
   Tabs,
 } from '@heroui/react'
 import { Eye, FilterX, Search, Users } from 'lucide-react'
-import { Input, PageSlot, SelectField, useDebounce } from '@world-schools/ui-web'
+import { Input, SelectField, useDebounce } from '@world-schools/ui-web'
+import { PageSlot } from '@/components/layout/page-slot'
 import { useParentsStore } from '@/stores/parents-store'
 import type { ParentStatus, ParentTab } from '@/types/parents'
 
@@ -161,7 +162,7 @@ export default function ParentsPage() {
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Parents</h1>
-            <p className="mt-1 text-slate-500">
+            <p className="mt-1 text-default-600">
               Manage registered parent accounts and their children
             </p>
           </div>
@@ -169,11 +170,12 @@ export default function ParentsPage() {
 
         {/* Error alert */}
         {error && (
-          <Card className="border-danger-200 bg-danger-50">
-            <CardBody>
-              <p className="text-danger">{error}</p>
-            </CardBody>
-          </Card>
+          <div className="rounded-lg border border-danger-200 bg-danger-50 p-6 dark:border-danger-900/40 dark:bg-danger-950/30">
+            <p className="text-danger-800 dark:text-danger-200">{error}</p>
+            <Button className="mt-4" variant="flat" onPress={() => void fetchParents()}>
+              Retry
+            </Button>
+          </div>
         )}
 
         {/* Stats row */}
@@ -191,7 +193,7 @@ export default function ParentsPage() {
         </div>
 
         {/* Main card */}
-        <Card className="border border-slate-200 dark:border-slate-800">
+        <Card>
           <CardBody className="p-0">
             {/* Tabs */}
             <div className="border-b border-default-200 px-4 pt-2">
@@ -260,7 +262,7 @@ export default function ParentsPage() {
                 onValueChange={setSearchInput}
                 isClearable
                 onClear={() => setSearchInput('')}
-                startContent={<Search className="h-4 w-4 text-default-400" />}
+                startContent={<Search className="size-4 shrink-0 text-default-500" aria-hidden />}
               />
               {hasActiveFilters && (
                 <Button
@@ -279,9 +281,9 @@ export default function ParentsPage() {
                 <Spinner size="lg" color="primary" />
               </div>
             ) : parents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-default-400">
-                <Users className="mb-3 h-10 w-10 opacity-40" />
-                <p>No parents found</p>
+              <div className="m-4 flex flex-col items-center gap-3 rounded-xl border border-dashed border-default-300 px-6 py-16 text-center text-default-500">
+                <Users className="h-10 w-10 text-default-400" />
+                <p>No parents found.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
