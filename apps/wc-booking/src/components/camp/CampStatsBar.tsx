@@ -1,3 +1,6 @@
+import { BarChart3, Target, Tent, User, Users } from 'lucide-react'
+import type { ReactNode } from 'react'
+
 import { cn } from '@world-schools/ui-web'
 
 import type { AgeGroup, Camp } from '../../types/camps'
@@ -11,28 +14,25 @@ const GENDER_LABELS: Record<string, string> = {
 interface StatCell {
   label: string
   value: string
-  icon: string
-  /** Ages row uses secondary (navy) per module-01 */
-  highlightValue?: boolean
+  icon: ReactNode
 }
 
 interface CampStatsBarProps {
   gender: Camp['gender']
   ageGroups: AgeGroup[]
   primaryFocus?: { activityName: string } | null
-  /** Emoji shown in the Focus stat label (module-01). */
-  focusEmoji?: string | null
   campType: Camp['type']
   /** Shown in the Level cell when primaryFocus is set; defaults to "All levels" if omitted. */
   levelLabel?: string | null
   className?: string
 }
 
+const ICON_CLASS = 'h-4 w-4 shrink-0 text-primary-600'
+
 export function CampStatsBar({
   gender,
   ageGroups,
   primaryFocus,
-  focusEmoji = '📌',
   campType,
   levelLabel,
   className = '',
@@ -41,7 +41,7 @@ export function CampStatsBar({
 
   if (gender) {
     stats.push({
-      icon: '👥',
+      icon: <Users className={ICON_CLASS} strokeWidth={1.6} aria-hidden />,
       label: 'Gender',
       value: GENDER_LABELS[gender] ?? gender,
     })
@@ -51,27 +51,26 @@ export function CampStatsBar({
     const minAge = Math.min(...ageGroups.map(g => g.min))
     const maxAge = Math.max(...ageGroups.map(g => g.max))
     stats.push({
-      icon: '🎂',
+      icon: <User className={ICON_CLASS} strokeWidth={1.6} aria-hidden />,
       label: 'Ages',
       value: `${minAge}–${maxAge}`,
-      highlightValue: true,
     })
   }
 
   if (primaryFocus?.activityName) {
     stats.push({
-      icon: focusEmoji?.trim() || '📌',
+      icon: <Target className={ICON_CLASS} strokeWidth={1.6} aria-hidden />,
       label: 'Focus',
       value: primaryFocus.activityName,
     })
     stats.push({
-      icon: '📊',
+      icon: <BarChart3 className={ICON_CLASS} strokeWidth={1.6} aria-hidden />,
       label: 'Level',
       value: levelLabel?.trim() ?? 'All levels',
     })
   } else if (campType) {
     stats.push({
-      icon: '🏕️',
+      icon: <Tent className={ICON_CLASS} strokeWidth={1.6} aria-hidden />,
       label: 'Type',
       value: campType === 'residential' ? 'Residential' : 'Day camp',
     })
@@ -84,22 +83,19 @@ export function CampStatsBar({
 
   return (
     <div
-      className={`grid grid-cols-2 ${mdCols} gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-100 ${className}`}
+      className={cn(
+        'grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-100',
+        mdCols,
+        className
+      )}
     >
       {stats.map(stat => (
         <div key={`${stat.label}-${stat.value}`} className="flex flex-col gap-2 bg-white px-5 py-4">
-          <span className="flex items-center gap-1 text-xs font-semibold tracking-[0.5px] text-gray-400 uppercase">
-            <span className="text-sm leading-none" aria-hidden>
-              {stat.icon}
-            </span>
+          <span className="text-xs font-semibold tracking-[0.5px] text-gray-400 uppercase">
             {stat.label}
           </span>
-          <span
-            className={cn(
-              'text-sm font-semibold md:text-base',
-              stat.highlightValue ? 'text-secondary-700' : 'text-gray-900'
-            )}
-          >
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 md:text-base">
+            {stat.icon}
             {stat.value}
           </span>
         </div>

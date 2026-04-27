@@ -57,7 +57,8 @@ function BookingCard({
 
   const className =
     'flex flex-col overflow-hidden rounded-2xl border border-default-200 bg-white shadow-sm transition hover:border-default-300 hover:shadow-md sm:flex-row' +
-    (isDraft || detailHref ? ' cursor-pointer' : '')
+    (isDraft || detailHref ? ' cursor-pointer' : '') +
+    (row.status === 'completed' ? ' opacity-[0.85]' : '')
 
   const handleDeleteDraft = async () => {
     const ok = await confirm({
@@ -94,7 +95,7 @@ function BookingCard({
           <img
             src={cover}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover"
+            className={`absolute inset-0 h-full w-full object-cover${row.status === 'cancelled' ? ' grayscale' : ''}`}
             loading="lazy"
           />
         ) : null}

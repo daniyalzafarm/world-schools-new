@@ -45,11 +45,11 @@ function createPinElement(label: string, stacked = false): HTMLElement {
 
   const pill = document.createElement('div')
   pill.textContent = label
-  pill.style.cssText = `background:white;padding:5px 10px;border:1.5px solid #d1d5e1;border-radius:20px;font-size:12px;font-weight:700;color:#111827;box-shadow:0 2px 8px rgba(0,0,0,0.15);white-space:nowrap;font-family:system-ui,-apple-system,sans-serif;line-height:1.4;${stacked ? 'border:1.5px solid #1E2A4A;' : ''}`
+  pill.style.cssText = `background:white;padding:6px 12px;border:2px solid #1E2A4A;border-radius:20px;font-size:13px;font-weight:700;color:#111827;box-shadow:0 4px 14px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.95);white-space:nowrap;font-family:system-ui,-apple-system,sans-serif;line-height:1.4;${stacked ? 'border:2px solid #1E2A4A;' : ''}`
 
   const dot = document.createElement('div')
   dot.style.cssText =
-    'width:8px;height:8px;background:#1E2A4A;border-radius:50%;margin-top:-2px;flex-shrink:0;'
+    'width:10px;height:10px;background:#1E2A4A;border-radius:50%;margin-top:-2px;flex-shrink:0;box-shadow:0 0 0 1.5px white;'
 
   wrapper.appendChild(pill)
   wrapper.appendChild(dot)
@@ -65,7 +65,7 @@ function createPinElement(label: string, stacked = false): HTMLElement {
   wrapper.addEventListener('mouseleave', () => {
     pill.style.background = 'white'
     pill.style.color = '#111827'
-    pill.style.border = '1.5px solid #d1d5e1'
+    pill.style.border = '2px solid #1E2A4A'
     dot.style.background = '#1E2A4A'
     wrapper.style.transform = 'scale(1)'
     wrapper.style.zIndex = '1'
@@ -182,7 +182,12 @@ function WishlistMapContent({ items, onPinClick }: WishlistMapPanelProps) {
     }
   }, [itemsKey])
 
-  return <div ref={mapRef} className="h-full w-full" />
+  return (
+    <div className="relative h-full w-full">
+      <div ref={mapRef} className="absolute inset-0" />
+      <div className="pointer-events-none absolute inset-0 bg-white/15" />
+    </div>
+  )
 }
 
 export function WishlistMapPanel({ items, onPinClick }: WishlistMapPanelProps) {

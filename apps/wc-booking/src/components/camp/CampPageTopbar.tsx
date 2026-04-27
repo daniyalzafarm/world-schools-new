@@ -39,7 +39,7 @@ export function CampPageTopbar({ suppressed = false, camp }: CampPageTopbarProps
         aria-hidden={suppressed || undefined}
         inert={suppressed ? true : undefined}
       >
-        <div className="mx-auto flex h-14 max-w-screen-2xl items-center gap-3 px-5 sm:px-8 lg:px-32 md:h-16">
+        <div className="mx-auto flex h-14 max-w-screen-2xl items-center gap-3 px-5 sm:px-8 xl:px-32 md:h-16">
           <Button
             type="button"
             isIconOnly

@@ -36,9 +36,9 @@ export default function WishlistDetailPage() {
 
   if (isLoadingDetail) {
     return (
-      <div className="h-full flex flex-col">
+      <div className="h-full flex flex-col overflow-y-auto lg:overflow-hidden">
         {/* Skeleton header */}
-        <div className="sticky top-0 bg-white border-b border-gray-100 z-50 px-8 py-4 animate-pulse">
+        <div className="bg-white border-b border-gray-100 z-50 px-8 py-4 animate-pulse">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-9 h-9 rounded-full bg-gray-100" />
             <div className="h-6 bg-gray-100 rounded w-48" />
@@ -48,13 +48,13 @@ export default function WishlistDetailPage() {
             <div className="h-8 bg-gray-100 rounded-full w-20" />
           </div>
         </div>
-        <div className="flex-1 flex overflow-hidden">
-          <div className="flex-1 p-8 overflow-y-auto">
-            <div className="flex flex-wrap gap-5">
+        <div className="lg:flex-1 lg:flex lg:overflow-hidden">
+          <div className="p-8 lg:flex-1 lg:overflow-y-auto">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,320px))] gap-5">
               {Array.from({ length: 2 }).map((_, i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse w-[calc(33.33%-13.34px)] min-w-64"
+                  className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse"
                 >
                   <div className="aspect-4/3 bg-gray-100" />
                   <div className="p-3.5 space-y-2">
@@ -67,7 +67,7 @@ export default function WishlistDetailPage() {
             </div>
           </div>
           {/* Map skeleton */}
-          <div className="w-96 shrink-0 border-l border-gray-100 hidden lg:block">
+          <div className="w-96 xl:w-md 2xl:w-lg shrink-0 border-l border-gray-100 hidden lg:block">
             <div className="w-full h-full bg-linear-to-b from-[#E8F4F8] to-[#D4E8E0]" />
           </div>
         </div>
@@ -84,18 +84,18 @@ export default function WishlistDetailPage() {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-y-auto lg:overflow-hidden">
       {/* Sticky header */}
       <WishlistDetailHeader wishlist={activeWishlist} onShare={() => setShareOpen(true)} />
 
       {/* Content + map split */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="lg:flex-1 lg:flex lg:overflow-hidden">
         {/* Camps grid */}
-        <div className="flex-1 p-8 overflow-y-auto overflow-x-hidden">
+        <div className="p-8 lg:flex-1 lg:overflow-y-auto lg:overflow-x-hidden">
           {!activeWishlist.items?.length ? (
             <WishlistEmptyState type="detail" />
           ) : (
-            <div className="flex flex-wrap gap-5">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,320px))] gap-5">
               {activeWishlist.items.map(item => (
                 <WishlistCampCard key={item.id} id={`wishlist-camp-${item.campId}`} item={item} />
               ))}
@@ -104,7 +104,7 @@ export default function WishlistDetailPage() {
         </div>
 
         {/* Map panel */}
-        <div className="w-96 shrink-0 border-l border-gray-100 hidden lg:flex">
+        <div className="w-96 xl:w-md 2xl:w-lg shrink-0 border-l border-gray-100 hidden lg:flex">
           <WishlistMapPanel items={activeWishlist.items ?? []} />
         </div>
       </div>

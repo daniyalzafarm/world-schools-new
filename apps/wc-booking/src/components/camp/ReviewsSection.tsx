@@ -110,11 +110,11 @@ function ReviewCard({ review }: { review: PublicCampReview }) {
       </div>
 
       {review.rating != null && (
-        <StarRating rating={review.rating} color="yellow" showRating={false} size={13} />
+        <StarRating rating={review.rating} color="primary" showRating={false} size={13} />
       )}
 
       {review.reviewText && (
-        <ExpandableText text={review.reviewText} maxLines={4} className="!mb-0" />
+        <ExpandableText text={review.reviewText} maxLines={4} className="mb-0!" />
       )}
 
       {review.tags && review.tags.length > 0 && (
@@ -200,7 +200,7 @@ export function ReviewsSection({
               <div className="my-1.5">
                 <StarRating
                   rating={data.overallRating ?? 0}
-                  color="yellow"
+                  color="primary"
                   showRating={false}
                   size={16}
                 />

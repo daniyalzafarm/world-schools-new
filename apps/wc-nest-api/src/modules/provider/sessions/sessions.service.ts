@@ -222,30 +222,6 @@ export class SessionsService {
       }
     }
 
-    // Check for overlapping sessions
-    const overlappingSessions = await this.prisma.session.findFirst({
-      where: {
-        campId,
-        OR: [
-          {
-            AND: [{ startDate: { lte: startDate } }, { endDate: { gte: startDate } }],
-          },
-          {
-            AND: [{ startDate: { lte: endDate } }, { endDate: { gte: endDate } }],
-          },
-          {
-            AND: [{ startDate: { gte: startDate } }, { endDate: { lte: endDate } }],
-          },
-        ],
-      },
-    })
-
-    if (overlappingSessions) {
-      throw new BadRequestException(
-        `Session dates overlap with existing session "${overlappingSessions.name}"`
-      )
-    }
-
     // Check session limit (max 50 sessions)
     const existingCount = await this.prisma.session.count({
       where: { campId },
@@ -360,31 +336,6 @@ export class SessionsService {
 
       if (endDate <= startDate) {
         throw new BadRequestException('End date must be after start date')
-      }
-
-      // Check for overlapping sessions (excluding current session)
-      const overlappingSessions = await this.prisma.session.findFirst({
-        where: {
-          campId,
-          id: { not: sessionId },
-          OR: [
-            {
-              AND: [{ startDate: { lte: startDate } }, { endDate: { gte: startDate } }],
-            },
-            {
-              AND: [{ startDate: { lte: endDate } }, { endDate: { gte: endDate } }],
-            },
-            {
-              AND: [{ startDate: { gte: startDate } }, { endDate: { lte: endDate } }],
-            },
-          ],
-        },
-      })
-
-      if (overlappingSessions) {
-        throw new BadRequestException(
-          `Session dates overlap with existing session "${overlappingSessions.name}"`
-        )
       }
     }
 

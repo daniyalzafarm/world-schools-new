@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useMessagingStore } from '@/stores/messaging-store'
 import { ContextType } from '@world-schools/wc-frontend-utils'
-import { Button, Link } from '@heroui/react'
+import { Button } from '@heroui/react'
+import { HiBadgeCheck } from 'react-icons/hi'
 
 interface ProviderSectionProps {
   provider: {
@@ -149,26 +150,16 @@ export function ProviderSection({ provider, campId, campSlug, campTitle }: Provi
             {isVerified && (
               <>
                 <div className="flex items-center gap-1.5 mt-2">
-                  <div className="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center shrink-0">
-                    <svg
-                      width="11"
-                      height="11"
-                      viewBox="0 0 12 12"
-                      fill="none"
-                      stroke="#fff"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M2 6l3 3 5-5" />
-                    </svg>
-                  </div>
-                  <span className="text-sm font-semibold text-green-600">Verified organizer</span>
+                  <span className="inline-flex items-center gap-0.5 text-sm font-bold text-primary-600">
+                    <HiBadgeCheck size={16} />
+                    Verified
+                  </span>
                   {yearFounded && (
-                    <span className="text-sm text-gray-400">· Founded {yearFounded}</span>
+                    <span className="text-sm text-gray-400 font-semibold">
+                      · Founded {yearFounded}
+                    </span>
                   )}
                 </div>
-                <div className="text-xs text-gray-500 mt-1">Verified by World Camps</div>
               </>
             )}
             {!isVerified && yearFounded && (

@@ -29,7 +29,7 @@ export function WishlistDetailHeader({
   const shareCount = wishlist.shares?.length ?? 0
 
   return (
-    <header className="sticky top-0 bg-white z-50 border-b border-gray-100 w-full">
+    <header className="lg:sticky lg:top-0 bg-white z-50 border-b border-gray-100 w-full">
       <div className="flex flex-col px-8 py-4 w-full max-w-full">
         <div className="flex items-start gap-4">
           {!readOnly && (

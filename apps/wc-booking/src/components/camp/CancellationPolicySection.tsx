@@ -194,7 +194,7 @@ export function CancellationPolicySection({
       </div>
 
       {/* ── Summary description ──────────────────── */}
-      {description && <p className="text-base text-gray-700 leading-relaxed mb-4">{description}</p>}
+      {description && <p className="text-gray-900 leading-relaxed mb-4">{description}</p>}
 
       {/* ── Deposit banner ───────────────────────── */}
       {depositNote && (

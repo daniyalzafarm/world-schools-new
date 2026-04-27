@@ -111,7 +111,7 @@ function ReviewCard({ review }: { review: PublicCampReview }) {
     <div className="p-5 border border-gray-200 rounded-2xl bg-white flex flex-col gap-2.5">
       <div className="flex items-center gap-2.5">
         <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
           style={{ background: gradient }}
         >
           {initials}
@@ -123,11 +123,11 @@ function ReviewCard({ review }: { review: PublicCampReview }) {
       </div>
 
       {review.rating != null && (
-        <StarRating rating={review.rating} color="yellow" showRating={false} size={13} />
+        <StarRating rating={review.rating} color="primary" showRating={false} size={13} />
       )}
 
       {review.reviewText && (
-        <ExpandableText text={review.reviewText} maxLines={4} className="!mb-0" />
+        <ExpandableText text={review.reviewText} maxLines={4} className="mb-0!" />
       )}
 
       {review.tags && review.tags.length > 0 && (
@@ -184,7 +184,7 @@ export function ReviewsDrawer({
       placement="center"
       scrollBehavior="outside"
       classNames={{
-        base: 'max-h-[90vh] m-0 sm:mx-4',
+        base: 'm-0 sm:mx-4 md:h-[65vh]',
         wrapper: 'p-0 sm:p-4 items-end sm:items-center',
         body: 'p-0 overflow-hidden',
         header: 'border-b border-gray-100 px-5 py-4',
@@ -198,7 +198,7 @@ export function ReviewsDrawer({
         <ModalBody>
           <div className="flex overflow-hidden" style={{ height: 'calc(90vh - 120px)' }}>
             {/* Left sidebar — desktop only */}
-            <div className="hidden md:flex flex-col w-72 flex-shrink-0 border-r border-gray-100 overflow-y-auto">
+            <div className="hidden md:flex flex-col w-72 shrink-0 border-r border-gray-100 overflow-y-auto">
               <div className="p-6">
                 {/* Score */}
                 <div className="mb-6">
@@ -241,9 +241,9 @@ export function ReviewsDrawer({
             </div>
 
             {/* Right: review list */}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex flex-col overflow-hidden">
               {/* Mobile score strip */}
-              <div className="flex md:hidden items-center gap-3 px-5 py-4 border-b border-gray-100 flex-shrink-0">
+              <div className="flex md:hidden items-center gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
                 <span className="text-3xl font-extrabold text-gray-900">
                   {formatRating(rating)}
                 </span>
@@ -254,7 +254,7 @@ export function ReviewsDrawer({
               </div>
 
               {/* Star filter pills */}
-              <div className="flex flex-wrap gap-2 px-5 py-4 border-b border-gray-100 flex-shrink-0">
+              <div className="flex flex-wrap gap-2 px-5 py-4 border-b border-gray-100 shrink-0">
                 {STAR_FILTERS.map(s => (
                   <Button
                     key={s}
@@ -271,7 +271,9 @@ export function ReviewsDrawer({
                       'All'
                     ) : (
                       <span className="flex items-center gap-1">
-                        <Star size={11} className="fill-amber-400 text-amber-400" />
+                        {Array.from({ length: s }, (_, i) => (
+                          <Star key={i} size={11} className="fill-primary text-primary" />
+                        ))}
                         {s}
                       </span>
                     )}

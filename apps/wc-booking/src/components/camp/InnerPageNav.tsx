@@ -79,11 +79,11 @@ export function InnerPageNav({ links, visible, camp }: InnerPageNavProps) {
       )}
       aria-hidden={!visible || undefined}
     >
-      <div className="mx-auto flex h-14 max-w-screen-2xl items-stretch px-5 sm:px-8 lg:px-32 md:h-16">
+      <div className="mx-auto flex h-14 max-w-screen-2xl items-stretch px-5 sm:px-8 xl:px-32 md:h-16">
         <ScrollShadow
           orientation="horizontal"
           hideScrollBar
-          className="px-6 md:px-8 lg:px-0 flex min-h-0 min-w-0 flex-1 gap-0 overflow-x-auto sm:-mx-8 lg:mx-0"
+          className="px-6 md:px-8 xl:px-0 flex min-h-0 min-w-0 flex-1 gap-0 overflow-x-auto sm:-mx-8 xl:mx-0"
         >
           {links.map(link => (
             <a

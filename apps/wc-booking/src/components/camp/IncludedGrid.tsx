@@ -25,7 +25,7 @@ export function IncludedGrid({ items, className = '' }: IncludedGridProps) {
   return (
     <div className={`grid grid-cols-2 gap-3 ${className}`}>
       {items.map(item => (
-        <div key={item.id} className="flex items-center gap-2 text-sm text-gray-900">
+        <div key={item.id} className="flex items-center gap-2 text-gray-900 leading-relaxed">
           {renderIcon(item.icon)}
           <span className="flex-1">{item.text}</span>
         </div>

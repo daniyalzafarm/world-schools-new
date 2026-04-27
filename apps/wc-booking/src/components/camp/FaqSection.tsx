@@ -1,4 +1,5 @@
 import { Accordion, AccordionItem } from '@heroui/react'
+import { ChevronDown } from 'lucide-react'
 import type { FaqItem } from '../../utils/faq-builders'
 
 interface FaqSectionProps {
@@ -18,14 +19,19 @@ export function FaqSection({ items }: FaqSectionProps) {
         className="px-0"
         itemClasses={{
           base: 'border-b border-gray-200 last:border-b-0',
-          trigger: 'cursor-pointer p-4 hover:bg-slate-50',
-          title: 'text-base font-semibold text-gray-900',
-          content: 'p-4 text-base text-gray-600 leading-relaxed',
-          indicator: 'text-gray-400',
+          trigger: 'cursor-pointer py-4',
+          title: 'font-medium text-gray-900',
+          content: 'py-4 text-gray-900 leading-relaxed',
+          indicator: 'text-gray-400 rotate-0 data-[open=true]:rotate-180',
         }}
       >
         {items.map((item, index) => (
-          <AccordionItem key={index} aria-label={item.question} title={item.question}>
+          <AccordionItem
+            key={index}
+            aria-label={item.question}
+            title={item.question}
+            indicator={<ChevronDown size={16} />}
+          >
             {item.answer}
           </AccordionItem>
         ))}

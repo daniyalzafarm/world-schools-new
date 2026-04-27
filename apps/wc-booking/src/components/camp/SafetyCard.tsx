@@ -103,7 +103,7 @@ export function SafetyCard({ ratios, items, description, className }: SafetyCard
       {/* Description */}
       {hasDescription && (
         <div className="p-5 sm:p-6">
-          <p className="text-base text-gray-700 leading-relaxed">{description}</p>
+          <p className="text-gray-900 leading-relaxed">{description}</p>
         </div>
       )}
     </div>

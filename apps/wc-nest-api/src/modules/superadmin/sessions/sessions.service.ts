@@ -85,15 +85,6 @@ export class SuperAdminSessionsService {
       return record
     })
 
-    // Fetch existing sessions for overlap detection
-    const existingSessions = await this.prisma.session.findMany({
-      where: { campId },
-      select: { startDate: true, endDate: true, name: true },
-    })
-
-    // Track sessions created in this batch for intra-batch overlap detection
-    const createdInBatch: { startDate: Date; endDate: Date }[] = []
-
     // Get max sortOrder for auto-increment
     const lastSession = await this.prisma.session.findFirst({
       where: { campId },
@@ -118,26 +109,7 @@ export class SuperAdminSessionsService {
         // 2. Parse
         const parsed = parseSessionCsvRow(row)
 
-        // 3. Check date overlap against existing sessions + batch
-        const allExisting = [
-          ...existingSessions.map(s => ({
-            startDate: new Date(s.startDate),
-            endDate: new Date(s.endDate),
-          })),
-          ...createdInBatch,
-        ]
-
-        for (const existing of allExisting) {
-          const overlaps =
-            parsed.startDate <= existing.endDate && parsed.endDate >= existing.startDate
-          if (overlaps) {
-            throw new Error(
-              `Session dates (${row['startDate']} – ${row['endDate']}) overlap with another session in this camp`
-            )
-          }
-        }
-
-        // 4. Create
+        // 3. Create
         await this.prisma.session.create({
           data: {
             campId,
@@ -159,7 +131,6 @@ export class SuperAdminSessionsService {
           },
         })
 
-        createdInBatch.push({ startDate: parsed.startDate, endDate: parsed.endDate })
         nextSortOrder++
         imported++
       } catch (error) {

@@ -5,39 +5,11 @@ import { usePathname, useRouter } from 'next/navigation'
 import { Button } from '@heroui/react'
 import { useCampsStore } from '../../stores/camps-store'
 import { AutoSaveIndicator } from '../camp-editor/AutoSaveIndicator'
+import { editorSections, navigationOnlySections, shouldShowSection } from './editor-sections'
 
 interface CampEditorFooterProps {
   campId: string
 }
-
-const editorSections = [
-  'basic-info',
-  'audience',
-  'photos',
-  'camp-focus',
-  'programs',
-  'sports',
-  'languages',
-  'arts',
-  'adventure',
-  'water',
-  'environmental',
-  'academics',
-  'religion',
-  'excursions',
-  'sessions',
-  'whats-included',
-  'addons',
-  'skill-requirements',
-  'accommodation',
-  'meals',
-  'daily-schedule',
-  'safety-policies',
-  'location-campus',
-  'getting-there',
-]
-
-const navigationOnlySections = ['sessions']
 
 export function CampEditorFooter({ campId }: CampEditorFooterProps) {
   const pathname = usePathname()
@@ -45,40 +17,18 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
   const { autoSaveStatus, currentCamp } = useCampsStore()
   const [waitingButton, setWaitingButton] = useState<'previous' | 'next' | null>(null)
 
-  const shouldShowSection = (section: string) => {
-    if (section === 'accommodation' || section === 'getting-there') {
-      if (currentCamp?.type !== 'residential') return false
-    }
-
-    const activitySections: Record<string, string> = {
-      sports: 'sports',
-      languages: 'languages',
-      arts: 'arts',
-      adventure: 'adventure',
-      water: 'water',
-      environmental: 'environment',
-      academics: 'academics',
-      religion: 'religion',
-      excursions: 'excursions',
-    }
-
-    if (activitySections[section]) {
-      const selectedActivities = currentCamp?.activities ?? []
-      return selectedActivities.includes(activitySections[section])
-    }
-
-    return true
-  }
-
-  const filteredSections = editorSections.filter(shouldShowSection)
-  const currentSection = filteredSections.find(section => pathname.includes(section))
+  const filteredSections = editorSections.filter(s => shouldShowSection(s, currentCamp))
+  const currentSection = filteredSections.find(section => pathname.includes(section.path))
   const currentIndex = currentSection ? filteredSections.indexOf(currentSection) : -1
 
   const hasPrevious = currentIndex > 0
   const hasNext = currentIndex >= 0 && currentIndex < filteredSections.length - 1
   const previousSection = hasPrevious ? filteredSections[currentIndex - 1] : null
   const nextSection = hasNext ? filteredSections[currentIndex + 1] : null
-  const isNavigationOnly = currentSection ? navigationOnlySections.includes(currentSection) : false
+  const isNavigationOnly = currentSection
+    ? navigationOnlySections.includes(currentSection.id)
+    : false
+  const hideFooterNav = !!currentSection?.hideFooterNav
 
   const waitForPendingSave = (): Promise<void> =>
     new Promise(resolve => {
@@ -115,12 +65,12 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
 
   const handlePrevious = () => {
     if (!previousSection) return
-    void flushAndNavigate(previousSection, 'previous')
+    void flushAndNavigate(previousSection.path, 'previous')
   }
 
   const handleNext = () => {
     if (!nextSection) return
-    void flushAndNavigate(nextSection, 'next')
+    void flushAndNavigate(nextSection.path, 'next')
   }
 
   const isWaiting = waitingButton !== null
@@ -144,14 +94,16 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
         </div>
 
         <div className="flex flex-1 justify-end">
-          <Button
-            color="secondary"
-            onPress={handleNext}
-            isDisabled={!hasNext || isWaiting}
-            isLoading={waitingButton === 'next'}
-          >
-            Next
-          </Button>
+          {!hideFooterNav && (
+            <Button
+              color="secondary"
+              onPress={handleNext}
+              isDisabled={!hasNext || isWaiting}
+              isLoading={waitingButton === 'next'}
+            >
+              Next
+            </Button>
+          )}
         </div>
       </div>
     </div>

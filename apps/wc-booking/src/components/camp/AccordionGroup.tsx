@@ -116,7 +116,7 @@ export function AccordionGroup({
       {hasMeals && (
         <AccordionPanel title="Meals" isOpen={openKey === 'meals'} onToggle={() => toggle('meals')}>
           {meals!.description && (
-            <p className="text-base text-gray-700 leading-relaxed mb-5">{meals!.description}</p>
+            <p className="text-gray-900 leading-relaxed mb-5">{meals!.description}</p>
           )}
 
           {/* Dietary option pills */}
@@ -175,7 +175,7 @@ export function AccordionGroup({
           isOpen={openKey === 'screen-policy'}
           onToggle={() => toggle('screen-policy')}
         >
-          <p className="text-base text-gray-700 leading-relaxed">{screenPolicy!.description}</p>
+          <p className="text-gray-900 leading-relaxed">{screenPolicy!.description}</p>
         </AccordionPanel>
       )}
 

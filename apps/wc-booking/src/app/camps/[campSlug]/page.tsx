@@ -9,8 +9,9 @@ import {
   PREDEFINED_FACILITIES,
 } from '@world-schools/wc-frontend-utils'
 import { Button } from '@heroui/react'
-import { CircleCheck, Images, MapPin, Star } from 'lucide-react'
+import { HiBadgeCheck } from 'react-icons/hi'
 import { FcGoogle } from 'react-icons/fc'
+import { Images, MapPin, Star } from 'lucide-react'
 import { cn, StarRating } from '@world-schools/ui-web'
 import { getCampBySlug, getCampReviews } from '@/services/camps.services'
 import { campAddOnsService } from '@/services/camp-addons.services'
@@ -31,6 +32,7 @@ import { CampStatsBar } from '@/components/camp/CampStatsBar'
 import { FaqSection } from '@/components/camp/FaqSection'
 import { AccordionGroup } from '@/components/camp/AccordionGroup'
 import { SessionsModal } from '@/components/camp/SessionsModal'
+import { CampLocationModal } from '@/components/camp/CampLocationModal'
 import { AddToWishlistModal } from '@/components/wishlists/modals/add-to-wishlist-modal'
 import { ReviewsSection } from '@/components/camp/ReviewsSection'
 import { CampSidebar } from '@/components/camp/CampSidebar'
@@ -73,6 +75,8 @@ export default function CampPage() {
   const [galleryPhotoIndex, setGalleryPhotoIndex] = useState(-1)
   const [selectedSession, setSelectedSession] = useState<Session | null>(null)
   const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false)
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
+  const [isReviewsDrawerOpen, setIsReviewsDrawerOpen] = useState(false)
   const [addOns, setAddOns] = useState<CampBookingAddOn[]>([])
   const [campReviews, setCampReviews] = useState<CampReviewsData | null>(null)
   const [innerNavReplacesTopbar, setInnerNavReplacesTopbar] = useState(false)
@@ -241,8 +245,6 @@ export default function CampPage() {
   const headerAddress = camp.locationAddress || ''
   const isVerifiedProvider = camp.provider?.approvalStatus === 'approved'
   const statsLevelLabel = getSkillLevelLabel(camp.sports?.skillLevel) ?? null
-  const focusStatEmoji =
-    primaryActivity?.emoji?.trim() || camp.campFocusRecord?.category?.emoji?.trim() || undefined
 
   // Auto-generated FAQ
   const faqItems = [
@@ -271,7 +273,8 @@ export default function CampPage() {
     faqItems.length > 0 ? { href: '#faq', label: 'FAQ' } : null,
   ].filter(Boolean) as { href: string; label: string }[]
 
-  const isAnyModalOpen = isSessionsModalOpen || isGalleryOpen
+  const isAnyModalOpen =
+    isSessionsModalOpen || isGalleryOpen || isLocationModalOpen || isReviewsDrawerOpen
 
   return (
     <div className="min-h-screen bg-white">
@@ -308,7 +311,7 @@ export default function CampPage() {
 
         {/* sm+ — 5-photo grid; aspect-ratio fixed so proportions match at every breakpoint */}
         <div className="mx-auto mt-4 mb-8 hidden max-w-screen-2xl px-5 sm:block sm:px-8 lg:mt-6 lg:mb-10 lg:px-8 xl:px-32">
-          <div className="relative grid w-full grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-xl aspect-2/1">
+          <div className="relative grid w-full grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-xl aspect-2/1 max-h-120">
             <div
               className="group relative col-span-2 row-span-2 cursor-pointer overflow-hidden bg-gray-300"
               onClick={() => {
@@ -386,12 +389,15 @@ export default function CampPage() {
       />
 
       {/* ── Page body: content + sidebar ─────────────────────────────── */}
-      <div className="max-w-screen-2xl mx-auto px-5 sm:px-8 lg:px-32 pb-32 lg:pb-20">
+      <div className="max-w-screen-2xl mx-auto px-5 sm:px-8 xl:px-32 pb-32 lg:pb-20">
         <div className="lg:grid lg:grid-cols-[1fr_400px] lg:gap-16 xl:gap-24">
           {/* ── Left: Main content column ──────────────────────────── */}
           <div className="min-w-0">
             {/* ── 3. About ──────────────────────────────────────────── */}
-            <section id="about" className="mb-10 scroll-mt-14 pt-6 md:mb-12 md:scroll-mt-16">
+            <section
+              id="about"
+              className="mb-10 scroll-mt-14 pt-6 sm:pt-0 md:mb-12 md:scroll-mt-16"
+            >
               {/* Module 01 — camp title */}
               <h1 className="mb-2 text-2xl leading-tight font-bold text-gray-900 sm:text-3xl lg:text-4xl">
                 {camp.name}
@@ -404,11 +410,16 @@ export default function CampPage() {
                     <div className="flex flex-wrap items-center gap-2 text-sm">
                       {/* System reviews */}
                       {hasSystemReviews && systemRating != null ? (
-                        <a href="#reviews" className="flex items-center gap-1 hover:text-gray-900">
+                        <button
+                          type="button"
+                          onClick={() => setIsReviewsDrawerOpen(true)}
+                          className="flex cursor-pointer items-center gap-1 hover:text-gray-900"
+                        >
                           <StarRating
-                            rating={systemRating}
+                            rating={1}
+                            maxRating={1}
                             showRating={false}
-                            color="yellow"
+                            color="primary"
                             size={16}
                           />
                           <span className="font-bold text-gray-900">
@@ -417,10 +428,16 @@ export default function CampPage() {
                           <span className="underline underline-offset-2">
                             ({formatReviewCount(systemReviewsCount)} reviews)
                           </span>
-                        </a>
+                        </button>
                       ) : (
                         <span className="flex items-center gap-1">
-                          <StarRating rating={0} showRating={false} color="yellow" size={16} />
+                          <StarRating
+                            rating={0}
+                            maxRating={1}
+                            showRating={false}
+                            color="primary"
+                            size={16}
+                          />
                           <span>(0 reviews)</span>
                         </span>
                       )}
@@ -484,8 +501,8 @@ export default function CampPage() {
                       {isVerifiedProvider && (
                         <>
                           <span className="text-gray-500">·</span>
-                          <span className="inline-flex items-center gap-0.5 text-sm font-bold text-primary-700">
-                            <CircleCheck size={16} />
+                          <span className="inline-flex items-center gap-0.5 text-sm font-bold text-primary-600">
+                            <HiBadgeCheck size={16} />
                             Verified
                           </span>
                         </>
@@ -498,12 +515,13 @@ export default function CampPage() {
                       <MapPin size={16} />
                       <span>{headerAddress}</span>
                       <span className="text-gray-500">·</span>
-                      <a
-                        href="#location"
-                        className="text-secondary-700 underline underline-offset-2 hover:text-primary-600"
+                      <button
+                        type="button"
+                        onClick={() => setIsLocationModalOpen(true)}
+                        className="cursor-pointer font-semibold text-secondary-700 hover:underline underline-offset-2"
                       >
                         Show on map
-                      </a>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -513,7 +531,6 @@ export default function CampPage() {
                 gender={camp.gender}
                 ageGroups={camp.ageGroups ?? []}
                 primaryFocus={primaryActivity ? { activityName: primaryActivity.name } : null}
-                focusEmoji={focusStatEmoji}
                 campType={camp.type}
                 levelLabel={statsLevelLabel}
                 className="mb-6"
@@ -571,6 +588,8 @@ export default function CampPage() {
               campId={camp.id}
               campName={camp.provider?.googleBusinessProfile?.businessName || camp.name}
               initialData={campReviews ?? undefined}
+              externalOpen={isReviewsDrawerOpen}
+              onExternalClose={() => setIsReviewsDrawerOpen(false)}
             />
 
             {/* ── 8. Safety & Supervision ───────────────────────────── */}
@@ -701,32 +720,26 @@ export default function CampPage() {
               ) : null}
 
               {/* Address + See full map link */}
-              {camp.locationAddress && (
-                <p className="text-sm text-gray-500 mb-1">{camp.locationAddress}</p>
-              )}
-              {(camp.locationLat && camp.locationLng) || camp.locationAddress ? (
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(camp.locationAddress || `${camp.locationLat},${camp.locationLng}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-semibold text-secondary inline-flex items-center gap-1 mb-7"
-                >
-                  See full map
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 14 14"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <path d="M2 7h10M7 2l5 5-5 5" />
-                  </svg>
-                </a>
-              ) : null}
+              <div className="flex items-center gap-2 text-sm">
+                {camp.locationAddress && (
+                  <div className="flex items-center gap-1.5 text-gray-500">
+                    <MapPin size={14} />
+                    <p>{camp.locationAddress}</p>
+                  </div>
+                )}
+                {(camp.locationLat && camp.locationLng) || camp.locationAddress ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-500 font-semibold">·</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsLocationModalOpen(true)}
+                      className="cursor-pointer font-semibold text-secondary-700 hover:underline underline-offset-2"
+                    >
+                      See Full Map
+                    </button>
+                  </div>
+                ) : null}
+              </div>
 
               {/* Getting there */}
               {(() => {
@@ -743,13 +756,11 @@ export default function CampPage() {
                 if (!transportItems.length && !overallDescription) return null
                 return (
                   <>
-                    <p className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-0">
+                    <p className="mt-4 text-sm font-bold uppercase tracking-wider text-gray-500 mb-0">
                       Getting there
                     </p>
                     {overallDescription && (
-                      <p className="text-sm text-gray-500 mt-3 mb-1 leading-relaxed">
-                        {overallDescription}
-                      </p>
+                      <p className="text-gray-900 my-2 leading-relaxed">{overallDescription}</p>
                     )}
                     {transportItems.length > 0 && (
                       <div>
@@ -817,6 +828,17 @@ export default function CampPage() {
       {/* ── Wishlist modal ─────────────────────────────────────────── */}
       <AddToWishlistModal skipSuccessView />
 
+      {/* ── Location modal ─────────────────────────────────────────── */}
+      <CampLocationModal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        locationName={camp.locationName || camp.name}
+        locationAddress={camp.locationAddress || ''}
+        lat={camp.locationLat != null ? Number(camp.locationLat) : null}
+        lng={camp.locationLng != null ? Number(camp.locationLng) : null}
+        placeId={camp.locationPlaceId ?? null}
+      />
+
       {/* ── Sessions modal ─────────────────────────────────────────── */}
       <SessionsModal
         isOpen={isSessionsModalOpen}
@@ -844,26 +866,5 @@ export default function CampPage() {
         isAnyModalOpen={isAnyModalOpen}
       />
     </div>
-  )
-}
-
-// ─── Module 01 — header rating stars (amber, 14px) ───────────────────────────
-
-function HeaderRatingStars({ rating }: { rating: number }) {
-  const rounded = Math.min(5, Math.max(0, Math.round(rating)))
-  return (
-    <span className="-space-x-0.5 flex items-center text-amber-500" aria-hidden>
-      {[1, 2, 3, 4, 5].map(i => (
-        <Star
-          key={i}
-          size={14}
-          className={cn(
-            'shrink-0',
-            i <= rounded ? 'fill-amber-500 stroke-amber-500' : 'fill-transparent stroke-amber-500'
-          )}
-          strokeWidth={1.5}
-        />
-      ))}
-    </span>
   )
 }

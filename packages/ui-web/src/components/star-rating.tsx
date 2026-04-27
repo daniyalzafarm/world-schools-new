@@ -7,7 +7,7 @@ export type StarRatingColor = 'default' | 'primary' | 'yellow'
 
 const starColorMap: Record<StarRatingColor, string> = {
   default: 'text-primary-dark',
-  primary: 'text-primary',
+  primary: 'text-primary-500',
   yellow: 'text-amber-400',
 }
 

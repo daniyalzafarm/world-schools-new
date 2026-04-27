@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { RangeCalendar } from '@heroui/react'
 import { CurrencyInput, DatePicker, Input, TimeInput } from '@world-schools/ui-web'
@@ -69,7 +69,6 @@ interface SessionFormProps {
   campType: CampType | null
   camp?: Camp | null
   globalDiscounts?: GlobalDiscount[]
-  existingSessions?: Session[]
   // For creation mode
   selectedDiscountIds?: string[]
   onToggleDiscount?: (discountId: string) => void
@@ -109,7 +108,6 @@ export function SessionForm({
   campType,
   camp,
   globalDiscounts = [],
-  existingSessions = [],
   selectedDiscountIds = [],
   onToggleDiscount,
   sessionSpecificDiscounts = [],
@@ -145,24 +143,6 @@ export function SessionForm({
     return null
   })
 
-  // Disabled ranges from other sessions of the same camp
-  const disabledRanges = useMemo<Array<[CalendarDate, CalendarDate]>>(() => {
-    return existingSessions
-      .filter(s => s.id !== session?.id)
-      .map(s => {
-        const start = stringToCalendarDate(formatDateForInput(s.startDate))
-        const end = stringToCalendarDate(formatDateForInput(s.endDate))
-        return start && end ? ([start, end] as [CalendarDate, CalendarDate]) : null
-      })
-      .filter((r): r is [CalendarDate, CalendarDate] => r !== null)
-  }, [existingSessions, session?.id])
-
-  const isDateUnavailable = (date: DateValue) =>
-    disabledRanges.some(([from, to]) => date.compare(from) >= 0 && date.compare(to) <= 0)
-
-  const rangeOverlapsDisabled = (start: CalendarDate, end: CalendarDate) =>
-    disabledRanges.some(([from, to]) => end.compare(from) >= 0 && start.compare(to) <= 0)
-
   // Half-day toggle state
   const [isHalfDay, setIsHalfDay] = useState(session?.sessionDayType === 'half_day')
 
@@ -189,12 +169,6 @@ export function SessionForm({
     // Validate dates
     if (!validateDateRange(formData.startDate, formData.endDate)) {
       newErrors.dates = 'End date must be after start date'
-    } else {
-      const startCal = stringToCalendarDate(formData.startDate)
-      const endCal = stringToCalendarDate(formData.endDate)
-      if (startCal && endCal && rangeOverlapsDisabled(startCal, endCal)) {
-        newErrors.dates = 'Selected date range overlaps an existing session.'
-      }
     }
 
     // Validate half-day times if applicable
@@ -419,7 +393,6 @@ export function SessionForm({
                     labelPlacement="outside"
                     value={stringToCalendarDate(formData.startDate) as any}
                     minValue={today(getLocalTimeZone()).add({ days: 1 })}
-                    isDateUnavailable={isDateUnavailable}
                     onChange={value => {
                       const dateString = value ? calendarDateToString(value) : ''
                       setFormData(prev => ({ ...prev, startDate: dateString }))
@@ -442,7 +415,6 @@ export function SessionForm({
                     labelPlacement="outside"
                     value={stringToCalendarDate(formData.endDate) as any}
                     minValue={today(getLocalTimeZone()).add({ days: 1 })}
-                    isDateUnavailable={isDateUnavailable}
                     onChange={value => {
                       const dateString = value ? calendarDateToString(value) : ''
                       setFormData(prev => ({ ...prev, endDate: dateString }))
@@ -544,7 +516,6 @@ export function SessionForm({
                 }}
                 isInvalid={!!errors.dates}
                 minValue={today(getLocalTimeZone()).add({ days: 1 })}
-                isDateUnavailable={isDateUnavailable}
               />
             </div>
           </div>
