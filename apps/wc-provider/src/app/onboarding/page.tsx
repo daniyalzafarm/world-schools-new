@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Spinner } from '@heroui/react'
 import { useOnboardingStore } from '../../stores/onboarding-store'
+import { getNextAccessibleStep } from '../../utils/onboarding-access'
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -20,7 +21,7 @@ export default function OnboardingPage() {
 
     // Route based on approval status
     if (status.approvalStatus === 'approved') {
-      router.push('/dashboard')
+      router.push(getNextAccessibleStep(status))
       return
     }
 

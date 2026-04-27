@@ -8,6 +8,7 @@ import { ApplicationReviewModule } from './application-review/application-review
 import { SuperAdminCampsModule } from './camps/camps.module'
 import { SuperAdminSessionsModule } from './sessions/sessions.module'
 import { SuperAdminParentsModule } from './parents/parents.module'
+import { AdminSettingsModule } from './admin-settings/admin-settings.module'
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { SuperAdminParentsModule } from './parents/parents.module'
     SuperAdminCampsModule,
     SuperAdminSessionsModule,
     SuperAdminParentsModule,
+    AdminSettingsModule,
   ],
 })
 export class SuperAdminModule {}

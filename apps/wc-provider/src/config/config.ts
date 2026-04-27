@@ -9,6 +9,9 @@ const config = {
   auth: {
     usingRequest: process.env.NEXT_PUBLIC_AUTH_USING_REQUEST === 'true',
   },
+  stripe: {
+    publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '',
+  },
 }
 
 export default config

@@ -93,6 +93,9 @@ model User {
   // Notification Relations
   notifications Notification[]
 
+  // System Settings Relations
+  systemSettingsUpdates SystemSettings[]
+
   @@map("users")
 }
 
@@ -236,6 +239,20 @@ model Provider {
   termsVersion                String?   @map("terms_version")
   providerAgreementAcceptedAt DateTime? @map("provider_agreement_accepted_at")
   providerAgreementVersion    String?   @map("provider_agreement_version")
+
+  // Stripe Connect
+  stripeAccountId             String?   @unique @map("stripe_account_id")
+  stripeOnboardingCompleted   Boolean   @default(false) @map("stripe_onboarding_completed")
+  stripeOnboardingCompletedAt DateTime? @map("stripe_onboarding_completed_at")
+  stripeOnboardingSkippedAt   DateTime? @map("stripe_onboarding_skipped_at")
+  stripeCommissionPercentage  Decimal?  @map("stripe_commission_percentage") @db.Decimal(5, 2)
+  stripeChargesEnabled        Boolean   @default(false) @map("stripe_charges_enabled")
+  stripePayoutsEnabled        Boolean   @default(false) @map("stripe_payouts_enabled")
+  stripeDetailsSubmitted      Boolean   @default(false) @map("stripe_details_submitted")
+  // True when Stripe has open `requirements.currently_due` or `past_due` items.
+  // Synced by the `account.updated` webhook so dashboard surfaces (lists, header
+  // pills) can highlight providers needing action without a live Stripe fetch.
+  stripeAttentionRequired     Boolean   @default(false) @map("stripe_attention_required")
 
   // Relations
   owner                 User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
@@ -2354,4 +2371,37 @@ model Notification {
   @@index([userId, createdAt(sort: Desc)])
   @@index([entityType, entityId])
   @@map("notifications")
+}
+
+// ============================================
+// System / Admin Settings
+// ============================================
+
+model SystemSettings {
+  // Singleton row — always upserted with id = 'singleton'
+  id                String   @id @default("singleton")
+  defaultCommission Decimal  @default(10) @map("default_commission") @db.Decimal(5, 2)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  updatedByAdminId  String?  @map("updated_by_admin_id")
+
+  updatedByAdmin User? @relation(fields: [updatedByAdminId], references: [id])
+
+  @@map("system_settings")
+}
+
+model StripeWebhookEvent {
+  id              String    @id // Stripe event.id — guarantees at-most-once processing across retries
+  type            String
+  accountId       String?   @map("account_id")
+  apiVersion      String    @map("api_version")
+  payload         Json
+  receivedAt      DateTime  @default(now()) @map("received_at")
+  processedAt     DateTime? @map("processed_at")
+  processingError String?   @map("processing_error") @db.Text
+
+  @@index([type])
+  @@index([accountId])
+  @@index([processedAt])
+  @@map("stripe_webhook_events")
 }

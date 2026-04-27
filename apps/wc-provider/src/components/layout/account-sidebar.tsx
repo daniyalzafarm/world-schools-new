@@ -3,7 +3,7 @@
 import React from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn, useConfirmDialog } from '@world-schools/ui-web'
-import { Building2, Home, Lock, LogOut, Phone, Shield, User } from 'lucide-react'
+import { Building2, CreditCard, Home, Lock, LogOut, Phone, Shield, User } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 
 interface AccountSidebarProps {
@@ -96,6 +96,11 @@ export const AccountSidebar: React.FC<AccountSidebarProps> = ({ sidebarOpen, set
         name: 'Company Details',
         href: '/account/business/company-details',
         icon: <Building2 size={20} />,
+      },
+      {
+        name: 'Stripe Account',
+        href: '/account/business/stripe-account',
+        icon: <CreditCard size={20} />,
       },
     ],
   }

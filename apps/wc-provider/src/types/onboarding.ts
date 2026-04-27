@@ -87,6 +87,12 @@ export interface OnboardingStatus {
   termsVersion?: string | null
   providerAgreementAcceptedAt?: string | null
   providerAgreementVersion?: string | null
+  // Stripe Connect
+  stripeOnboardingCompleted: boolean
+  stripeOnboardingSkippedAt?: string | null
+  stripeChargesEnabled: boolean
+  stripePayoutsEnabled: boolean
+  stripeCommissionPercentage?: number | null
 }
 
 export interface GoogleBusinessSearchResult {

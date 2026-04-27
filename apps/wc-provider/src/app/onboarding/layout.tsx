@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '../../stores/auth-store'
 import { useOnboardingStore } from '../../stores/onboarding-store'
 import { OnboardingSidebar } from '../../components/onboarding/OnboardingSidebar'
@@ -9,6 +9,7 @@ import { Logo } from '@/components/layout/logo'
 
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
   const { isAuthenticated } = useAuthStore()
   const { status, fetchStatus } = useOnboardingStore()
 
@@ -23,12 +24,23 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
     })
   }, [isAuthenticated, fetchStatus, router])
 
-  // Redirect if onboarding is already completed
+  // Approved + completed providers belong on the dashboard, not stuck on a
+  // stale onboarding page. The single exception is /onboarding/stripe-connect,
+  // which they can reach deliberately from the Account → Stripe Account page
+  // to finish (or restart) Stripe setup.
+  //
+  // We intentionally do NOT gate this on Stripe state: grandfathered providers
+  // (approved before Stripe Connect shipped) have all stripe_* defaults set
+  // to false/null and would otherwise be trapped on the onboarding tree.
   useEffect(() => {
-    if (status?.isCompleted && status.approvalStatus === 'approved') {
+    if (
+      status?.isCompleted &&
+      status.approvalStatus === 'approved' &&
+      pathname !== '/onboarding/stripe-connect'
+    ) {
       router.push('/dashboard')
     }
-  }, [status, router])
+  }, [status, pathname, router])
 
   // Show loading state while fetching status
   if (!status) {
@@ -48,6 +60,8 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
           stepCompletion={status.stepCompletion}
           isOnboardingCompleted={status.isCompleted}
           approvalStatus={status.approvalStatus}
+          stripeOnboardingCompleted={status.stripeOnboardingCompleted}
+          stripeOnboardingSkipped={!!status.stripeOnboardingSkippedAt}
         />
       </div>
 

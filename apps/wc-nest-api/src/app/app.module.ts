@@ -18,6 +18,9 @@ import { SupportTicketsModule } from '../modules/support-tickets/support-tickets
 // Global WebSocket module
 import { WebSocketModule } from '../modules/websocket/websocket.module'
 
+// Stripe module (global — exports StripeService)
+import { StripeModule } from '../modules/stripe/stripe.module'
+
 // Domain modules
 import { SuperAdminModule } from '../modules/superadmin/superadmin.module'
 import { ProviderModule } from '../modules/provider/provider.module'
@@ -48,6 +51,9 @@ import { NotificationsModule } from '../modules/notifications/notifications.modu
 
     // Global WebSocket
     WebSocketModule,
+
+    // Stripe (global — registers StripeService + webhook handler)
+    StripeModule,
 
     // Domain modules
     SuperAdminModule,

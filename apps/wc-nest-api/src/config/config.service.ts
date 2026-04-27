@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { PINNED_STRIPE_API_VERSION } from '../modules/stripe/stripe.constants'
 
 @Injectable()
 export class ConfigService {
@@ -180,6 +181,65 @@ export class ConfigService {
   // Google APIs Configuration
   get googlePlacesApiKey(): string {
     return this.getString('GOOGLE_PLACES_API_KEY', '')
+  }
+
+  // Stripe Configuration
+  //
+  // In production all three keys are required and must carry their expected prefixes
+  // (live secret/publishable, webhook signing secret) so a misconfigured deploy fails
+  // at boot rather than on first Stripe call.
+  //
+  // In dev/test we keep empty defaults so local boot without Stripe still works, but
+  // if a value IS set we still prefix-check it — catches an `sk_live_*` or `sk_test_*`
+  // accidentally placed in the wrong env file early.
+  get stripeConfig() {
+    const isProd = this.isProduction
+    const secretKey = isProd
+      ? this.getString('STRIPE_SECRET_KEY')
+      : this.getString('STRIPE_SECRET_KEY', '')
+    const publishableKey = isProd
+      ? this.getString('STRIPE_PUBLISHABLE_KEY')
+      : this.getString('STRIPE_PUBLISHABLE_KEY', '')
+    const webhookSecret = isProd
+      ? this.getString('STRIPE_WEBHOOK_SECRET')
+      : this.getString('STRIPE_WEBHOOK_SECRET', '')
+
+    if (isProd) {
+      if (!secretKey.startsWith('sk_live_')) {
+        throw new Error(
+          'Config error - STRIPE_SECRET_KEY must be a live key (sk_live_*) in production'
+        )
+      }
+      if (!publishableKey.startsWith('pk_live_')) {
+        throw new Error(
+          'Config error - STRIPE_PUBLISHABLE_KEY must be a live key (pk_live_*) in production'
+        )
+      }
+      if (!webhookSecret.startsWith('whsec_')) {
+        throw new Error(
+          'Config error - STRIPE_WEBHOOK_SECRET must be a Stripe signing secret (whsec_*)'
+        )
+      }
+    } else {
+      if (secretKey && !secretKey.startsWith('sk_')) {
+        throw new Error('Config error - STRIPE_SECRET_KEY must start with sk_test_ or sk_live_')
+      }
+      if (publishableKey && !publishableKey.startsWith('pk_')) {
+        throw new Error(
+          'Config error - STRIPE_PUBLISHABLE_KEY must start with pk_test_ or pk_live_'
+        )
+      }
+      if (webhookSecret && !webhookSecret.startsWith('whsec_')) {
+        throw new Error('Config error - STRIPE_WEBHOOK_SECRET must start with whsec_')
+      }
+    }
+
+    return {
+      secretKey,
+      publishableKey,
+      webhookSecret,
+      apiVersion: PINNED_STRIPE_API_VERSION,
+    }
   }
 
   // Helper methods for auth controller

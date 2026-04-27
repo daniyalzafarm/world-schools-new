@@ -91,7 +91,16 @@ export function createWcNextConfig(options = {}) {
     // Expose environment variables to the app
     env: envVars,
 
-    // Security headers
+    // Security headers.
+    //
+    // NOTE on Content-Security-Policy: we currently rely on the upstream
+    // backend's Helmet CSP only. If a CSP header is added here, the wc-provider
+    // app embeds Stripe Connect (the Account onboarding/payments components),
+    // so the directives MUST allow Stripe origins:
+    //   - script-src:  https://js.stripe.com https://connect-js.stripe.com
+    //   - frame-src:   https://js.stripe.com https://connect-js.stripe.com
+    //   - connect-src: https://api.stripe.com https://*.stripe.com
+    // Without these, the embedded onboarding component will fail to load.
     async headers() {
       const defaultHeaders = [
         {

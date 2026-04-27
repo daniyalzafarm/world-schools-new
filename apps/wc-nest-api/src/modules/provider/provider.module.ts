@@ -11,6 +11,7 @@ import { DiscountsModule } from './discounts/discounts.module'
 import { ProviderMessagingModule } from './messaging/provider-messaging.module'
 import { ProviderBookingGroupsModule } from './booking-groups/booking-groups.module'
 import { ProviderReviewsModule } from './reviews/provider-reviews.module'
+import { StripeConnectModule } from './stripe-connect/stripe-connect.module'
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ProviderReviewsModule } from './reviews/provider-reviews.module'
     ProviderBookingGroupsModule,
     ProviderMessagingModule,
     ProviderReviewsModule,
+    StripeConnectModule,
   ],
 })
 export class ProviderModule {}

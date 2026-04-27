@@ -29,12 +29,16 @@ interface OnboardingSidebarProps {
   }
   isOnboardingCompleted?: boolean
   approvalStatus?: string
+  stripeOnboardingCompleted?: boolean
+  stripeOnboardingSkipped?: boolean
 }
 
 export function OnboardingSidebar({
   stepCompletion,
   isOnboardingCompleted = false,
   approvalStatus,
+  stripeOnboardingCompleted = false,
+  stripeOnboardingSkipped = false,
 }: OnboardingSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
@@ -132,6 +136,18 @@ export function OnboardingSidebar({
       href: '/onboarding/status',
       completed: approvalStatus === 'approved',
       enabled: isOnboardingCompleted, // Enabled only if onboarding is completed
+    },
+    {
+      number: 9,
+      title: 'Payment Setup',
+      subtitle: stripeOnboardingCompleted
+        ? 'Connected'
+        : stripeOnboardingSkipped
+          ? 'Skipped — finish later'
+          : 'Stripe Connect',
+      href: '/onboarding/stripe-connect',
+      completed: stripeOnboardingCompleted,
+      enabled: approvalStatus === 'approved', // Only available after application approval
     },
   ]
 

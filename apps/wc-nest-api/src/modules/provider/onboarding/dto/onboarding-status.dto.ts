@@ -119,4 +119,40 @@ export class OnboardingStatusDto {
     required: false,
   })
   providerAgreementVersion?: string | null
+
+  // ── Stripe Connect ─────────────────────────────────────────────────────────
+
+  @ApiProperty({
+    description: 'Whether the provider has completed Stripe Connect onboarding',
+    example: false,
+  })
+  stripeOnboardingCompleted: boolean
+
+  @ApiProperty({
+    description:
+      'When the provider explicitly chose to skip Stripe onboarding (ISO 8601). ' +
+      'Cleared once onboarding completes or the account is deauthorized.',
+    required: false,
+    nullable: true,
+  })
+  stripeOnboardingSkippedAt?: string | null
+
+  @ApiProperty({
+    description: 'Whether the Stripe account can process charges',
+    example: false,
+  })
+  stripeChargesEnabled: boolean
+
+  @ApiProperty({
+    description: 'Whether the Stripe account can receive payouts',
+    example: false,
+  })
+  stripePayoutsEnabled: boolean
+
+  @ApiProperty({
+    description: 'Platform commission percentage for this provider (null until account is created)',
+    example: 10,
+    required: false,
+  })
+  stripeCommissionPercentage?: number | null
 }

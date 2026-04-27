@@ -13,7 +13,10 @@ import type { NextFunction, Request, Response } from 'express'
 import { AuthTokenMiddleware } from './common/middleware/auth-token.middleware'
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule)
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    // rawBody: true is required for Stripe webhook signature verification
+    rawBody: true,
+  })
   const configService = app.get(ConfigService)
 
   // Prevent header-based auth from running in production — it is development-only
@@ -70,6 +73,15 @@ async function bootstrap() {
       // gateway authenticates via its own JWT handshake. Skip CSRF for these paths
       // so that the HTTP long-polling fallback transport is not broken.
       if (req.path.startsWith('/socket.io')) {
+        return next()
+      }
+
+      // Stripe webhook deliveries are server-to-server, carry no cookies, and are
+      // authenticated by HMAC over the raw body via the `stripe-signature` header
+      // (verified in StripeWebhookController). They cannot be replayed by a browser,
+      // so they are not CSRF-vulnerable. CSRF must be skipped here or every webhook
+      // would 403 in cookie-auth (production) mode.
+      if (req.path.startsWith('/stripe/webhooks')) {
         return next()
       }
 

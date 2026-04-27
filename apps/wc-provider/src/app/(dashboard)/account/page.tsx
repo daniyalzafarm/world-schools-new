@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   Building2,
   ChevronRight,
+  CreditCard,
   Headphones,
   HelpCircle,
   Lock,
@@ -85,6 +86,12 @@ const businessInfoSection: QuickLinkSection = {
       description: 'Business name, registration info',
       href: '/account/business/company-details',
       icon: <Building2 size={22} />,
+    },
+    {
+      title: 'Stripe Account',
+      description: 'Connected payment account status',
+      href: '/account/business/stripe-account',
+      icon: <CreditCard size={22} />,
     },
   ],
 }

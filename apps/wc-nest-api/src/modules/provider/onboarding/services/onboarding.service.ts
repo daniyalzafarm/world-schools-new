@@ -80,6 +80,13 @@ export class OnboardingService {
       termsVersion: provider.termsVersion || null,
       providerAgreementAcceptedAt: provider.providerAgreementAcceptedAt?.toISOString() || null,
       providerAgreementVersion: provider.providerAgreementVersion || null,
+      stripeOnboardingCompleted: provider.stripeOnboardingCompleted,
+      stripeOnboardingSkippedAt: provider.stripeOnboardingSkippedAt?.toISOString() || null,
+      stripeChargesEnabled: provider.stripeChargesEnabled,
+      stripePayoutsEnabled: provider.stripePayoutsEnabled,
+      stripeCommissionPercentage: provider.stripeCommissionPercentage
+        ? Number(provider.stripeCommissionPercentage)
+        : null,
     }
   }
 

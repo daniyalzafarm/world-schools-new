@@ -36,13 +36,6 @@ export default function OnboardingStatusPage() {
     }
   }, [status, router])
 
-  // Redirect based on approval status changes
-  useEffect(() => {
-    if (status?.approvalStatus === 'approved') {
-      router.push('/dashboard')
-    }
-  }, [status, router])
-
   // Real-time status updates via WebSocket — replaces 30-second polling
   const handleStatusChanged = useCallback(() => {
     new Audio('/sounds/notification.mp3').play().catch(() => {

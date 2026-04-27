@@ -1,6 +1,14 @@
 import type { OnboardingStatus } from '../types/onboarding'
 
 /**
+ * Determines if a provider can access the Stripe Connect step.
+ * Only available after the application has been approved.
+ */
+export function canAccessStripeConnect(status: OnboardingStatus | null): boolean {
+  return !!(status?.isCompleted && status.approvalStatus === 'approved')
+}
+
+/**
  * Determines if a user can access a specific onboarding step
  * based on their completion status
  * Step order: 1=Contact, 2=Find Your Camp, 3=About Your Camp, 4=Verification, 5=Deposit Settings, 6=Cancellation Policy, 7=Review
@@ -68,6 +76,11 @@ export function getNextAccessibleStep(status: OnboardingStatus | null): string {
   // If onboarding is completed, check approval status
   if (status.isCompleted) {
     if (status.approvalStatus === 'approved') {
+      // Approved providers go straight to the dashboard regardless of Stripe
+      // Connect state. Stripe setup is reachable from the Account → Stripe
+      // Account page (and directly via /onboarding/stripe-connect for users
+      // who deep-link there) — we no longer force-route grandfathered users
+      // through the wizard on every app reload.
       return '/dashboard'
     }
     // For other statuses (under_review, rejected, info_requested), go to consolidated status page

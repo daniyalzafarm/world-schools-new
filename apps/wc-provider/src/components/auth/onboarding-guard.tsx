@@ -58,12 +58,31 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
 
     // If user is approved
     if (status.approvalStatus === 'approved') {
-      // Block access to onboarding routes, redirect to dashboard
-      if (isOnOnboardingRoute) {
-        router.push('/dashboard')
+      const stripeReady = status.stripeOnboardingCompleted || !!status.stripeOnboardingSkippedAt
+
+      if (!stripeReady) {
+        // First visit after approval — push them to the Stripe Connect step.
+        // They can still skip it from there to come back later via the Stripe
+        // Account page on the dashboard.
+        if (pathname !== '/onboarding/stripe-connect') {
+          router.push('/onboarding/stripe-connect')
+        }
         return
       }
-      // Allow access to all other routes
+
+      if (status.stripeOnboardingCompleted) {
+        // Fully onboarded — block all onboarding routes, allow dashboard
+        if (isOnOnboardingRoute) {
+          router.push('/dashboard')
+        }
+        return
+      }
+
+      // Skipped (not completed) — allow returning to /onboarding/stripe-connect
+      // to finish, but block other onboarding routes.
+      if (isOnOnboardingRoute && pathname !== '/onboarding/stripe-connect') {
+        router.push('/dashboard')
+      }
       return
     }
 
