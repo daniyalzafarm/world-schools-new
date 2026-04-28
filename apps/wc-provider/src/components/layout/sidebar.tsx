@@ -171,7 +171,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
       if (logoResult.success) setProviderLogoUrl(logoResult.data?.logoUrl ?? null)
       if (profileResult.success && profileResult.data) {
         setProviderName(
-          profileResult.data.legalInfo?.legalCompanyName ?? profileResult.data.businessName ?? null
+          profileResult.data.legalInfo?.legalCompanyName ??
+            profileResult.data.businessName ??
+            'My Business'
         )
       }
     })
