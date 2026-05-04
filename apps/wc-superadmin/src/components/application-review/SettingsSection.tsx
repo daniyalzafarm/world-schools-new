@@ -1,6 +1,7 @@
 'use client'
 
 import { EMOJI } from '@world-schools/wc-frontend-utils'
+import { getCancellationPolicyLabel } from '@world-schools/wc-utils'
 import type { ProviderSettings } from '../../types/application-review'
 
 interface SettingsSectionProps {
@@ -8,23 +9,6 @@ interface SettingsSectionProps {
 }
 
 export function SettingsSection({ settings }: SettingsSectionProps) {
-  const getCancellationPolicyLabel = (policy: string) => {
-    switch (policy) {
-      case 'flexible':
-        return 'Flexible (7 days)'
-      case 'moderate':
-        return 'Moderate (14 days)'
-      case 'strict':
-        return 'Strict (30 days)'
-      case 'super_strict':
-        return 'Super Strict (60 days)'
-      case 'custom':
-        return 'Custom'
-      default:
-        return policy
-    }
-  }
-
   return (
     <div className="rounded-lg border border-default-200 p-6">
       <h3 className="mb-4 text-lg font-semibold text-foreground">

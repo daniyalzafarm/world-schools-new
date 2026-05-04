@@ -180,7 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   }, [])
 
   const providerInitials = providerName
-    .split(' ')
+    ?.split(' ')
     .map(w => w[0])
     .join('')
     .slice(0, 2)
@@ -558,7 +558,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                   </div>
                 )}
                 <span className="text-lg font-medium tracking-tight text-secondary text-nowrap truncate">
-                  {providerName.split(' ').slice(0, 2).join(' ')}
+                  {providerName?.split(' ').slice(0, 2).join(' ')}
                 </span>
               </div>
             )}

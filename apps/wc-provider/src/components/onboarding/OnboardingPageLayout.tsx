@@ -59,7 +59,7 @@ export function OnboardingPageLayout({
 
         {/* Footer - Sticky at bottom of left column only */}
         {footer && (
-          <div className="sticky bottom-0 z-40 h-20 shrink-0 border-t-2 border-default-100 bg-white px-12 py-4">
+          <div className="sticky bottom-0 z-40 h-20 shrink-0 border-t border-default-200 bg-white px-12 py-4">
             <div className="mx-auto max-w-4xl px-12"> {footer}</div>
           </div>
         )}

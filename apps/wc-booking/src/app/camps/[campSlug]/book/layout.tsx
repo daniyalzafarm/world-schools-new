@@ -8,14 +8,20 @@ import { ProtectedRoute } from '@/components/auth/protected-route'
 import { Logo } from '@/components/layout/logo'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
 
-const steps = ['sessions', 'children', 'addons', 'review-and-pay'] as const
-type Step = (typeof steps)[number]
+const ALL_STEPS = ['sessions', 'children', 'addons', 'review-and-pay'] as const
+type Step = (typeof ALL_STEPS)[number]
+
+function useVisibleSteps(): readonly Step[] {
+  const hasAddOns = useCampBookingStore(state => state.addOns.length > 0)
+  return hasAddOns ? ALL_STEPS : (['sessions', 'children', 'review-and-pay'] as const)
+}
 
 function CampBookingStepsBar() {
   const currentStep = useCampBookingStore(state => state.currentStep)
-  const rawIndex = steps.indexOf(currentStep)
+  const steps = useVisibleSteps()
+  const rawIndex = steps.indexOf(currentStep as Step)
   const stepIndex = rawIndex >= 0 ? rawIndex + 1 : 1
-  const percent = (stepIndex / steps.length) * 100
+  const percent = Math.round((stepIndex / steps.length) * 100)
 
   return (
     <div className="mx-auto max-w-6xl border-gray-200 bg-white px-4 py-3 lg:px-8">
@@ -42,6 +48,7 @@ export default function CampBookingLayout({ children }: { children: ReactNode })
   const campSlug = typeof params.campSlug === 'string' ? params.campSlug : ''
   const currentStep = useCampBookingStore(state => state.currentStep)
   const setStep = useCampBookingStore(state => state.setStep)
+  const steps = useVisibleSteps()
 
   const goToPreviousStep = () => {
     const index = steps.indexOf(currentStep as Step)

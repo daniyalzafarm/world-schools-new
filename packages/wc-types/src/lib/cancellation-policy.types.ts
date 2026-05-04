@@ -9,6 +9,21 @@
 // Core Value Types
 // ============================================================================
 
+/**
+ * Identifiers for the predefined cancellation policy templates a provider can
+ * choose during onboarding (see Provider/Onboarding step 5 design). 'custom'
+ * means the provider supplies their own tiers via `cancellationPolicyCustom`.
+ */
+export const CANCELLATION_POLICY_VALUES = ['flexible', 'moderate', 'custom'] as const
+export type CancellationPolicy = (typeof CANCELLATION_POLICY_VALUES)[number]
+
+/** Human-readable labels for each policy identifier (used by UIs and admin views). */
+export const CANCELLATION_POLICY_LABELS: Record<CancellationPolicy, string> = {
+  flexible: 'Flexible',
+  moderate: 'Moderate',
+  custom: 'Custom',
+}
+
 /** Allowed refund percentages for standard policy tiers */
 export type RefundPercentage = 0 | 25 | 50 | 75 | 100
 

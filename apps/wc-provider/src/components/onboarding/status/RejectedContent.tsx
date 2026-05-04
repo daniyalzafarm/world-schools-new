@@ -48,7 +48,7 @@ export function RejectedContent({ status, contactFirstName }: RejectedContentPro
       )}
 
       {/* Ready to Reapply */}
-      <div className="w-full border-t border-default-100 pt-8">
+      <div className="w-full border-t border-default-200 pt-8">
         <div className="rounded-xl border border-primary bg-primary-50 p-6 text-center">
           <h3 className="mb-2 text-lg font-bold text-foreground">Ready to Reapply?</h3>
           <p className="mb-5 text-sm text-default-500">

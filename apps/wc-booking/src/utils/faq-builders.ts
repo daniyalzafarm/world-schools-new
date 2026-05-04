@@ -1,40 +1,11 @@
+import type { CancellationPolicyCustomData } from '@world-schools/wc-types'
+import { buildCancellationPolicyRows, getCancellationPolicyLabel } from '@world-schools/wc-utils'
 import type { AgeGroup, Camp } from '../types/camps'
 import type { CampBookingAddOn } from '../types/camp-booking'
 
 export interface FaqItem {
   question: string
   answer: string
-}
-
-// Standard cancellation policy rules (mirrors CancellationPolicySection.tsx)
-const CANCELLATION_RULES: Record<
-  string,
-  { label: string; rules: { label: string; detail: string }[] }
-> = {
-  flexible: {
-    label: 'Flexible',
-    rules: [
-      { label: '7+ days before:', detail: '100% refund' },
-      { label: '3–6 days before:', detail: '50% refund' },
-      { label: 'Less than 3 days:', detail: 'No refund' },
-    ],
-  },
-  moderate: {
-    label: 'Moderate',
-    rules: [
-      { label: '14+ days before:', detail: '100% refund' },
-      { label: '7–13 days before:', detail: '50% refund' },
-      { label: 'Less than 7 days:', detail: 'No refund' },
-    ],
-  },
-  strict: {
-    label: 'Strict',
-    rules: [
-      { label: '30+ days before:', detail: '100% refund' },
-      { label: '14–29 days before:', detail: '50% refund' },
-      { label: 'Less than 14 days:', detail: 'No refund' },
-    ],
-  },
 }
 
 /**
@@ -141,26 +112,19 @@ export function buildMealsFaq(meals: Camp['meals']): FaqItem | null {
  */
 export function buildCancellationFaq(
   cancellationPolicy: string | null | undefined,
-  cancellationPolicyCustom?: any
+  cancellationPolicyCustom?: CancellationPolicyCustomData | null
 ): FaqItem | null {
   if (!cancellationPolicy) return null
 
-  if (cancellationPolicy === 'custom' && cancellationPolicyCustom?.rules?.length) {
-    const ruleLines = cancellationPolicyCustom.rules.map((r: any) => `${r.label} ${r.detail}`)
-    return {
-      question: 'What is the cancellation policy?',
-      answer: ruleLines.join('; ') + '.',
-    }
-  }
+  const rows = buildCancellationPolicyRows(cancellationPolicy, cancellationPolicyCustom)
+  if (rows.length === 0) return null
 
-  const template = CANCELLATION_RULES[cancellationPolicy]
-  if (!template) return null
-
-  const ruleLines = template.rules.map(r => `${r.label} ${r.detail}`)
+  const ruleLines = rows.map(r => `${r.rangeLabel}: ${r.refundLabel}`)
+  const label = getCancellationPolicyLabel(cancellationPolicy)
 
   return {
     question: 'What is the cancellation policy?',
-    answer: `${template.label} policy: ${ruleLines.join('; ')}.`,
+    answer: `${label} policy: ${ruleLines.join('; ')}.`,
   }
 }
 

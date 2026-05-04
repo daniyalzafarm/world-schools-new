@@ -78,7 +78,7 @@ export function CampWizardFooter({ currentStep, campId }: CampWizardFooterProps)
   const isSaveAndContinueDisabled = !hasUnsavedChanges || !wizardFormValid || isLoading
 
   return (
-    <div className="h-20 bg-white px-12 py-4 border-t-2 border-default-100">
+    <div className="h-20 bg-white px-12 py-4 border-t border-default-200">
       <div className="mx-auto max-w-4xl px-12 flex items-center justify-between">
         {/* Left side: Navigation buttons (Back and Next) */}
         <div className="flex items-center gap-3">

@@ -53,6 +53,10 @@ export default function CampBookingPage() {
       }
       if (bookingGroupId) {
         await hydrateFromBookingGroupId(bookingGroupId)
+        if (useCampBookingStore.getState().hasSubmitted) {
+          router.replace(`/bookings/${encodeURIComponent(bookingGroupId)}`)
+          return
+        }
       } else {
         // Fresh booking: pre-select all eligible children. The store guards
         // against overwriting any existing selection.
@@ -70,6 +74,7 @@ export default function CampBookingPage() {
     selectSession,
     setStep,
     autoSelectEligibleChildren,
+    router,
   ])
 
   useEffect(() => {

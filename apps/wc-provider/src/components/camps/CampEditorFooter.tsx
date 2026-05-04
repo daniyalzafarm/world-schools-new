@@ -76,7 +76,7 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
   const isWaiting = waitingButton !== null
 
   return (
-    <div className="border-t border-default-100 bg-white px-12 py-4">
+    <div className="border-t border-default-200 bg-white px-12 py-4">
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-12">
         <div className="flex-1">
           <Button

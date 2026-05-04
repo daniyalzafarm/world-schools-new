@@ -110,7 +110,7 @@ export default function AddOnsPage() {
               </div>
               <div className="mt-1 text-sm text-default-500 leading-normal">
                 Create an add-on once and enable it for any camp. Changes will apply everywhere it's
-                used. Toggle individual add-ons on/off for this specific camp.
+                used.
               </div>
             </div>
             <Button

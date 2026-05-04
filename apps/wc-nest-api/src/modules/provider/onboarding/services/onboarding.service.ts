@@ -252,7 +252,6 @@ export class OnboardingService {
         contactRole: dto.contactRole,
         contactPhone: dto.contactPhone,
         contactEmail: dto.contactEmail,
-        onboardingCurrentStep: Math.max(2, (await this.getCurrentStep(providerId)) || 2),
       },
     })
 
@@ -298,7 +297,6 @@ export class OnboardingService {
       data: {
         description: dto.description,
         campType: dto.campTypes.join(','), // Store as comma-separated string
-        onboardingCurrentStep: Math.max(3, (await this.getCurrentStep(providerId)) || 3),
       },
     })
 
@@ -596,14 +594,12 @@ export class OnboardingService {
   }
 
   /**
-   * Update current step
+   * Advance current step to at least the requested step.
    */
   async updateCurrentStep(providerId: string, step: number): Promise<void> {
-    await this.prisma.provider.update({
-      where: { id: providerId },
-      data: {
-        onboardingCurrentStep: step,
-      },
+    await this.prisma.provider.updateMany({
+      where: { id: providerId, onboardingCurrentStep: { lt: step } },
+      data: { onboardingCurrentStep: step },
     })
   }
 
@@ -625,17 +621,5 @@ export class OnboardingService {
       where: { id: providerId },
       data: { logoUrl },
     })
-  }
-
-  /**
-   * Get current step
-   */
-  private async getCurrentStep(providerId: string): Promise<number> {
-    const provider = await this.prisma.provider.findUnique({
-      where: { id: providerId },
-      select: { onboardingCurrentStep: true },
-    })
-
-    return provider?.onboardingCurrentStep ?? 1
   }
 }

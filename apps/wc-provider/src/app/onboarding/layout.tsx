@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../stores/auth-store'
 import { useOnboardingStore } from '../../stores/onboarding-store'
 import { OnboardingSidebar } from '../../components/onboarding/OnboardingSidebar'
@@ -9,7 +9,6 @@ import { Logo } from '@/components/layout/logo'
 
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const pathname = usePathname()
   const { isAuthenticated } = useAuthStore()
   const { status, fetchStatus } = useOnboardingStore()
 
@@ -23,24 +22,6 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
       console.error('Failed to fetch status:', error)
     })
   }, [isAuthenticated, fetchStatus, router])
-
-  // Approved + completed providers belong on the dashboard, not stuck on a
-  // stale onboarding page. The single exception is /onboarding/stripe-connect,
-  // which they can reach deliberately from the Account → Stripe Account page
-  // to finish (or restart) Stripe setup.
-  //
-  // We intentionally do NOT gate this on Stripe state: grandfathered providers
-  // (approved before Stripe Connect shipped) have all stripe_* defaults set
-  // to false/null and would otherwise be trapped on the onboarding tree.
-  useEffect(() => {
-    if (
-      status?.isCompleted &&
-      status.approvalStatus === 'approved' &&
-      pathname !== '/onboarding/stripe-connect'
-    ) {
-      router.push('/dashboard')
-    }
-  }, [status, pathname, router])
 
   // Show loading state while fetching status
   if (!status) {

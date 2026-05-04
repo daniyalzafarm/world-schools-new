@@ -151,7 +151,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
           if (details.status !== 'draft' || hasReviewMarker) {
             state.currentStep = 'review-and-pay'
           } else if (selectedChildIds.length > 0) {
-            state.currentStep = 'addons'
+            state.currentStep = state.addOns.length > 0 ? 'addons' : 'review-and-pay'
           } else {
             state.currentStep = 'children'
           }
@@ -444,7 +444,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
           if (!response.success) throw new Error((response.data as any)?.message)
 
           set(draft => {
-            draft.currentStep = 'addons'
+            draft.currentStep = draft.addOns.length > 0 ? 'addons' : 'review-and-pay'
             draft.addOnSelectionsById = normalizeAddOnSelectionsForSelectedChildren(
               draft.addOnSelectionsById,
               draft.selectedChildIds
@@ -520,7 +520,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
 
         set(draft => {
           draft.bookingGroupId = response.data.bookingGroupId
-          draft.currentStep = 'addons'
+          draft.currentStep = draft.addOns.length > 0 ? 'addons' : 'review-and-pay'
           draft.addOnSelectionsById = {}
           draft.hasSubmitted = false
           draft.isLoading = false

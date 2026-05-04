@@ -1,15 +1,19 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '../../../../prisma/prisma.service'
 import { SaveDepositSettingsDto } from '../dto/deposit-settings.dto'
+import { OnboardingService } from './onboarding.service'
 
 @Injectable()
 export class DepositSettingsService {
   private readonly logger = new Logger(DepositSettingsService.name)
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly onboardingService: OnboardingService
+  ) {}
 
   /**
-   * Save deposit settings and automatically advance to Step 6
+   * Save deposit settings and advance to at least Step 6.
    */
   async saveDepositSettings(providerId: string, dto: SaveDepositSettingsDto): Promise<any> {
     // Validate that ProviderSettings exists (Step 2 must be completed first)
@@ -63,15 +67,11 @@ export class DepositSettingsService {
       },
     })
 
-    // Automatically advance to Step 6
-    await this.prisma.provider.update({
-      where: { id: providerId },
-      data: {
-        onboardingCurrentStep: 6,
-      },
-    })
+    await this.onboardingService.updateCurrentStep(providerId, 6)
 
-    this.logger.log(`Deposit settings saved for provider ${providerId}, advanced to Step 6`)
+    this.logger.log(
+      `Deposit settings saved for provider ${providerId}; advanced to at least Step 6`
+    )
 
     return {
       depositRequired: settings.depositRequired,

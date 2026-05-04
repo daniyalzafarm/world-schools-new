@@ -142,27 +142,22 @@ export default function CampsPage() {
   }
 
   const handleEditCamp = (campId: string) => {
-    console.log('campId', campId)
     router.push(`/camps/${campId}/edit/basic-info`)
   }
 
   const handleViewCamp = async (camp: Camp) => {
-    try {
-      // Generate a preview token for the camp
-      const token = await campsService.generatePreviewToken(camp.id)
-
-      // Redirect to the booking app's camp page with preview token
-      const bookingAppUrl = config.app.bookingAppUrl
-      const campUrl = `${bookingAppUrl}/camps/${camp.slug}?preview=${token}`
-      window.open(campUrl, '_blank')
-    } catch (error) {
-      console.error('Failed to generate preview token:', error)
+    const response = await campsService.generatePreviewToken(camp.id)
+    if (!response.success) {
       addToast({
         title: 'Error',
         description: 'Failed to open camp preview. Please try again.',
         color: 'danger',
       })
+      return
     }
+    const bookingAppUrl = config.app.bookingAppUrl
+    const campUrl = `${bookingAppUrl}/camps/${camp.slug}?preview=${response.data.token}`
+    window.open(campUrl, '_blank')
   }
 
   const handleDeleteCamp = async (campId: string, campName: string) => {
@@ -257,13 +252,6 @@ export default function CampsPage() {
             <p className="mt-1 text-slate-500">Manage your camp listings and track performance</p>
           </div>
           <div className="flex gap-3">
-            <Button
-              variant="bordered"
-              startContent={<Download className="h-4 w-4" />}
-              className="hidden sm:flex"
-            >
-              Export
-            </Button>
             <Button
               color="primary"
               startContent={<Plus className="h-4 w-4" />}

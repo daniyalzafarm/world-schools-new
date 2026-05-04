@@ -10,6 +10,7 @@ import { canAccessStatusPage, getNextAccessibleStep } from '../../../utils/onboa
 import { UnderReviewContent } from '../../../components/onboarding/status/UnderReviewContent'
 import { RejectedContent } from '../../../components/onboarding/status/RejectedContent'
 import { InfoRequestedContent } from '../../../components/onboarding/status/InfoRequestedContent'
+import { ApprovedContent } from '../../../components/onboarding/status/ApprovedContent'
 import { ApplicationSummaryPanel } from '../../../components/onboarding/status/ApplicationSummaryPanel'
 import { useOnboardingStatusWebSocket } from '../../../hooks/useOnboardingStatusWebSocket'
 
@@ -81,6 +82,13 @@ export default function OnboardingStatusPage() {
         <RejectedContent status={status} contactFirstName={user?.firstName} />
       )}
       {status.approvalStatus === 'info_requested' && <InfoRequestedContent status={status} />}
+      {status.approvalStatus === 'approved' && (
+        <ApprovedContent
+          status={status}
+          contactFirstName={user?.firstName}
+          businessName={googleBusinessProfile?.businessName}
+        />
+      )}
     </OnboardingPageLayout>
   )
 }

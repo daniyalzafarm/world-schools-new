@@ -8,12 +8,11 @@ import { type CalendarDate, parseDate } from '@internationalized/date'
 import {
   type CancellationPolicyTier,
   DEFAULT_CUSTOM_POLICY_TIERS,
-  FLEXIBLE_POLICY_TIERS,
-  MODERATE_POLICY_TIERS,
   type RefundPercentage,
   type SpecialCircumstanceRefundPercentage,
   type SpecialCircumstanceType,
 } from '@world-schools/wc-types'
+import { getRefundAmount, resolveTiers } from '@world-schools/wc-utils'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
 import { OnboardingFooter } from '../../../components/onboarding/OnboardingFooter'
@@ -134,15 +133,6 @@ const stringToCalendarDate = (dateString: string): CalendarDate | null => {
   } catch {
     return null
   }
-}
-
-function getActiveTiers(
-  policy: CancellationPolicy,
-  customTiers: CancellationPolicyTier[]
-): readonly CancellationPolicyTier[] {
-  if (policy === 'flexible') return FLEXIBLE_POLICY_TIERS
-  if (policy === 'moderate') return MODERATE_POLICY_TIERS
-  return customTiers
 }
 
 function defaultSpecialCircumstances(): SpecialCircumstancesMap {
@@ -413,7 +403,7 @@ export default function OnboardingStep6CancellationPolicyPage() {
 
   // ── Right Sidebar ─────────────────────────────────────────────────────────
 
-  const activeTiers = getActiveTiers(selectedPolicy, customTiers)
+  const activeTiers = resolveTiers(selectedPolicy, { tiers: customTiers })
   const deposit = calculateDeposit(calcPrice)
   const serviceFee = calculateServiceFee(calcPrice)
   const earnings = calculateEarnings(calcPrice)
@@ -530,7 +520,7 @@ export default function OnboardingStep6CancellationPolicyPage() {
                   ? `${tier.daysBeforeStart}+ days before`
                   : `0–${activeTiers[idx - 1] ? activeTiers[idx - 1].daysBeforeStart - 1 : 29} days before`
               const balanceAmount = calcPrice - deposit
-              const refundAmount = Math.round((balanceAmount * tier.refundPercentage) / 100)
+              const refundAmount = getRefundAmount(balanceAmount, tier.refundPercentage)
 
               return (
                 <div

@@ -10,6 +10,7 @@ import {
   ValidateNested,
 } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
+import { CANCELLATION_POLICY_VALUES } from '@world-schools/wc-types'
 
 class SpecialCircumstanceDto {
   @ApiProperty({
@@ -33,11 +34,11 @@ export class SaveProviderSettingsDto {
   @ApiProperty({
     description: 'Cancellation policy type',
     example: 'moderate',
-    enum: ['flexible', 'moderate', 'strict', 'custom'],
+    enum: CANCELLATION_POLICY_VALUES,
   })
   @IsString()
   @IsNotEmpty()
-  @IsIn(['flexible', 'moderate', 'strict', 'custom'])
+  @IsIn(CANCELLATION_POLICY_VALUES)
   cancellationPolicy: string
 
   @ApiProperty({

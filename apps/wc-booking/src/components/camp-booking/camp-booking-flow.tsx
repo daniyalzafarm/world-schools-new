@@ -491,7 +491,6 @@ function ChildrenStep() {
   const children = useCampBookingStore(state => state.children)
   const selectedChildIds = useCampBookingStore(state => state.selectedChildIds)
   const toggleChild = useCampBookingStore(state => state.toggleChild)
-  const setStep = useCampBookingStore(state => state.setStep)
   const createDraftBookingGroup = useCampBookingStore(state => state.createDraftBookingGroup)
   const addChild = useCampBookingStore(state => state.addChild)
   const camp = useCampBookingStore(state => state.camp)
@@ -508,8 +507,7 @@ function ChildrenStep() {
   )
 
   const onContinue = async () => {
-    const { bookingGroupId } = await createDraftBookingGroup()
-    if (bookingGroupId) setStep('addons')
+    await createDraftBookingGroup()
   }
 
   return (
@@ -1624,21 +1622,23 @@ function ReviewStep() {
               Change
             </button>
           </div>
-          <div className="pt-3 flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-gray-900">Add-ons</p>
-              <p className="mt-0.5 text-sm text-gray-500">
-                {selectedAddOnsLabel || 'No add-ons selected'}
-              </p>
+          {addOns.length > 0 && (
+            <div className="pt-3 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Add-ons</p>
+                <p className="mt-0.5 text-sm text-gray-500">
+                  {selectedAddOnsLabel || 'No add-ons selected'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStep('addons')}
+                className="cursor-pointer rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
+              >
+                Change
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setStep('addons')}
-              className="cursor-pointer rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
-            >
-              Change
-            </button>
-          </div>
+          )}
         </div>
 
         <div className="hidden lg:block space-y-7">
@@ -1677,21 +1677,23 @@ function ReviewStep() {
                   Edit
                 </button>
               </div>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Add-ons</p>
-                  <p className="mt-0.5 text-sm text-gray-500">
-                    {selectedAddOnsLabel || 'No add-ons selected'}
-                  </p>
+              {addOns.length > 0 && (
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Add-ons</p>
+                    <p className="mt-0.5 text-sm text-gray-500">
+                      {selectedAddOnsLabel || 'No add-ons selected'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStep('addons')}
+                    className="cursor-pointer text-sm font-medium text-gray-500 underline decoration-gray-300 underline-offset-2 transition hover:text-gray-900"
+                  >
+                    Edit
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setStep('addons')}
-                  className="cursor-pointer text-sm font-medium text-gray-500 underline decoration-gray-300 underline-offset-2 transition hover:text-gray-900"
-                >
-                  Edit
-                </button>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -1845,6 +1847,10 @@ function ReviewStep() {
         isOpen={isCancellationOpen}
         onOpenChange={setIsCancellationOpen}
         cancellationPolicy={camp?.provider?.settings?.cancellationPolicy}
+        cancellationPolicyCustom={camp?.provider?.settings?.cancellationPolicyCustom}
+        sessionStartDate={session?.startDate}
+        bookingTotal={total}
+        currency={currency}
       />
 
       <BookingTermsModal isOpen={isBookingTermsOpen} onOpenChange={setIsBookingTermsOpen} />
@@ -1864,19 +1870,16 @@ export function CampBookingFlow() {
   )
   const hydrateFromBookingGroupId = useCampBookingStore(state => state.hydrateFromBookingGroupId)
   const createDraftBookingGroup = useCampBookingStore(state => state.createDraftBookingGroup)
-  const setStep = useCampBookingStore(state => state.setStep)
   const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
 
   const onSelectDraftPreview = async (bookingGroupId: string) => {
     clearDuplicateDraftConflict()
     await hydrateFromBookingGroupId(bookingGroupId)
-    setStep('addons')
   }
 
   const onCreateNewDraft = async () => {
     clearDuplicateDraftConflict()
-    const { bookingGroupId } = await createDraftBookingGroup({ forceNew: true })
-    if (bookingGroupId) setStep('addons')
+    await createDraftBookingGroup({ forceNew: true })
   }
 
   const onSeeDraftBookings = () => {

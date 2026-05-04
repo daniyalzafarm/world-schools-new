@@ -1,10 +1,12 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { Session } from '@/types/sessions'
 import { formatCurrency } from '@/utils/currency'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
 import { Check } from 'lucide-react'
+import { CancellationPolicyModal } from '@/components/camp-booking/cancellation-policy-modal'
+import { getFreeCancellationCutoffDate } from '@world-schools/wc-utils'
 
 function getSessionUnitPrice(session: Session | null | undefined): number {
   if (!session) return 0
@@ -49,11 +51,13 @@ export function DesktopSessionsSidebar() {
   }, [selectedSession])
 
   const beforeCancellationText = useMemo(() => {
-    if (!selectedSession) return ''
-    const start = new Date(selectedSession.startDate)
-    if (Number.isNaN(start.getTime())) return ''
-    return formatBeforeLabel(start)
-  }, [selectedSession])
+    const cutoff = getFreeCancellationCutoffDate(
+      selectedSession?.startDate,
+      camp?.provider?.settings?.cancellationPolicy,
+      camp?.provider?.settings?.cancellationPolicyCustom
+    )
+    return cutoff ? formatBeforeLabel(cutoff) : ''
+  }, [selectedSession, camp])
 
   const campPhotoUrl = useMemo(() => {
     const photos = camp?.photos ?? []
@@ -69,6 +73,8 @@ export function DesktopSessionsSidebar() {
   const campSessionText = selectedSession
     ? sessionRangeText || selectedSession.name
     : 'Select a session'
+
+  const [isCancellationOpen, setIsCancellationOpen] = useState(false)
 
   return (
     <aside className="hidden lg:block sticky top-28 md:top-32">
@@ -126,7 +132,16 @@ export function DesktopSessionsSidebar() {
               <Check size={20} className="text-primary-600" />
               <p className="text-sm font-medium text-gray-900">Free cancellation</p>
               {beforeCancellationText ? (
-                <p className="text-sm text-gray-600">· before {beforeCancellationText}</p>
+                <button
+                  type="button"
+                  onClick={() => setIsCancellationOpen(true)}
+                  className="cursor-pointer text-sm text-gray-600 transition hover:text-gray-900"
+                >
+                  ·{' '}
+                  <span className="underline decoration-gray-300 underline-offset-3">
+                    before {beforeCancellationText}
+                  </span>
+                </button>
               ) : null}
             </div>
 
@@ -142,6 +157,16 @@ export function DesktopSessionsSidebar() {
           </div>
         </div>
       </div>
+
+      <CancellationPolicyModal
+        isOpen={isCancellationOpen}
+        onOpenChange={setIsCancellationOpen}
+        cancellationPolicy={camp?.provider?.settings?.cancellationPolicy}
+        cancellationPolicyCustom={camp?.provider?.settings?.cancellationPolicyCustom}
+        sessionStartDate={selectedSession?.startDate}
+        bookingTotal={sessionUnitPrice}
+        currency={currency}
+      />
     </aside>
   )
 }

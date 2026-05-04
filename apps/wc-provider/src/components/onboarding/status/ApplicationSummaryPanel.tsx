@@ -6,12 +6,39 @@ interface ApplicationSummaryPanelProps {
   location?: string
 }
 
+function ApprovalStatusBadge({ status }: { status: OnboardingStatus['approvalStatus'] }) {
+  const config = {
+    approved: { label: 'Approved', bg: 'bg-success-50', dot: 'bg-success', pulse: false },
+    under_review: { label: 'Under Review', bg: 'bg-warning-50', dot: 'bg-warning', pulse: true },
+    info_requested: {
+      label: 'Info Requested',
+      bg: 'bg-warning-50',
+      dot: 'bg-warning',
+      pulse: true,
+    },
+    rejected: { label: 'Not Approved', bg: 'bg-danger-50', dot: 'bg-danger', pulse: false },
+    suspended: { label: 'Suspended', bg: 'bg-danger-50', dot: 'bg-danger', pulse: false },
+    pending: { label: 'Pending', bg: 'bg-default-50', dot: 'bg-default-400', pulse: false },
+  } as const
+
+  const { label, bg, dot, pulse } = config[status] ?? config.pending
+
+  return (
+    <div className={`mb-5 flex items-center gap-2.5 rounded-xl px-4 py-3 ${bg}`}>
+      <span className={`h-2.5 w-2.5 rounded-full ${dot} ${pulse ? 'animate-pulse' : ''}`} />
+      <span className="text-sm font-semibold text-foreground">{label}</span>
+    </div>
+  )
+}
+
 export function ApplicationSummaryPanel({
   status,
   providerName,
   location,
 }: ApplicationSummaryPanelProps) {
+  const isApproved = status.approvalStatus === 'approved'
   const isUnderReview = status.approvalStatus === 'under_review'
+  const isInfoRequested = status.approvalStatus === 'info_requested'
   const isRejected = status.approvalStatus === 'rejected'
 
   const submittedDate = status.onboardingCompletedAt
@@ -35,21 +62,7 @@ export function ApplicationSummaryPanel({
 
       {/* Status Card */}
       <div className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
-        {/* Status Badge */}
-        <div
-          className={`mb-5 flex items-center gap-2.5 rounded-xl px-4 py-3 ${
-            isUnderReview ? 'bg-warning-50' : isRejected ? 'bg-danger-50' : 'bg-default-50'
-          }`}
-        >
-          <span
-            className={`h-2.5 w-2.5 animate-pulse rounded-full ${
-              isUnderReview ? 'bg-warning' : isRejected ? 'bg-danger' : 'bg-default-400'
-            }`}
-          />
-          <span className="text-sm font-semibold text-foreground">
-            {isUnderReview ? 'Under Review' : isRejected ? 'Not Approved' : 'Pending'}
-          </span>
-        </div>
+        <ApprovalStatusBadge status={status.approvalStatus} />
 
         {/* Detail Groups */}
         <div className="flex flex-col gap-4">
@@ -105,8 +118,8 @@ export function ApplicationSummaryPanel({
           />
           <ChecklistItem
             label="Manual verification"
-            checked={false}
-            pending={isUnderReview}
+            checked={isApproved}
+            pending={isUnderReview || isInfoRequested}
             failed={isRejected}
           />
         </div>

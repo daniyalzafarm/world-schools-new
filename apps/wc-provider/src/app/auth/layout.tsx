@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
+import { useOnboardingStore } from '@/stores/onboarding-store'
+import { getPostAuthRedirect } from '@/utils/post-auth-redirect'
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const { isAuthenticated, isInitialized } = useAuthStore()
+  const { fetchStatus } = useOnboardingStore()
   const [isChecking, setIsChecking] = useState(true)
 
   useEffect(() => {
@@ -19,14 +22,27 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     // Allow access to 2FA verification page even if authenticated
     const is2FAPage = pathname === '/auth/verify-2fa'
 
-    if (isAuthenticated && !is2FAPage) {
-      // User is authenticated, redirect to dashboard
-      router.replace('/dashboard')
-    } else {
-      // User is not authenticated OR on 2FA page, safe to show auth pages
+    if (!isAuthenticated || is2FAPage) {
       setIsChecking(false)
+      return
     }
-  }, [isAuthenticated, isInitialized, pathname, router])
+
+    let cancelled = false
+
+    fetchStatus()
+      .catch(error => {
+        console.error('Failed to fetch onboarding status:', error)
+      })
+      .finally(() => {
+        if (cancelled) return
+        const dest = getPostAuthRedirect(useOnboardingStore.getState().status)
+        router.replace(dest)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, isInitialized, pathname, router, fetchStatus])
 
   // Show loading state while checking authentication
   if (!isInitialized || isChecking) {

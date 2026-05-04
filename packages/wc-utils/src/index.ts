@@ -1,6 +1,7 @@
 // Utilities (backend-compatible)
 export * from './lib/parse-duration'
 export * from './lib/currency'
+export * from './lib/cancellation-policy'
 
 // KB HTML allowlists (shared between backend and frontend)
 export * from './lib/kb-allowed-html'

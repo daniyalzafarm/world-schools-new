@@ -19,26 +19,39 @@ function getSessionPrice(session: Session | null | undefined) {
   return 0
 }
 
-function StepBars({ currentStep }: { currentStep: string }) {
+function StepBars({ currentStep, hasAddOns }: { currentStep: string; hasAddOns: boolean }) {
   const bars = useMemo(() => {
     const mk = (done: boolean, active: boolean) => ({
       done,
       active,
     })
 
+    if (hasAddOns) {
+      switch (currentStep) {
+        case 'sessions':
+          return [mk(false, true), mk(false, false), mk(false, false), mk(false, false)]
+        case 'children':
+          return [mk(true, false), mk(false, true), mk(false, false), mk(false, false)]
+        case 'addons':
+          return [mk(true, false), mk(true, false), mk(false, true), mk(false, false)]
+        case 'review-and-pay':
+          return [mk(true, false), mk(true, false), mk(true, false), mk(false, true)]
+        default:
+          return [mk(false, true), mk(false, false), mk(false, false), mk(false, false)]
+      }
+    }
+
     switch (currentStep) {
       case 'sessions':
-        return [mk(false, true), mk(false, false), mk(false, false), mk(false, false)]
+        return [mk(false, true), mk(false, false), mk(false, false)]
       case 'children':
-        return [mk(true, false), mk(false, true), mk(false, false), mk(false, false)]
-      case 'addons':
-        return [mk(true, false), mk(true, false), mk(false, true), mk(false, false)]
+        return [mk(true, false), mk(false, true), mk(false, false)]
       case 'review-and-pay':
-        return [mk(true, false), mk(true, false), mk(true, false), mk(false, true)]
+        return [mk(true, false), mk(true, false), mk(false, true)]
       default:
-        return [mk(false, true), mk(false, false), mk(false, false), mk(false, false)]
+        return [mk(false, true), mk(false, false), mk(false, false)]
     }
-  }, [currentStep])
+  }, [currentStep, hasAddOns])
 
   return (
     <div className="step-progress flex gap-1">
@@ -175,7 +188,7 @@ export function MobileBookingFooter() {
           </div>
         ) : null}
 
-        <StepBars currentStep={currentStep} />
+        <StepBars currentStep={currentStep} hasAddOns={addOns.length > 0} />
 
         <Button color="primary" className="w-full" isDisabled={isDisabled} onPress={onMainPress}>
           {label}

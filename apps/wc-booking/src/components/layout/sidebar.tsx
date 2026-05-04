@@ -483,7 +483,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
 
           {/* Clickable area for sidebar toggle */}
-          {!isCampDrawer && (
+          {isCampDrawer ? (
+            <div className="flex-1" />
+          ) : (
             <div
               className={cn(
                 'flex-1',

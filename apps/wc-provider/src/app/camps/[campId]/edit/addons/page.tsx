@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { addToast, Button, Switch } from '@heroui/react'
+import { Info, X } from 'lucide-react'
 import { useCampsStore } from '../../../../../stores/camps-store'
 import { useAutosave } from '../../../../../hooks/useAutosave'
 import { ADD_ON_TYPE_BADGES, formatPrice } from '../../../../../types/add-ons'
 import type { CampAddOn, UpdateCampAddOnItem } from '../../../../../services/camp-addons.service'
 import * as campAddOnsService from '../../../../../services/camp-addons.service'
+
+const CAMP_ADDONS_INFO_BANNER_DISMISSED_KEY = 'wc_provider_camp_addons_info_banner_dismissed'
 
 export default function CampAddOnsEditorPage() {
   const params = useParams()
@@ -17,7 +20,19 @@ export default function CampAddOnsEditorPage() {
   const [addOns, setAddOns] = useState<CampAddOn[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
-  const [showInfoBanner, setShowInfoBanner] = useState(true)
+  // Default to hidden so SSR/first paint never flashes a dismissed banner.
+  const [showInfoBanner, setShowInfoBanner] = useState(false)
+
+  useEffect(() => {
+    if (localStorage.getItem(CAMP_ADDONS_INFO_BANNER_DISMISSED_KEY) !== 'true') {
+      setShowInfoBanner(true)
+    }
+  }, [])
+
+  const handleDismissInfoBanner = () => {
+    setShowInfoBanner(false)
+    localStorage.setItem(CAMP_ADDONS_INFO_BANNER_DISMISSED_KEY, 'true')
+  }
 
   useEffect(() => {
     const loadAddOns = async () => {
@@ -83,24 +98,28 @@ export default function CampAddOnsEditorPage() {
 
       {/* Info Banner */}
       {showInfoBanner && (
-        <div className="relative flex items-start gap-3 rounded-xl bg-primary-50 p-4">
-          <span className="text-xl">💡</span>
-          <div className="flex-1">
-            <div className="mb-1 text-sm font-semibold text-foreground">
+        <div className="relative flex items-start gap-3 rounded-xl border border-primary-200 bg-primary-50/50 p-4 dark:border-primary-900/40 dark:bg-primary-900/10">
+          <Info className="mt-0.5 h-5 w-5 shrink-0 text-primary-600" />
+          <div className="flex-1 pr-8">
+            <div className="text-sm font-semibold text-default-900">
               Add-ons are shared across all your camps
             </div>
-            <div className="text-sm leading-normal text-default-500">
+            <div className="mt-1 text-sm leading-normal text-default-500">
               Toggle individual add-ons on/off for this specific camp. To create new add-ons or edit
               existing ones, use the global add-ons management page.
             </div>
           </div>
-          <button
-            onClick={() => setShowInfoBanner(false)}
-            className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full text-default-400 transition-colors hover:bg-default-200 hover:text-default-600"
-            title="Dismiss"
+          <Button
+            isIconOnly
+            onPress={handleDismissInfoBanner}
+            aria-label="Dismiss"
+            size="sm"
+            variant="flat"
+            radius="full"
+            color="primary"
           >
-            ×
-          </button>
+            <X className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+          </Button>
         </div>
       )}
 

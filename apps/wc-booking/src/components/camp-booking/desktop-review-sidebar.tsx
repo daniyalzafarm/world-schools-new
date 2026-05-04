@@ -1,10 +1,12 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
 import { formatCurrency } from '@/utils/currency'
 import { getChildAge } from '@/types/child'
 import { getSelectedChildrenSubtotal } from '@/components/camp-booking/booking-flow-pricing'
+import { CancellationPolicyModal } from '@/components/camp-booking/cancellation-policy-modal'
+import { getFreeCancellationCutoffDate } from '@world-schools/wc-utils'
 
 export function DesktopReviewSidebar() {
   const camp = useCampBookingStore(state => state.camp)
@@ -37,6 +39,17 @@ export function DesktopReviewSidebar() {
     const chosen = primary ?? photos[0]
     return chosen?.url ?? chosen?.thumbnail ?? null
   }, [camp])
+
+  const [isCancellationOpen, setIsCancellationOpen] = useState(false)
+
+  const beforeCancellationLabel = useMemo(() => {
+    const cutoff = getFreeCancellationCutoffDate(
+      selectedSession?.startDate,
+      camp?.provider?.settings?.cancellationPolicy,
+      camp?.provider?.settings?.cancellationPolicyCustom
+    )
+    return cutoff ? cutoff.toLocaleString('en-US', { month: 'long', day: 'numeric' }) : ''
+  }, [selectedSession, camp])
 
   const sessionRangeLabel = useMemo(() => {
     if (!selectedSession) return 'Select a session'
@@ -115,9 +128,25 @@ export function DesktopReviewSidebar() {
 
         <div className="px-5 py-4 border-b border-gray-200">
           <p className="text-sm font-bold text-gray-900">Free cancellation</p>
-          <p className="mt-1 text-sm text-gray-600">
-            Cancel before the policy window starts for a full refund.
-          </p>
+          <button
+            type="button"
+            onClick={() => setIsCancellationOpen(true)}
+            className="mt-1 cursor-pointer text-left text-sm text-gray-600 transition hover:text-gray-900"
+          >
+            {beforeCancellationLabel ? (
+              <>
+                Cancel{' '}
+                <span className="underline decoration-gray-300 underline-offset-3">
+                  before {beforeCancellationLabel}
+                </span>{' '}
+                for a full refund.
+              </>
+            ) : (
+              <span className="underline decoration-gray-300 underline-offset-3">
+                View cancellation policy
+              </span>
+            )}
+          </button>
         </div>
 
         <div className="px-5 py-4 border-b border-gray-200 flex items-start justify-between gap-3">
@@ -148,21 +177,23 @@ export function DesktopReviewSidebar() {
           </button>
         </div>
 
-        <div className="px-5 py-4 border-b border-gray-200 flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-bold text-gray-900">Add-ons</p>
-            <p className="mt-1 text-sm text-gray-600">
-              {extrasRows.map(row => row.label).join(', ') || 'No add-ons selected'}
-            </p>
+        {addOns.length > 0 && (
+          <div className="px-5 py-4 border-b border-gray-200 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-gray-900">Add-ons</p>
+              <p className="mt-1 text-sm text-gray-600">
+                {extrasRows.map(row => row.label).join(', ') || 'No add-ons selected'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStep('addons')}
+              className="cursor-pointer rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
+            >
+              Change
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setStep('addons')}
-            className="cursor-pointer rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
-          >
-            Change
-          </button>
-        </div>
+        )}
 
         <div className="px-5 py-5">
           <h3 className="text-sm font-bold text-gray-900 mb-3">Price details</h3>
@@ -200,6 +231,16 @@ export function DesktopReviewSidebar() {
           </div>
         </div>
       </div>
+
+      <CancellationPolicyModal
+        isOpen={isCancellationOpen}
+        onOpenChange={setIsCancellationOpen}
+        cancellationPolicy={camp?.provider?.settings?.cancellationPolicy}
+        cancellationPolicyCustom={camp?.provider?.settings?.cancellationPolicyCustom}
+        sessionStartDate={selectedSession?.startDate}
+        bookingTotal={total}
+        currency={currency}
+      />
     </aside>
   )
 }

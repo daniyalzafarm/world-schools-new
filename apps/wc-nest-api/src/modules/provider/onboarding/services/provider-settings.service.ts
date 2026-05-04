@@ -2,12 +2,16 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { Prisma } from '../../../../generated/client/client'
 import { PrismaService } from '../../../../prisma/prisma.service'
 import { SaveProviderSettingsDto } from '../dto/provider-settings.dto'
+import { OnboardingService } from './onboarding.service'
 
 @Injectable()
 export class ProviderSettingsService {
   private readonly logger = new Logger(ProviderSettingsService.name)
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly onboardingService: OnboardingService
+  ) {}
 
   /**
    * Update cancellation policy settings (Step 6)
@@ -50,11 +54,7 @@ export class ProviderSettingsService {
       },
     })
 
-    // Automatically advance to Step 7 (Review)
-    await this.prisma.provider.update({
-      where: { id: providerId },
-      data: { onboardingCurrentStep: 7 },
-    })
+    await this.onboardingService.updateCurrentStep(providerId, 7)
 
     return settings
   }

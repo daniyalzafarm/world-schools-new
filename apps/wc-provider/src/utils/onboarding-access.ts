@@ -73,18 +73,14 @@ export function canAccessStep(step: number, status: OnboardingStatus | null): bo
 export function getNextAccessibleStep(status: OnboardingStatus | null): string {
   if (!status) return '/onboarding/contact'
 
-  // If onboarding is completed, check approval status
+  // If onboarding is completed, route to the consolidated status page so the
+  // provider sees their current decision (approved / under_review / rejected /
+  // info_requested). The approved view exposes a "Continue to Payment Setup"
+  // CTA that takes them to /onboarding/stripe-connect — we no longer force-
+  // redirect approved providers out of the onboarding tree.
   if (status.isCompleted) {
-    if (status.approvalStatus === 'approved') {
-      // Approved providers go straight to the dashboard regardless of Stripe
-      // Connect state. Stripe setup is reachable from the Account → Stripe
-      // Account page (and directly via /onboarding/stripe-connect for users
-      // who deep-link there) — we no longer force-route grandfathered users
-      // through the wizard on every app reload.
-      return '/dashboard'
-    }
-    // For other statuses (under_review, rejected, info_requested), go to consolidated status page
     if (
+      status.approvalStatus === 'approved' ||
       status.approvalStatus === 'under_review' ||
       status.approvalStatus === 'rejected' ||
       status.approvalStatus === 'info_requested'
@@ -112,11 +108,8 @@ export function getNextAccessibleStep(status: OnboardingStatus | null): string {
 export function canAccessStatusPage(status: OnboardingStatus | null): boolean {
   if (!status) return false
 
-  // Status page is only accessible if onboarding is completed
-  // and the approval status is not 'approved' or 'pending'
-  return (
-    status.isCompleted &&
-    status.approvalStatus !== 'approved' &&
-    status.approvalStatus !== 'pending'
-  )
+  // Status page is accessible once onboarding is submitted. We exclude only
+  // 'pending' (pre-submission) — approved providers stay on the page so they
+  // can see the decision and click through to Stripe setup themselves.
+  return status.isCompleted && status.approvalStatus !== 'pending'
 }

@@ -126,13 +126,15 @@ export function OnboardingSidebar({
       number: 8,
       title: 'Application Status',
       subtitle:
-        approvalStatus === 'under_review'
-          ? 'Under review'
-          : approvalStatus === 'rejected'
-            ? 'Rejected'
-            : approvalStatus === 'info_requested'
-              ? 'Info requested'
-              : 'Pending',
+        approvalStatus === 'approved'
+          ? 'Approved'
+          : approvalStatus === 'under_review'
+            ? 'Under review'
+            : approvalStatus === 'rejected'
+              ? 'Rejected'
+              : approvalStatus === 'info_requested'
+                ? 'Info requested'
+                : 'Pending',
       href: '/onboarding/status',
       completed: approvalStatus === 'approved',
       enabled: isOnboardingCompleted, // Enabled only if onboarding is completed
@@ -238,7 +240,7 @@ export function OnboardingSidebar({
       </nav>
 
       {/* User Profile Section */}
-      <div className="border-t border-default-300 bg-default-50 px-4 py-3.5 h-20">
+      <div className="border-t border-default-200 px-4 py-3.5 h-20">
         <Dropdown placement="top-end">
           <DropdownTrigger>
             <div className="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-white/60">
@@ -247,7 +249,7 @@ export function OnboardingSidebar({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="truncate text-sm font-medium text-foreground">{userFullName}</p>
-                <p className="truncate text-xs text-default-500">Provider</p>
+                <p className="truncate text-xs text-default-500">{user?.email}</p>
               </div>
             </div>
           </DropdownTrigger>

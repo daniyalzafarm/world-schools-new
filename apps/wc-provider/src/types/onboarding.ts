@@ -28,13 +28,14 @@ export type DocumentType =
 
 export type DocumentReviewStatus = 'pending' | 'approved' | 'rejected' | 'needs_reupload'
 
-import type { CancellationPolicySpecialCircumstance } from '@world-schools/wc-types'
+import type {
+  CancellationPolicy,
+  CancellationPolicySpecialCircumstance,
+} from '@world-schools/wc-types'
 
-export type { CancellationPolicySpecialCircumstance }
+export type { CancellationPolicy, CancellationPolicySpecialCircumstance }
 
 export type DepositType = 'percentage' | 'fixed_amount'
-
-export type CancellationPolicy = 'flexible' | 'moderate' | 'strict' | 'super_strict' | 'custom'
 
 export interface TrustScoreBreakdown {
   // Step 1: Google Business Profile (max 30 pts)

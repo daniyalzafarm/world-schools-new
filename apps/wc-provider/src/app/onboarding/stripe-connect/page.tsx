@@ -13,6 +13,7 @@ import {
   stripeConnectService,
 } from '../../../services/stripe-connect.services'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
+import { StripeSuccessContent } from '../../../components/onboarding/stripe/StripeSuccessContent'
 import { extractApiErrorMessage } from '../../../utils/api-errors'
 import { createLogger } from '../../../utils/logger'
 import config from '../../../config/config'
@@ -134,8 +135,10 @@ export default function StripeConnectPage() {
         setLiveAccountStatus(live)
         if (live.currency) setProviderCurrency(live.currency.toUpperCase())
 
+        // When the account is already payment-ready, skip Stripe iframe
+        // initialization — the render branch below shows the success view
+        // (`StripeSuccessContent`) and there's no embedded form to load.
         if (isPaymentReady(live)) {
-          router.push('/dashboard')
           return
         }
 
@@ -224,7 +227,12 @@ export default function StripeConnectPage() {
             : 'Stripe is finishing verification — we will notify you when charges are enabled.',
           color: 'success',
         })
-        router.push('/dashboard')
+        // When payment-ready, stay on the page so the success view renders.
+        // Verification-pending still goes to the dashboard — different state,
+        // different surface.
+        if (!isPaymentReady(live)) {
+          router.push('/dashboard')
+        }
       } else {
         addToast({
           title: 'Saved your progress',
@@ -295,6 +303,22 @@ export default function StripeConnectPage() {
     status.stripeCommissionPercentage !== null && status.stripeCommissionPercentage !== undefined
       ? String(status.stripeCommissionPercentage)
       : null
+
+  // Once Stripe reports the account is fully payment-ready, replace the
+  // embedded onboarding flow with the celebratory success view.
+  if (liveAccountStatus && isPaymentReady(liveAccountStatus)) {
+    return (
+      <OnboardingPageLayout
+        breadcrumb="Provider Onboarding / Payment Setup"
+        showAutoSave={false}
+        showTrustScore={false}
+      >
+        <div className="pb-12 pt-8">
+          <StripeSuccessContent status={liveAccountStatus} />
+        </div>
+      </OnboardingPageLayout>
+    )
+  }
 
   return (
     <OnboardingPageLayout

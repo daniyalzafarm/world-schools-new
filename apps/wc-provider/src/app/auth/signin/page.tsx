@@ -9,6 +9,7 @@ import { Input } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOnboardingStore } from '@/stores/onboarding-store'
+import { getPostAuthRedirect } from '@/utils/post-auth-redirect'
 
 export default function SignInPage() {
   const router = useRouter()
@@ -99,38 +100,12 @@ export default function SignInPage() {
 
     // If result is true, login was successful
     if (result === true) {
-      // Fetch onboarding status to determine redirect
       try {
         await fetchStatus()
-        const onboardingStatus = useOnboardingStore.getState().status
-
-        if (onboardingStatus) {
-          // If approved, redirect to dashboard
-          if (onboardingStatus.approvalStatus === 'approved') {
-            router.replace('/dashboard')
-          } else if (!onboardingStatus.isCompleted) {
-            // If onboarding not completed, redirect to onboarding
-            router.replace('/onboarding')
-          } else if (
-            onboardingStatus.approvalStatus === 'under_review' ||
-            onboardingStatus.approvalStatus === 'rejected' ||
-            onboardingStatus.approvalStatus === 'info_requested'
-          ) {
-            // If onboarding completed but not approved, redirect to status page
-            router.replace('/onboarding/status')
-          } else {
-            // Default fallback to onboarding
-            router.replace('/onboarding')
-          }
-        } else {
-          // If no status found, redirect to onboarding
-          router.replace('/onboarding')
-        }
       } catch (error) {
         console.error('Error fetching onboarding status:', error)
-        // On error, default to onboarding
-        router.replace('/onboarding')
       }
+      router.replace(getPostAuthRedirect(useOnboardingStore.getState().status))
     }
   }
 
