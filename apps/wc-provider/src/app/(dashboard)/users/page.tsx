@@ -18,7 +18,13 @@ import {
   TableRow,
 } from '@heroui/react'
 import { Crown, FilterX, Pencil, Plus, Search, Trash, User as UserIcon } from 'lucide-react'
-import { Input, SelectField, useConfirmDialog, useDebounce } from '@world-schools/ui-web'
+import {
+  getInitials,
+  Input,
+  SelectField,
+  useConfirmDialog,
+  useDebounce,
+} from '@world-schools/ui-web'
 import { useUsersStore } from '@/stores/users-store'
 import { useRolesStore } from '@/stores/roles-store'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -89,11 +95,7 @@ export default function UsersPage() {
     })
   }
 
-  const getUserInitials = (user: User) => {
-    const firstName = user.firstName || ''
-    const lastName = user.lastName || ''
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
-  }
+  const getUserInitials = (user: User) => getInitials(`${user.firstName} ${user.lastName}`)
 
   const handleClearAllFilters = () => {
     setSearchInput('')

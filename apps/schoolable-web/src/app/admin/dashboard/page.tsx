@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react'
 import { Card, CardBody } from '@heroui/react'
 // Icon import removed - unused
+import { getInitials } from '@world-schools/ui-web'
 import MainLayout from '@/components/layout/main-layout'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { useConversationStore } from '@/stores/conversation-store'
@@ -141,16 +142,6 @@ export default function AdminDashboardPage() {
   // Handle chat click
   const handleChatClick = (chatId: string) => {
     router.push(`/admin/messages/${chatId}`)
-  }
-
-  // Get initials from name
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
   }
 
   return (

@@ -19,10 +19,10 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { cn, useConfirmDialog } from '@world-schools/ui-web'
+import { cn, useConfirmDialog, UserAvatar } from '@world-schools/ui-web'
 import { profileService, type UserProfile } from '@/services/profile.services'
 import { useAuthStore } from '@/stores/auth-store'
-import { Avatar, Button } from '@heroui/react'
+import { Button } from '@heroui/react'
 
 const PROFILE_COMPLETE_BANNER_DISMISSED_KEY = 'wc_booking_account_profile_complete_banner_dismissed'
 
@@ -176,14 +176,6 @@ const AccountHub = () => {
     router.push('/auth/signin')
   }
 
-  // Helper functions
-  const getInitials = () => {
-    if (!profileData?.firstName && !profileData?.lastName) return '?'
-    const first = profileData?.firstName?.[0] || ''
-    const last = profileData?.lastName?.[0] || ''
-    return `${first}${last}`.toUpperCase()
-  }
-
   const getFullName = () => {
     if (!profileData?.firstName && !profileData?.lastName) return 'User'
     return `${profileData?.firstName || ''} ${profileData?.lastName || ''}`.trim()
@@ -244,21 +236,7 @@ const AccountHub = () => {
           </>
         ) : (
           <>
-            {/* Profile photo or initials */}
-            {profileData?.profilePhotoUrl ? (
-              <div className="shrink-0">
-                <Avatar
-                  alt={getFullName()}
-                  src={profileData.profilePhotoUrl || undefined}
-                  name={getFullName()}
-                  className="w-24 h-24 text-4xl"
-                />
-              </div>
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-linear-to-br from-rose-100 to-teal-50 dark:from-rose-900/30 dark:to-teal-900/30 flex items-center justify-center text-2xl font-semibold text-slate-900 dark:text-white shrink-0">
-                {getInitials()}
-              </div>
-            )}
+            <UserAvatar photoUrl={profileData?.profilePhotoUrl} fullName={getFullName()} />
             <div className="min-w-0">
               <div className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
                 {getFullName()}

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Calendar, House, MessageCircle, Tent } from 'lucide-react'
 import { Badge } from '@heroui/react'
-import { cn } from '@world-schools/ui-web'
+import { cn, getInitials } from '@world-schools/ui-web'
 
 import { useAuthStore } from '@/stores/auth-store'
 import { useMessagingStore } from '@/stores/messaging-store'
@@ -32,9 +32,7 @@ export function BottomNav() {
 
   const { activeConversationId } = useMessagingStore()
 
-  const userInitials = user
-    ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || 'WC'
-    : 'WC'
+  const userInitials = getInitials(`${user?.firstName ?? ''} ${user?.lastName ?? ''}`)
 
   // Hide during an active conversation on mobile (full screen for messaging)
   if (pathname.startsWith('/messages') && activeConversationId) return null

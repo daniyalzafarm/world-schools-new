@@ -37,6 +37,7 @@ export { DayOfWeekSelector } from './day-of-week-selector'
 export { DocumentDropzone } from './document-dropzone'
 export { TagSelectField } from './tag-select-field'
 export { IconTagSelectField, type IconTagItem } from './icon-tag-select-field'
+export { UserAvatar, type UserAvatarProps, type UserAvatarVariant } from './user-avatar'
 
 // Notification components
 export {

@@ -23,7 +23,7 @@ import {
   User,
   Users,
 } from 'lucide-react'
-import { cn } from '@world-schools/ui-web'
+import { cn, UserAvatar } from '@world-schools/ui-web'
 
 import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
@@ -400,9 +400,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
     return NAV_ITEMS.filter(isNavItemVisible)
   }, [isNavItemVisible])
 
-  const userInitials = user
-    ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || 'WC'
-    : 'WC'
   const userFullName = user?.firstName ? `${user.firstName} ${user.lastName}`.trim() : 'Superadmin'
 
   return (
@@ -584,19 +581,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                   if (sidebarOpen) setSidebarOpen(false)
                 }}
               >
-                {user?.profilePhotoUrl ? (
-                  <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
-                    <img
-                      src={user.profilePhotoUrl}
-                      alt={userFullName}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
-                    <span className="text-secondary text-sm font-semibold">{userInitials}</span>
-                  </div>
-                )}
+                <UserAvatar
+                  photoUrl={user?.profilePhotoUrl}
+                  fullName={userFullName}
+                  variant="flat"
+                  className="w-8 h-8 text-sm"
+                />
                 {!isCollapsed && (
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 dark:text-gray-100 truncate">

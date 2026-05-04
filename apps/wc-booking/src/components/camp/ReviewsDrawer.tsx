@@ -12,7 +12,7 @@ import {
   ScrollShadow,
 } from '@heroui/react'
 import { Star } from 'lucide-react'
-import { StarRating } from '@world-schools/ui-web'
+import { getInitials, StarRating } from '@world-schools/ui-web'
 import { REVIEW_TAG_CONFIG } from '@world-schools/wc-types'
 import type { CampReviewCategoryScores, PublicCampReview } from '@/types/reviews'
 import { ExpandableText } from '@/components/camp/ExpandableText'
@@ -65,10 +65,6 @@ function getAvatarGradient(id: string) {
   return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length]
 }
 
-function getInitials(first: string | null, last: string | null) {
-  return [(first ?? '').charAt(0), (last ?? '').charAt(0)].join('').toUpperCase() || '?'
-}
-
 function buildMeta(review: PublicCampReview): string {
   const parts: string[] = []
   if (review.visitMonth && review.visitYear) {
@@ -95,7 +91,7 @@ const CATEGORY_LABELS: { key: keyof CampReviewCategoryScores; label: string }[] 
 
 function ReviewCard({ review }: { review: PublicCampReview }) {
   const { reviewer } = review
-  const initials = getInitials(reviewer.firstName, reviewer.lastName)
+  const initials = getInitials(`${reviewer.firstName} ${reviewer.lastName}`)
   const gradient = getAvatarGradient(review.id)
   const locationParts = [reviewer.city, reviewer.country].filter(Boolean)
   const location = locationParts.join(', ')

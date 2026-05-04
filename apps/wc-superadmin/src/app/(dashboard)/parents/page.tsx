@@ -19,7 +19,7 @@ import {
   Tabs,
 } from '@heroui/react'
 import { Eye, FilterX, Search, Users } from 'lucide-react'
-import { Input, SelectField, useDebounce } from '@world-schools/ui-web'
+import { getInitials, Input, SelectField, useDebounce } from '@world-schools/ui-web'
 import { PageSlot } from '@/components/layout/page-slot'
 import { useParentsStore } from '@/stores/parents-store'
 import type { ParentStatus, ParentTab } from '@/types/parents'
@@ -86,10 +86,6 @@ function formatDate(dateString: string): string {
     month: 'short',
     day: 'numeric',
   })
-}
-
-function getInitials(firstName: string, lastName: string): string {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
 }
 
 export default function ParentsPage() {
@@ -305,7 +301,7 @@ export default function ParentsPage() {
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary">
                               <span className="text-sm font-semibold text-white">
-                                {getInitials(parent.firstName, parent.lastName)}
+                                {getInitials(`${parent.firstName} ${parent.lastName}`)}
                               </span>
                             </div>
                             <div className="min-w-0">

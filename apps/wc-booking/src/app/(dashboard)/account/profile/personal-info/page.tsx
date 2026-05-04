@@ -179,7 +179,7 @@ const ProfilePage = () => {
         <section className="mb-4">
           <ProfilePhotoSection
             photoUrl={profileData?.profilePhotoUrl}
-            userName={`${profileData?.firstName || ''} ${profileData?.lastName || ''}`}
+            fullName={`${profileData?.firstName ?? ''} ${profileData?.lastName ?? ''}`.trim()}
             onPhotoChange={handlePhotoChange}
             onPhotoRemove={handlePhotoRemove}
           />

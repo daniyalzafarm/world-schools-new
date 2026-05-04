@@ -24,7 +24,7 @@ import {
   Tabs,
 } from '@heroui/react'
 import { Clock, DollarSign, ExternalLink, Mail, MapPin, Star, Tent, Users } from 'lucide-react'
-import { CollapsibleSection, StarRating } from '@world-schools/ui-web'
+import { CollapsibleSection, getInitials, StarRating } from '@world-schools/ui-web'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import config from '@/config/config'
 import { PageSlot } from '@/components/layout/page-slot'
@@ -100,14 +100,6 @@ const formatAgeRange = (groups: AgeGroup[]): string => {
   const max = Math.max(...groups.map(g => g.max))
   return `${min}–${max} yrs`
 }
-
-const getInitials = (name: string): string =>
-  name
-    .split(' ')
-    .slice(0, 2)
-    .map(w => w[0])
-    .join('')
-    .toUpperCase() || '?'
 
 // ─── Main Page Component ───────────────────────────────────────────────────
 

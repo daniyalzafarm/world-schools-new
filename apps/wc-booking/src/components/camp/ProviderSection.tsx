@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useMessagingStore } from '@/stores/messaging-store'
 import { ContextType } from '@world-schools/wc-frontend-utils'
+import { getInitials } from '@world-schools/ui-web'
 import { Button } from '@heroui/react'
 import { HiBadgeCheck } from 'react-icons/hi'
 
@@ -51,14 +52,6 @@ function getAvatarGradient(name: string): string {
   ]
   const index = name.charCodeAt(0) % gradients.length
   return gradients[index]
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .slice(0, 2)
-    .map(w => w.charAt(0).toUpperCase())
-    .join('')
 }
 
 function formatReplyTime(minutes: number): string {

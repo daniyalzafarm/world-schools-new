@@ -16,7 +16,7 @@ import {
   TableRow,
 } from '@heroui/react'
 import { CheckCircle2, Download, Upload } from 'lucide-react'
-import { DocumentDropzone } from '@world-schools/ui-web'
+import { DocumentDropzone, getInitials } from '@world-schools/ui-web'
 import { SESSION_IMPORT_COLUMNS } from '@world-schools/wc-types'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { PageSlot } from '@/components/layout/page-slot'
@@ -32,15 +32,6 @@ interface ImportResult {
   imported: number
   failed: number
   errors: ImportSessionRowError[]
-}
-
-const getInitials = (name: string | null | undefined) => {
-  if (!name) return '?'
-  return name
-    .split(' ')
-    .map(w => w[0])
-    .join('')
-    .toUpperCase()
 }
 
 export default function ImportSessionsPage() {

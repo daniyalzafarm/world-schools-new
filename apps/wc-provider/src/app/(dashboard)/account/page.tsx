@@ -18,11 +18,10 @@ import {
   User,
   Users,
 } from 'lucide-react'
-import { cn, useConfirmDialog } from '@world-schools/ui-web'
+import { cn, useConfirmDialog, UserAvatar } from '@world-schools/ui-web'
 import { profileService, type UserProfile } from '@/services/profile.services'
 import { useAuth } from '@/hooks/use-auth'
 import { usePermissions } from '@/hooks/use-permissions'
-import { Avatar } from '@heroui/react'
 
 interface QuickLink {
   title: string
@@ -137,13 +136,6 @@ export default function AccountHubPage() {
     router.push('/auth/signin')
   }
 
-  const getInitials = () => {
-    if (!profileData?.firstName && !profileData?.lastName) return '?'
-    const first = profileData?.firstName?.[0] || ''
-    const last = profileData?.lastName?.[0] || ''
-    return `${first}${last}`.toUpperCase()
-  }
-
   const getFullName = () => {
     if (!profileData?.firstName && !profileData?.lastName) return 'User'
     return `${profileData?.firstName || ''} ${profileData?.lastName || ''}`.trim()
@@ -222,20 +214,7 @@ export default function AccountHubPage() {
           </>
         ) : (
           <>
-            {profileData?.profilePhotoUrl ? (
-              <div className="shrink-0">
-                <Avatar
-                  alt={getFullName()}
-                  src={profileData.profilePhotoUrl || undefined}
-                  name={getFullName()}
-                  className="w-24 h-24 text-4xl"
-                />
-              </div>
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-linear-to-br from-primary-100 to-secondary-50 flex items-center justify-center text-2xl font-semibold text-secondary dark:text-white shrink-0">
-                {getInitials()}
-              </div>
-            )}
+            <UserAvatar photoUrl={profileData?.profilePhotoUrl} fullName={getFullName()} />
             <div className="min-w-0">
               <div className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
                 {getFullName()}

@@ -29,6 +29,7 @@ import {
   Star,
   Upload,
 } from 'lucide-react'
+import { getInitials } from '@world-schools/ui-web'
 import { campsService } from '@/services/camps.services'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { PageSlot } from '@/components/layout/page-slot'
@@ -100,16 +101,6 @@ const formatCurrency = (amount: number, currency?: string | null) => {
     currency: code,
     maximumFractionDigits: 0,
   }).format(amount)
-}
-
-const getInitials = (name: string | null | undefined) => {
-  if (!name) return '?'
-  return name
-    .split(' ')
-    .slice(0, 2)
-    .map(w => w[0])
-    .join('')
-    .toUpperCase()
 }
 
 const getCampStatusColor = (status: string) => {

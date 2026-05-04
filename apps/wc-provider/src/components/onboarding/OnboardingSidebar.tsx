@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from '@heroui/react'
 import { LogOut } from 'lucide-react'
+import { getInitials } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
 import config from '@/config/config'
@@ -44,11 +45,8 @@ export function OnboardingSidebar({
   const router = useRouter()
   const { user, logout } = useAuthStore()
 
-  // Get user initials and full name
-  const userInitials = user
-    ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase()
-    : 'U'
   const userFullName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'User'
+  const userInitials = getInitials(userFullName)
 
   const steps: Step[] = [
     {

@@ -4,7 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Calendar, Heart, Home, MessageCircle } from 'lucide-react'
-import { cn } from '@world-schools/ui-web'
+import { cn, getInitials } from '@world-schools/ui-web'
 
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -26,9 +26,7 @@ export function BottomNav() {
   const pathname = usePathname()
   const { user } = useAuthStore()
 
-  const userInitials = user
-    ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || 'WC'
-    : 'WC'
+  const userInitials = getInitials(`${user?.firstName ?? ''} ${user?.lastName ?? ''}`)
 
   return (
     <nav className="lg:hidden h-16 bg-white dark:bg-gray-900 border-t border-default-200 dark:border-gray-700 z-40 flex items-stretch pb-[env(safe-area-inset-bottom)] shrink-0">

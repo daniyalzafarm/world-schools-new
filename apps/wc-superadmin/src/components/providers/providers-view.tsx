@@ -19,7 +19,7 @@ import {
   Tabs,
 } from '@heroui/react'
 import { Check, Eye, FilterX, LogIn, Search, Upload } from 'lucide-react'
-import { Input, useDebounce } from '@world-schools/ui-web'
+import { getInitials, Input, useDebounce } from '@world-schools/ui-web'
 import { PageSlot } from '@/components/layout/page-slot'
 import { useApplicationReviewStore } from '@/stores/application-review-store'
 import { providersService } from '@/services/providers.services'
@@ -95,16 +95,6 @@ const formatDate = (dateString: string) =>
     month: 'short',
     day: 'numeric',
   })
-
-const getInitials = (name: string | null | undefined) => {
-  if (!name) return '?'
-  return name
-    .split(' ')
-    .slice(0, 2)
-    .map(w => w[0])
-    .join('')
-    .toUpperCase()
-}
 
 export function AllProvidersView() {
   const router = useRouter()

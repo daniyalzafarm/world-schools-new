@@ -1,18 +1,19 @@
 'use client'
 
 import React, { useRef, useState } from 'react'
-import { Avatar, Button } from '@heroui/react'
+import { Button } from '@heroui/react'
+import { UserAvatar } from '@world-schools/ui-web'
 
 interface ProfilePhotoSectionProps {
   photoUrl?: string | null
-  userName?: string
+  fullName?: string | null
   onPhotoChange?: (file: File) => Promise<void>
   onPhotoRemove?: () => Promise<void>
 }
 
 export const ProfilePhotoSection: React.FC<ProfilePhotoSectionProps> = ({
   photoUrl,
-  userName = 'User',
+  fullName,
   onPhotoChange,
   onPhotoRemove,
 }) => {
@@ -51,10 +52,7 @@ export const ProfilePhotoSection: React.FC<ProfilePhotoSectionProps> = ({
 
   return (
     <div className="flex items-center gap-6 pb-8 border-b border-gray-200 dark:border-gray-700">
-      {/* Avatar */}
-      <div className="shrink-0">
-        <Avatar src={photoUrl || undefined} name={userName} className="w-24 h-24 text-4xl" />
-      </div>
+      <UserAvatar photoUrl={photoUrl} fullName={fullName} />
 
       {/* Photo Info and Actions */}
       <div className="flex-1">

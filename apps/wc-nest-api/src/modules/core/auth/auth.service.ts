@@ -2,10 +2,12 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
+import { AzureStorageService } from '@world-schools/wc-utils/backend'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { ConfigService } from '../../../config/config.service'
 import * as bcrypt from 'bcryptjs'
@@ -21,11 +23,25 @@ import {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name)
+  private azureStorage: AzureStorageService | null = null
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService
   ) {}
+
+  private getAzureStorage(): AzureStorageService | null {
+    if (!this.azureStorage) {
+      const config = this.configService.azureStorageConfig
+      if (!config.accountName || !config.accountKey || !config.containerName) {
+        return null
+      }
+      this.azureStorage = new AzureStorageService(config)
+    }
+    return this.azureStorage
+  }
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
     const { email, password, firstName, lastName } = registerDto
@@ -81,7 +97,7 @@ export class AuthService {
 
     return {
       ...tokens,
-      user: this.buildUserResponse(user),
+      user: await this.buildUserResponse(user),
     }
   }
 
@@ -136,7 +152,7 @@ export class AuthService {
 
     return {
       ...tokens,
-      user: this.buildUserResponse(user),
+      user: await this.buildUserResponse(user),
     }
   }
 
@@ -192,7 +208,7 @@ export class AuthService {
 
       return {
         ...tokens,
-        user: this.buildUserResponse(user),
+        user: await this.buildUserResponse(user),
         ...(payload.impersonatedBy && { impersonatedBy: payload.impersonatedBy }),
         ...(payload.impersonationProviderId && {
           impersonationProviderId: payload.impersonationProviderId,
@@ -314,7 +330,7 @@ export class AuthService {
   /**
    * Build user response object with permissions
    */
-  private buildUserResponse(user: any) {
+  private async buildUserResponse(user: any) {
     const roles =
       user.roles?.map((ur: any) => ({
         id: ur.role.id,
@@ -328,13 +344,25 @@ export class AuthService {
         (ur: any) => ur.role.permissions?.map((rp: any) => rp.permission.id) ?? []
       ) ?? []
 
+    let profilePhotoUrl: string | null = user.profilePhotoUrl ?? null
+    if (profilePhotoUrl) {
+      const azureStorage = this.getAzureStorage()
+      if (azureStorage) {
+        try {
+          profilePhotoUrl = await azureStorage.generateSasUrl(profilePhotoUrl, 24)
+        } catch (error) {
+          this.logger.warn(`Failed to generate SAS URL for profile photo: ${error}`)
+        }
+      }
+    }
+
     const response: any = {
       id: user.id,
       email: user.email,
       firstName: user.firstName ?? undefined,
       lastName: user.lastName ?? undefined,
       bio: user.bio ?? null,
-      profilePhotoUrl: user.profilePhotoUrl ?? null,
+      profilePhotoUrl,
       phone: user.phone ?? null,
       phoneVerified: user.phoneVerified ?? false,
       address: user.address ?? null,
@@ -394,7 +422,7 @@ export class AuthService {
       throw new NotFoundException('User not found')
     }
 
-    return this.buildUserResponse(user)
+    return await this.buildUserResponse(user)
   }
 
   generateTokens(payload: JwtPayload): {

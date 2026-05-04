@@ -1,5 +1,6 @@
 'use client'
 
+import { cn } from '@world-schools/ui-web'
 import { useEffect, useRef, useState } from 'react'
 
 interface ExpandableTextProps {
@@ -23,12 +24,10 @@ export function ExpandableText({ text, maxLines = 4, className = '' }: Expandabl
   if (!text) return null
 
   return (
-    <div className={className}>
+    <div className={cn('my-2', className)}>
       <div
         ref={textRef}
-        className={`text-gray-900 leading-relaxed mb-1 ${
-          !isExpanded ? `line-clamp-${maxLines}` : ''
-        }`}
+        className={`text-gray-900 leading-relaxed ${!isExpanded ? `line-clamp-${maxLines}` : ''}`}
         style={
           !isExpanded
             ? {
