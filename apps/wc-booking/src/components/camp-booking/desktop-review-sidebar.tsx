@@ -149,7 +149,7 @@ export function DesktopReviewSidebar() {
           </button>
         </div>
 
-        <div className="px-5 py-4 border-b border-gray-200 flex items-start justify-between gap-3">
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-bold text-gray-900">Session</p>
             <p className="mt-1 text-sm text-gray-600">{sessionRangeLabel}</p>
@@ -163,7 +163,7 @@ export function DesktopReviewSidebar() {
           </button>
         </div>
 
-        <div className="px-5 py-4 border-b border-gray-200 flex items-start justify-between gap-3">
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-bold text-gray-900">Children</p>
             <p className="mt-1 text-sm text-gray-600">{selectedChildrenLabel || 'None selected'}</p>

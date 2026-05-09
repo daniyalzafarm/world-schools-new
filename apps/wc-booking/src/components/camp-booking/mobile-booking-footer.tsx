@@ -165,7 +165,7 @@ export function MobileBookingFooter() {
           : 'Request to book'
 
   return (
-    <div className="mobile-footer mobile-only fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white px-4 py-4 lg:hidden">
+    <div className="border-t border-gray-200 bg-white px-4 py-4">
       <div className="flex flex-col gap-4">
         {(currentStep === 'sessions' || currentStep === 'children') &&
         (currentStep === 'sessions' ? !!selectedSession : selectedChildren.length > 0) ? (

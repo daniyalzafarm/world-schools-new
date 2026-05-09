@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import {
   addToast,
@@ -976,7 +977,7 @@ function AddonsStep() {
             <ModalContent>
               <ModalHeader>{sheetAddon.name}</ModalHeader>
               <ModalBody className="max-h-[60vh]">
-                <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
+                <div className="flex items-center gap-3 border-b border-gray-200 pb-3">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                     <span className="text-sm font-bold text-primary-700">{sheetAddon.icon}</span>
                   </div>
@@ -1164,7 +1165,7 @@ function AddonsStep() {
                     )
                   })()
                 )}
-                <div className="flex items-center justify-between border-t border-gray-100 pt-3 text-[15px] font-bold text-gray-900">
+                <div className="flex items-center justify-between border-t border-gray-200 pt-3 text-[15px] font-bold text-gray-900">
                   <span>Total</span>
                   <span className="whitespace-nowrap">
                     +{formatCurrency(sheetAddon.price * getSelectionQuantity(sheetDraft), currency)}
@@ -1198,7 +1199,7 @@ function AddonsStep() {
               <DrawerHeader className="border-b border-gray-200">{sheetAddon.name}</DrawerHeader>
               <DrawerBody className="max-h-[70vh] overflow-y-auto px-6 py-3 pb-28">
                 {sheetAddon.description ? (
-                  <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
+                  <div className="flex items-center gap-3 border-b border-gray-200 pb-3">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                       <span className="text-sm font-bold text-primary-700">{sheetAddon.icon}</span>
                     </div>
@@ -1389,7 +1390,7 @@ function AddonsStep() {
                     )
                   })()
                 )}
-                <div className="flex items-center justify-between border-t border-gray-100 pt-3 text-[15px] font-bold text-gray-900">
+                <div className="flex items-center justify-between border-t border-gray-200 pt-3 text-[15px] font-bold text-gray-900">
                   <span>Total</span>
                   <span className="whitespace-nowrap">
                     +{formatCurrency(sheetAddon.price * getSelectionQuantity(sheetDraft), currency)}
@@ -1573,7 +1574,7 @@ function ReviewStep() {
         </div>
 
         <div className="lg:hidden">
-          <div className="flex gap-3 border-b border-gray-100 pb-4">
+          <div className="flex gap-3 border-b border-gray-200 pb-4">
             <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
               {campPhotoUrl ? (
                 <img
@@ -1592,7 +1593,7 @@ function ReviewStep() {
               </p>
             </div>
           </div>
-          <div className="py-3 border-b border-gray-100 flex items-start justify-between gap-4">
+          <div className="py-3 border-b border-gray-200 flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-gray-900">Session</p>
               <p className="mt-0.5 text-sm text-gray-500">
@@ -1607,7 +1608,7 @@ function ReviewStep() {
               Change
             </button>
           </div>
-          <div className="py-3 border-b border-gray-100 flex items-start justify-between gap-4">
+          <div className="py-3 border-b border-gray-200 flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-gray-900">Children</p>
               <p className="mt-0.5 text-sm text-gray-500">
@@ -1698,19 +1699,7 @@ function ReviewStep() {
           </div>
         </div>
 
-        <div className="pt-5 border-t border-gray-200">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="text-base font-bold text-gray-900">Message to camp</h3>
-          </div>
-          <Textarea
-            minRows={5}
-            placeholder="Introduce your children, mention any special requests (allergies, dietary needs, medical conditions, arrival details)..."
-            value={specialRequest}
-            onValueChange={setSpecialRequest}
-          />
-        </div>
-
-        <div className="lg:hidden border-t border-gray-200 bg-white pt-5 space-y-4">
+        <div className="lg:hidden space-y-4">
           <h3 className="text-sm font-semibold text-gray-900">Price details</h3>
 
           <div>
@@ -1765,6 +1754,18 @@ function ReviewStep() {
             The camp has <span className="font-semibold text-gray-700">72 hours</span> to confirm
             your booking. You will be charged after the request is accepted.
           </p>
+        </div>
+
+        <div className="pt-5 border-t border-gray-200">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-base font-bold text-gray-900">Message to camp</h3>
+          </div>
+          <Textarea
+            minRows={5}
+            placeholder="Introduce your children, mention any special requests (allergies, dietary needs, medical conditions, arrival details)..."
+            value={specialRequest}
+            onValueChange={setSpecialRequest}
+          />
         </div>
 
         <p className="mt-3 hidden text-sm text-gray-500 lg:block">
@@ -1871,6 +1872,15 @@ export function CampBookingFlow() {
   const hydrateFromBookingGroupId = useCampBookingStore(state => state.hydrateFromBookingGroupId)
   const createDraftBookingGroup = useCampBookingStore(state => state.createDraftBookingGroup)
   const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
+  // The mobile footer renders into a layout-level slot (see book/layout.tsx)
+  // so it sits as a flex sibling of the scroll area, not overlaying it via
+  // position:fixed. That way the scroll area is strictly bounded between the
+  // sticky header and the footer — content can't slide above/behind either.
+  // Resolve the slot post-mount to stay SSR-safe.
+  const [mobileFooterSlot, setMobileFooterSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    setMobileFooterSlot(document.getElementById('mobile-footer-slot'))
+  }, [])
 
   const onSelectDraftPreview = async (bookingGroupId: string) => {
     clearDuplicateDraftConflict()
@@ -1889,7 +1899,7 @@ export function CampBookingFlow() {
 
   return (
     <div>
-      <main className="mx-auto max-w-6xl px-4 py-6 pb-28 lg:px-8 lg:py-8 lg:pb-0">
+      <main className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
         <div className="lg:grid lg:grid-cols-12 lg:gap-8 lg:items-start">
           <div className="lg:col-span-8 lg:bg-white lg:rounded-2xl lg:border lg:border-gray-200 lg:shadow-sm lg:flex lg:flex-col">
             <div className="lg:p-7 lg:px-8">
@@ -1922,7 +1932,7 @@ export function CampBookingFlow() {
           </div>
         </div>
       </main>
-      <MobileBookingFooter />
+      {mobileFooterSlot ? createPortal(<MobileBookingFooter />, mobileFooterSlot) : null}
       <DuplicateDraftModal
         isOpen={Boolean(duplicateDraftConflict)}
         message={
