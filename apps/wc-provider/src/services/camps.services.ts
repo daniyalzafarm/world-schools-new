@@ -56,6 +56,14 @@ export interface CampStatistics {
   totalBookings: number
   activeSessions: number
   averageRating: number
+  reviewCount: number
+  unrespondedReviews: number
+  revenueTotalPaid: number
+  revenueThisMonth: number
+  revenueLastSeason: number
+  pendingRevenue: number
+  refundedTotal: number
+  currency: string
 }
 
 export const getCamps = (filters?: GetCampsFilters) =>

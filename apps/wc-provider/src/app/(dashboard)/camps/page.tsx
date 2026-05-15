@@ -23,6 +23,7 @@ import type { Camp, CampStatus, CampType } from '../../../types/camps'
 import { Input, SelectField, useConfirmDialog, useDebounce } from '@world-schools/ui-web'
 import config from '@/config/config'
 import * as campsService from '@/services/camps.services'
+import { computeCampProgressPercent } from '@/components/camps/editor-sections'
 
 type TabFilter = 'all' | 'published' | 'draft' | 'archived'
 
@@ -238,8 +239,19 @@ export default function CampsPage() {
     return 'Location TBD'
   }
 
-  const isIncomplete = (camp: Camp) => {
-    return camp.status === 'draft' && (!camp.photos || camp.photos.length === 0)
+  const getCampProgressPercent = (camp: Camp) =>
+    computeCampProgressPercent(
+      camp,
+      camp.eligibilityCount ?? 0,
+      camp.addOnsCount?.enabled ?? 0,
+      camp.addOnsCount?.total ?? 0,
+      camp.sessionsCount ?? { published: 0, total: 0 }
+    )
+
+  const getProgressCopy = (percent: number) => {
+    if (percent < 50) return `${percent}% complete - Just getting started`
+    if (percent < 85) return `${percent}% complete - Keep going`
+    return `${percent}% complete - Almost ready!`
   }
 
   return (
@@ -537,19 +549,22 @@ export default function CampsPage() {
                               </div>
                             </div>
                           ) : camp.status === 'draft' ? (
-                            <div className="h-16 border-t border-slate-200 pt-4 dark:border-slate-800">
-                              <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-                                <div
-                                  className="h-full rounded-full bg-primary transition-all"
-                                  style={{ width: `${isIncomplete(camp) ? 65 : 85}%` }}
-                                ></div>
-                              </div>
-                              <p className="text-xs text-slate-600 dark:text-slate-400">
-                                {isIncomplete(camp)
-                                  ? '65% complete - Add photos to publish'
-                                  : '85% complete - Almost ready!'}
-                              </p>
-                            </div>
+                            (() => {
+                              const progressPercent = getCampProgressPercent(camp)
+                              return (
+                                <div className="h-16 border-t border-slate-200 pt-4 dark:border-slate-800">
+                                  <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                                    <div
+                                      className="h-full rounded-full bg-primary transition-all"
+                                      style={{ width: `${progressPercent}%` }}
+                                    ></div>
+                                  </div>
+                                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                                    {getProgressCopy(progressPercent)}
+                                  </p>
+                                </div>
+                              )
+                            })()
                           ) : null}
 
                           {/* Action Buttons */}
@@ -559,8 +574,10 @@ export default function CampsPage() {
                               fullWidth
                               size="sm"
                               onPress={() => handleEditCamp(camp.id)}
-                              aria-label={isIncomplete(camp) ? 'Complete camp setup' : 'Edit camp'}
-                              title={isIncomplete(camp) ? 'Complete camp setup' : 'Edit camp'}
+                              aria-label={
+                                camp.status === 'draft' ? 'Complete camp setup' : 'Edit camp'
+                              }
+                              title={camp.status === 'draft' ? 'Complete camp setup' : 'Edit camp'}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>

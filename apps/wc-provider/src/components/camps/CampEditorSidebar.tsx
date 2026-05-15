@@ -8,6 +8,7 @@ import { Logo } from '@/components/layout/logo'
 import { getCampEligibility } from '../../services/camps.services'
 import { getCampAddOns } from '../../services/camp-addons.service'
 import {
+  computeCampProgressPercent,
   type EditorSection,
   editorSections,
   getSectionProgress,
@@ -85,27 +86,13 @@ export function CampEditorSidebar({ campId }: CampEditorSidebarProps) {
     return pathname.includes(section.path)
   }
 
-  const visibleSections = editorSections
-    .filter(s => shouldShowSection(s, currentCamp))
-    .filter(s => !s.excludeFromProgress)
-  const { totalCompleted, totalFields } = visibleSections.reduce(
-    (acc, s) => {
-      const p = getSectionProgress(
-        s.id,
-        currentCamp,
-        sidebarEligibilityCount,
-        sidebarAddonEnabledCount,
-        sidebarAddonTotalCount,
-        sessionCounts
-      )
-      return {
-        totalCompleted: acc.totalCompleted + p.completed,
-        totalFields: acc.totalFields + p.total,
-      }
-    },
-    { totalCompleted: 0, totalFields: 0 }
+  const progressPercent = computeCampProgressPercent(
+    currentCamp,
+    sidebarEligibilityCount,
+    sidebarAddonEnabledCount,
+    sidebarAddonTotalCount,
+    sessionCounts
   )
-  const progressPercent = totalFields > 0 ? Math.round((totalCompleted / totalFields) * 100) : 0
 
   const categories: string[] = Array.from(
     new Set(editorSections.map(s => s.category).filter((c): c is string => !!c))

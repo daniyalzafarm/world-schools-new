@@ -137,6 +137,9 @@ export interface ProviderBookingGroupSummary {
   bookingGroupNumber: string
   status: BookingGroupStatus
   totalAmount: number
+  paidAmount: number
+  depositAmount: number
+  refundedAmount: number
   currency: string
   requestedAt: string
   respondedAt: string | null

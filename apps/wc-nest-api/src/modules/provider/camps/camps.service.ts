@@ -373,9 +373,63 @@ export class CampsService {
       orderBy: { createdAt: 'desc' },
     })
 
-    // Generate SAS URLs for photos
+    const campIds = camps.map(c => c.id)
+
+    const [sessionGroups, addOnGroups, eligibilityGroups] = await Promise.all([
+      campIds.length
+        ? this.prisma.session.groupBy({
+            by: ['campId', 'status'],
+            where: { campId: { in: campIds } },
+            _count: { _all: true },
+          })
+        : Promise.resolve([] as Array<{ campId: string; status: any; _count: { _all: number } }>),
+      campIds.length
+        ? this.prisma.campAddOn.groupBy({
+            by: ['campId', 'isEnabled'],
+            where: { campId: { in: campIds } },
+            _count: { _all: true },
+          })
+        : Promise.resolve(
+            [] as Array<{ campId: string; isEnabled: boolean; _count: { _all: number } }>
+          ),
+      campIds.length
+        ? this.prisma.campEligibilityRequirement.groupBy({
+            by: ['campId'],
+            where: { campId: { in: campIds } },
+            _count: { _all: true },
+          })
+        : Promise.resolve([] as Array<{ campId: string; _count: { _all: number } }>),
+    ])
+
+    const sessionsByCamp = new Map<string, { published: number; total: number }>()
+    for (const row of sessionGroups) {
+      const cur = sessionsByCamp.get(row.campId) ?? { published: 0, total: 0 }
+      cur.total += row._count._all
+      if (row.status === 'published') cur.published += row._count._all
+      sessionsByCamp.set(row.campId, cur)
+    }
+
+    const addOnsByCamp = new Map<string, { enabled: number; total: number }>()
+    for (const row of addOnGroups) {
+      const cur = addOnsByCamp.get(row.campId) ?? { enabled: 0, total: 0 }
+      cur.total += row._count._all
+      if (row.isEnabled) cur.enabled += row._count._all
+      addOnsByCamp.set(row.campId, cur)
+    }
+
+    const eligibilityByCamp = new Map<string, number>()
+    for (const row of eligibilityGroups) {
+      eligibilityByCamp.set(row.campId, row._count._all)
+    }
+
+    // Generate SAS URLs for photos and attach counts
     const campsWithPhotoUrls = await Promise.all(
       camps.map(async camp => {
+        const counts = {
+          sessionsCount: sessionsByCamp.get(camp.id) ?? { published: 0, total: 0 },
+          addOnsCount: addOnsByCamp.get(camp.id) ?? { enabled: 0, total: 0 },
+          eligibilityCount: eligibilityByCamp.get(camp.id) ?? 0,
+        }
         if (camp.photos && Array.isArray(camp.photos) && camp.photos.length > 0) {
           const photosWithUrls = await this.photoUploadService.generatePhotoUrls(
             camp.photos as any[]
@@ -383,9 +437,10 @@ export class CampsService {
           return {
             ...camp,
             photos: photosWithUrls,
+            ...counts,
           }
         }
-        return camp
+        return { ...camp, ...counts }
       })
     )
 
@@ -1022,27 +1077,137 @@ export class CampsService {
    * Get camp statistics for provider dashboard
    */
   async getCampStatistics(providerId: string) {
-    const camps = await this.prisma.camp.findMany({
-      where: { providerId },
-      select: {
-        id: true,
-        status: true,
-      },
-    })
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
 
-    // TODO: Replace with actual bookings and sessions data when those models are implemented
-    // For now, return mock data
-    const stats = {
+    const CONFIRMED_STATUSES = [
+      'accepted',
+      'deposit_paid',
+      'fully_paid',
+      'at_camp',
+      'completed',
+    ] as const
+
+    const [
+      camps,
+      totalBookings,
+      activeSessions,
+      ratingAgg,
+      reviewCount,
+      reviewsWithResponseCount,
+      revenueTotalAgg,
+      revenueThisMonthAgg,
+      revenueLastSeasonAgg,
+      pendingRevenueAgg,
+      refundedAgg,
+      providerSettings,
+    ] = await Promise.all([
+      this.prisma.camp.findMany({
+        where: { providerId },
+        select: { id: true, status: true },
+      }),
+      this.prisma.bookingGroup.count({
+        where: { providerId, status: { in: CONFIRMED_STATUSES as unknown as string[] } as any },
+      }),
+      this.prisma.session.count({
+        where: {
+          camp: { providerId },
+          status: 'published',
+          endDate: { gte: now },
+        },
+      }),
+      this.prisma.campReview.findMany({
+        where: { camp: { providerId }, status: 'published' },
+        select: {
+          happinessRating: true,
+          safetyRating: true,
+          communicationRating: true,
+          asDescribedRating: true,
+          growthRating: true,
+          valueRating: true,
+        },
+      }),
+      this.prisma.campReview.count({
+        where: { camp: { providerId }, status: 'published' },
+      }),
+      this.prisma.campReview.count({
+        where: {
+          camp: { providerId },
+          status: 'published',
+          response: { is: null },
+        },
+      }),
+      this.prisma.bookingGroup.aggregate({
+        where: { providerId },
+        _sum: { paidAmount: true },
+      }),
+      this.prisma.bookingGroup.aggregate({
+        where: {
+          providerId,
+          session: { startDate: { gte: startOfMonth, lt: startOfNextMonth } },
+        },
+        _sum: { paidAmount: true },
+      }),
+      this.prisma.bookingGroup.aggregate({
+        where: {
+          providerId,
+          session: { endDate: { gte: ninetyDaysAgo, lt: now } },
+        },
+        _sum: { paidAmount: true },
+      }),
+      this.prisma.bookingGroup.aggregate({
+        where: { providerId, status: 'request' },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.bookingGroup.aggregate({
+        where: { providerId },
+        _sum: { refundedAmount: true },
+      }),
+      this.prisma.providerSettings.findUnique({
+        where: { providerId },
+        select: { currency: true },
+      }),
+    ])
+
+    let ratingSum = 0
+    let ratingCount = 0
+    for (const r of ratingAgg) {
+      const values = [
+        r.happinessRating,
+        r.safetyRating,
+        r.communicationRating,
+        r.asDescribedRating,
+        r.growthRating,
+        r.valueRating,
+      ].filter((v): v is number => typeof v === 'number')
+      if (values.length > 0) {
+        ratingSum += values.reduce((a, b) => a + b, 0) / values.length
+        ratingCount++
+      }
+    }
+    const averageRating = ratingCount > 0 ? Number((ratingSum / ratingCount).toFixed(2)) : 0
+
+    const currency = providerSettings?.currency ?? 'CHF'
+
+    return {
       totalCamps: camps.length,
       publishedCamps: camps.filter(c => c.status === 'published').length,
       draftCamps: camps.filter(c => c.status === 'draft').length,
       archivedCamps: camps.filter(c => c.status === 'archived').length,
-      totalBookings: 0, // TODO: Implement when bookings model is ready
-      activeSessions: 0, // TODO: Implement when sessions model is ready
-      averageRating: 0.0, // TODO: Implement when reviews model is ready
+      totalBookings,
+      activeSessions,
+      averageRating,
+      reviewCount,
+      unrespondedReviews: reviewsWithResponseCount,
+      revenueTotalPaid: Number(revenueTotalAgg._sum.paidAmount ?? 0),
+      revenueThisMonth: Number(revenueThisMonthAgg._sum.paidAmount ?? 0),
+      revenueLastSeason: Number(revenueLastSeasonAgg._sum.paidAmount ?? 0),
+      pendingRevenue: Number(pendingRevenueAgg._sum.totalAmount ?? 0),
+      refundedTotal: Number(refundedAgg._sum.refundedAmount ?? 0),
+      currency,
     }
-
-    return stats
   }
 
   /**

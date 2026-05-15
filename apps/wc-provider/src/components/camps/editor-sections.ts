@@ -380,3 +380,34 @@ export function getSectionProgress(
       return { completed: 0, total: 1 }
   }
 }
+
+export function computeCampProgressPercent(
+  camp: Camp | null,
+  eligibilityCount: number | null,
+  addonEnabledCount: number | null,
+  addonTotalCount: number | null,
+  sessionCounts: { published: number; total: number } | null
+): number {
+  if (!camp) return 0
+  const visibleSections = editorSections
+    .filter(s => shouldShowSection(s, camp))
+    .filter(s => !s.excludeFromProgress)
+  const { totalCompleted, totalFields } = visibleSections.reduce(
+    (acc, s) => {
+      const p = getSectionProgress(
+        s.id,
+        camp,
+        eligibilityCount,
+        addonEnabledCount,
+        addonTotalCount,
+        sessionCounts
+      )
+      return {
+        totalCompleted: acc.totalCompleted + p.completed,
+        totalFields: acc.totalFields + p.total,
+      }
+    },
+    { totalCompleted: 0, totalFields: 0 }
+  )
+  return totalFields > 0 ? Math.round((totalCompleted / totalFields) * 100) : 0
+}

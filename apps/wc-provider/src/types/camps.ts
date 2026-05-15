@@ -119,6 +119,9 @@ export interface Camp {
   } | null
   sessionType?: 'flexible' | 'fixed' | null
   currency?: string // Currency code (e.g., 'USD', 'EUR', 'GBP')
+  sessionsCount?: { published: number; total: number }
+  addOnsCount?: { enabled: number; total: number }
+  eligibilityCount?: number
   status: CampStatus
   publishedAt?: string
   createdAt: string
