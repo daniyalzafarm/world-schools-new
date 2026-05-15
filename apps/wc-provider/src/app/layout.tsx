@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from 'next'
 
+import config from '@/config/config'
+
 import { Providers } from './providers'
 import './globals.css'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://provider.worldcamps.com'),
+  metadataBase: new URL(config.app.metadataBase),
   title: 'World Camps Provider Portal',
   description: 'Administrative portal for managing World Camps providers and users',
   manifest: '/site.webmanifest',

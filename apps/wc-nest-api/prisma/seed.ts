@@ -3,6 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
 import * as bcrypt from 'bcryptjs'
 import { ConfigService } from '../src/config/config.service'
+import { requiresPostgresSsl } from '../src/config/requires-postgres-ssl'
 import { seedRbac } from './seeds/rbac.seed'
 import { seedUsers } from './seeds/users.seed'
 import { seedSupportTicketing } from './seeds/support.seed'
@@ -13,9 +14,9 @@ if (!databaseUrl) {
   throw new Error('DATABASE_URL environment variable is not set')
 }
 
-// Check if SSL is required via explicit environment variable
-// Set POSTGRES_REQUIRE_SSL=true for Azure PostgreSQL or other SSL-required databases
-const requiresSsl = process.env.POSTGRES_REQUIRE_SSL === 'true'
+// SSL detection is shared with ConfigService — covers both the env var
+// (case-insensitive) and `sslmode=…` in the URL that start.sh injects.
+const requiresSsl = requiresPostgresSsl(process.env, databaseUrl)
 
 console.log('🔐 Database connection configuration:')
 console.log(`  SSL Required: ${requiresSsl}`)

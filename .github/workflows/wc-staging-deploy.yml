@@ -85,15 +85,18 @@ jobs:
       - name: Parse API secrets
         id: api-secrets
         run: |
-          # Parse comma-separated secrets from GitHub Secrets
-          # Format: KEY1=value1,KEY2=value2,KEY3=value3
+          # Parse newline-separated secrets from GitHub Secrets.
+          # Format: one KEY=value per line. Blank lines are skipped.
           SECRETS_RAW="${{ secrets.WC_STAGING_API_SECRETS }}"
 
           if [ -n "$SECRETS_RAW" ]; then
             echo "Processing API secrets..."
 
-            # Split by comma and process each secret
-            IFS=',' read -ra SECRET_PAIRS <<< "$SECRETS_RAW"
+            SECRET_PAIRS=()
+            while IFS= read -r line; do
+              trimmed=$(echo "$line" | xargs)
+              [ -n "$trimmed" ] && SECRET_PAIRS+=("$trimmed")
+            done <<< "$SECRETS_RAW"
 
             SECRET_NAMES=""
             SECRET_REFS=""
@@ -135,7 +138,10 @@ jobs:
       - name: Parse API runtime env
         id: api-env
         run: |
-          RAW="$(echo "${{ vars.WC_STAGING_API_ENV }}" | tr '\n' ' ')"
+          # tr -d '\r' first: if the GH variable was pasted with CRLF endings,
+          # every value gets a trailing \r that breaks strict string compares
+          # in app code (e.g. POSTGRES_REQUIRE_SSL === 'true' → false).
+          RAW="$(echo "${{ vars.WC_STAGING_API_ENV }}" | tr -d '\r' | tr '\n' ' ')"
           ENV="APP_VERSION=${{ needs.extract-version.outputs.version }} $RAW"
 
           # Add secret references to environment variables
@@ -297,7 +303,7 @@ jobs:
       - name: Prepare build env
         id: build-env
         run: |
-          RAW="$(echo "${{ vars[matrix.app.build_env] }}" | tr '\n' ' ')"
+          RAW="$(echo "${{ vars[matrix.app.build_env] }}" | tr -d '\r' | tr '\n' ' ')"
           ENV="NEXT_PUBLIC_APP_VERSION=${{ needs.extract-version.outputs.version }} $RAW"
           echo "env=$ENV" >> $GITHUB_OUTPUT
 
@@ -326,7 +332,7 @@ jobs:
       - name: Prepare runtime env
         id: runtime-env
         run: |
-          RAW="$(echo "${{ vars[matrix.app.runtime_env] }}" | tr '\n' ' ')"
+          RAW="$(echo "${{ vars[matrix.app.runtime_env] }}" | tr -d '\r' | tr '\n' ' ')"
           ENV="APP_VERSION=${{ needs.extract-version.outputs.version }} $RAW"
           echo "env=$ENV" >> $GITHUB_OUTPUT
 

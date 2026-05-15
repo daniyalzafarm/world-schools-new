@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { PINNED_STRIPE_API_VERSION } from '../modules/stripe/stripe.constants'
+import { requiresPostgresSsl } from './requires-postgres-ssl'
 
 @Injectable()
 export class ConfigService {
@@ -13,10 +14,6 @@ export class ConfigService {
 
   get appUrl(): string {
     return this.getString('APP_URL', 'http://localhost:3000')
-  }
-
-  get frontendUrl(): string {
-    return this.getString('FRONTEND_URL', 'http://localhost:3000')
   }
 
   get superadminPortalUrl(): string {
@@ -51,12 +48,6 @@ export class ConfigService {
     return this.getNumber('PORT', 3000)
   }
 
-  get storageUrl(): string {
-    const url = this.getString('STORAGE_URL', 'http://localhost:3000')
-    // Ensure URL ends with a slash for proper path concatenation
-    return url.endsWith('/') ? url : `${url}/`
-  }
-
   get databaseUrl(): string {
     const { host, port, username, password, database } = this.postgresConfig
     return `postgresql://${username}:${password}@${host}:${port}/${database}`
@@ -73,7 +64,7 @@ export class ConfigService {
   }
 
   get postgresRequireSsl(): boolean {
-    return this.getString('POSTGRES_REQUIRE_SSL', 'false').toLowerCase() === 'true'
+    return requiresPostgresSsl(this.envConfig)
   }
 
   // JWT Configuration
@@ -97,14 +88,6 @@ export class ConfigService {
     return origins.split(',').map(origin => origin.trim())
   }
 
-  get rateLimitWindow(): string {
-    return this.getString('RATE_LIMIT_WINDOW', '15m')
-  }
-
-  get rateLimitMax(): number {
-    return this.getNumber('RATE_LIMIT_MAX', 100)
-  }
-
   // Email Configuration
   get emailConfig() {
     return {
@@ -125,15 +108,6 @@ export class ConfigService {
       containerName: this.getString('AZURE_STORAGE_CONTAINER_NAME', ''),
       sasTokenExpiryHours: this.getNumber('AZURE_STORAGE_SAS_EXPIRY_HOURS', 24),
     }
-  }
-
-  // File Upload Configuration
-  get maxFileSize(): string {
-    return this.getString('MAX_FILE_SIZE', '5MB')
-  }
-
-  get uploadDest(): string {
-    return this.getString('UPLOAD_DEST', './uploads')
   }
 
   // Security Headers
@@ -171,11 +145,6 @@ export class ConfigService {
 
     // For staging/test environments, trust first proxy
     return 1
-  }
-
-  // Logging
-  get logLevel(): string {
-    return this.getString('LOG_LEVEL', 'info')
   }
 
   // Google APIs Configuration

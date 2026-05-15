@@ -11,9 +11,6 @@ import { createWcNextConfig } from '../../next.config.wc.mjs'
 // Create the base World Camps Next.js configuration
 const nextConfig: NextConfig = createWcNextConfig({
   redirectTo: '/analytics-dashboard',
-  envVars: {
-    SUPERADMIN_CUSTOM_KEY: process.env.SUPERADMIN_CUSTOM_KEY,
-  },
 })
 
 // Add app-specific customizations here if needed

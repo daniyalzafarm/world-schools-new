@@ -11,10 +11,6 @@ import { createWcNextConfig } from '../../next.config.wc.mjs'
 // Create the base World Camps Next.js configuration
 const nextConfig: NextConfig = createWcNextConfig({
   redirectTo: '/dashboard',
-  envVars: {
-    PROVIDER_CUSTOM_KEY: process.env.PROVIDER_CUSTOM_KEY,
-    NEXT_PUBLIC_BOOKING_APP_BASE_URL: process.env.NEXT_PUBLIC_BOOKING_APP_BASE_URL,
-  },
 })
 
 // Add app-specific customizations here if needed

@@ -1,0 +1,83 @@
+# =============================================================================
+# WC_STAGING_API_ENV — example reference
+# =============================================================================
+#
+# This file documents the value that should be pasted into the GitHub variable
+# named `WC_STAGING_API_ENV` (Settings → Secrets and variables → Actions
+# → Variables → New repository variable).
+#
+# The deploy workflow at .github/workflows/wc-staging-deploy.yml reads this
+# value, converts newlines to spaces, and passes the result to
+# `az containerapp update --set-env-vars` so each KEY=VALUE pair becomes a
+# plain (unencrypted) environment variable on the running container.
+#
+# Format rules (verified against the parser at lines 135–155 of the workflow):
+#   • One KEY=VALUE per line. Blank lines between sections are tolerated.
+#   • Values cannot contain spaces or newlines (the space-separated parser
+#     of `az --set-env-vars` would split them).
+#   • The body below must contain NO `#`-prefixed comments — `tr '\n' ' '`
+#     would turn them into bogus env entries and the `az` call would fail.
+#     Header comments (this block) are fine because they sit above the body
+#     and are not part of what you paste.
+#   • What to paste: copy everything from `NODE_ENV=` down to the last
+#     `BILLING_AUTH_EXPIRY_CANCEL_DAYS=` line below.
+#
+# Not included here (handled elsewhere):
+#   • PORT             — Azure Container Apps sets this at runtime.
+#   • APP_VERSION      — injected by the deploy workflow from the git tag.
+#   • DATABASE_URL     — composed by ConfigService from the POSTGRES_* vars.
+#   • REDIS_HOST/PORT/PASSWORD — only used to compose REDIS_URL in local .env;
+#                         deployment reads REDIS_URL directly (in SECRETS).
+#
+# Sensitive keys (passwords, signing secrets, server-side API keys) live in
+# WC_STAGING_API_SECRETS instead. See WC_STAGING_API_SECRETS.example.
+# =============================================================================
+# ================ REMOVE EMPTY LINES BEFORE PASTING IN GITHUB ================
+# =============================================================================
+
+NODE_ENV=production
+
+APP_URL=https://api.staging.world-camps.org
+SUPERADMIN_PORTAL_URL=https://superadmin.staging.world-camps.org
+PROVIDER_PORTAL_URL=https://provider.staging.world-camps.org
+BOOKING_PORTAL_URL=https://booking.staging.world-camps.org
+CORS_ORIGINS=https://booking.staging.world-camps.org,https://provider.staging.world-camps.org,https://superadmin.staging.world-camps.org
+
+POSTGRES_HOST=<staging-postgres-host>.postgres.database.azure.com
+POSTGRES_PORT=5432
+POSTGRES_USER=wc_staging
+POSTGRES_DB=wc_world_schools_staging
+POSTGRES_REQUIRE_SSL=true
+
+AUTH_USING_REQUEST=false
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+BCRYPT_SALT_ROUNDS=12
+
+HELMET_ENABLED=true
+TRUST_PROXY=1
+
+RATE_LIMIT_FAIL_MODE=open
+
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=noreply@world-camps.org
+EMAIL_FROM=noreply@world-camps.org
+
+AZURE_STORAGE_ACCOUNT_URL=https://wcstoragestaging.blob.core.windows.net
+AZURE_STORAGE_ACCOUNT_NAME=wcstoragestaging
+AZURE_STORAGE_CONTAINER_NAME=wc-staging-files
+AZURE_STORAGE_SAS_EXPIRY_HOURS=24
+
+ENABLE_WEBSOCKET_MESSAGES=true
+
+STRIPE_PUBLISHABLE_KEY=pk_test_xxx
+STRIPE_WEBHOOK_TOLERANCE_SECONDS=300
+STRIPE_WEBHOOK_EVENT_RETENTION_DAYS=90
+
+BILLING_OFF_SESSION_MAX_ATTEMPTS=2
+BILLING_OFF_SESSION_RETRY_HOURS=24
+BILLING_OFF_SESSION_STEP_UP_WINDOW_HOURS=48
+BILLING_BALANCE_CHARGE_CRON_MINUTES=30
+BILLING_AUTH_EXPIRY_WARN_DAYS=5
+BILLING_AUTH_EXPIRY_CANCEL_DAYS=6

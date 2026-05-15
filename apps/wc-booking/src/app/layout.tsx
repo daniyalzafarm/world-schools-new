@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from 'next'
 
+import config from '@/config/config'
+
 import { Providers } from './providers'
 import './globals.css'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://booking.worldcamps.com'),
+  metadataBase: new URL(config.app.metadataBase),
   title: {
     default: 'World Camps - Discover Amazing Camp Experiences',
     template: '%s | World Camps',
@@ -26,7 +28,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://booking.worldcamps.com',
+    url: 'https://booking.world-camps.org',
     siteName: 'World Camps',
     title: 'World Camps - Discover Amazing Camp Experiences',
     description:

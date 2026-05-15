@@ -8,11 +8,6 @@
 import type { NextConfig } from 'next'
 import { createWcNextConfig } from '../../next.config.wc.mjs'
 
-const nextConfig: NextConfig = createWcNextConfig({
-  // Expose booking-specific environment variables
-  envVars: {
-    BOOKING_CUSTOM_KEY: process.env.BOOKING_CUSTOM_KEY,
-  },
-})
+const nextConfig: NextConfig = createWcNextConfig({})
 
 export default nextConfig
