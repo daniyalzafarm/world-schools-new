@@ -3,7 +3,18 @@
 import React from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn, useConfirmDialog } from '@world-schools/ui-web'
-import { Building2, CreditCard, Home, Lock, LogOut, Phone, Shield, User } from 'lucide-react'
+import {
+  Building2,
+  CreditCard,
+  FileText,
+  Home,
+  Lock,
+  LogOut,
+  Phone,
+  Shield,
+  User,
+  Wallet,
+} from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 
 interface AccountSidebarProps {
@@ -101,6 +112,16 @@ export const AccountSidebar: React.FC<AccountSidebarProps> = ({ sidebarOpen, set
         name: 'Stripe Account',
         href: '/account/business/stripe-account',
         icon: <CreditCard size={20} />,
+      },
+      {
+        name: 'Deposit Settings',
+        href: '/account/business/deposit-settings',
+        icon: <Wallet size={20} />,
+      },
+      {
+        name: 'Payment Policies',
+        href: '/account/business/payment-policies',
+        icon: <FileText size={20} />,
       },
     ],
   }

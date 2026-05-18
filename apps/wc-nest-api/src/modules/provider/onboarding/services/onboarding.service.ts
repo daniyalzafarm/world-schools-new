@@ -84,9 +84,7 @@ export class OnboardingService {
       stripeOnboardingSkippedAt: provider.stripeOnboardingSkippedAt?.toISOString() || null,
       stripeChargesEnabled: provider.stripeChargesEnabled,
       stripePayoutsEnabled: provider.stripePayoutsEnabled,
-      stripeCommissionPercentage: provider.stripeCommissionPercentage
-        ? Number(provider.stripeCommissionPercentage)
-        : null,
+      appFeePercentage: provider.appFeePercentage ? Number(provider.appFeePercentage) : null,
     }
   }
 

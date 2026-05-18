@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { type CalendarDate, parseDate } from '@internationalized/date'
 import type {
   ContactInfo,
   GoogleBusinessProfile,
@@ -11,6 +12,26 @@ import type {
 import { onboardingService } from '../services/onboarding.services'
 import type { ValidationResult } from '../utils/onboarding-validation'
 
+export interface CalculatorConfig {
+  currency: string
+  appFeePercentage: number
+}
+
+// Default calculator start date — 8 months out, so providers see a realistic
+// distance-from-today preview when the deposit-settings / payment-policies
+// pages first render.
+const computeDefaultCalcStartDate = (): CalendarDate | null => {
+  const date = new Date()
+  date.setMonth(date.getMonth() + 8)
+  const dateString = date.toISOString().split('T')[0]
+  if (!dateString) return null
+  try {
+    return parseDate(dateString)
+  } catch {
+    return null
+  }
+}
+
 interface OnboardingStore {
   // State
   status: OnboardingStatus | null
@@ -18,11 +39,21 @@ interface OnboardingStore {
   searchResults: GoogleBusinessSearchResult[]
   documents: VerificationDocument[]
   validationResult: ValidationResult | null
+  calculatorConfig: CalculatorConfig | null
+  isCalculatorConfigLoading: boolean
+  // Shared inputs for the deposit-settings + payment-policies preview
+  // calculators. Held in the store so values persist when the user moves
+  // between those two onboarding steps.
+  calcPrice: number
+  calcStartDate: CalendarDate | null
   isLoading: boolean
   error: string | null
 
   // Actions
   fetchStatus: () => Promise<void>
+  fetchCalculatorConfig: () => Promise<void>
+  setCalcPrice: (price: number) => void
+  setCalcStartDate: (date: CalendarDate | null) => void
   fetchGoogleBusinessProfile: () => Promise<void>
   searchGoogleBusiness: (query: string, lat?: number, lng?: number) => Promise<void>
   saveGoogleBusinessProfile: (
@@ -49,8 +80,14 @@ interface OnboardingStore {
   fetchDocuments: () => Promise<void>
   deleteDocument: (documentId: string) => Promise<void>
   completeStep4: () => Promise<void>
-  saveDepositSettings: (data: SaveDepositSettingsRequest) => Promise<void>
-  saveProviderSettings: (data: SaveProviderSettingsRequest) => Promise<void>
+  // C3 audit fix: return whether the save succeeded so callers can branch on
+  // success vs. failure. Previously `saveDepositSettings` would throw on
+  // failure while `saveProviderSettings` returned void silently — the
+  // inconsistency caused dead try/catch in one page and silent navigation
+  // past failures in the other. Both now consistently return `boolean` and
+  // leave the human-readable error on `state.error` for the UI to render.
+  saveDepositSettings: (data: SaveDepositSettingsRequest) => Promise<boolean>
+  saveProviderSettings: (data: SaveProviderSettingsRequest) => Promise<boolean>
   validateOnboarding: () => Promise<ValidationResult>
   completeOnboarding: () => Promise<void>
   clearError: () => void
@@ -63,6 +100,10 @@ const initialState = {
   searchResults: [],
   documents: [],
   validationResult: null,
+  calculatorConfig: null,
+  isCalculatorConfigLoading: false,
+  calcPrice: 2000,
+  calcStartDate: computeDefaultCalcStartDate(),
   isLoading: false,
   error: null,
 }
@@ -87,6 +128,36 @@ export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
       set({ error: errorMessage, isLoading: false })
     }
   },
+
+  // Cached: only fetches once per session. Resolved values don't change while
+  // the user is moving through onboarding, so subsequent calls (e.g. when the
+  // user navigates back to deposit-settings or payment-policies) are no-ops.
+  fetchCalculatorConfig: async () => {
+    const { calculatorConfig, isCalculatorConfigLoading } = get()
+    if (calculatorConfig !== null || isCalculatorConfigLoading) return
+
+    set({ isCalculatorConfigLoading: true })
+    try {
+      const response = await onboardingService.getCalculatorConfig()
+      if (response.success) {
+        const data = response.data
+        if (
+          data &&
+          typeof data.currency === 'string' &&
+          typeof data.appFeePercentage === 'number'
+        ) {
+          set({
+            calculatorConfig: { currency: data.currency, appFeePercentage: data.appFeePercentage },
+          })
+        }
+      }
+    } finally {
+      set({ isCalculatorConfigLoading: false })
+    }
+  },
+
+  setCalcPrice: (price: number) => set({ calcPrice: price }),
+  setCalcStartDate: (date: CalendarDate | null) => set({ calcStartDate: date }),
 
   fetchGoogleBusinessProfile: async () => {
     set({ isLoading: true, error: null })
@@ -282,43 +353,44 @@ export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
     }
   },
 
-  saveDepositSettings: async (data: SaveDepositSettingsRequest) => {
+  saveDepositSettings: async (data: SaveDepositSettingsRequest): Promise<boolean> => {
     set({ isLoading: true, error: null })
     const response = await onboardingService.saveDepositSettings(data)
 
     if (response.success) {
       await get().fetchStatus()
       set({ isLoading: false })
-    } else {
-      const errorMessage =
-        'data' in response &&
-        typeof response.data === 'object' &&
-        response.data &&
-        'message' in response.data
-          ? String(response.data.message)
-          : 'Failed to save deposit settings'
-      set({ error: errorMessage, isLoading: false })
-      throw new Error(errorMessage)
+      return true
     }
+    const errorMessage =
+      'data' in response &&
+      typeof response.data === 'object' &&
+      response.data &&
+      'message' in response.data
+        ? String(response.data.message)
+        : 'Failed to save deposit settings'
+    set({ error: errorMessage, isLoading: false })
+    return false
   },
 
-  saveProviderSettings: async (data: SaveProviderSettingsRequest) => {
+  saveProviderSettings: async (data: SaveProviderSettingsRequest): Promise<boolean> => {
     set({ isLoading: true, error: null })
     const response = await onboardingService.saveProviderSettings(data)
 
     if (response.success) {
       await get().fetchStatus()
       set({ isLoading: false })
-    } else {
-      const errorMessage =
-        'data' in response &&
-        typeof response.data === 'object' &&
-        response.data &&
-        'message' in response.data
-          ? String(response.data.message)
-          : 'Failed to save settings'
-      set({ error: errorMessage, isLoading: false })
+      return true
     }
+    const errorMessage =
+      'data' in response &&
+      typeof response.data === 'object' &&
+      response.data &&
+      'message' in response.data
+        ? String(response.data.message)
+        : 'Failed to save settings'
+    set({ error: errorMessage, isLoading: false })
+    return false
   },
 
   validateOnboarding: async () => {

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { Button } from '@heroui/react'
 import { ChevronRight } from 'lucide-react'
 import {
@@ -15,6 +16,20 @@ import {
 } from '@world-schools/wc-frontend-utils'
 import { formatCurrency } from '@/utils/currency'
 import type { ParentBookingGroupDetail, ParentBookingGroupStatus } from '@/types/camp-booking'
+import { CancelBookingModal } from './cancel-booking-modal'
+
+/**
+ * Statuses where the parent's "Cancel booking" CTA is shown. Mirrors the
+ * backend's `NON_CANCELABLE_BOOKING_STATUSES` (in inverse). Draft has its
+ * own flow (delete-draft) which lives elsewhere; everything else terminal
+ * hides the button.
+ */
+const PARENT_CANCELABLE_STATUSES = new Set<ParentBookingGroupStatus>([
+  'request',
+  'accepted',
+  'deposit_paid',
+  'fully_paid',
+])
 
 function ActionRow({ href, label }: { href: string; label: string }) {
   return (
@@ -28,8 +43,17 @@ function ActionRow({ href, label }: { href: string; label: string }) {
   )
 }
 
-export function BookingDetailSidebar({ detail }: { detail: ParentBookingGroupDetail }) {
+export function BookingDetailSidebar({
+  detail,
+  onCancelled,
+}: {
+  detail: ParentBookingGroupDetail
+  /** Called after the parent successfully cancels — parent page should reload state. */
+  onCancelled?: () => void
+}) {
+  const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const status = detail.status as ParentBookingGroupStatus
+  const showCancelButton = PARENT_CANCELABLE_STATUSES.has(status)
   const cover = detail.camp.coverImageUrl
   const pct = progressPercent(status)
   const barColor = progressBarColor(status)
@@ -253,6 +277,29 @@ export function BookingDetailSidebar({ detail }: { detail: ParentBookingGroupDet
           your account.
         </p>
       </section>
+
+      {showCancelButton ? (
+        <section className="border-t border-default-200 pt-6 dark:border-slate-700">
+          <h3 className="mb-2 text-lg font-semibold text-secondary">Cancel booking</h3>
+          <p className="mb-3 text-sm text-default-600">
+            Cancelling shows you the refund you&apos;ll receive based on the camp&apos;s policy
+            before you confirm.
+          </p>
+          <Button color="danger" variant="flat" size="sm" onPress={() => setCancelModalOpen(true)}>
+            Cancel this booking
+          </Button>
+        </section>
+      ) : null}
+
+      <CancelBookingModal
+        bookingGroupId={detail.id}
+        isOpen={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        onCancelled={() => {
+          setCancelModalOpen(false)
+          onCancelled?.()
+        }}
+      />
     </div>
   )
 }

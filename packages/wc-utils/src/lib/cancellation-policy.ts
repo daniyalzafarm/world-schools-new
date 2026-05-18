@@ -48,8 +48,12 @@ export function getFreeCancellationCutoffDate(
     )
   if (!fullRefundTier) return null
 
+  // UTC-safe arithmetic: ISO date-only inputs ("2026-06-22") parse as UTC
+  // midnight; using local-time setDate/getDate would shift the resulting
+  // date by a day for users west of UTC. setUTCDate keeps the calendar
+  // date stable regardless of the viewer's timezone.
   const cutoff = new Date(start)
-  cutoff.setDate(cutoff.getDate() - fullRefundTier.daysBeforeStart)
+  cutoff.setUTCDate(cutoff.getUTCDate() - fullRefundTier.daysBeforeStart)
   return cutoff
 }
 
@@ -106,7 +110,15 @@ export interface CancellationPolicyDisplayRow {
 }
 
 function formatDate(date: Date) {
-  return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  // Format in UTC so the displayed calendar date matches the date arithmetic
+  // (which is UTC-based). Without this, a user in a non-UTC zone would see
+  // the date shifted by one when the input is a date-only ISO string.
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
 }
 
 /**
@@ -144,16 +156,42 @@ export function buildCancellationPolicyRows(
     }
 
     if (hasValidStart) {
+      // Date arithmetic in UTC so the calendar date is stable for users
+      // worldwide. Wording uses inclusive lower-bound semantics (matches
+      // the tier match rule `daysBeforeStart >= tier.daysBeforeStart`):
+      //   - Row 1 ("Before X"): cancellation on or before X-1 inclusive
+      //   - Middle rows ("X – Y"): X is one day after the previous boundary
+      //     (so the boundary date X belongs only to the previous, higher-%
+      //     tier — no overlap), Y is the upper bound inclusive
+      //   - Last row ("After X"): cancellation on X+1 onwards
+      // Concretely, with Jun 22 start + 60/30/0 moderate tiers, output:
+      //   - "Before Apr 24, 2026" (cancel on or before Apr 23 → 100%)
+      //   - "Apr 24, 2026 – May 23, 2026" (50%)
+      //   - "After May 23, 2026" (0%)
+      // No date appears in two rows; readers can't accidentally place the
+      // boundary date in the wrong tier.
       const tierDate = new Date(start)
-      tierDate.setDate(tierDate.getDate() - tier.daysBeforeStart)
+      tierDate.setUTCDate(tierDate.getUTCDate() - tier.daysBeforeStart)
       if (isFirst) {
-        dateRangeLabel = `Before ${formatDate(tierDate)}`
+        // The user must cancel BEFORE the day after the tier boundary to
+        // qualify for this tier. Equivalent to "By Apr 23" but reads more
+        // naturally in the modal alongside the "After …" final row.
+        const cutoff = new Date(tierDate)
+        cutoff.setUTCDate(cutoff.getUTCDate() + 1)
+        dateRangeLabel = `Before ${formatDate(cutoff)}`
       } else if (isLast) {
-        dateRangeLabel = `After ${formatDate(tierDate)}`
-      } else {
+        // "Less than N days before camp" = (S - N, S]. Surface the start
+        // of that window: cancellations strictly after S - N fall here.
         const prevDate = new Date(start)
-        prevDate.setDate(prevDate.getDate() - prev.daysBeforeStart)
-        dateRangeLabel = `${formatDate(tierDate)} – ${formatDate(prevDate)}`
+        prevDate.setUTCDate(prevDate.getUTCDate() - prev.daysBeforeStart)
+        dateRangeLabel = `After ${formatDate(prevDate)}`
+      } else {
+        // Middle rows: lower bound is prev-tier boundary + 1 (so X is not
+        // shared with the higher-tier row above), upper bound is the
+        // current tier boundary inclusive.
+        const prevDate = new Date(start)
+        prevDate.setUTCDate(prevDate.getUTCDate() - prev.daysBeforeStart + 1)
+        dateRangeLabel = `${formatDate(prevDate)} – ${formatDate(tierDate)}`
       }
     }
 

@@ -26,6 +26,7 @@ import { DepositSettingsService } from './services/deposit-settings.service'
 import { DocumentProcessingService } from './services/document-processing.service'
 import { TrustScoreService } from './services/trust-score.service'
 import { ProviderLogoService } from './services/provider-logo.service'
+import { CalculatorConfigService } from './services/calculator-config.service'
 
 // DTOs
 import { SaveGoogleBusinessProfileDto, UpdateCompanyDetailsDto } from './dto/google-business.dto'
@@ -47,7 +48,8 @@ export class OnboardingController {
     private readonly depositSettingsService: DepositSettingsService,
     private readonly documentProcessingService: DocumentProcessingService,
     private readonly trustScoreService: TrustScoreService,
-    private readonly providerLogoService: ProviderLogoService
+    private readonly providerLogoService: ProviderLogoService,
+    private readonly calculatorConfigService: CalculatorConfigService
   ) {}
 
   /**
@@ -60,6 +62,27 @@ export class OnboardingController {
     const providerId = req.user.providerId
     const status = await this.onboardingService.getOnboardingStatus(providerId)
     return ResponseUtil.success(status)
+  }
+
+  /**
+   * Calculator config — currency + app fee percentage to use in the
+   * onboarding deposit/cancellation-policy calculator previews. Replaces
+   * the prior hardcoded `serviceFee = price * 0.1` and `€` literals on the
+   * frontend.
+   */
+  @Get('calculator-config')
+  @Roles('Provider Admin')
+  @ApiOperation({
+    summary: 'Get currency + app fee percentage for onboarding calculators',
+    description:
+      'Returns the provider currency from ProviderSettings and the app fee ' +
+      'percentage to apply (snapshotted Provider.appFeePercentage if ' +
+      'available, otherwise SystemSettings.defaultAppFee).',
+  })
+  async getCalculatorConfig(@Request() req: any) {
+    const providerId = req.user.providerId
+    const config = await this.calculatorConfigService.getConfig(providerId)
+    return ResponseUtil.success(config)
   }
 
   /**

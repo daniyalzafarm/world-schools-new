@@ -143,6 +143,7 @@ export class UserCampsService {
         provider: {
           select: {
             id: true,
+            stripeAccountId: true,
             legalCompanyName: true,
             legalStreetAddress: true,
             legalCity: true,

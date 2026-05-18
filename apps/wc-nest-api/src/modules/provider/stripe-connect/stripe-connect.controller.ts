@@ -16,10 +16,10 @@ export class StripeConnectController {
 
   @Post('account')
   @ApiOperation({
-    summary: 'Create or retrieve Stripe Express connected account',
+    summary: 'Create or retrieve Stripe Standard connected account (Direct Charges)',
     description:
-      'Idempotent. Creates a Stripe Express account for the provider and snapshots the ' +
-      'platform commission. Only available after application approval.',
+      'Idempotent. Creates a Stripe Standard connected account (Direct Charges) for the ' +
+      'provider and snapshots the app fee. Only available after application approval.',
   })
   async createOrGetAccount(@Request() req: { user: { providerId: string } }) {
     const data = await this.stripeConnectService.createOrGetAccount(req.user.providerId)
@@ -65,18 +65,6 @@ export class StripeConnectController {
   })
   async skipOnboarding(@Request() req: { user: { providerId: string } }) {
     const data = await this.stripeConnectService.skipOnboarding(req.user.providerId)
-    return ResponseUtil.success(data)
-  }
-
-  @Post('login-link')
-  @ApiOperation({
-    summary: "Create a one-time URL into the provider's Stripe Express dashboard",
-    description:
-      'Returns a single-use, short-lived URL. Do not persist or cache it — request ' +
-      'a fresh link every time the provider clicks the dashboard button.',
-  })
-  async createLoginLink(@Request() req: { user: { providerId: string } }) {
-    const data = await this.stripeConnectService.createLoginLink(req.user.providerId)
     return ResponseUtil.success(data)
   }
 }

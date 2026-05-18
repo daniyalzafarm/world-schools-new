@@ -208,12 +208,12 @@ export class StripeAccountStatusDto {
   currency: string
 
   @ApiProperty({
-    description: 'Platform commission percentage applied to this provider',
+    description: 'App fee percentage applied to this provider',
     example: 10,
     required: false,
     nullable: true,
   })
-  commissionPercentage: number | null
+  appFeePercentage: number | null
 
   @ApiProperty({
     description:

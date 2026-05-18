@@ -4,9 +4,9 @@ End-to-end runbook for validating the Stripe Connect provider onboarding feature
 
 ## Overview
 
-**In scope:** Stripe Connect Express account creation, embedded KYC, capability syncing via `account.updated` / `account.application.deauthorized` webhooks.
+**In scope:** Stripe Connect **Standard** (Direct Charges, `controller.stripe_dashboard.type: 'full'`) account creation, embedded KYC, capability syncing via `account.updated` / `capability.updated` / `account.application.deauthorized` webhooks on the **platform** webhook endpoint.
 
-**Out of scope:** charges, payouts, refunds — there is no payment-flow code on this branch yet.
+**Out of scope for this runbook:** parent-side payment processing (covered in [STRIPE_PAYMENT_PROCESSING_MANUAL_TEST_PLAN.md](STRIPE_PAYMENT_PROCESSING_MANUAL_TEST_PLAN.md)). Connected-account webhooks (`payment_intent.*`, `charge.*`, `refund.*`, `charge.dispute.*`, `radar.early_fraud_warning.*`) fire on the **Connect** endpoint and are validated against `STRIPE_CONNECT_WEBHOOK_SECRET` — this runbook only walks the platform-endpoint lifecycle events.
 
 ## Prerequisites
 
@@ -33,10 +33,16 @@ Add the following to `apps/wc-nest-api/.env` (test-mode values from your Stripe 
 ```dotenv
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...   # filled in step 4
+STRIPE_WEBHOOK_SECRET=whsec_...                  # platform-account events; filled in step 4
+STRIPE_CONNECT_WEBHOOK_SECRET=whsec_...          # connected-account events (Direct Charges); filled in step 4
+STRIPE_WEBHOOK_EVENT_RETENTION_DAYS=90           # optional (default 90); H1 retention cron drops `stripe_webhook_events` rows older than this
 ```
 
-Prefix validation lives in [apps/wc-nest-api/src/config/config.service.ts:195](apps/wc-nest-api/src/config/config.service.ts#L195) — it refuses `sk_live_*` outside production and refuses any webhook secret that isn't `whsec_*`. If you see a `Config error - STRIPE_*` on boot, double-check the prefix and your `NODE_ENV`.
+In **staging / production** these are **two different secrets** — one per Dashboard webhook endpoint (see step 4). The Connect secret is required because, under Direct Charges, every `payment_intent.*` / `charge.*` / `charge.dispute.*` / `refund.*` / `radar.early_fraud_warning.*` event fires on the connected (provider) account and ships to a separate endpoint with its own signing key. Account-lifecycle events (`account.*`, `capability.*`, `person.*`, `payout.*`) continue to hit the platform endpoint with the original `STRIPE_WEBHOOK_SECRET`.
+
+In **local dev with the Stripe CLI** the two env vars take the **same `whsec_…` value** — `stripe listen` binds a single signing secret to your device and reuses it across `--forward-to` and `--forward-connect-to`. See step 4 for details.
+
+Prefix validation lives in [apps/wc-nest-api/src/config/config.service.ts:195](apps/wc-nest-api/src/config/config.service.ts#L195) — it refuses `sk_live_*` outside production and refuses any webhook secret that isn't `whsec_*`. In production both webhook secrets are required; in dev/test either may be empty (`webhooks.constructEvent` only runs against the secret tied to the endpoint that received the event). If you see a `Config error - STRIPE_*` on boot, double-check the prefix and your `NODE_ENV`.
 
 ## 2. Complete the provider application
 
@@ -66,18 +72,50 @@ Backed by [application-review.service.ts:344](apps/wc-nest-api/src/modules/super
 
 ## 4. Start the Stripe webhook listener
 
-In a separate terminal:
+Two endpoints are wired in [stripe-webhook.controller.ts](apps/wc-nest-api/src/modules/stripe/webhook/stripe-webhook.controller.ts), each with its own signing secret:
+
+| Endpoint | Receives | Dashboard config | Env var |
+|---|---|---|---|
+| `POST /stripe/webhooks` | Platform-account events: `account.*`, `capability.*`, `person.*`, `payout.*` | **"Listen to events on your account"** | `STRIPE_WEBHOOK_SECRET` |
+| `POST /stripe/webhooks/connect` | Connected-account events (Direct Charges): `payment_intent.*`, `charge.*`, `charge.dispute.*`, `refund.*`, `radar.early_fraud_warning.*` | **"Listen to events on Connect applications"** | `STRIPE_CONNECT_WEBHOOK_SECRET` |
+
+### Dashboard setup (staging / production)
+
+For each endpoint above, in Stripe Dashboard → Developers → Webhooks → **Add endpoint**:
+1. URL: `https://<api-host>/stripe/webhooks` (or `/stripe/webhooks/connect`)
+2. Tick the matching listen scope from the table
+3. Select the event types from the corresponding row
+4. Copy the resulting `whsec_…` into the matching env var and restart wc-nest-api
+
+The two endpoints share the same `processEvent` dispatch path, so a fresh `whsec_*` for the Connect endpoint is the only Stripe-side moving piece beyond what platform-only setups already had.
+
+### Local dev (Stripe CLI)
+
+A single `stripe listen` can proxy both scopes — pass both `--forward-*` flags in one invocation:
 
 ```bash
-stripe login                                                   # one-time, opens a browser
-stripe listen --forward-to localhost:3000/stripe/webhooks
+# one-time, opens a browser
+stripe login
+# platform events + Direct Charges events
+stripe listen \
+  --forward-to localhost:3000/stripe/webhooks \           
+  --forward-connect-to localhost:3000/stripe/webhooks/connect
 ```
 
-The `3000` in `--forward-to` must match the `PORT` value in your `apps/wc-nest-api/.env` (defaults to `3000` via [config.service.ts](apps/wc-nest-api/src/config/config.service.ts) — if you've overridden it, swap the port here too).
+The `3000` must match the `PORT` value in your `apps/wc-nest-api/.env` (defaults to `3000` via [config.service.ts](apps/wc-nest-api/src/config/config.service.ts) — if you've overridden it, swap the port here too).
 
-The CLI prints a `whsec_*` secret on its first line. Copy it into `STRIPE_WEBHOOK_SECRET` in `.env` and **restart wc-nest-api** so the new value is picked up.
+The CLI prints **one** `whsec_…` on its first line and reuses it for both scopes (the secret is bound to your device's CLI login, not to the forward flag). Put that **same** value in **both** env vars:
 
-> Why this is needed: Stripe's servers can't reach `localhost`. The CLI proxies events from your Stripe account into your local endpoint and signs them with the printed secret. Without that match, every webhook 400s with `Invalid signature` (see [stripe-webhook.controller.ts](apps/wc-nest-api/src/modules/stripe/webhook/stripe-webhook.controller.ts)).
+```dotenv
+STRIPE_WEBHOOK_SECRET=whsec_…
+STRIPE_CONNECT_WEBHOOK_SECRET=whsec_…   # identical to above when using the Stripe CLI
+```
+
+Then **restart wc-nest-api** so the new values are picked up. If you prefer two terminals (e.g. you want separate event streams), running `stripe listen --forward-to …` in one and `stripe listen --forward-connect-to …` in another also works — they'll still print the same `whsec_…`, because it's tied to your CLI login, not the listener.
+
+> Why this is needed: Stripe's servers can't reach `localhost`. The CLI proxies events from your Stripe account into your local endpoints and signs each delivery with the secret printed for that listener. Without a match, every webhook 400s with `Invalid signature`.
+>
+> For pure onboarding testing (no Direct-Charges payments yet), the platform listener (`--forward-to`) alone is enough — you can skip the `--forward-connect-to` listener until you exercise the payment flow.
 
 ## 5. Walk the embedded Stripe Connect onboarding
 
@@ -85,7 +123,7 @@ Log back in to wc-provider as `provider1@gmail.com`. The frontend gate at [onboa
 
 Navigate to `/onboarding/stripe-connect`. The page hosts Stripe's embedded `ConnectAccountOnboarding` component ([page.tsx](apps/wc-provider/src/app/onboarding/stripe-connect/page.tsx)). API calls fire in this order:
 
-1. `POST /provider/stripe-connect/account` → creates the Express connected account
+1. `POST /provider/stripe-connect/account` → creates the **Standard** (Direct Charges) connected account on the platform
 2. `POST /provider/stripe-connect/account-session` → returns a single-use `client_secret`
 3. *(embedded form renders inline)*
 4. `onExit` → `POST /provider/stripe-connect/complete` → syncs live account status
@@ -155,7 +193,7 @@ Authoritative references:
 - `providers` row: `stripeAccountId` set, `stripeOnboardingCompleted = true`, `stripeChargesEnabled` + `stripePayoutsEnabled` both `true` after capability pass
 - `stripe_webhook_events`: one row per delivered event with `processed_at` set and `processing_error` `NULL`
 
-**Stripe Dashboard** → Connect → Accounts: `acct_…` appears as type **Express**.
+**Stripe Dashboard** → Connect → Accounts: `acct_…` appears as type **Standard** (Dashboard column reads "Stripe Dashboard", i.e. full dashboard). Platform controls remain in place — fees/losses both `payer=application` per the controller config in [stripe-connect.service.ts](apps/wc-nest-api/src/modules/provider/stripe-connect/stripe-connect.service.ts).
 
 **Idempotency / dedup exercise** — re-deliver a prior event:
 
@@ -183,7 +221,16 @@ UPDATE providers SET
 WHERE email = 'provider1@gmail.com';
 ```
 
-This leaves the connected account intact in your Stripe dashboard. For a fully clean run, delete the account from Stripe → Connect → Accounts as well.
+For per-provider resets that *also* drop the per-(parent, provider) Stripe customers (otherwise a re-onboarded provider's first booking returns the stale `ProviderConnectCustomer` row and the Stripe call fails with `resource_missing`), additionally run:
+
+```sql
+DELETE FROM provider_connect_customers
+WHERE provider_id = (SELECT id FROM providers WHERE email = 'provider1@gmail.com');
+```
+
+`SavedPaymentMethod` rows cascade away through the FK. This leaves the connected account intact in your Stripe dashboard. For a fully clean run, delete the account from Stripe → Connect → Accounts as well.
+
+**Whole-environment reset (staging only):** the consolidated script at [apps/wc-nest-api/prisma/manual-scripts/staging-reset-stripe-providers.sql](apps/wc-nest-api/prisma/manual-scripts/staging-reset-stripe-providers.sql) does both the `provider_connect_customers` DELETE and the providers UPDATE for *every* provider in one transaction. Use it after the Express → Standard cutover or any time the staging Stripe sandbox accounts are recycled. **Never** run on production.
 
 **Disconnect simulation:** from a connected account in Stripe dashboard, click **Disconnect**. This fires `account.application.deauthorized`; verify the corresponding `providers` row has `stripeAccountId` cleared and all capability flags reset to false ([stripe-webhook.service.ts](apps/wc-nest-api/src/modules/stripe/webhook/stripe-webhook.service.ts)).
 
@@ -191,6 +238,7 @@ This leaves the connected account intact in your Stripe dashboard. For a fully c
 
 - **`Stripe account can only be created after your application has been approved`** — Step 3 wasn't completed, or you tried as a different provider.
 - **`Provider currency must be set before creating a Stripe account`** — Step 2 (Find Your Camp) was skipped or didn't capture currency/timezone from the Google Business Profile. Confirm `provider_settings.currency` is populated.
-- **`400 Invalid signature`** on webhook deliveries — `STRIPE_WEBHOOK_SECRET` is stale. Copy the latest `whsec_*` from `stripe listen` and restart wc-nest-api.
+- **`400 Invalid signature`** on webhook deliveries — the secret bound to the endpoint that received the event is stale. Identify which endpoint was hit: deliveries to `/stripe/webhooks` validate against `STRIPE_WEBHOOK_SECRET`; deliveries to `/stripe/webhooks/connect` validate against `STRIPE_CONNECT_WEBHOOK_SECRET`. Copy the latest `whsec_*` from the corresponding `stripe listen` and restart wc-nest-api. Swapping the two secrets (e.g. putting the Connect `whsec_*` into `STRIPE_WEBHOOK_SECRET`) reproduces this exact error since `webhooks.constructEvent` runs HMAC against the wrong key.
+- **Direct Charges events never arrive locally** — you started `stripe listen --forward-to …` but not `--forward-connect-to …`. The first only proxies platform-account events; `payment_intent.*` etc. fire on the connected account and need the second listener. Both must be running in parallel.
 - **`Config error - STRIPE_SECRET_KEY must be a live key (sk_live_*) in production`** — `NODE_ENV` is set to `production` locally. Set it to `development`.
 - **Embedded form never finishes loading** — `account-session` returned an expired `client_secret`. The page must re-fetch on every render (single-use); refresh the route.

@@ -93,7 +93,7 @@ export interface OnboardingStatus {
   stripeOnboardingSkippedAt?: string | null
   stripeChargesEnabled: boolean
   stripePayoutsEnabled: boolean
-  stripeCommissionPercentage?: number | null
+  appFeePercentage?: number | null
 }
 
 export interface GoogleBusinessSearchResult {

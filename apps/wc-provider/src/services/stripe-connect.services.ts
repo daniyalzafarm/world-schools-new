@@ -65,7 +65,7 @@ export interface StripeAccountStatus {
   onboardingCompleted: boolean
   onboardingSkippedAt: string | null
   currency: string
-  commissionPercentage: number | null
+  appFeePercentage: number | null
   requirementsCurrentlyDue: string[]
   requirementsPastDue: string[]
   requirementsEventuallyDue: string[]
@@ -88,7 +88,7 @@ export interface AccountSessionResponse {
 
 export const stripeConnectService = {
   /**
-   * Creates (or retrieves existing) Stripe Express connected account.
+   * Creates (or retrieves existing) Stripe Standard connected account (Direct Charges).
    * Idempotent — safe to call multiple times.
    */
   async createOrGetAccount(): Promise<ApiResult<StripeAccountStatus>> {
@@ -131,13 +131,5 @@ export const stripeConnectService = {
    */
   async skipOnboarding(): Promise<ApiResult<StripeAccountStatus>> {
     return await apiClient.post<StripeAccountStatus>('/provider/stripe-connect/skip', {})
-  },
-
-  /**
-   * Generates a single-use URL into the provider's Stripe Express dashboard.
-   * The URL is short-lived (a few minutes) — do not cache it; request fresh on every click.
-   */
-  async createLoginLink(): Promise<ApiResult<{ url: string }>> {
-    return await apiClient.post<{ url: string }>('/provider/stripe-connect/login-link', {})
   },
 }

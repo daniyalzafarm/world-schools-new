@@ -150,9 +150,9 @@ export class OnboardingStatusDto {
   stripePayoutsEnabled: boolean
 
   @ApiProperty({
-    description: 'Platform commission percentage for this provider (null until account is created)',
+    description: 'App fee percentage for this provider (null until account is created)',
     example: 10,
     required: false,
   })
-  stripeCommissionPercentage?: number | null
+  appFeePercentage?: number | null
 }

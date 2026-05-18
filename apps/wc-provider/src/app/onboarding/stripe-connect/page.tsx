@@ -16,15 +16,14 @@ import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingP
 import { StripeSuccessContent } from '../../../components/onboarding/stripe/StripeSuccessContent'
 import { extractApiErrorMessage } from '../../../utils/api-errors'
 import { createLogger } from '../../../utils/logger'
+import { useCalculatorConfig } from '../_use-calculator-config'
+// Source the appearance config from the shared hook so the onboarding wizard
+// and the post-onboarding /account/business/stripe-account page stay visually
+// in sync — changing the value once propagates to every embedded surface.
+import { STRIPE_CONNECT_APPEARANCE } from '../../../hooks/use-stripe-connect-instance'
 import config from '../../../config/config'
 
 const log = createLogger('StripeConnect')
-
-// Stripe's `appearance.variables` API requires raw hex colors, so we can't
-// pass a Tailwind class. Pin the brand teal here in one place so theme tweaks
-// propagate to the embedded component along with the rest of the UI.
-// Mirrors `theme.colors.teal[600]` (#0D9488) — keep them in sync if either changes.
-const STRIPE_BRAND_PRIMARY = '#0D9488'
 
 // A Stripe account is fully payment-ready only when onboarding is finalized,
 // both capabilities are enabled, and Stripe has no outstanding requirements.
@@ -41,6 +40,11 @@ function isPaymentReady(status: StripeAccountStatus): boolean {
 export default function StripeConnectPage() {
   const router = useRouter()
   const { status, fetchStatus } = useOnboardingStore()
+  // Source the app fee from the calculator-config endpoint: it returns the
+  // provider's negotiated rate when `appFeeCustom=true`, otherwise falls back
+  // to `SystemSettings.defaultAppFee`. `status.appFeePercentage` alone is null
+  // for providers without a negotiated override and would hide the card.
+  const calculatorConfig = useCalculatorConfig()
 
   const [isInitializing, setIsInitializing] = useState(true)
   const [isCompleting, setIsCompleting] = useState(false)
@@ -70,6 +74,17 @@ export default function StripeConnectPage() {
   // (b) Retry interrupting a still-pending init — the older promise's late
   // arrival can't overwrite the new state.
   const initVersionRef = useRef(0)
+  // Tracks whether the POST to /provider/stripe-connect/account is currently
+  // in flight. The version ref above only protects state writes — it does
+  // NOT abort an HTTP request that has already left the browser. Under
+  // React 18's Strict-Mode double-invoke in dev, the init effect fires twice
+  // back-to-back; without this gate the second pass fires a concurrent POST
+  // that hashes to the same Stripe idempotency key, Stripe rejects it mid-
+  // flight with `idempotency_key_in_use`, and the user sees a 503 toast
+  // immediately before the (winning) first POST succeeds. The backend has a
+  // bounded-retry cure for the same race; this gate keeps the dev path clean
+  // and also de-bounces rapid Retry clicks.
+  const accountCreateInFlightRef = useRef(false)
   useEffect(() => {
     isMountedRef.current = true
     return () => {
@@ -107,10 +122,15 @@ export default function StripeConnectPage() {
     // whole dance. (Retry path bumps `initAttempt` AND nulls the instance,
     // so this guard lets it through.)
     if (stripeConnectInstance) return
+    // Drop the second Strict-Mode pass (or a rapid double-click on Retry)
+    // while the previous attempt's POST is still in flight. See the ref's
+    // declaration for the full failure mode this guards against.
+    if (accountCreateInFlightRef.current) return
 
     initVersionRef.current += 1
     const myVersion = initVersionRef.current
     const isCurrent = () => isMountedRef.current && initVersionRef.current === myVersion
+    accountCreateInFlightRef.current = true
 
     setIsInitializing(true)
     setInitError(null)
@@ -159,12 +179,7 @@ export default function StripeConnectPage() {
             return result.data.clientSecret
           },
           locale: 'en',
-          appearance: {
-            overlays: 'dialog',
-            variables: {
-              colorPrimary: STRIPE_BRAND_PRIMARY,
-            },
-          },
+          appearance: STRIPE_CONNECT_APPEARANCE,
         })
 
         if (!isCurrent()) return
@@ -183,6 +198,7 @@ export default function StripeConnectPage() {
         // flag pattern skipped this on any re-render, leaving the user
         // staring at the "Loading payment setup…" spinner forever on any
         // 5xx from `/provider/stripe-connect/account`.
+        accountCreateInFlightRef.current = false
         if (isCurrent()) setIsInitializing(false)
       }
     })()
@@ -299,10 +315,12 @@ export default function StripeConnectPage() {
     )
   }
 
-  const commissionPercent =
-    status.stripeCommissionPercentage !== null && status.stripeCommissionPercentage !== undefined
-      ? String(status.stripeCommissionPercentage)
-      : null
+  const appFeePercent =
+    status.appFeePercentage !== null && status.appFeePercentage !== undefined
+      ? String(status.appFeePercentage)
+      : calculatorConfig !== null
+        ? String(calculatorConfig.appFeePercentage)
+        : null
 
   // Once Stripe reports the account is fully payment-ready, replace the
   // embedded onboarding flow with the celebratory success view.
@@ -379,11 +397,11 @@ export default function StripeConnectPage() {
             }
           />
 
-          {commissionPercent !== null && (
+          {appFeePercent !== null && (
             <MetricCard
               icon={<Percent className="h-4 w-4" />}
-              label="Platform commission"
-              value={`${commissionPercent}%`}
+              label="App fee"
+              value={`${appFeePercent}%`}
               footnote="Deducted from each booking payout"
             />
           )}

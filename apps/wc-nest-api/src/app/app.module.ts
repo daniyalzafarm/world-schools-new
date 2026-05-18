@@ -21,6 +21,9 @@ import { WebSocketModule } from '../modules/websocket/websocket.module'
 // Stripe module (global — exports StripeService)
 import { StripeModule } from '../modules/stripe/stripe.module'
 
+// Billing / payments domain (umbrella over PaymentIntents, Refunds, Payouts, Disputes, Reimbursements)
+import { BillingModule } from '../modules/billing/billing.module'
+
 // Domain modules
 import { SuperAdminModule } from '../modules/superadmin/superadmin.module'
 import { ProviderModule } from '../modules/provider/provider.module'
@@ -54,6 +57,9 @@ import { NotificationsModule } from '../modules/notifications/notifications.modu
 
     // Stripe (global — registers StripeService + webhook handler)
     StripeModule,
+
+    // Billing / payments
+    BillingModule,
 
     // Domain modules
     SuperAdminModule,

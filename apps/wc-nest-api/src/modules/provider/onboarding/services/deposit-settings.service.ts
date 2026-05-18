@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '../../../../prisma/prisma.service'
+import { getStripeMinimumChargeAmount } from '../../../billing/shared/money.util'
 import { SaveDepositSettingsDto } from '../dto/deposit-settings.dto'
 import { OnboardingService } from './onboarding.service'
 
@@ -50,8 +51,18 @@ export class DepositSettingsService {
             'Deposit fixed amount is required when deposit type is fixed'
           )
         }
-        if (dto.depositFixedAmount < 1) {
-          throw new BadRequestException('Deposit fixed amount must be at least $1')
+        // M2 audit fix: validate against the Stripe-imposed minimum charge
+        // amount for the provider's configured currency, not a hardcoded $1.
+        // A provider on JPY needs ¥50 minimum; one on EUR needs €0.50; the
+        // previous "$1" would either be too loose (JPY) or impossible to
+        // satisfy with sub-unit currencies. Currency is sourced from
+        // ProviderSettings — the only authoritative location.
+        const currency = existingSettings.currency ?? 'usd'
+        const minimum = getStripeMinimumChargeAmount(currency)
+        if (dto.depositFixedAmount < minimum) {
+          throw new BadRequestException(
+            `Deposit fixed amount must be at least ${minimum} ${currency.toUpperCase()}`
+          )
         }
       }
     }

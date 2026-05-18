@@ -24,9 +24,29 @@ export const PINNED_STRIPE_API_VERSION = '2026-04-22.dahlia' as const
 export const PROVIDER_MCC = '7032'
 
 /**
+ * Stripe `tos_acceptance.service_agreement` — explicit policy decision.
+ *
+ * For our Standard connected accounts created via embedded onboarding, Stripe
+ * defaults this to `'full'` (Stripe Services Agreement), which is what we
+ * want: providers process card payments as the merchant of record on their
+ * own account under Direct Charges, and we collect an `application_fee_amount`
+ * per booking. A `'recipient'` agreement applies only to platforms that DON'T
+ * let the connected account directly receive card payments (Stripe processes
+ * on the platform's behalf and only pays the connected account). That's the
+ * opposite of our model — providers' Stripe accounts must be charge-capable
+ * so we can issue Direct Charges scoped to their account.
+ *
+ * We therefore deliberately omit `tos_acceptance.service_agreement` from
+ * `accounts.create` and rely on the `'full'` default.
+ *
+ * Reference: https://stripe.com/connect/service-agreement-types
+ */
+export const STRIPE_SERVICE_AGREEMENT = 'full' as const
+
+/**
  * Allow-list of currencies the platform officially supports for provider payouts.
  *
- * Stripe Connect Express supports many currencies across many countries, but the
+ * Stripe Connect supports many currencies across many countries, but the
  * `default_currency` we set on `accounts.create` MUST be one Stripe accepts for
  * the connected account's country. Sending an unsupported currency surfaces a
  * cryptic 400 from the Stripe API at create time. We pre-validate against this

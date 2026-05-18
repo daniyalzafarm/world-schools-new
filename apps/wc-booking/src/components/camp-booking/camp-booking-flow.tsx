@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import {
@@ -28,6 +28,14 @@ import { DesktopSessionsSidebar } from '@/components/camp-booking/desktop-sessio
 import { DesktopChildrenSidebar } from '@/components/camp-booking/desktop-children-sidebar'
 import { DesktopAddonsSidebar } from '@/components/camp-booking/desktop-addons-sidebar'
 import { DesktopReviewSidebar } from '@/components/camp-booking/desktop-review-sidebar'
+import { SidebarRatingsRow } from '@/components/camp-booking/sidebar-camp-info-card'
+import { useBookingRatings } from '@/components/camp-booking/use-booking-ratings'
+import {
+  StripePaymentSection,
+  type StripePaymentSectionHandle,
+} from '@/components/camp-booking/stripe-payment-section'
+import { computePaymentPlan } from '@/utils/payment-plan'
+import { PROVIDER_RESPONSE_WINDOW_HOURS } from '@world-schools/wc-utils'
 import { DuplicateDraftModal } from '@/components/camp-booking/duplicate-draft-modal'
 import { CampRulesModal } from '@/components/camp-booking/camp-rules-modal'
 import { CancellationPolicyModal } from '@/components/camp-booking/cancellation-policy-modal'
@@ -1433,11 +1441,25 @@ function AddonsStep() {
   )
 }
 
-function ReviewStep() {
+interface ReviewStepProps {
+  stripeSectionRef: React.RefObject<StripePaymentSectionHandle | null>
+  paymentPending: boolean
+  setPaymentPending: (pending: boolean) => void
+  paymentError: string | null
+  setPaymentError: (error: string | null) => void
+}
+
+function ReviewStep({
+  stripeSectionRef,
+  paymentPending,
+  setPaymentPending,
+  paymentError,
+  setPaymentError,
+}: ReviewStepProps) {
   const router = useRouter()
-  const submitBookingGroup = useCampBookingStore(state => state.submitBookingGroup)
   const resetForNewBooking = useCampBookingStore(state => state.resetForNewBooking)
   const hasSubmitted = useCampBookingStore(state => state.hasSubmitted)
+  const paymentConfirmed = useCampBookingStore(state => state.paymentConfirmed)
   const setStep = useCampBookingStore(state => state.setStep)
   const sessions = useCampBookingStore(state => state.sessions)
   const selectedSessionId = useCampBookingStore(state => state.selectedSessionId)
@@ -1448,32 +1470,56 @@ function ReviewStep() {
   const specialRequest = useCampBookingStore(state => state.specialRequest)
   const setSpecialRequest = useCampBookingStore(state => state.setSpecialRequest)
   const camp = useCampBookingStore(state => state.camp)
+  const ratings = useBookingRatings()
   const [isCampRulesOpen, setIsCampRulesOpen] = useState(false)
   const [isCancellationOpen, setIsCancellationOpen] = useState(false)
   const [isBookingTermsOpen, setIsBookingTermsOpen] = useState(false)
 
-  const session = sessions.find(item => item.id === selectedSessionId)
-  const selectedChildren = children.filter(child => selectedChildIds.includes(child.id))
-  const selectedAddOns = addOns.filter(addOn => !!addOnSelectionsById[addOn.addOnId])
+  const session = useMemo(
+    () => sessions.find(item => item.id === selectedSessionId),
+    [sessions, selectedSessionId]
+  )
+  const selectedChildren = useMemo(
+    () => children.filter(child => selectedChildIds.includes(child.id)),
+    [children, selectedChildIds]
+  )
+  const selectedAddOns = useMemo(
+    () => addOns.filter(addOn => !!addOnSelectionsById[addOn.addOnId]),
+    [addOns, addOnSelectionsById]
+  )
 
   const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
-  const addOnTotal = selectedAddOns.reduce((acc, addOn) => {
-    const sel = addOnSelectionsById[addOn.addOnId]
-    if (!sel) return acc
-    if (sel.mode === 'per_child') return acc + addOn.price * (sel.childIds?.length ?? 0)
-    if (sel.mode === 'per_child_qty') {
-      const qty = (sel.childQuantities ?? []).reduce((s, cq) => s + (cq.quantity ?? 0), 0)
-      return acc + addOn.price * qty
-    }
-    return acc + addOn.price * (sel.quantity ?? 0)
-  }, 0)
-  const childrenSubtotal = getSelectedChildrenSubtotal({
-    session,
-    camp,
-    children,
-    selectedChildIds,
-  })
-  const total = childrenSubtotal + addOnTotal
+  // Stable lowercase reference for Stripe Elements `currency` option. The
+  // <Elements> options object is memoized inside StripePaymentSection on
+  // (currency, amount, isSetupOnly); a fresh string from .toLowerCase() each
+  // render would defeat that memoization and risk an Elements remount mid-flow.
+  const stripeCurrency = useMemo(() => currency.toLowerCase(), [currency])
+
+  const addOnTotal = useMemo(
+    () =>
+      selectedAddOns.reduce((acc, addOn) => {
+        const sel = addOnSelectionsById[addOn.addOnId]
+        if (!sel) return acc
+        if (sel.mode === 'per_child') return acc + addOn.price * (sel.childIds?.length ?? 0)
+        if (sel.mode === 'per_child_qty') {
+          const qty = (sel.childQuantities ?? []).reduce((s, cq) => s + (cq.quantity ?? 0), 0)
+          return acc + addOn.price * qty
+        }
+        return acc + addOn.price * (sel.quantity ?? 0)
+      }, 0),
+    [selectedAddOns, addOnSelectionsById]
+  )
+  const childrenSubtotal = useMemo(
+    () =>
+      getSelectedChildrenSubtotal({
+        session,
+        camp,
+        children,
+        selectedChildIds,
+      }),
+    [session, camp, children, selectedChildIds]
+  )
+  const total = useMemo(() => childrenSubtotal + addOnTotal, [childrenSubtotal, addOnTotal])
 
   const campFeeBreakdown = useMemo(
     () =>
@@ -1552,13 +1598,46 @@ function ReviewStep() {
     return `${startFmt} - ${endFmt} · ${weeks} week${weeks === 1 ? '' : 's'}`
   }, [session])
 
-  const onRequestToBook = async () => {
-    const ok = await submitBookingGroup()
-    if (ok) {
-      resetForNewBooking()
-      router.push('/bookings?submitted=1')
+  // After successful Stripe confirmation, the store flips both `hasSubmitted`
+  // and `paymentConfirmed` to true. Wait until BOTH are true before redirecting
+  // — `hasSubmitted` alone is set by the legacy submit-without-payment flow
+  // (deprecated after Phase 2 but kept for backwards-safety in tests).
+  useEffect(() => {
+    if (hasSubmitted && paymentConfirmed) {
+      const handle = window.setTimeout(() => {
+        resetForNewBooking()
+        router.push('/bookings?submitted=1')
+      }, 1500)
+      return () => window.clearTimeout(handle)
     }
-  }
+  }, [hasSubmitted, paymentConfirmed, resetForNewBooking, router])
+
+  // Compute the client-side preview of what we're about to charge today. The
+  // backend recomputes authoritatively at submit; this is purely UI state for
+  // the Stripe Elements `mode`/`amount` props and the "you'll pay X today" copy.
+  const sessionStartDateForPlan = useMemo(() => {
+    if (!session) return null
+    const parsed = new Date(session.startDate)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }, [session])
+  const paymentPlan = useMemo(() => {
+    if (!sessionStartDateForPlan || !total) return null
+    return computePaymentPlan({
+      total,
+      sessionStartDate: sessionStartDateForPlan,
+      // Phase 9: deposit lives on the camp now (snapshotted from provider on
+      // create, editable per camp). The backend re-validates at submit so
+      // this is preview-only; we just need the same shape.
+      depositSettings: camp
+        ? {
+            depositRequired: camp.depositRequired,
+            depositType: camp.depositType,
+            depositPercentage: camp.depositPercentage,
+            depositFixedAmount: camp.depositFixedAmount,
+          }
+        : null,
+    })
+  }, [total, sessionStartDateForPlan, camp])
 
   return (
     <>
@@ -1588,9 +1667,7 @@ function ReviewStep() {
               <p className="truncate font-semibold text-gray-900">
                 {camp?.name ?? 'Selected camp'}
               </p>
-              <p className="mt-1 text-sm text-gray-600">
-                <span className="text-primary-600">★</span> 4.9 (241 reviews)
-              </p>
+              <SidebarRatingsRow {...ratings} />
             </div>
           </div>
           <div className="py-3 border-b border-gray-200 flex items-center justify-between gap-4">
@@ -1640,63 +1717,6 @@ function ReviewStep() {
               </button>
             </div>
           )}
-        </div>
-
-        <div className="hidden lg:block space-y-7">
-          <div className="pb-7 border-b border-gray-100">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h3 className="text-base font-bold text-gray-900">Booking summary</h3>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Session</p>
-                  <p className="mt-0.5 text-sm text-gray-500">
-                    {sessionRangeLabel || session?.name || '—'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setStep('sessions')}
-                  className="cursor-pointer text-sm font-medium text-gray-500 underline decoration-gray-300 underline-offset-2 transition hover:text-gray-900"
-                >
-                  Edit
-                </button>
-              </div>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Children</p>
-                  <p className="mt-0.5 text-sm text-gray-500">
-                    {selectedChildrenLabel || 'None selected'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setStep('children')}
-                  className="cursor-pointer text-sm font-medium text-gray-500 underline decoration-gray-300 underline-offset-2 transition hover:text-gray-900"
-                >
-                  Edit
-                </button>
-              </div>
-              {addOns.length > 0 && (
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Add-ons</p>
-                    <p className="mt-0.5 text-sm text-gray-500">
-                      {selectedAddOnsLabel || 'No add-ons selected'}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setStep('addons')}
-                    className="cursor-pointer text-sm font-medium text-gray-500 underline decoration-gray-300 underline-offset-2 transition hover:text-gray-900"
-                  >
-                    Edit
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
         <div className="lg:hidden space-y-4">
@@ -1751,10 +1771,94 @@ function ReviewStep() {
             <span>{formatCurrency(total, currency)}</span>
           </div>
           <p className="text-xs leading-relaxed text-gray-500">
-            The camp has <span className="font-semibold text-gray-700">72 hours</span> to confirm
-            your booking. You will be charged after the request is accepted.
+            The camp has{' '}
+            <span className="font-semibold text-gray-700">
+              {PROVIDER_RESPONSE_WINDOW_HOURS} hours
+            </span>{' '}
+            to confirm your booking. You will be charged after the request is accepted.
           </p>
         </div>
+
+        {/*
+          Render order matters for Stripe.js: the <StripePaymentSection> must
+          mount once and stay mounted across re-renders. We render the success
+          panel and the form as PEERS (both always in the DOM when paymentPlan
+          is available) and let StripePaymentSection's internal hasSubmitted &&
+          paymentConfirmed check hide the form. Wrapping the form in a
+          conditional that swaps it for the success panel would unmount/remount
+          the <Elements> subtree mid-flow and drop the form data queued by
+          `elements.submit()`, which prevents `confirmPayment` from reaching
+          Stripe.
+        */}
+        {hasSubmitted && paymentConfirmed ? (
+          <div className="rounded-xl border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-700">
+            <p className="font-semibold">Booking request submitted</p>
+            <p className="mt-1 text-xs">
+              {paymentPlan?.kind === 'setup'
+                ? 'Your card is saved on file. You will be charged when payment is due.'
+                : 'Your card is authorized. You will be charged when the camp accepts your booking.'}
+            </p>
+          </div>
+        ) : null}
+        {paymentPlan && camp?.provider?.stripeAccountId ? (
+          <div
+            id="stripe-payment-form"
+            className={
+              hasSubmitted && paymentConfirmed ? 'pointer-events-none hidden' : 'space-y-3'
+            }
+            aria-hidden={hasSubmitted && paymentConfirmed}
+          >
+            <div className="rounded-xl border border-default-200 bg-white p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-primary-600">
+                {paymentPlan.kind === 'setup' ? 'Save card for later' : 'Pay today'}
+              </p>
+              <div className="mt-2 flex items-baseline justify-between gap-3">
+                <span className="text-sm text-default-500">
+                  {paymentPlan.kind === 'deposit'
+                    ? 'Non-refundable deposit'
+                    : paymentPlan.kind === 'full'
+                      ? 'Full program fee'
+                      : 'No charge today'}
+                </span>
+                {paymentPlan.kind === 'setup' ? (
+                  <span className="text-base font-semibold text-foreground">
+                    {formatCurrency(paymentPlan.futureBalanceAmount, currency)} later
+                  </span>
+                ) : (
+                  <span className="text-xl font-bold text-foreground">
+                    {formatCurrency(paymentPlan.chargeAmount, currency)}
+                  </span>
+                )}
+              </div>
+              {paymentPlan.kind === 'deposit' ? (
+                <p className="mt-2 text-xs text-default-500">
+                  The remaining balance of{' '}
+                  <span className="font-semibold">
+                    {formatCurrency(paymentPlan.futureBalanceAmount, currency)}
+                  </span>{' '}
+                  will be charged automatically before the camp starts.
+                </p>
+              ) : null}
+              {paymentPlan.kind === 'setup' ? (
+                <p className="mt-2 text-xs text-default-500">
+                  Your card is saved now and the full amount is charged automatically about 90 days
+                  before the camp starts.
+                </p>
+              ) : null}
+            </div>
+            <StripePaymentSection
+              ref={stripeSectionRef}
+              amountMajor={paymentPlan.chargeAmount}
+              currency={stripeCurrency}
+              isSetupOnly={paymentPlan.kind === 'setup'}
+              stripeAccountId={camp.provider.stripeAccountId}
+              onPendingChange={setPaymentPending}
+              onError={setPaymentError}
+            />
+          </div>
+        ) : !(hasSubmitted && paymentConfirmed) ? (
+          <p className="text-sm text-default-500">Loading payment options…</p>
+        ) : null}
 
         <div className="pt-5 border-t border-gray-200">
           <div className="mb-3 flex items-center justify-between gap-3">
@@ -1769,8 +1873,11 @@ function ReviewStep() {
         </div>
 
         <p className="mt-3 hidden text-sm text-gray-500 lg:block">
-          The camp has <span className="font-semibold text-gray-700">72 hours</span> to confirm your
-          booking. You will be charged after the request is accepted.
+          The camp has{' '}
+          <span className="font-semibold text-gray-700">
+            {PROVIDER_RESPONSE_WINDOW_HOURS} hours
+          </span>{' '}
+          to confirm your booking. You will be charged after the request is accepted.
         </p>
 
         <div className="hidden lg:block rounded-xl bg-gray-50 p-3 text-center text-xs leading-5 text-gray-500">
@@ -1829,17 +1936,30 @@ function ReviewStep() {
           .
         </div>
 
-        {hasSubmitted ? (
-          <div className="rounded-xl border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-700">
-            Booking request submitted successfully.
+        {paymentPlan && camp?.provider?.stripeAccountId && !(hasSubmitted && paymentConfirmed) ? (
+          <div className="space-y-3">
+            {paymentError ? (
+              <div className="rounded-xl border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700">
+                {paymentError}
+              </div>
+            ) : null}
+            <div className="hidden lg:block">
+              <Button
+                color="primary"
+                className="w-full"
+                isDisabled={paymentPending}
+                isLoading={paymentPending}
+                onPress={() => {
+                  void stripeSectionRef.current?.submit()
+                }}
+              >
+                {paymentPlan.kind === 'setup'
+                  ? 'Save card and submit request'
+                  : 'Authorize and submit request'}
+              </Button>
+            </div>
           </div>
-        ) : (
-          <div className="hidden lg:block">
-            <Button color="primary" className="w-full" onPress={onRequestToBook}>
-              Request to book
-            </Button>
-          </div>
-        )}
+        ) : null}
       </section>
 
       <CampRulesModal isOpen={isCampRulesOpen} onOpenChange={setIsCampRulesOpen} />
@@ -1872,6 +1992,15 @@ export function CampBookingFlow() {
   const hydrateFromBookingGroupId = useCampBookingStore(state => state.hydrateFromBookingGroupId)
   const createDraftBookingGroup = useCampBookingStore(state => state.createDraftBookingGroup)
   const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
+
+  // Lifted up so MobileBookingFooter (sibling to ReviewStep) can drive the
+  // Stripe submit on review-and-pay — the inner <Elements> form must stay
+  // mounted under ReviewStep, but the imperative `submit()` handle is
+  // reachable from any component that holds this ref.
+  const stripeSectionRef = useRef<StripePaymentSectionHandle>(null)
+  const [paymentPending, setPaymentPending] = useState(false)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
+
   // The mobile footer renders into a layout-level slot (see book/layout.tsx)
   // so it sits as a flex sibling of the scroll area, not overlaying it via
   // position:fixed. That way the scroll area is strictly bounded between the
@@ -1918,7 +2047,15 @@ export function CampBookingFlow() {
                   {currentStep === 'sessions' && <SessionsStep />}
                   {currentStep === 'children' && <ChildrenStep />}
                   {currentStep === 'addons' && <AddonsStep />}
-                  {currentStep === 'review-and-pay' && <ReviewStep />}
+                  {currentStep === 'review-and-pay' && (
+                    <ReviewStep
+                      stripeSectionRef={stripeSectionRef}
+                      paymentPending={paymentPending}
+                      setPaymentPending={setPaymentPending}
+                      paymentError={paymentError}
+                      setPaymentError={setPaymentError}
+                    />
+                  )}
                 </>
               )}
             </div>
@@ -1932,7 +2069,17 @@ export function CampBookingFlow() {
           </div>
         </div>
       </main>
-      {mobileFooterSlot ? createPortal(<MobileBookingFooter />, mobileFooterSlot) : null}
+      {mobileFooterSlot
+        ? createPortal(
+            <MobileBookingFooter
+              paymentPending={paymentPending}
+              onSubmitPayment={() => {
+                void stripeSectionRef.current?.submit()
+              }}
+            />,
+            mobileFooterSlot
+          )
+        : null}
       <DuplicateDraftModal
         isOpen={Boolean(duplicateDraftConflict)}
         message={

@@ -9,6 +9,11 @@ export class StripeService {
 
   constructor(private readonly configService: ConfigService) {
     const { secretKey, apiVersion } = this.configService.stripeConfig
+    // H6: surface the deployed version in Stripe's `appInfo` so support /
+    // partner attribution can correlate API requests with releases. Sourced
+    // from `APP_VERSION`, which the deploy pipeline injects from the
+    // `wc-v*.*.*` git tag (falls back to `'dev'` for local boots).
+    const appVersion = this.configService.appVersion
 
     this.client = new Stripe(secretKey, {
       apiVersion,
@@ -18,9 +23,12 @@ export class StripeService {
       appInfo: {
         name: 'world-camps',
         url: this.configService.appUrl,
+        version: appVersion,
       },
     })
 
-    this.logger.log(`Stripe client initialized (apiVersion=${apiVersion})`)
+    this.logger.log(
+      `Stripe client initialized (apiVersion=${apiVersion}, appVersion=${appVersion})`
+    )
   }
 }

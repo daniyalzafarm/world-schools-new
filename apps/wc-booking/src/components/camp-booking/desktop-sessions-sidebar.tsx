@@ -1,108 +1,50 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import type { Session } from '@/types/sessions'
+import { useState } from 'react'
 import { formatCurrency } from '@/utils/currency'
-import { useCampBookingStore } from '@/stores/camp-booking-store'
-import { Check } from 'lucide-react'
 import { CancellationPolicyModal } from '@/components/camp-booking/cancellation-policy-modal'
-import { getFreeCancellationCutoffDate } from '@world-schools/wc-utils'
-
-function getSessionUnitPrice(session: Session | null | undefined): number {
-  if (!session) return 0
-  if (session.pricingType === 'single') return Number(session.price ?? 0)
-  if (session.pricingType === 'age_group') {
-    const prices = session.ageGroupPrices ?? []
-    if (prices.length === 0) return 0
-    return Math.min(...prices.map(p => Number(p.price ?? 0)))
-  }
-  return 0
-}
-
-function formatMonthShort(date: Date) {
-  return date.toLocaleString('en-US', { month: 'short' })
-}
-
-function formatBeforeLabel(date: Date) {
-  return date.toLocaleString('en-US', { month: 'long', day: 'numeric' })
-}
+import { getSessionFallbackUnitPrice } from '@/components/camp-booking/booking-flow-pricing'
+import { useBookingSidebarData } from '@/components/camp-booking/use-booking-sidebar-data'
+import { SidebarCampInfoCard } from '@/components/camp-booking/sidebar-camp-info-card'
+import { SidebarTrustCard } from '@/components/camp-booking/sidebar-trust-card'
 
 export function DesktopSessionsSidebar() {
-  const camp = useCampBookingStore(state => state.camp)
-  const sessions = useCampBookingStore(state => state.sessions)
-  const selectedSessionId = useCampBookingStore(state => state.selectedSessionId)
+  const {
+    camp,
+    selectedSession,
+    currency,
+    campPhotoUrl,
+    campSessionText,
+    beforeCancellationText,
+    systemRating,
+    systemReviewsCount,
+    hasSystemReviews,
+    googleRating,
+    googleReviewsCount,
+    hasGoogleReviews,
+    googleReviewsUrl,
+  } = useBookingSidebarData()
 
-  const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
-
-  const selectedSession = useMemo(
-    () => sessions.find(s => s.id === selectedSessionId) ?? null,
-    [sessions, selectedSessionId]
-  )
-
-  const sessionUnitPrice = getSessionUnitPrice(selectedSession)
-
-  const sessionRangeText = useMemo(() => {
-    if (!selectedSession) return ''
-    const start = new Date(selectedSession.startDate)
-    const end = new Date(selectedSession.endDate)
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return ''
-
-    return `${start.getDate()}-${end.getDate()} ${formatMonthShort(start)} ${start.getFullYear()}`
-  }, [selectedSession])
-
-  const beforeCancellationText = useMemo(() => {
-    const cutoff = getFreeCancellationCutoffDate(
-      selectedSession?.startDate,
-      camp?.provider?.settings?.cancellationPolicy,
-      camp?.provider?.settings?.cancellationPolicyCustom
-    )
-    return cutoff ? formatBeforeLabel(cutoff) : ''
-  }, [selectedSession, camp])
-
-  const campPhotoUrl = useMemo(() => {
-    const photos = camp?.photos ?? []
-    const primary = photos.find(p => p.isPrimary)
-    const chosen = primary ?? photos[0]
-    return chosen?.url ?? chosen?.thumbnail ?? null
-  }, [camp])
-
-  // Hard-coded for now (provider rating can be wired later).
-  const ratingValue = 4.92
-  const reviewsCount = 241
-
-  const campSessionText = selectedSession
-    ? sessionRangeText || selectedSession.name
-    : 'Select a session'
+  const sessionUnitPrice = getSessionFallbackUnitPrice(selectedSession)
 
   const [isCancellationOpen, setIsCancellationOpen] = useState(false)
 
   return (
     <aside className="hidden lg:block sticky top-28 md:top-32">
       <div className="space-y-3">
-        {/* Camp info card */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-gray-100">
-              {campPhotoUrl ? (
-                <img
-                  src={campPhotoUrl}
-                  alt={camp?.name ?? 'Camp'}
-                  className="h-full w-full object-cover"
-                />
-              ) : null}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold text-gray-900 truncate">{camp?.name ?? ''}</p>
-              <p className="mt-1 text-sm text-gray-600">
-                <span className="text-primary-600">★</span> {ratingValue.toFixed(1)} ({reviewsCount}
-                )
-              </p>
-              <p className="mt-2 text-sm text-gray-500">{campSessionText}</p>
-            </div>
-          </div>
-        </div>
+        <SidebarCampInfoCard
+          camp={camp}
+          campPhotoUrl={campPhotoUrl}
+          campSessionText={campSessionText}
+          systemRating={systemRating}
+          systemReviewsCount={systemReviewsCount}
+          hasSystemReviews={hasSystemReviews}
+          googleRating={googleRating}
+          googleReviewsCount={googleReviewsCount}
+          hasGoogleReviews={hasGoogleReviews}
+          googleReviewsUrl={googleReviewsUrl}
+        />
 
-        {/* Price details card */}
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <h3 className="font-semibold text-gray-900">Price details</h3>
           {!selectedSession ? (
@@ -125,37 +67,10 @@ export function DesktopSessionsSidebar() {
           )}
         </div>
 
-        {/* Trust / cancellation card */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <Check size={20} className="text-primary-600" />
-              <p className="text-sm font-medium text-gray-900">Free cancellation</p>
-              {beforeCancellationText ? (
-                <button
-                  type="button"
-                  onClick={() => setIsCancellationOpen(true)}
-                  className="cursor-pointer text-sm text-gray-600 transition hover:text-gray-900"
-                >
-                  ·{' '}
-                  <span className="underline decoration-gray-300 underline-offset-3">
-                    before {beforeCancellationText}
-                  </span>
-                </button>
-              ) : null}
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Check size={20} className="text-primary-600" />
-              <p className="text-sm text-gray-700">No payment until camp confirms</p>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Check size={20} className="text-primary-600" />
-              <p className="text-sm text-gray-700">Secure checkout · data encrypted</p>
-            </div>
-          </div>
-        </div>
+        <SidebarTrustCard
+          beforeCancellationText={beforeCancellationText}
+          onCancellationClick={() => setIsCancellationOpen(true)}
+        />
       </div>
 
       <CancellationPolicyModal
@@ -164,7 +79,12 @@ export function DesktopSessionsSidebar() {
         cancellationPolicy={camp?.provider?.settings?.cancellationPolicy}
         cancellationPolicyCustom={camp?.provider?.settings?.cancellationPolicyCustom}
         sessionStartDate={selectedSession?.startDate}
-        bookingTotal={sessionUnitPrice}
+        // Sessions step: number of children + addons aren't picked yet, so
+        // we don't have a meaningful booking total. The unit-price-times-1
+        // we used to pass was off by N children + addons. Pass null to make
+        // the modal render percentages only — accurate at this step.
+        bookingTotal={null}
+        depositAmount={null}
         currency={currency}
       />
     </aside>

@@ -235,6 +235,20 @@ export const onboardingService = {
   },
 
   /**
+   * Calculator config — currency + app fee percentage to drive the
+   * deposit-settings + payment-policies preview calculators. Sourced from
+   * `Provider.appFeePercentage` (snapshotted at Stripe Connect
+   * onboarding) with fallback to `SystemSettings.defaultAppFee`.
+   *
+   * Replaces the prior hardcoded `0.1` / `€` / `$` literals on those pages.
+   */
+  async getCalculatorConfig(): Promise<ApiResult<{ currency: string; appFeePercentage: number }>> {
+    return await apiClient.get<{ currency: string; appFeePercentage: number }>(
+      '/provider/onboarding/calculator-config'
+    )
+  },
+
+  /**
    * Get provider logo URL
    */
   async getProviderLogo(): Promise<ApiResult<{ logoUrl: string | null }>> {

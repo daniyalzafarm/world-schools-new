@@ -1,5 +1,11 @@
 import * as crypto from 'crypto'
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common'
 import { parse } from 'csv-parse/sync'
 import * as bcrypt from 'bcryptjs'
 import { EmailService } from '@world-schools/global-utils'
@@ -10,7 +16,10 @@ import { EmailTemplateService } from '../../common/email-templates/email-templat
 import { GoogleBusinessService } from '../../provider/onboarding/services/google-business.service'
 import { ProviderLogoService } from '../../provider/onboarding/services/provider-logo.service'
 import { CreateProviderDto } from './dto/create-provider.dto'
+import { UpdateAppFeeDto } from './dto/update-app-fee.dto'
+import { UpdatePayoutModeDto } from './dto/update-payout-mode.dto'
 import { UpdateProviderDto } from './dto/update-provider.dto'
+import { PayoutMode } from '../../../generated/client/enums'
 import { parseProviderCsvRow, validateProviderCsvRow } from './providers-csv.helpers'
 
 export interface ImportRowError {
@@ -159,6 +168,126 @@ export class SuperAdminProvidersService {
     return provider
   }
 
+  /**
+   * Phase 5 — set the per-provider app-fee override.
+   *
+   * When `custom = true`, REQUIRES `appFeePercentage`. When false, the saved
+   * percentage is preserved on the row (so toggling back on retains the
+   * suggestion) but ignored at booking time. Audit fields are stamped on every
+   * write so the UI can show "Last changed by".
+   *
+   * Existing bookings are NOT touched: `BookingGroup.appFeePercentageSnapshot`
+   * is frozen at creation, so this only affects future bookings.
+   */
+  async setAppFee(providerId: string, dto: UpdateAppFeeDto, adminUserId: string) {
+    if (dto.custom && (dto.appFeePercentage == null || Number.isNaN(dto.appFeePercentage))) {
+      throw new BadRequestException('appFeePercentage is required when custom is true')
+    }
+
+    await this.findOne(providerId)
+
+    const provider = await this.prisma.provider.update({
+      where: { id: providerId },
+      data: {
+        appFeeCustom: dto.custom,
+        // Only overwrite the percentage when custom=true. Toggle-off keeps the
+        // previous value as a default for the next toggle-on.
+        ...(dto.custom && dto.appFeePercentage != null
+          ? { appFeePercentage: dto.appFeePercentage }
+          : {}),
+        appFeeUpdatedAt: new Date(),
+        appFeeUpdatedByAdminId: adminUserId,
+      },
+      include: {
+        appFeeUpdatedByAdmin: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
+    })
+
+    this.logger.log(
+      `provider ${providerId} app-fee custom=${dto.custom} percentage=${
+        dto.appFeePercentage ?? 'n/a'
+      } by admin ${adminUserId}`
+    )
+
+    return provider
+  }
+
+  /**
+   * Phase 5 — set the per-provider early-payout configuration.
+   *
+   * When `enabled = true`, REQUIRES `offsetDays` and `agreementNote`. The
+   * agreement note records the off-platform written agreement (Part B.2 in
+   * PAYMENT_FLOW_REFERENCE) for audit. Audit fields stamp who agreed and when.
+   *
+   * Toggling off clears `offsetDays` but PRESERVES the note + agreedAt + agreedBy
+   * so the history of the prior agreement isn't lost.
+   *
+   * Future bookings only: existing bookings keep their original `transferDate`.
+   */
+  async setPayoutMode(providerId: string, dto: UpdatePayoutModeDto, adminUserId: string) {
+    if (dto.payoutMode === PayoutMode.offset_days) {
+      if (dto.offsetDays == null) {
+        throw new BadRequestException('offsetDays is required when payoutMode = offset_days')
+      }
+    }
+    if (dto.payoutMode !== PayoutMode.default_after_start) {
+      if (!dto.agreementNote?.trim()) {
+        throw new BadRequestException(
+          'agreementNote is required for any non-default payout mode (audit trail).'
+        )
+      }
+    }
+
+    await this.findOne(providerId)
+
+    // Phase 5 audit fix A8 (preserved): don't auto-create ProviderSettings.
+    // The currency + timezone defaults belong to onboarding (step 2).
+    const existingSettings = await this.prisma.providerSettings.findUnique({
+      where: { providerId },
+      select: { id: true },
+    })
+    if (!existingSettings) {
+      throw new BadRequestException(
+        'Provider must complete onboarding (currency + timezone) before payout mode can be configured.'
+      )
+    }
+
+    // Default mode clears the offset days but PRESERVES the audit note +
+    // timestamp so history of the prior agreement isn't lost.
+    const updateData =
+      dto.payoutMode === PayoutMode.default_after_start
+        ? {
+            payoutMode: PayoutMode.default_after_start,
+            earlyPayoutOffsetDays: null,
+          }
+        : {
+            payoutMode: dto.payoutMode,
+            earlyPayoutOffsetDays:
+              dto.payoutMode === PayoutMode.offset_days ? dto.offsetDays! : null,
+            payoutModeAgreementNote: dto.agreementNote!,
+            payoutModeAgreedAt: new Date(),
+            payoutModeAgreedByAdminId: adminUserId,
+          }
+
+    const settings = await this.prisma.providerSettings.update({
+      where: { providerId },
+      data: updateData,
+      include: {
+        payoutModeAgreedByAdmin: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
+    })
+
+    this.logger.log(
+      `provider ${providerId} payout-mode set to ${dto.payoutMode} by admin ${adminUserId} (offset=${dto.offsetDays ?? 'n/a'})`
+    )
+
+    return settings
+  }
+
   async getDetail(id: string) {
     const provider = await this.prisma.provider.findUnique({
       where: { id },
@@ -171,7 +300,16 @@ export class SuperAdminProvidersService {
             lastName: true,
           },
         },
-        settings: true,
+        appFeeUpdatedByAdmin: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        settings: {
+          include: {
+            payoutModeAgreedByAdmin: {
+              select: { id: true, firstName: true, lastName: true, email: true },
+            },
+          },
+        },
         verificationDocuments: true,
         camps: {
           include: {
@@ -252,19 +390,13 @@ export class SuperAdminProvidersService {
     }
   }
 
-  async remove(id: string) {
-    // Verify provider exists
-    const provider = await this.findOne(id)
-
-    // Delete provider (roles will be cascade deleted)
-    await this.prisma.provider.delete({
-      where: { id },
-    })
-
-    return {
-      message: `Provider '${provider.legalCompanyName || provider.id}' deleted successfully`,
-    }
-  }
+  // M3 audit fix: `remove(id)` is intentionally removed. See the matching
+  // comment on the deleted DELETE endpoint in the superadmin providers
+  // controller. Providers cannot be deleted post-onboarding — their row is
+  // the foreign-key spine for the entire billing audit trail (Payment,
+  // Booking, Payout, Refund, Reimbursement, Dispute). Lifecycle is now
+  // "active → suspended → archived"; archived state is what suspends
+  // operations without destroying audit data.
 
   async generateImpersonationToken(
     providerId: string,

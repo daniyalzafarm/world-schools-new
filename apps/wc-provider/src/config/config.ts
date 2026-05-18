@@ -28,6 +28,25 @@ const config = {
       process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
       'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY'
     ),
+    /**
+     * H3: Stripe's "Open Dashboard" deep-link differs by mode (live →
+     * `dashboard.stripe.com`, test → `dashboard.stripe.com/test`). Connected-
+     * account IDs do NOT differ by mode (no `acct_test_` prefix) so the only
+     * reliable client-side signal is the publishable-key prefix.
+     */
+    get isTestMode(): boolean {
+      return (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '').startsWith('pk_test_')
+    },
+    /**
+     * H3: pre-built dashboard URL the "Open Stripe Dashboard" links should
+     * point at. Staging providers land in the test-mode view they actually
+     * have access to instead of the empty live dashboard.
+     */
+    get dashboardUrl(): string {
+      return (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '').startsWith('pk_test_')
+        ? 'https://dashboard.stripe.com/test'
+        : 'https://dashboard.stripe.com'
+    },
   },
 }
 

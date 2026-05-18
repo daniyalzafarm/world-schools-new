@@ -2,6 +2,7 @@
 export * from './lib/parse-duration'
 export * from './lib/currency'
 export * from './lib/cancellation-policy'
+export * from './lib/payment-plan'
 
 // KB HTML allowlists (shared between backend and frontend)
 export * from './lib/kb-allowed-html'

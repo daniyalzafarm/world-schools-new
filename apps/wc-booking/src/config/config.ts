@@ -25,6 +25,14 @@ const config = {
   maps: {
     googleApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
   },
+  stripe: {
+    /// Platform Stripe publishable key (`pk_test_…` or `pk_live_…`). Used by
+    /// `loadStripe` in [lib/stripe.ts]. For Connect Direct Charges the
+    /// connected (provider) account is passed via
+    /// `loadStripe(pk, { stripeAccount })` per booking — see
+    /// `getStripeForAccount` in [lib/stripe.ts].
+    publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '',
+  },
 }
 
 export default config

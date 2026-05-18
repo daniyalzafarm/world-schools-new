@@ -149,6 +149,15 @@ export interface Camp {
   createdAt: string
   updatedAt: string
 
+  // Phase 9: per-camp deposit settings (snapshotted from provider on create,
+  // editable per camp by the provider). The booking flow reads these
+  // directly off the camp; provider-level deposit fields are NO LONGER
+  // consulted by the parent UI.
+  depositRequired?: boolean
+  depositType?: 'percentage' | 'fixed' | null
+  depositPercentage?: number | null
+  depositFixedAmount?: number | null
+
   // Additional JSON fields from schema
   whatsIncluded?: any
   scheduleType?: 'daily' | 'weekly' | null
@@ -186,6 +195,7 @@ export interface Camp {
   // Relations
   provider?: {
     id: string
+    stripeAccountId: string | null
     legalCompanyName: string
     legalStreetAddress?: string
     legalCity?: string

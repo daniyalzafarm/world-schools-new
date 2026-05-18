@@ -31,6 +31,7 @@ import {
   UpdateWhatsIncludedDto,
 } from './dto/update-camp.dto'
 import { UpdateCampAddOnsDto } from './dto/update-camp-addons.dto'
+import { UpdateCampDepositSettingsDto } from './dto/update-camp-deposit-settings.dto'
 import { PhotoUploadService } from './services/photo-upload.service'
 import { GoogleBusinessService } from '../onboarding/services/google-business.service'
 import { GetCampsFiltersDto } from './dto/get-camps-filters.dto'
@@ -113,6 +114,22 @@ export class CampsService {
       }
     }
 
+    // Snapshot the provider's deposit settings onto the new camp. Provider-
+    // level settings are the DEFAULT for new camps; once snapshotted here,
+    // editing the provider-level row never propagates to existing camps. The
+    // booking flow reads these fields directly off the camp at submit time
+    // (no provider-level fallback) — same pattern as the BookingGroup
+    // financial snapshot.
+    const providerSettings = await this.prisma.providerSettings.findUnique({
+      where: { providerId },
+      select: {
+        depositRequired: true,
+        depositType: true,
+        depositPercentage: true,
+        depositFixedAmount: true,
+      },
+    })
+
     const camp = await this.prisma.camp.create({
       data: {
         providerId,
@@ -128,6 +145,13 @@ export class CampsService {
         gender: 'coed',
         activities: [],
         status: 'draft',
+        // Deposit snapshot. Defaults apply when the provider hasn't yet
+        // configured deposit settings (incomplete onboarding) — the camp
+        // simply has no deposit, which routes booking to full_at_booking.
+        depositRequired: providerSettings?.depositRequired ?? false,
+        depositType: providerSettings?.depositType ?? null,
+        depositPercentage: providerSettings?.depositPercentage ?? null,
+        depositFixedAmount: providerSettings?.depositFixedAmount ?? null,
       },
     })
 
@@ -1251,6 +1275,180 @@ export class CampsService {
     })
 
     return duplicatedCamp
+  }
+
+  /**
+   * Phase 9: get a camp's current deposit settings (snapshotted from the
+   * provider on creation, editable per camp).
+   */
+  async getCampDepositSettings(campId: string, providerId: string) {
+    await this.verifyCampOwnership(campId, providerId)
+    const camp = await this.prisma.camp.findUnique({
+      where: { id: campId },
+      select: {
+        depositRequired: true,
+        depositType: true,
+        depositPercentage: true,
+        depositFixedAmount: true,
+      },
+    })
+    if (!camp) throw new NotFoundException('Camp not found')
+    return camp
+  }
+
+  /**
+   * Phase 9: update the per-camp deposit settings.
+   *
+   * Modes:
+   *   - No deposit (`depositRequired = false`) → clears `depositType`,
+   *     `depositPercentage`, `depositFixedAmount`. Bookings will charge the
+   *     full amount at booking time.
+   *   - Percentage → requires `depositType = 'percentage'` +
+   *     `depositPercentage` in [1, 100].
+   *   - Fixed → requires `depositType = 'fixed'` + `depositFixedAmount > 0`,
+   *     AND the amount must be strictly less than every existing session's
+   *     price for this camp (per spec: "the sessions amount should always be
+   *     greater than this fixed amount"). Sessions with age-group pricing
+   *     are validated against their cheapest tier.
+   */
+  async updateCampDepositSettings(
+    campId: string,
+    providerId: string,
+    dto: UpdateCampDepositSettingsDto
+  ) {
+    await this.verifyCampOwnership(campId, providerId)
+
+    if (!dto.depositRequired) {
+      // No-deposit mode: clear all related fields so the booking flow doesn't
+      // accidentally see stale percentage/fixed values.
+      const camp = await this.prisma.camp.update({
+        where: { id: campId },
+        data: {
+          depositRequired: false,
+          depositType: null,
+          depositPercentage: null,
+          depositFixedAmount: null,
+        },
+        select: {
+          depositRequired: true,
+          depositType: true,
+          depositPercentage: true,
+          depositFixedAmount: true,
+        },
+      })
+      return camp
+    }
+
+    if (!dto.depositType) {
+      throw new BadRequestException('depositType is required when depositRequired = true')
+    }
+
+    if (dto.depositType === 'percentage') {
+      if (
+        dto.depositPercentage == null ||
+        !Number.isInteger(dto.depositPercentage) ||
+        dto.depositPercentage < 1 ||
+        dto.depositPercentage > 100
+      ) {
+        throw new BadRequestException(
+          'depositPercentage must be an integer between 1 and 100 when depositType = percentage'
+        )
+      }
+      const camp = await this.prisma.camp.update({
+        where: { id: campId },
+        data: {
+          depositRequired: true,
+          depositType: 'percentage',
+          depositPercentage: dto.depositPercentage,
+          // Clear the fixed amount so a stale value can't leak into the
+          // booking math if depositType is later switched.
+          depositFixedAmount: null,
+        },
+        select: {
+          depositRequired: true,
+          depositType: true,
+          depositPercentage: true,
+          depositFixedAmount: true,
+        },
+      })
+      return camp
+    }
+
+    // Fixed amount.
+    if (dto.depositFixedAmount == null || dto.depositFixedAmount <= 0) {
+      throw new BadRequestException('depositFixedAmount must be > 0 when depositType = fixed')
+    }
+
+    // Spec: "The sessions amount should always be greater than this fixed
+    // amount." Validate against every existing session's price (and every
+    // age-group tier when applicable). A session with no price at all
+    // (draft/incomplete) is skipped — it'll be re-validated when the
+    // provider sets its price.
+    const fixed = dto.depositFixedAmount
+    const sessions = await this.prisma.session.findMany({
+      where: { campId },
+      select: {
+        id: true,
+        name: true,
+        pricingType: true,
+        price: true,
+        ageGroupPrices: true,
+      },
+    })
+    for (const session of sessions) {
+      const minSessionPrice = this.minPriceForSession(session)
+      if (minSessionPrice == null) continue
+      if (minSessionPrice <= fixed) {
+        throw new BadRequestException(
+          `Fixed deposit ${fixed.toFixed(2)} must be strictly less than every session price. ` +
+            `Session "${session.name}" has a price of ${minSessionPrice.toFixed(2)}.`
+        )
+      }
+    }
+
+    const camp = await this.prisma.camp.update({
+      where: { id: campId },
+      data: {
+        depositRequired: true,
+        depositType: 'fixed',
+        depositFixedAmount: fixed,
+        // Clear percentage so a stale value can't leak through.
+        depositPercentage: null,
+      },
+      select: {
+        depositRequired: true,
+        depositType: true,
+        depositPercentage: true,
+        depositFixedAmount: true,
+      },
+    })
+    return camp
+  }
+
+  /**
+   * Returns the minimum price across a session's pricing tiers. For
+   * `pricingType = 'single'` it's just `session.price`. For `'age_group'`
+   * it's the smallest non-null tier price. Returns null when no price is
+   * configured (draft session) so the deposit-validation caller can skip it.
+   */
+  private minPriceForSession(session: {
+    pricingType: string
+    price: unknown
+    ageGroupPrices: unknown
+  }): number | null {
+    if (session.pricingType === 'single') {
+      const p = session.price
+      if (p == null) return null
+      return Number(p)
+    }
+    if (session.pricingType === 'age_group' && Array.isArray(session.ageGroupPrices)) {
+      const prices = (session.ageGroupPrices as Array<Record<string, unknown>>)
+        .map(t => Number(t.price ?? t.amount))
+        .filter(n => Number.isFinite(n) && n > 0)
+      if (prices.length === 0) return null
+      return Math.min(...prices)
+    }
+    return null
   }
 
   /**

@@ -1,6 +1,7 @@
 import type { Camp } from '@/types/camps'
 import { type Child, getChildAge } from '@/types/child'
 import type { Session } from '@/types/sessions'
+import type { CampBookingAddOn, CampBookingAddOnSelection } from '@/types/camp-booking'
 
 export function getSessionFallbackUnitPrice(session: Session | null | undefined): number {
   if (!session) return 0
@@ -102,4 +103,34 @@ export function getSelectedChildrenPriceBreakdown(args: {
       count,
       lineTotal: unitPrice * count,
     }))
+}
+
+export type AddOnExtrasRow = {
+  key: string
+  label: string
+  total: number
+}
+
+export function getAddOnExtrasRows(args: {
+  addOns: CampBookingAddOn[]
+  addOnSelectionsById: Record<string, CampBookingAddOnSelection>
+}): AddOnExtrasRow[] {
+  const { addOns, addOnSelectionsById } = args
+  const rows: AddOnExtrasRow[] = []
+  for (const selection of Object.values(addOnSelectionsById)) {
+    const addon = addOns.find(a => a.addOnId === selection.addOnId)
+    if (!addon) continue
+    let qty = 0
+    if (selection.mode === 'per_child') qty = selection.childIds?.length ?? 0
+    else if (selection.mode === 'per_child_qty') {
+      qty = (selection.childQuantities ?? []).reduce((sum, item) => sum + (item.quantity ?? 0), 0)
+    } else qty = selection.quantity ?? 0
+    if (qty <= 0) continue
+    rows.push({
+      key: addon.addOnId,
+      label: qty > 1 ? `${addon.name} × ${qty}` : addon.name,
+      total: addon.price * qty,
+    })
+  }
+  return rows
 }

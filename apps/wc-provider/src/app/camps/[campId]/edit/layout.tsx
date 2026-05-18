@@ -66,7 +66,7 @@ function CampEditorLayoutContent({
         <div
           className={`hidden h-full shrink-0 overflow-y-auto border-l border-default-200 bg-background transition-all duration-300 ease-in-out lg:block ${
             rightSidebar
-              ? 'lg:w-96 xl:w-96 translate-x-0 opacity-100'
+              ? 'w-96 lg:w-[480px] translate-x-0 opacity-100'
               : 'lg:w-0 xl:w-0 translate-x-full opacity-0'
           }`}
         >

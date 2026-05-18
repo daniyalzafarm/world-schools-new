@@ -193,3 +193,29 @@ export const putCampEligibility = async (campId: string, items: CampEligibilityI
     : (raw?.items ?? [])
   return { success: true as const, data: { items: resultItems } }
 }
+
+// ============================================
+// Camp Deposit Settings (Phase 9)
+// ============================================
+
+export type CampDepositType = 'percentage' | 'fixed'
+
+export interface CampDepositSettings {
+  depositRequired: boolean
+  depositType: CampDepositType | null
+  depositPercentage: number | null
+  depositFixedAmount: number | null
+}
+
+export interface UpdateCampDepositSettingsRequest {
+  depositRequired: boolean
+  depositType?: CampDepositType
+  depositPercentage?: number
+  depositFixedAmount?: number
+}
+
+export const getCampDepositSettings = (campId: string) =>
+  apiClient.get<CampDepositSettings>(`/provider/camps/${campId}/deposit-settings`)
+
+export const updateCampDepositSettings = (campId: string, data: UpdateCampDepositSettingsRequest) =>
+  apiClient.patch<CampDepositSettings>(`/provider/camps/${campId}/deposit-settings`, data)

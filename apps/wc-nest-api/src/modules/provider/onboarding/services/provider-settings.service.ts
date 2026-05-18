@@ -39,7 +39,9 @@ export class ProviderSettingsService {
       where: { providerId },
       data: {
         cancellationPolicy: dto.cancellationPolicy,
-        cancellationPolicyCustom: dto.cancellationPolicyCustom ?? Prisma.JsonNull,
+        cancellationPolicyCustom: dto.cancellationPolicyCustom
+          ? (dto.cancellationPolicyCustom as unknown as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
         cancellationPolicySpecialCircumstances:
           dto.cancellationPolicySpecialCircumstances != null
             ? (dto.cancellationPolicySpecialCircumstances as unknown as Prisma.InputJsonValue)

@@ -38,15 +38,30 @@ export function CancellationPolicySection({
   const rows = buildCancellationPolicyRows(policy, customPolicy, selectedSession?.startDate)
   if (rows.length === 0) return null
 
+  // Match the backend's day-counting in evaluatePolicy (Math.floor of the
+  // millisecond delta) so the "you are here" tier preview never claims a
+  // higher refund than the backend will actually issue. Math.ceil here would
+  // round up a fractional 29.x days to 30 and falsely show the 30-day tier.
   const daysUntilStart =
     selectedSession != null
-      ? Math.ceil(
+      ? Math.floor(
           (new Date(selectedSession.startDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
         )
       : null
 
+  // Default match logic: first tier whose threshold is satisfied. When
+  // `daysUntilStart` is negative (camp has already started), no tier matches
+  // because every tier's `daysBeforeStart >= 0`. In that case, snap to the
+  // last (strictest, 0%) tier so the "past the refund window" banner renders
+  // instead of leaving the section silent.
   const activeRowIndex =
-    daysUntilStart !== null ? rows.findIndex(r => daysUntilStart >= r.daysBeforeStart) : -1
+    daysUntilStart !== null
+      ? (() => {
+          const idx = rows.findIndex(r => daysUntilStart >= r.daysBeforeStart)
+          if (idx >= 0) return idx
+          return daysUntilStart < 0 ? rows.length - 1 : -1
+        })()
+      : -1
   const activeRow = activeRowIndex >= 0 ? rows[activeRowIndex] : null
   const hasZeroTier = rows.some(r => r.refundPercentage === 0)
 

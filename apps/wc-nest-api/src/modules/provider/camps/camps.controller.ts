@@ -46,6 +46,7 @@ import {
 } from './dto/update-camp.dto'
 import { GetCampsFiltersDto } from './dto/get-camps-filters.dto'
 import { UpdateCampAddOnsDto } from './dto/update-camp-addons.dto'
+import { UpdateCampDepositSettingsDto } from './dto/update-camp-deposit-settings.dto'
 import {
   PutCampEligibilityDto,
   PutCampFocusBodyDto,
@@ -653,6 +654,41 @@ export class CampsController {
   ) {
     const providerId = await this.getProviderIdForUser(user)
     const result = await this.campsService.updateCampAddOns(campId, providerId, dto)
+    return ResponseUtil.success(result)
+  }
+
+  // ============================================
+  // Camp Deposit Settings (Phase 9)
+  // ============================================
+
+  /**
+   * Get the camp's current deposit settings (snapshot from provider on
+   * creation, editable per camp).
+   */
+  @Get(':id/deposit-settings')
+  @Permissions('camps.read')
+  @HttpCode(HttpStatus.OK)
+  async getCampDepositSettings(@Param('id') campId: string, @CurrentUser() user: any) {
+    const providerId = await this.getProviderIdForUser(user)
+    const settings = await this.campsService.getCampDepositSettings(campId, providerId)
+    return ResponseUtil.success(settings)
+  }
+
+  /**
+   * Update the camp's deposit settings (percentage / fixed / no-deposit).
+   * Service-level validation enforces percentage range and fixed-vs-
+   * session-price guard.
+   */
+  @Patch(':id/deposit-settings')
+  @Permissions('camps.update')
+  @HttpCode(HttpStatus.OK)
+  async updateCampDepositSettings(
+    @Param('id') campId: string,
+    @CurrentUser() user: any,
+    @Body() dto: UpdateCampDepositSettingsDto
+  ) {
+    const providerId = await this.getProviderIdForUser(user)
+    const result = await this.campsService.updateCampDepositSettings(campId, providerId, dto)
     return ResponseUtil.success(result)
   }
 

@@ -1,4 +1,4 @@
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
+import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
 
@@ -63,8 +63,12 @@ export class ApproveApplicationDto {
 }
 
 export class RejectApplicationDto {
-  @ApiProperty({ description: 'Reason for rejection' })
+  @ApiProperty({ description: 'Reason for rejection (max 2000 chars)' })
   @IsString()
+  // Phase 10 follow-up: cap admin-typed free-text. Schema column is
+  // VARCHAR(2000); enforce at the DTO so 400s come back as clean validation
+  // errors rather than DB constraint violations.
+  @MaxLength(2000)
   reason: string
 
   @ApiProperty({ description: 'Rejection category' })
@@ -80,6 +84,7 @@ export class RejectApplicationDto {
   @ApiPropertyOptional({ description: 'Additional notes' })
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   notes?: string
 }
 
@@ -99,14 +104,19 @@ export class ReviewDocumentDto {
   @IsEnum(['approved', 'rejected', 'needs_reupload'])
   reviewStatus: string
 
-  @ApiPropertyOptional({ description: 'Review notes' })
+  @ApiPropertyOptional({ description: 'Review notes (max 2000 chars)' })
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   reviewNotes?: string
 
-  @ApiPropertyOptional({ description: 'Rejection reason (if rejected)' })
+  @ApiPropertyOptional({ description: 'Rejection reason (if rejected, max 2000 chars)' })
   @IsOptional()
   @IsString()
+  // Phase 10 follow-up: same bound as `RejectApplicationDto.reason`. Both
+  // paths write admin-typed free text into a `rejectionReason` column; both
+  // need the cap to keep email-deliverability + payload sizes sane.
+  @MaxLength(2000)
   rejectionReason?: string
 }
 

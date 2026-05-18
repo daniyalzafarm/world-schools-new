@@ -178,7 +178,7 @@ export const PROVIDER_IMPORT_COLUMNS: ProviderImportColumn[] = [
     description: 'Refund policy applied to bookings',
     required: false,
     type: 'enum',
-    options: ['flexible', 'moderate', 'strict'],
+    options: ['flexible', 'moderate', 'custom'],
     example: 'moderate',
   },
 ]

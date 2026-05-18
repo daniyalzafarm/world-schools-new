@@ -35,6 +35,8 @@
     "@socket.io/redis-adapter": "^8.3.0",
     "@stripe/connect-js": "^3.3.38",
     "@stripe/react-connect-js": "^3.3.34",
+    "@stripe/react-stripe-js": "^6.3.0",
+    "@stripe/stripe-js": "^9.3.1",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/typography": "^0.5.19",
     "@types/multer": "^2.1.0",

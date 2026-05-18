@@ -16,12 +16,12 @@ export class AdminSettingsService {
   async getSettings(): Promise<SystemSettingsResponseDto> {
     const settings = await this.prisma.systemSettings.upsert({
       where: { id: SINGLETON_ID },
-      create: { id: SINGLETON_ID, defaultCommission: 10 },
+      create: { id: SINGLETON_ID, defaultAppFee: 10 },
       update: {},
     })
 
     return {
-      defaultCommission: Number(settings.defaultCommission),
+      defaultAppFee: Number(settings.defaultAppFee),
       updatedAt: settings.updatedAt.toISOString(),
     }
   }
@@ -37,21 +37,21 @@ export class AdminSettingsService {
       where: { id: SINGLETON_ID },
       create: {
         id: SINGLETON_ID,
-        defaultCommission: dto.defaultCommission,
+        defaultAppFee: dto.defaultAppFee,
         updatedByAdminId: adminId,
       },
       update: {
-        defaultCommission: dto.defaultCommission,
+        defaultAppFee: dto.defaultAppFee,
         updatedByAdminId: adminId,
       },
     })
 
     this.logger.log(
-      `System settings updated by admin ${adminId}: defaultCommission=${dto.defaultCommission}%`
+      `System settings updated by admin ${adminId}: defaultAppFee=${dto.defaultAppFee}%`
     )
 
     return {
-      defaultCommission: Number(settings.defaultCommission),
+      defaultAppFee: Number(settings.defaultAppFee),
       updatedAt: settings.updatedAt.toISOString(),
     }
   }

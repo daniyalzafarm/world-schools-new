@@ -12,12 +12,14 @@ import {
   ChevronDown,
   ChevronRight,
   FolderOpen,
+  Gavel,
   Headphones,
   HelpCircle,
   House,
   LayoutGrid,
   List,
   Notebook,
+  Receipt,
   ShieldCheck,
   Tent,
   User,
@@ -30,6 +32,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useApplicationReviewStore } from '@/stores/application-review-store'
 import { eventBus } from '@world-schools/wc-utils'
 import { usePermissions } from '@/hooks/use-permissions'
+import { disputesService } from '@/services/disputes.services'
 import { supportTicketsService } from '@/services/support-tickets.services'
 
 // Custom hook for sidebar expansion state management
@@ -98,6 +101,20 @@ const NAV_ITEMS: NavItem[] = [
     icon: <Banknote size={20} />,
     type: 'regular',
     // No permission required - available to all authenticated users
+  },
+  {
+    name: 'Reimbursements',
+    href: '/reimbursements',
+    icon: <Receipt size={20} />,
+    type: 'regular',
+    permission: 'billing.read',
+  },
+  {
+    name: 'Disputes',
+    href: '/disputes',
+    icon: <Gavel size={20} />,
+    type: 'regular',
+    permission: 'disputes.read',
   },
   {
     name: 'All Providers',
@@ -192,6 +209,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   const { hasPermission } = usePermissions()
   const { underReviewCount, fetchUnderReviewCount } = useApplicationReviewStore()
   const [openTicketCount, setOpenTicketCount] = React.useState<number>(0)
+  const [openDisputeCount, setOpenDisputeCount] = React.useState<number>(0)
 
   // Collapsed state is managed locally within the sidebar
   const [isCollapsed, setIsCollapsed] = React.useState(false) // Start expanded
@@ -222,6 +240,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
       },
       5 * 60 * 1000
     )
+    return () => clearInterval(interval)
+  }, [hasPermission])
+
+  // Open dispute count (for badge) when user has permission. Mirrors the
+  // support-tickets pattern above.
+  React.useEffect(() => {
+    if (!hasPermission('disputes.read')) return
+    const fetchOpen = () => {
+      disputesService
+        .list({ outcome: 'open', limit: 1 })
+        .then(result => (result.success ? setOpenDisputeCount(result.data.total) : undefined))
+        .catch(() => {})
+    }
+    fetchOpen()
+    const interval = setInterval(fetchOpen, 5 * 60 * 1000)
     return () => clearInterval(interval)
   }, [hasPermission])
 
@@ -449,13 +482,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
               const isExpanded = isCollapsible ? expandedSections[item.name] : false
               const hasChildren = item.children && item.children.length > 0
 
-              // Get dynamic badge count for Provider Requests / Support Tickets
+              // Get dynamic badge count for Provider Requests / Support Tickets / Disputes
               const badgeCount =
                 item.name === 'All Providers' && underReviewCount > 0
                   ? underReviewCount
                   : item.name === 'Support Tickets' && openTicketCount > 0
                     ? openTicketCount
-                    : item.badge
+                    : item.name === 'Disputes' && openDisputeCount > 0
+                      ? openDisputeCount
+                      : item.badge
 
               const NavigationItem = (
                 <div key={item.name} className="w-full">

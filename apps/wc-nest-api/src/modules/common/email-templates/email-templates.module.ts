@@ -19,6 +19,6 @@ import { EmailService } from '@world-schools/global-utils'
       inject: [ConfigService],
     },
   ],
-  exports: [EmailTemplateService, ApplicationNotificationService],
+  exports: [EmailTemplateService, ApplicationNotificationService, EmailService],
 })
 export class EmailTemplatesModule {}

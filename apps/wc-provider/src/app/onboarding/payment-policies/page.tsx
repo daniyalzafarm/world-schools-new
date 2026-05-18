@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Checkbox, Spinner } from '@heroui/react'
+import { addToast, Checkbox, Skeleton, Spinner } from '@heroui/react'
 import { DatePicker, Input, SelectField } from '@world-schools/ui-web'
-import { type CalendarDate, parseDate } from '@internationalized/date'
+import type { CalendarDate } from '@internationalized/date'
 import {
   type CancellationPolicyTier,
   DEFAULT_CUSTOM_POLICY_TIERS,
@@ -12,7 +12,12 @@ import {
   type SpecialCircumstanceRefundPercentage,
   type SpecialCircumstanceType,
 } from '@world-schools/wc-types'
-import { getRefundAmount, resolveTiers } from '@world-schools/wc-utils'
+import {
+  formatCurrency,
+  getCurrencySymbol,
+  getRefundAmount,
+  resolveTiers,
+} from '@world-schools/wc-utils'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
 import { OnboardingFooter } from '../../../components/onboarding/OnboardingFooter'
@@ -24,6 +29,7 @@ import type {
 } from '../../../types/onboarding'
 import { canAccessStep, getNextAccessibleStep } from '../../../utils/onboarding-access'
 import { onboardingService } from '../../../services/onboarding.services'
+import { useCalculatorConfig } from '../_use-calculator-config'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -126,15 +132,6 @@ const SPECIAL_REFUND_OPTIONS: Array<{ value: SpecialCircumstanceRefundPercentage
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const stringToCalendarDate = (dateString: string): CalendarDate | null => {
-  if (!dateString) return null
-  try {
-    return parseDate(dateString)
-  } catch {
-    return null
-  }
-}
-
 function defaultSpecialCircumstances(): SpecialCircumstancesMap {
   return {
     medical: { enabled: false, refundPercentage: 100 },
@@ -146,8 +143,21 @@ function defaultSpecialCircumstances(): SpecialCircumstancesMap {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function OnboardingStep6CancellationPolicyPage() {
+  const calculatorConfig = useCalculatorConfig()
+  // Sentinel values used only while `calculatorConfig` is loading; the
+  // calculator body and the percentage in the terms label are gated below
+  // so these never reach the screen.
+  const { currency, appFeePercentage } = calculatorConfig ?? { currency: '', appFeePercentage: 0 }
   const router = useRouter()
-  const { status, isLoading, saveProviderSettings } = useOnboardingStore()
+  const {
+    status,
+    isLoading,
+    saveProviderSettings,
+    calcPrice,
+    calcStartDate,
+    setCalcPrice,
+    setCalcStartDate,
+  } = useOnboardingStore()
   const isReadOnly = status?.isCompleted ?? false
 
   // Policy
@@ -176,15 +186,6 @@ export default function OnboardingStep6CancellationPolicyPage() {
   // Deposit settings (for sidebar calculator)
   const [depositSnapshot, setDepositSnapshot] = useState<DepositSnapshot | null>(null)
 
-  // Calculator
-  const [calcPrice, setCalcPrice] = useState(2000)
-  const [calcStartDate, setCalcStartDate] = useState<CalendarDate | null>(() => {
-    const date = new Date()
-    date.setMonth(date.getMonth() + 8)
-    const dateString = date.toISOString().split('T')[0]
-    return stringToCalendarDate(dateString ?? '')
-  })
-
   // ── Load settings on mount ──────────────────────────────────────────────────
 
   useEffect(() => {
@@ -208,7 +209,9 @@ export default function OnboardingStep6CancellationPolicyPage() {
       if (policyRes.success && policyRes.data) {
         const saved = policyRes.data
 
-        // Guard against legacy 'strict' / 'super_strict' values
+        // Defensive: any policy name we don't recognise (typo, future
+        // option, etc.) falls back to the safe default. Currently the only
+        // valid options are flexible / moderate / custom.
         const displayPolicies: CancellationPolicy[] = ['flexible', 'moderate', 'custom']
         const loadedPolicy = displayPolicies.includes(
           saved.cancellationPolicy as CancellationPolicy
@@ -300,8 +303,14 @@ export default function OnboardingStep6CancellationPolicyPage() {
     return Number(depositSnapshot.depositFixedAmount ?? 0)
   }
 
-  const calculateServiceFee = (price: number): number => Math.round(price * 0.1)
+  const calculateServiceFee = (price: number): number =>
+    Math.round((price * appFeePercentage) / 100)
   const calculateEarnings = (price: number): number => price - calculateServiceFee(price)
+  // Net amount released to the provider for the deposit (gross deposit minus
+  // the platform's percentage fee on it). Used in the Payment Schedule so the
+  // "At booking" + "Balance released" rows sum to "Your earnings".
+  const calculateDepositNet = (price: number): number =>
+    Math.round(calculateDeposit(price) * (1 - appFeePercentage / 100))
 
   // ── Custom tier helpers ───────────────────────────────────────────────────
 
@@ -381,14 +390,24 @@ export default function OnboardingStep6CancellationPolicyPage() {
       termsAgreed: true,
     }
 
-    try {
-      setIsSaving(true)
-      await saveProviderSettings(settings)
-      router.push('/onboarding/review')
-    } catch (error: unknown) {
-      setIsSaving(false)
-      console.error('Failed to save cancellation policy:', error)
+    // C3 audit fix: `saveProviderSettings` never throws (apiClient converts
+    // errors to `ApiResult`, store wrapper returns a boolean). The previous
+    // try/catch was dead code, and `router.push` ran unconditionally — silently
+    // navigating past failed saves. Now we branch on the boolean and surface
+    // the server error to the parent via a toast before staying put.
+    setIsSaving(true)
+    const ok = await saveProviderSettings(settings)
+    setIsSaving(false)
+    if (!ok) {
+      const error = useOnboardingStore.getState().error
+      addToast({
+        title: 'Could not save cancellation policy',
+        description: error ?? 'Please try again in a moment.',
+        color: 'danger',
+      })
+      return
     }
+    router.push('/onboarding/review')
   }
 
   // ── Spinner while status loads ────────────────────────────────────────────
@@ -405,8 +424,15 @@ export default function OnboardingStep6CancellationPolicyPage() {
 
   const activeTiers = resolveTiers(selectedPolicy, { tiers: customTiers })
   const deposit = calculateDeposit(calcPrice)
+  const remaining = calcPrice - deposit
+  const depositNet = calculateDepositNet(calcPrice)
   const serviceFee = calculateServiceFee(calcPrice)
   const earnings = calculateEarnings(calcPrice)
+  // Split fee/net per payment moment so the breakdown table sums back to the
+  // top-line totals exactly (avoids rounding drift between deposit + remaining).
+  const remainingNet = earnings - depositNet
+  const depositFee = deposit - depositNet
+  const remainingFee = remaining - remainingNet
   const hasSpecialCircumstances = Object.values(specialCircumstances).some(c => c.enabled)
 
   const policySidebar = (
@@ -426,6 +452,9 @@ export default function OnboardingStep6CancellationPolicyPage() {
               classNames={{
                 label: 'text-xs font-semibold uppercase tracking-wide',
               }}
+              startContent={
+                <span className="text-sm text-default-500">{getCurrencySymbol(currency)}</span>
+              }
             />
           </div>
           <div className="flex-1">
@@ -445,27 +474,131 @@ export default function OnboardingStep6CancellationPolicyPage() {
       <div className="flex flex-col gap-5 pb-10">
         {/* Earnings Breakdown */}
         <div className="rounded-xl bg-default-50 p-4">
-          {depositSnapshot?.depositRequired && (
+          {/* Total Amount */}
+          <div className="flex items-center justify-between py-2 text-sm">
+            <span className="text-default-500">Total Amount</span>
+            <span className="font-semibold text-foreground">
+              {calculatorConfig === null ? (
+                <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+              ) : (
+                formatCurrency(calcPrice, currency)
+              )}
+            </span>
+          </div>
+
+          {depositSnapshot?.depositRequired ? (
+            /* Three-column breakdown: row label | Deposit | Remaining */
+            <div className="mt-2 border-t border-default-200 pt-3">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs uppercase tracking-wide text-default-400">
+                    <th className="pb-2 text-left font-semibold"></th>
+                    <th className="pb-2 text-right font-semibold">
+                      Deposit
+                      {depositSnapshot.depositType === 'percentage' &&
+                        depositSnapshot.depositPercentage != null && (
+                          <span className="ml-1 font-normal normal-case text-default-400">
+                            ({depositSnapshot.depositPercentage}%)
+                          </span>
+                        )}
+                    </th>
+                    <th className="pb-2 text-right font-semibold">Remaining</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="py-1.5 text-default-500">Amount</td>
+                    <td className="py-1.5 text-right font-semibold text-foreground">
+                      {calculatorConfig === null ? (
+                        <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                      ) : (
+                        formatCurrency(deposit, currency)
+                      )}
+                    </td>
+                    <td className="py-1.5 text-right font-semibold text-foreground">
+                      {calculatorConfig === null ? (
+                        <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                      ) : (
+                        formatCurrency(remaining, currency)
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 text-default-500">
+                      Service fee{' '}
+                      {calculatorConfig === null ? (
+                        <Skeleton className="inline-block h-3 w-6 rounded align-middle" />
+                      ) : (
+                        <span className="text-default-400">({appFeePercentage}%)</span>
+                      )}
+                    </td>
+                    <td className="py-1.5 text-right font-semibold text-danger">
+                      {calculatorConfig === null ? (
+                        <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                      ) : (
+                        <>-{formatCurrency(depositFee, currency)}</>
+                      )}
+                    </td>
+                    <td className="py-1.5 text-right font-semibold text-danger">
+                      {calculatorConfig === null ? (
+                        <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                      ) : (
+                        <>-{formatCurrency(remainingFee, currency)}</>
+                      )}
+                    </td>
+                  </tr>
+                  <tr className="border-t border-default-200">
+                    <td className="pt-2 text-sm font-semibold text-foreground">You receive</td>
+                    <td className="pt-2 text-right text-sm font-bold text-success">
+                      {calculatorConfig === null ? (
+                        <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                      ) : (
+                        formatCurrency(depositNet, currency)
+                      )}
+                    </td>
+                    <td className="pt-2 text-right text-sm font-bold text-success">
+                      {calculatorConfig === null ? (
+                        <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                      ) : (
+                        formatCurrency(remainingNet, currency)
+                      )}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            /* No deposit — single service-fee row */
             <div className="flex items-center justify-between py-2 text-sm">
-              <span className="text-default-500">Deposit (non-refundable)</span>
-              <span className="font-semibold text-foreground">
-                {depositSnapshot.depositType === 'percentage'
-                  ? `${depositSnapshot.depositPercentage ?? 0}% ($${deposit.toLocaleString()})`
-                  : `$${deposit.toLocaleString()}`}
+              <span className="text-default-500">
+                Service fee (
+                {calculatorConfig === null ? (
+                  <Skeleton className="inline-block h-3 w-6 rounded align-middle" />
+                ) : (
+                  <>{appFeePercentage}%</>
+                )}
+                )
+              </span>
+              <span className="font-semibold text-danger">
+                {calculatorConfig === null ? (
+                  <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                ) : (
+                  <>-{formatCurrency(serviceFee, currency)}</>
+                )}
               </span>
             </div>
           )}
-          <div className="flex items-center justify-between py-2 text-sm">
-            <span className="text-default-500">Program price</span>
-            <span className="font-semibold text-foreground">${calcPrice.toLocaleString()}</span>
-          </div>
-          <div className="flex items-center justify-between py-2 text-sm">
-            <span className="text-default-500">Service fee (10%)</span>
-            <span className="font-semibold text-danger">-${serviceFee.toLocaleString()}</span>
-          </div>
-          <div className="mt-1 flex items-center justify-between border-t border-default-200 pt-3">
+
+          {/* Your Earnings - Total */}
+          <div className="mt-3 flex items-center justify-between border-t border-default-200 pt-3">
             <span className="text-sm font-bold text-foreground">Your earnings</span>
-            <span className="text-xl font-bold text-success">${earnings.toLocaleString()}</span>
+            <span className="text-xl font-bold text-success">
+              {calculatorConfig === null ? (
+                <Skeleton className="inline-block h-5 w-24 rounded align-middle" />
+              ) : (
+                formatCurrency(earnings, currency)
+              )}
+            </span>
           </div>
         </div>
 
@@ -477,7 +610,11 @@ export default function OnboardingStep6CancellationPolicyPage() {
               <div className="grid grid-cols-[100px_90px_1fr] items-center gap-3 border-b border-primary-200 pb-3">
                 <span className="text-sm font-semibold text-foreground">At booking</span>
                 <span className="text-right text-sm font-bold text-success">
-                  ${deposit.toLocaleString()}
+                  {calculatorConfig === null ? (
+                    <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                  ) : (
+                    formatCurrency(depositNet, currency)
+                  )}
                 </span>
                 <span className="text-sm leading-snug text-default-500">After 48h</span>
               </div>
@@ -493,16 +630,25 @@ export default function OnboardingStep6CancellationPolicyPage() {
                   : ''}
               </span>
               <span className="text-right text-sm font-bold text-success">
-                $
-                {(
-                  earnings - (depositSnapshot?.depositRequired ? Math.round(deposit * 0.9) : 0)
-                ).toLocaleString()}
+                {calculatorConfig === null ? (
+                  <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                ) : (
+                  formatCurrency(
+                    earnings - (depositSnapshot?.depositRequired ? depositNet : 0),
+                    currency
+                  )
+                )}
               </span>
               <span className="text-sm leading-snug text-default-500">Balance released</span>
             </div>
           </div>
           <div className="mt-2 border-t border-primary-200 pt-3 text-center text-xs text-default-500">
-            10% service fee applied to each payment
+            {calculatorConfig === null ? (
+              <Skeleton className="inline-block h-3 w-6 rounded align-middle" />
+            ) : (
+              <>{appFeePercentage}%</>
+            )}{' '}
+            service fee applied to each payment
           </div>
         </div>
 
@@ -514,11 +660,15 @@ export default function OnboardingStep6CancellationPolicyPage() {
           </p>
           <div className="space-y-2">
             {activeTiers.map((tier, idx) => {
-              const nextTier = activeTiers[idx + 1]
+              // Only the first (highest) tier is open-ended ("X+ days").
+              // Every subsequent tier is bounded above by the previous tier's
+              // floor minus one day, so middle tiers don't visually overlap
+              // with the tier above them.
+              const upperBound = idx === 0 ? null : activeTiers[idx - 1].daysBeforeStart - 1
               const daysLabel =
-                nextTier !== undefined
+                upperBound === null
                   ? `${tier.daysBeforeStart}+ days before`
-                  : `0–${activeTiers[idx - 1] ? activeTiers[idx - 1].daysBeforeStart - 1 : 29} days before`
+                  : `${tier.daysBeforeStart}–${upperBound} days before`
               const balanceAmount = calcPrice - deposit
               const refundAmount = getRefundAmount(balanceAmount, tier.refundPercentage)
 
@@ -531,7 +681,12 @@ export default function OnboardingStep6CancellationPolicyPage() {
                   <span
                     className={`font-semibold ${tier.refundPercentage === 0 ? 'text-danger' : 'text-success'}`}
                   >
-                    {tier.refundPercentage}% → ${refundAmount.toLocaleString()}
+                    {tier.refundPercentage}% →{' '}
+                    {calculatorConfig === null ? (
+                      <Skeleton className="inline-block h-3 w-12 rounded align-middle" />
+                    ) : (
+                      formatCurrency(refundAmount, currency)
+                    )}
                   </span>
                 </div>
               )
@@ -720,6 +875,7 @@ export default function OnboardingStep6CancellationPolicyPage() {
                     {state.enabled && (
                       <div onClick={e => e.stopPropagation()}>
                         <SelectField
+                          aria-label={title}
                           value={String(state.refundPercentage)}
                           onChange={v =>
                             updateSpecialRefund(
@@ -770,7 +926,13 @@ export default function OnboardingStep6CancellationPolicyPage() {
             <span className="text-sm leading-relaxed text-foreground">
               <strong>I agree to these payment terms and cancellation policies.</strong> I
               understand these will be shown to parents when they book and that World-Camps charges
-              a 10% service fee on successful bookings.
+              a{' '}
+              {calculatorConfig === null ? (
+                <Skeleton className="inline-block h-3 w-8 rounded align-middle" />
+              ) : (
+                <>{appFeePercentage}%</>
+              )}{' '}
+              service fee on successful bookings.
             </span>
           </div>
           {termsError && (

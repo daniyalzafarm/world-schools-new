@@ -16,7 +16,7 @@ export class AdminSettingsController {
   constructor(private readonly adminSettingsService: AdminSettingsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get system-level settings (e.g. default commission)' })
+  @ApiOperation({ summary: 'Get system-level settings (e.g. default app fee)' })
   async getSettings() {
     const data = await this.adminSettingsService.getSettings()
     return ResponseUtil.success(data)

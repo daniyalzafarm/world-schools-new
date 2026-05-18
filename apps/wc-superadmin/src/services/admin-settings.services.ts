@@ -2,12 +2,12 @@ import apiClient from '@/utils/api-client'
 import type { ApiResult } from '@world-schools/wc-types'
 
 export interface SystemSettings {
-  defaultCommission: number
+  defaultAppFee: number
   updatedAt: string
 }
 
 export interface UpdateSystemSettingsRequest {
-  defaultCommission: number
+  defaultAppFee: number
 }
 
 /**

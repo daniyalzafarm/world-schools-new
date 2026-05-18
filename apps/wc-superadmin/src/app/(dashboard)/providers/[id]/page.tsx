@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
   addToast,
@@ -20,10 +20,12 @@ import {
 } from '@heroui/react'
 import {
   Building,
+  Calendar,
   ExternalLink,
   FileText,
   Mail,
   MapPin,
+  Percent,
   Phone,
   Shield,
   Star,
@@ -31,6 +33,10 @@ import {
 } from 'lucide-react'
 import { getInitials } from '@world-schools/ui-web'
 import { campsService } from '@/services/camps.services'
+import * as adminSettingsService from '@/services/admin-settings.services'
+import { AppFeeModal } from '@/components/providers/app-fee-modal'
+import { PayoutModeModal } from '@/components/providers/payout-mode-modal'
+import type { ProviderPayoutMode } from '@/services/providers.services'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { PageSlot } from '@/components/layout/page-slot'
 import { useProvidersStore } from '@/stores/providers-store'
@@ -345,6 +351,14 @@ export default function ProviderDetailPage() {
                 isDisabled={detail._count.bookingGroups === 0}
               >
                 <p className="text-sm text-default-500">Full bookings view coming soon.</p>
+              </Tab>
+
+              <Tab key="settings" title="Settings">
+                <SettingsTab
+                  detail={detail}
+                  providerId={providerId}
+                  onSaved={() => void fetchDetail(providerId)}
+                />
               </Tab>
 
               <Tab
@@ -674,6 +688,179 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
     <div className="flex justify-between gap-4">
       <span className="text-default-500 shrink-0">{label}</span>
       <span className="text-foreground text-right w-4/6">{children}</span>
+    </div>
+  )
+}
+
+function SettingsTab({
+  detail,
+  providerId,
+  onSaved,
+}: {
+  detail: ProviderDetail
+  providerId: string
+  onSaved: () => void
+}) {
+  const [systemDefaultAppFee, setSystemDefaultAppFee] = useState<number | null>(null)
+  const [appFeeOpen, setAppFeeOpen] = useState(false)
+  const [payoutModeOpen, setPayoutModeOpen] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const response = await adminSettingsService.getSystemSettings()
+      if (!cancelled && response.success && response.data) {
+        setSystemDefaultAppFee(Number(response.data.defaultAppFee))
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const formatAdmin = (
+    admin: { firstName?: string | null; lastName?: string | null; email: string } | null | undefined
+  ) => {
+    if (!admin) return ''
+    const name = [admin.firstName, admin.lastName].filter(Boolean).join(' ').trim()
+    return name || admin.email
+  }
+
+  const formatTimestamp = (iso: string | null | undefined) => {
+    if (!iso) return ''
+    return new Date(iso).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
+  const settings = detail.settings ?? null
+  const payoutMode: ProviderPayoutMode = settings?.payoutMode ?? 'default_after_start'
+  const offsetDays = settings?.earlyPayoutOffsetDays ?? null
+
+  const PAYOUT_MODE_LABELS: Record<ProviderPayoutMode, string> = {
+    default_after_start: 'Default — payout after session start',
+    offset_days: 'Early payout — single payout before session start',
+    policy_staged: 'Policy staged — multiple payouts as funds become non-refundable',
+  }
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      {/* App Fee Card */}
+      <Card shadow="none" className="border border-default-200">
+        <CardBody className="p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Percent className="h-4 w-4 text-default-500" />
+              <h3 className="font-semibold text-foreground">App Fee</h3>
+            </div>
+            <Button
+              size="sm"
+              variant="flat"
+              onPress={() => setAppFeeOpen(true)}
+              isDisabled={systemDefaultAppFee == null}
+            >
+              Edit
+            </Button>
+          </div>
+
+          <div className="text-sm">
+            {detail.appFeeCustom && detail.appFeePercentage != null ? (
+              <div>
+                <span className="text-default-500">Custom app fee: </span>
+                <span className="font-semibold text-foreground">
+                  {Number(detail.appFeePercentage).toFixed(2)}%
+                </span>
+              </div>
+            ) : (
+              <div>
+                <span className="text-default-500">Default app fee: </span>
+                <span className="font-semibold text-foreground">
+                  {systemDefaultAppFee != null ? `${systemDefaultAppFee}%` : '—'}
+                </span>
+                <span className="text-default-400"> — no override set</span>
+              </div>
+            )}
+          </div>
+
+          {detail.appFeeUpdatedAt && (
+            <div className="text-xs text-default-400">
+              Last changed {formatTimestamp(detail.appFeeUpdatedAt)}
+              {detail.appFeeUpdatedByAdmin ? ` by ${formatAdmin(detail.appFeeUpdatedByAdmin)}` : ''}
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* Payout Mode Card */}
+      <Card shadow="none" className="border border-default-200">
+        <CardBody className="p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-default-500" />
+              <h3 className="font-semibold text-foreground">Payout Mode</h3>
+            </div>
+            <Button size="sm" variant="flat" onPress={() => setPayoutModeOpen(true)}>
+              Edit
+            </Button>
+          </div>
+
+          <div className="text-sm">
+            {payoutMode === 'offset_days' && offsetDays != null ? (
+              <Chip size="sm" color="warning" variant="flat">
+                Early payout: {offsetDays} day{offsetDays === 1 ? '' : 's'} before start
+              </Chip>
+            ) : payoutMode === 'policy_staged' ? (
+              <Chip size="sm" color="warning" variant="flat">
+                Policy staged
+              </Chip>
+            ) : (
+              <div className="text-default-500">{PAYOUT_MODE_LABELS[payoutMode]}</div>
+            )}
+          </div>
+
+          {settings?.payoutModeAgreementNote && (
+            <div className="rounded-md border border-default-200 bg-default-50 p-3 text-xs">
+              <div className="text-default-500 mb-1">Agreement note</div>
+              <div className="whitespace-pre-wrap text-foreground">
+                {settings.payoutModeAgreementNote}
+              </div>
+            </div>
+          )}
+
+          {settings?.payoutModeAgreedAt && (
+            <div className="text-xs text-default-400">
+              Last changed {formatTimestamp(settings.payoutModeAgreedAt)}
+              {settings.payoutModeAgreedByAdmin
+                ? ` by ${formatAdmin(settings.payoutModeAgreedByAdmin)}`
+                : ''}
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
+      <AppFeeModal
+        isOpen={appFeeOpen}
+        onClose={() => setAppFeeOpen(false)}
+        providerId={providerId}
+        currentCustom={detail.appFeeCustom}
+        currentPercentage={detail.appFeePercentage != null ? Number(detail.appFeePercentage) : null}
+        systemDefault={systemDefaultAppFee ?? 0}
+        onSaved={onSaved}
+      />
+
+      <PayoutModeModal
+        isOpen={payoutModeOpen}
+        onClose={() => setPayoutModeOpen(false)}
+        providerId={providerId}
+        currentMode={payoutMode}
+        currentOffsetDays={offsetDays}
+        currentAgreementNote={settings?.payoutModeAgreementNote ?? null}
+        onSaved={onSaved}
+      />
     </div>
   )
 }

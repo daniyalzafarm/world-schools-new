@@ -27,6 +27,22 @@ export class EmailTemplateService {
     'https://files.staging.world-camps.org/wc-booking-system/favicon-world-camps.png'
 
   /**
+   * Minimal HTML entity escape for template params that come from user
+   * input (parent first name, camp name, booking number). Prevents broken
+   * markup or stored-XSS-via-email when, e.g., a provider names a camp
+   * `My <script>...</script> Camp`. Not applied to URL params or
+   * server-generated values like `Intl.NumberFormat`-formatted amounts.
+   */
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+  }
+
+  /**
    * Get base email template with consistent styling
    */
   private getBaseTemplate(content: string): string {
@@ -180,6 +196,7 @@ export class EmailTemplateService {
     userName: string,
     verificationUrl: string
   ): string {
+    const safeUserName = this.escapeHtml(userName)
     return `<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -212,7 +229,7 @@ export class EmailTemplateService {
     </h1>
 
     <p style="margin:0 0 16px 0;font-size:16px;color:${this.colors.textSecondary};line-height:1.7;">
-    Hi ${userName},
+    Hi ${safeUserName},
     </p>
 
     <p style="margin:0 0 16px 0;font-size:16px;color:${this.colors.textSecondary};line-height:1.7;">
@@ -321,6 +338,7 @@ export class EmailTemplateService {
     applicationId: string
     submittedDate: string
   }): string {
+    const providerName = this.escapeHtml(params.providerName)
     const content = `
       <div class="email-header">
         <div class="logo">World-Camps</div>
@@ -328,7 +346,7 @@ export class EmailTemplateService {
       </div>
       <div class="email-body">
         <h2>Thank you for your application!</h2>
-        <p>Dear ${params.providerName},</p>
+        <p>Dear ${providerName},</p>
         <p>We have successfully received your provider application for World-Camps. Your application is now under review by our team.</p>
 
         <div class="success-box">
@@ -370,6 +388,7 @@ export class EmailTemplateService {
     loginUrl: string
     contactEmail: string
   }): string {
+    const providerName = this.escapeHtml(params.providerName)
     const content = `
       <div class="email-header">
         <div class="logo">World-Camps</div>
@@ -377,7 +396,7 @@ export class EmailTemplateService {
       </div>
       <div class="email-body">
         <h2>Congratulations! Your application has been approved</h2>
-        <p>Dear ${params.providerName},</p>
+        <p>Dear ${providerName},</p>
         <p>We're thrilled to inform you that your provider application has been approved! Welcome to the World-Camps community.</p>
 
         <div class="success-box">
@@ -425,9 +444,14 @@ export class EmailTemplateService {
     rejectionReason?: string
     reapplyUrl: string
   }): string {
-    // Format rejection category from snake_case to Title Case
+    const providerName = this.escapeHtml(params.providerName)
+    // Format snake_case → Title Case first, THEN escape — keeps the entity
+    // output canonical (`&lt;` not `&Lt;` after a stray title-case pass).
     const formattedCategory = params.rejectionCategory
-      ? formatSnakeCaseToTitleCase(params.rejectionCategory)
+      ? this.escapeHtml(formatSnakeCaseToTitleCase(params.rejectionCategory))
+      : undefined
+    const rejectionReason = params.rejectionReason
+      ? this.escapeHtml(params.rejectionReason)
       : undefined
 
     const content = `
@@ -437,15 +461,15 @@ export class EmailTemplateService {
       </div>
       <div class="email-body">
         <h2>Application Status Update</h2>
-        <p>Dear ${params.providerName},</p>
+        <p>Dear ${providerName},</p>
         <p>Thank you for your interest in becoming a World-Camps provider. After careful review, we regret to inform you that we are unable to approve your application at this time.</p>
 
         ${
-          formattedCategory || params.rejectionReason
+          formattedCategory || rejectionReason
             ? `
         <div class="danger-box">
           ${formattedCategory ? `<p style="margin: 0;"><strong>Category:</strong> ${formattedCategory}</p>` : ''}
-          ${params.rejectionReason ? `<p style="margin: ${formattedCategory ? '8px' : '0'} 0 0 0;"><strong>Reason:</strong> ${params.rejectionReason}</p>` : ''}
+          ${rejectionReason ? `<p style="margin: ${formattedCategory ? '8px' : '0'} 0 0 0;"><strong>Reason:</strong> ${rejectionReason}</p>` : ''}
         </div>
         `
             : ''
@@ -484,6 +508,10 @@ export class EmailTemplateService {
     tempPassword: string
     loginUrl: string
   }): string {
+    // Only `firstName` is admin-typed free text; `email` is RFC-validated
+    // and `tempPassword` is server-generated (random charset). Per Phase 3
+    // selectivity, escape only the field with HTML-injection risk.
+    const firstName = this.escapeHtml(params.firstName)
     const content = `
       <div class="email-header">
         <div class="logo">World-Camps</div>
@@ -491,7 +519,7 @@ export class EmailTemplateService {
       </div>
       <div class="email-body">
         <h2>Your provider account has been created</h2>
-        <p>Hi ${params.firstName},</p>
+        <p>Hi ${firstName},</p>
         <p>A World-Camps administrator has created a provider account for you. You can now log in to the provider portal and start setting up your camp profile.</p>
 
         <div class="info-box">
@@ -521,14 +549,249 @@ export class EmailTemplateService {
   /**
    * Get login verification template for 2FA
    */
+  /**
+   * Off-session 3DS recovery email — sent when the balance-charge cron tried
+   * to charge the parent's saved card and Stripe returned `requires_action`,
+   * meaning the issuer demands a fresh 3DS step-up. The CTA links to the
+   * /payment/authorize page with `payment_intent_client_secret` so the parent
+   * can complete the challenge via `stripe.handleNextAction`.
+   */
+  getOffSession3dsRecoveryTemplate(params: {
+    parentFirstName: string
+    campName: string
+    bookingGroupNumber: string
+    amountFormatted: string
+    recoveryUrl: string
+  }): string {
+    // User-controlled fields are HTML-escaped; URL stays raw because it's
+    // already URL-encoded by the caller and needs to render as an `href`.
+    const parentFirstName = this.escapeHtml(params.parentFirstName)
+    const campName = this.escapeHtml(params.campName)
+    const bookingGroupNumber = this.escapeHtml(params.bookingGroupNumber)
+    const content = `
+      <div class="email-header">
+        <div class="logo">World-Camps</div>
+        <h1>Verify your card</h1>
+      </div>
+      <div class="email-body">
+        <p>Hi ${parentFirstName},</p>
+
+        <p>We tried to charge your saved card the <strong>${params.amountFormatted}</strong>
+        balance for your <strong>${campName}</strong> booking
+        (<code>${bookingGroupNumber}</code>), but your bank wants to
+        verify the payment with you first.</p>
+
+        <p>Please complete the quick verification below — you'll be sent to
+        your bank's site for a moment, then back to your bookings.</p>
+
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${params.recoveryUrl}" class="button">Verify card</a>
+        </div>
+
+        <p class="text-secondary" style="font-size: 14px;">If you don't verify
+        within the next 48 hours, the booking will be paused until you update
+        your payment method.</p>
+
+        <div class="divider"></div>
+        <p class="text-secondary" style="font-size: 14px;">Best regards,<br>The World-Camps Team</p>
+      </div>
+      <div class="email-footer">
+        <p>&copy; ${new Date().getFullYear()} World-Camps. All rights reserved.</p>
+      </div>
+    `
+    return this.getBaseTemplate(content)
+  }
+
+  /**
+   * Final-failure email — sent when the balance-charge cron has marked a
+   * Payment terminal because either (a) the 48h / 2-attempt off-session
+   * retry window was exhausted, (b) the parent has no saved payment method
+   * on file, or (c) the parent abandoned a 3DS step-up past the 48h
+   * window. The booking is now in `payment_failed`; this email is the
+   * parent-facing heads-up so they can update their payment details.
+   *
+   * Copy is intentionally generic across the three cases — saying "we
+   * tried twice and your card was declined" would be a lie for the
+   * no-PM and step-up-abandoned paths.
+   */
+  getPaymentFailedFinalTemplate(params: {
+    parentFirstName: string
+    campName: string
+    bookingGroupNumber: string
+    amountFormatted: string
+    bookingsUrl: string
+  }): string {
+    const parentFirstName = this.escapeHtml(params.parentFirstName)
+    const campName = this.escapeHtml(params.campName)
+    const bookingGroupNumber = this.escapeHtml(params.bookingGroupNumber)
+    const content = `
+      <div class="email-header">
+        <div class="logo">World-Camps</div>
+        <h1>We couldn't process your payment</h1>
+      </div>
+      <div class="email-body">
+        <p>Hi ${parentFirstName},</p>
+
+        <p>We weren't able to process the
+        <strong>${params.amountFormatted}</strong> balance payment for your
+        <strong>${campName}</strong> booking
+        (<code>${bookingGroupNumber}</code>).</p>
+
+        <p>Your booking is paused for now. To get it back on track, please
+        open your bookings dashboard to update your payment details — our
+        team will reach out separately if anything else is needed.</p>
+
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${params.bookingsUrl}" class="button">Open your bookings</a>
+        </div>
+
+        <div class="divider"></div>
+        <p class="text-secondary" style="font-size: 14px;">Best regards,<br>The World-Camps Team</p>
+      </div>
+      <div class="email-footer">
+        <p>&copy; ${new Date().getFullYear()} World-Camps. All rights reserved.</p>
+      </div>
+    `
+    return this.getBaseTemplate(content)
+  }
+
+  /**
+   * Phase 4: parent-facing cancellation confirmation. Sent immediately after
+   * a parent successfully cancels via the booking detail page. Body
+   * differs by `mode` so the parent sees a truthful summary of what
+   * happened (refund vs. authorization void vs. partial policy refund).
+   */
+  getBookingCancelledConfirmationTemplate(params: {
+    parentFirstName: string
+    campName: string
+    bookingGroupNumber: string
+    mode: 'void_auth' | 'grace' | 'policy'
+    refundFormatted: string | null
+    /** Only present when mode='policy' and the booking was past grace. */
+    nonRefundedFormatted?: string | null
+    bookingsUrl: string
+  }): string {
+    const parentFirstName = this.escapeHtml(params.parentFirstName)
+    const campName = this.escapeHtml(params.campName)
+    const bookingGroupNumber = this.escapeHtml(params.bookingGroupNumber)
+    const refundFormatted = params.refundFormatted ? this.escapeHtml(params.refundFormatted) : null
+    const nonRefundedFormatted = params.nonRefundedFormatted
+      ? this.escapeHtml(params.nonRefundedFormatted)
+      : null
+
+    let summaryHtml: string
+    if (params.mode === 'void_auth') {
+      summaryHtml = `<p>No charge was made — your card was authorized but the camp had not yet
+      accepted your booking, so we've simply released the hold on your card.</p>`
+    } else if (params.mode === 'grace') {
+      summaryHtml = `<p>Because you cancelled within the 48-hour grace period, you'll receive a
+      <strong>full refund of ${refundFormatted ?? 'your payment'}</strong>. The refund typically
+      lands within 5–10 business days, depending on your bank.</p>`
+    } else {
+      summaryHtml = `<p>Per the camp's cancellation policy, you'll receive a refund of
+      <strong>${refundFormatted ?? '0.00'}</strong>${
+        nonRefundedFormatted
+          ? `. The non-refundable portion (${nonRefundedFormatted}) reflects the camp's policy and the deposit, which is non-refundable after the 48-hour grace period`
+          : ''
+      }.</p>`
+    }
+
+    const content = `
+      <div class="email-header">
+        <div class="logo">World-Camps</div>
+        <h1>Your booking is cancelled</h1>
+      </div>
+      <div class="email-body">
+        <p>Hi ${parentFirstName},</p>
+
+        <p>We've cancelled your booking for <strong>${campName}</strong>
+        (<code>${bookingGroupNumber}</code>).</p>
+
+        ${summaryHtml}
+
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${params.bookingsUrl}" class="button">View your bookings</a>
+        </div>
+
+        <div class="divider"></div>
+        <p class="text-secondary" style="font-size: 14px;">Best regards,<br>The World-Camps Team</p>
+      </div>
+      <div class="email-footer">
+        <p>&copy; ${new Date().getFullYear()} World-Camps. All rights reserved.</p>
+      </div>
+    `
+    return this.getBaseTemplate(content)
+  }
+
+  /**
+   * Phase 4: reimbursement reminder. Sent by the daily reminder cron to the
+   * provider's owner when a Reimbursement is overdue (dueDate < now). Under
+   * Accounts v2 the platform absorbed the refund debit; the camp owes us
+   * the equivalent and we collect either by deduction from their next
+   * payout or by direct bank transfer. The reminder is best-effort — if
+   * sending fails we don't stamp `lastReminderSentAt` and the cron picks
+   * the row up again the next day.
+   */
+  getReimbursementReminderTemplate(params: {
+    providerOwnerFirstName: string
+    providerLegalCompanyName: string
+    bookingGroupNumber: string
+    amountOwedFormatted: string
+    dueDateFormatted: string
+    daysOverdue: number
+    settlementInstructionsUrl: string
+  }): string {
+    const providerOwnerFirstName = this.escapeHtml(params.providerOwnerFirstName)
+    const providerLegalCompanyName = this.escapeHtml(params.providerLegalCompanyName)
+    const bookingGroupNumber = this.escapeHtml(params.bookingGroupNumber)
+    const amountOwedFormatted = this.escapeHtml(params.amountOwedFormatted)
+    const dueDateFormatted = this.escapeHtml(params.dueDateFormatted)
+    const daysOverdue = Number.isFinite(params.daysOverdue) ? Math.max(params.daysOverdue, 0) : 0
+
+    const content = `
+      <div class="email-header">
+        <div class="logo">World-Camps</div>
+        <h1>Reimbursement due</h1>
+      </div>
+      <div class="email-body">
+        <p>Hi ${providerOwnerFirstName},</p>
+
+        <p>A booking for <strong>${providerLegalCompanyName}</strong>
+        (<code>${bookingGroupNumber}</code>) was refunded after the camp's
+        funds had already been disbursed. Per our terms, you owe World-Camps
+        <strong>${amountOwedFormatted}</strong> to settle the difference.</p>
+
+        <p>This was due on <strong>${dueDateFormatted}</strong>${
+          daysOverdue > 0 ? ` — currently <strong>${daysOverdue}</strong> day(s) overdue` : ''
+        }.</p>
+
+        <p>You can settle by direct bank transfer, or we'll deduct the
+        amount from your next payout. Reply to this email with how you'd
+        like to proceed, or open the settlement guide for instructions.</p>
+
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${params.settlementInstructionsUrl}" class="button">Settlement guide</a>
+        </div>
+
+        <div class="divider"></div>
+        <p class="text-secondary" style="font-size: 14px;">Best regards,<br>The World-Camps Team</p>
+      </div>
+      <div class="email-footer">
+        <p>&copy; ${new Date().getFullYear()} World-Camps. All rights reserved.</p>
+      </div>
+    `
+    return this.getBaseTemplate(content)
+  }
+
   getLoginVerificationTemplate(code: string, expiryMinutes: number, userName: string): string {
+    const safeUserName = this.escapeHtml(userName)
     const content = `
       <div class="email-header">
         <div class="logo">World-Camps</div>
         <h1>Login Verification</h1>
       </div>
       <div class="email-body">
-        <p>Hi ${userName},</p>
+        <p>Hi ${safeUserName},</p>
 
         <p>We received a login attempt to your World-Camps account. Please use the verification code below to complete your login:</p>
 

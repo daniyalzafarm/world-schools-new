@@ -26,6 +26,11 @@ import {
 } from 'lucide-react'
 import { BackButton } from '@world-schools/ui-web'
 import {
+  ConnectAccountManagement,
+  ConnectComponentsProvider,
+  ConnectNotificationBanner,
+} from '@stripe/react-connect-js'
+import {
   type StripeAccountStatus,
   type StripeAddress,
   type StripeBankAccount,
@@ -35,6 +40,8 @@ import {
   type StripePayoutSchedule,
   type StripeRepresentative,
 } from '@/services/stripe-connect.services'
+import config from '@/config/config'
+import { useStripeConnectInstance } from '@/hooks/use-stripe-connect-instance'
 import { useAuth } from '@/hooks/use-auth'
 import { extractApiErrorMessage } from '@/utils/api-errors'
 import { createLogger } from '@/utils/logger'
@@ -195,6 +202,14 @@ export default function StripeAccountPage() {
   // defeating useCallback. A ref keeps the callback identity stable.
   const isOpeningDashboardRef = useRef(false)
 
+  // B4 audit fix: shared Stripe Connect instance for the embedded surfaces
+  // mounted further down (`ConnectNotificationBanner`, `ConnectAccountManagement`).
+  // We gate initialization on `accountStatus?.hasAccount` so we never spin up an
+  // AccountSession for a provider who hasn't run /onboarding/stripe-connect yet.
+  const stripeConnect = useStripeConnectInstance({
+    enabled: Boolean(accountStatus?.hasAccount),
+  })
+
   const loadAccountStatus = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     if (mode === 'refresh') setIsRefreshing(true)
     else setIsLoading(true)
@@ -242,9 +257,9 @@ export default function StripeAccountPage() {
     void loadAccountStatus()
   }, [isProviderAdmin, router, loadAccountStatus])
 
-  // H8: When the user returns to this tab after visiting their Stripe Express
-  // dashboard, auto-refresh once. We gate on `pendingDashboardReturn` so a plain
-  // tab-switch (e.g. alt-tab to email) doesn't trigger redundant refetches.
+  // H8: When the user returns to this tab after visiting the Stripe Dashboard
+  // at dashboard.stripe.com, auto-refresh once. We gate on `pendingDashboardReturn`
+  // so a plain tab-switch (e.g. alt-tab to email) doesn't trigger redundant refetches.
   useEffect(() => {
     if (!pendingDashboardReturn) return
     const onVisibility = () => {
@@ -257,49 +272,26 @@ export default function StripeAccountPage() {
     return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [pendingDashboardReturn, loadAccountStatus])
 
-  const handleOpenDashboard = useCallback(async () => {
+  const handleOpenDashboard = useCallback(() => {
     if (isOpeningDashboardRef.current) return
     isOpeningDashboardRef.current = true
     setIsOpeningDashboard(true)
     try {
-      const result = await stripeConnectService.createLoginLink()
-      if (!result.success || !result.data?.url) {
-        addToast({
-          title: "Couldn't open Stripe dashboard",
-          description:
-            extractApiErrorMessage(
-              result,
-              'Try again in a moment, or finish setup if any details are still required.'
-            ) ?? 'Try again in a moment, or finish setup if any details are still required.',
-          color: 'danger',
-        })
-        return
-      }
-      // Single-use, short-lived URL — open in a new tab so the user keeps their place here.
-      const popup = window.open(result.data.url, '_blank', 'noopener,noreferrer')
-      if (!popup) {
-        // Browser blocked the popup OR we're inside a sandboxed/iframe context.
-        // The login link is single-use and short-lived, so we can't keep it
-        // around for a "click to open" fallback — just direct the user to
-        // allow popups and retry.
-        addToast({
-          title: 'Popup blocked',
-          description:
-            'Your browser blocked the new tab. Allow popups for this site and click "Open Stripe dashboard" again.',
-          color: 'warning',
-        })
-        return
-      }
-      // Mark that we expect the user to come back; the visibilitychange effect
-      // will then auto-refresh on return so they don't see stale status.
+      // Direct Charges: providers use full Stripe Dashboard accounts and log
+      // in at dashboard.stripe.com with their own Stripe credentials —
+      // `accounts.createLoginLink` is Express-only and no longer applies.
+      // Open in a new tab so the user keeps their place here; the
+      // `visibilitychange` effect refreshes status when they return.
+      //
+      // H3: route to the mode-appropriate dashboard URL. Connected-account
+      // IDs don't carry a test/live signal, so we derive the mode from the
+      // publishable-key prefix client-side (see `config.stripe.dashboardUrl`).
+      const a = document.createElement('a')
+      a.href = config.stripe.dashboardUrl
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      a.click()
       setPendingDashboardReturn(true)
-    } catch (err) {
-      log.error('Open dashboard failed', err)
-      addToast({
-        title: 'Error',
-        description: 'An unexpected error occurred. Please try again.',
-        color: 'danger',
-      })
     } finally {
       isOpeningDashboardRef.current = false
       setIsOpeningDashboard(false)
@@ -329,6 +321,10 @@ export default function StripeAccountPage() {
   }
 
   const state = deriveState(accountStatus)
+  // B4 audit fix: only spin up the embedded Connect surface when there's
+  // actually a Stripe account on the provider. Avoids a useless `accountSession`
+  // POST that would 400 on the backend (`Stripe account has not been created`).
+  const showEmbeddedSurface = accountStatus.hasAccount
 
   // Stripe's three requirement buckets overlap (a past-due item is also
   // currently due, and currently-due items are also eventually due). Project
@@ -339,10 +335,10 @@ export default function StripeAccountPage() {
     requirements.currentlyDue.length > 0 ||
     requirements.eventuallyDue.length > 0
 
-  // Only offer the dashboard button when Stripe will actually let us create a
-  // login link. Stripe rejects login-link creation for accounts that haven't
-  // submitted enough details yet, and there's no point offering it when the
-  // account doesn't exist at all.
+  // Only offer the dashboard button once the provider has actually created a
+  // Stripe account — there's nothing to log into otherwise. Standard accounts
+  // sign in to dashboard.stripe.com with their own credentials (Direct Charges
+  // doesn't use platform-issued login links).
   const canOpenDashboard =
     accountStatus.hasAccount &&
     (accountStatus.onboardingCompleted || accountStatus.detailsSubmitted)
@@ -364,6 +360,18 @@ export default function StripeAccountPage() {
     >
       <StatusBanner state={state} status={accountStatus} />
 
+      {/* B4: Stripe-managed notification banner — surfaces in-iframe alerts
+          for new requirements / risk-review state without us having to poll.
+          Renders only when an embedded instance has loaded; falls back silently
+          to the hand-rolled "What's needed" section below if it hasn't. */}
+      {showEmbeddedSurface && stripeConnect.instance && (
+        <div className="mt-4">
+          <ConnectComponentsProvider connectInstance={stripeConnect.instance}>
+            <ConnectNotificationBanner />
+          </ConnectComponentsProvider>
+        </div>
+      )}
+
       {state === ACCOUNT_STATE.None ? (
         <NoAccountCallout />
       ) : (
@@ -377,7 +385,7 @@ export default function StripeAccountPage() {
               <dl className="grid gap-x-6 gap-y-5 py-4 sm:grid-cols-2 lg:grid-cols-3">
                 <GridField
                   label="Account ID"
-                  hint="Your Stripe Express identifier"
+                  hint="Your Stripe account identifier"
                   className="sm:col-span-2 lg:col-span-1"
                 >
                   <span className="font-mono text-sm break-all">
@@ -535,7 +543,7 @@ export default function StripeAccountPage() {
               </dl>
             </Section>
 
-            {/* Payout details — currency + commission */}
+            {/* Payout details — currency + app fee */}
             <Section title="Payout Details">
               <dl className="grid gap-x-6 gap-y-5 py-4 sm:grid-cols-2">
                 <GridField label="Currency" hint="Set during your application — cannot be changed">
@@ -543,13 +551,28 @@ export default function StripeAccountPage() {
                     {accountStatus.currency ? accountStatus.currency.toUpperCase() : '—'}
                   </span>
                 </GridField>
-                <GridField label="Platform commission" hint="Deducted from each booking payout">
-                  {accountStatus.commissionPercentage !== null
-                    ? `${accountStatus.commissionPercentage}%`
+                <GridField label="App fee" hint="Deducted from each booking payout">
+                  {accountStatus.appFeePercentage !== null
+                    ? `${accountStatus.appFeePercentage}%`
                     : '—'}
                 </GridField>
               </dl>
             </Section>
+
+            {/* B4: Stripe-managed account management surface. Lets the provider
+                edit business info / payout method / personal details inline
+                without bouncing to the Stripe Dashboard. We keep the read-only
+                custom sections above for at-a-glance info; the embedded
+                component is the canonical edit affordance. */}
+            {showEmbeddedSurface && stripeConnect.instance && (
+              <Section title="Edit account details">
+                <div className="rounded-xl border border-default-200 bg-white p-2 shadow-sm sm:p-4">
+                  <ConnectComponentsProvider connectInstance={stripeConnect.instance}>
+                    <ConnectAccountManagement />
+                  </ConnectComponentsProvider>
+                </div>
+              </Section>
+            )}
           </Sections>
 
           {/* Refresh footer */}

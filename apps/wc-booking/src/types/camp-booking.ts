@@ -3,6 +3,33 @@ import type { Session } from '@/types/sessions'
 
 export type BookingFlowStep = 'sessions' | 'children' | 'addons' | 'review-and-pay'
 
+/**
+ * Payment metadata returned by `POST /user/booking-groups/:id/submit` — the
+ * Stripe.js confirmation method to call (`confirmPayment` for PaymentIntent,
+ * `confirmSetup` for SetupIntent), the client secret, and the amount/currency
+ * to display in confirmation copy.
+ */
+export type SubmitPaymentIntentType = 'payment_intent' | 'setup_intent'
+export type SubmitPaymentKind = 'deposit' | 'full' | 'setup'
+
+export interface SubmitPaymentResponse {
+  intentType: SubmitPaymentIntentType
+  kind: SubmitPaymentKind
+  paymentId: string
+  intentId: string
+  clientSecret: string
+  /// Major-unit string ("600.00").
+  amount: string
+  /// ISO 4217 lowercase ("eur").
+  currency: string
+}
+
+export interface SubmitBookingGroupResponse {
+  bookingGroupId: string
+  status: string
+  payment: SubmitPaymentResponse
+}
+
 export interface CampBookingAddOn {
   addOnId: string
   campId: string
@@ -85,6 +112,29 @@ export interface ParentBookingGroupBookingLine {
 
 export type SessionDayTypeApi = 'full_day' | 'half_day' | null
 
+/**
+ * Latest Payment summary surfaced on the booking detail. Used by the booking
+ * flow to decide on reload whether the parent still needs to enter a card
+ * (status not yet authorized) or the booking is fully ready (already
+ * authorized, awaiting provider acceptance).
+ */
+export type ParentPaymentRowStatus =
+  | 'requires_payment_method'
+  | 'requires_confirmation'
+  | 'requires_action'
+  | 'processing'
+  | 'requires_capture'
+  | 'succeeded'
+  | 'canceled'
+  | 'failed'
+
+export interface ParentBookingPaymentSummary {
+  id: string
+  kind: 'deposit' | 'balance' | 'full' | 'rebill'
+  status: ParentPaymentRowStatus
+  intentType: 'payment_intent' | 'setup_intent'
+}
+
 export interface ParentBookingGroupDetail {
   id: string
   bookingGroupNumber: string
@@ -103,6 +153,7 @@ export interface ParentBookingGroupDetail {
   respondedAt: string | null
   expiresAt: string | null
   updatedAt: string
+  payment: ParentBookingPaymentSummary | null
   camp: {
     id: string
     name: string
@@ -193,4 +244,42 @@ export interface BookingStepChildrenState {
 export interface BookingStepSessionsState {
   sessions: Session[]
   selectedSessionId: string | null
+}
+
+/**
+ * Phase 4 — types for the parent cancel + refund-preview flow. Mirror of
+ * `ParentCancelMode` and `RefundPreview` on the backend.
+ */
+export type ParentCancelMode = 'void_auth' | 'grace' | 'policy' | 'not_cancelable'
+
+export interface ParentRefundPreviewItem {
+  paymentId: string
+  kind: string
+  originalAmountMajor: string
+  refundAmountMajor: string
+}
+
+export interface ParentRefundPreview {
+  mode: ParentCancelMode
+  currentStatus: ParentBookingGroupStatus
+  reason?: string
+  gracePeriodEndsAt?: string
+  policy?: {
+    policyName: string
+    matchedTier: { daysBeforeStart: number; refundPercentage: number } | null
+    daysBeforeStart: number
+    evaluatedAt: string
+    /**
+     * Set when the parent's `circumstance` claim matched a provider-configured
+     * special-circumstance refund AND the override was more generous than the
+     * standard tier. The matchedTier above already reflects the override.
+     */
+    appliedCircumstance?: {
+      type: 'medical' | 'force_majeure' | 'weather'
+      refundPercentage: number
+    } | null
+  }
+  items: ParentRefundPreviewItem[]
+  totalRefundMajor: string
+  currency: string | null
 }

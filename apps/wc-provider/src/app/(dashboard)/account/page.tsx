@@ -6,6 +6,7 @@ import {
   Building2,
   ChevronRight,
   CreditCard,
+  FileText,
   Headphones,
   HelpCircle,
   Lock,
@@ -17,6 +18,7 @@ import {
   ShieldCheck,
   User,
   Users,
+  Wallet,
 } from 'lucide-react'
 import { cn, useConfirmDialog, UserAvatar } from '@world-schools/ui-web'
 import { profileService, type UserProfile } from '@/services/profile.services'
@@ -91,6 +93,18 @@ const businessInfoSection: QuickLinkSection = {
       description: 'Connected payment account status',
       href: '/account/business/stripe-account',
       icon: <CreditCard size={22} />,
+    },
+    {
+      title: 'Deposit Settings',
+      description: 'Booking deposit amount and type',
+      href: '/account/business/deposit-settings',
+      icon: <Wallet size={22} />,
+    },
+    {
+      title: 'Payment Policies',
+      description: 'Cancellation policy and refund rules',
+      href: '/account/business/payment-policies',
+      icon: <FileText size={22} />,
     },
   ],
 }

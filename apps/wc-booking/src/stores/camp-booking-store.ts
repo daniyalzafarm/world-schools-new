@@ -1,12 +1,13 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { childrenService } from '@/services/children.services'
-import { getCampBySlug } from '@/services/camps.services'
+import { getCampBySlug, getCampReviews } from '@/services/camps.services'
 import { campSessionsService } from '@/services/camp-sessions.services'
 import { campAddOnsService } from '@/services/camp-addons.services'
 import { bookingGroupsService } from '@/services/booking-groups.services'
 import type { Camp } from '@/types/camps'
 import { type Child, getChildAge } from '@/types/child'
+import type { CampReviewsData } from '@/types/reviews'
 import type { Session } from '@/types/sessions'
 import type {
   BookingFlowStep,
@@ -15,12 +16,14 @@ import type {
   CampBookingChildQuantity,
   DraftBookingPreview,
   SaveBookingGroupAddOnsRequest,
+  SubmitPaymentResponse,
 } from '@/types/camp-booking'
 import { getAddOnMode } from '@/utils/addon-pricing'
 
 interface CampBookingState {
   campSlug: string | null
   camp: Camp | null
+  campReviews: CampReviewsData | null
   sessions: Session[]
   children: Child[]
   addOns: CampBookingAddOn[]
@@ -34,6 +37,11 @@ interface CampBookingState {
   error: string | null
   duplicateDraftConflict: { bookingGroupId: string; message: string } | null
   draftPreviews: DraftBookingPreview[]
+  /// Set true once `confirmPayment` / `confirmSetup` resolves successfully.
+  /// Distinct from `hasSubmitted` because some flows authorize at submit
+  /// (PaymentIntent) and confirm asynchronously (3DS) — the button stays
+  /// enabled until paymentConfirmed is true.
+  paymentConfirmed: boolean
 }
 
 interface CampBookingActions {
@@ -58,7 +66,22 @@ interface CampBookingActions {
   setAddOnChildQuantity: (addOnId: string, childId: string, quantity: number) => void
   setAddOnQuantity: (addOnId: string, quantity: number) => void
   saveAddOnsAndGoToReview: () => Promise<boolean>
-  submitBookingGroup: () => Promise<boolean>
+  /**
+   * Posts the booking to the server and returns the Stripe payment metadata
+   * (intentType + clientSecret) for the calling component to confirm. Throws
+   * on server error so the caller can surface the message inline. Returns
+   * `null` only when no bookingGroupId is set (fail-safe).
+   *
+   * IMPORTANT: this fn deliberately performs no store mutations — see the
+   * Stripe.js race window note in the implementation.
+   */
+  submitBookingGroup: () => Promise<SubmitPaymentResponse | null>
+  /**
+   * Marks the payment as confirmed after Stripe.js's `confirmPayment` /
+   * `confirmSetup` resolves. Sets `hasSubmitted` so the review screen swaps
+   * to the success panel.
+   */
+  markPaymentConfirmed: () => void
   setSpecialRequest: (value: string) => void
   resetForNewBooking: () => void
   specialRequest: string
@@ -72,6 +95,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
   immer((set, get) => ({
     campSlug: null,
     camp: null,
+    campReviews: null,
     sessions: [],
     children: [],
     addOns: [],
@@ -86,6 +110,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
     duplicateDraftConflict: null,
     draftPreviews: [],
     specialRequest: '',
+    paymentConfirmed: false,
 
     initByCampSlug: async campSlug => {
       set(state => {
@@ -96,11 +121,27 @@ export const useCampBookingStore = create<CampBookingStore>()(
 
       try {
         const camp = await getCampBySlug(campSlug)
-        const [sessionsResponse, childrenResponse, addOnsResponse] = await Promise.all([
-          campSessionsService.getByCampId(camp.id),
-          childrenService.getAll(),
-          campAddOnsService.getByCampId(camp.id),
-        ])
+        // Connect onboarding gate: under Direct Charges the provider's `acct_…`
+        // is bound to the Stripe.js instance via `loadStripe(pk, { stripeAccount })`
+        // and the PaymentIntent is created on the connected account directly.
+        // Refuse to start the booking flow at all when the account id is missing,
+        // instead of failing later at submit with a Stripe scoping error.
+        if (!camp.provider?.stripeAccountId) {
+          throw new Error(
+            'This provider isn’t fully set up for payments yet. Please contact support.'
+          )
+        }
+        const [sessionsResponse, childrenResponse, addOnsResponse, campReviews] = await Promise.all(
+          [
+            campSessionsService.getByCampId(camp.id),
+            childrenService.getAll(),
+            campAddOnsService.getByCampId(camp.id),
+            // Reviews are non-critical for the flow (camp page swallows the same
+            // failure); a 404/500 here must not break booking. Fall back to null
+            // and the sidebar shows the "0 reviews" empty state.
+            getCampReviews(camp.id).catch(() => null),
+          ]
+        )
 
         if (!sessionsResponse.success) throw new Error((sessionsResponse.data as any)?.message)
         if (!childrenResponse.success) throw new Error((childrenResponse.data as any)?.message)
@@ -108,6 +149,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
 
         set(state => {
           state.camp = camp
+          state.campReviews = campReviews
           state.sessions = sessionsResponse.data
           state.children = childrenResponse.data
           state.addOns = addOnsResponse.data
@@ -132,10 +174,34 @@ export const useCampBookingStore = create<CampBookingStore>()(
         state.error = null
       })
       try {
+        // Best-effort sync first: if the parent reloaded the page mid-flow
+        // (e.g. after `stripe.confirmPayment` redirected for 3DS, or the tab
+        // closed before the success path's sync call), this pulls the live
+        // intent state from Stripe so the next getById returns a fresh
+        // Payment summary. Errors are swallowed — the load proceeds with
+        // whatever DB state exists, which the webhook will reconcile later.
+        try {
+          await bookingGroupsService.syncPayment(bookingGroupId)
+        } catch (_syncErr) {
+          /* swallow — getById will still return useful state */
+        }
+
         const response = await bookingGroupsService.getById(bookingGroupId)
         if (!response.success) throw new Error((response.data as any)?.message)
         const details = response.data
         const selectedChildIds = details.bookings.map(item => item.childId)
+
+        // Detect "already authorized" so we render the success panel
+        // (instead of asking the parent to re-enter their card) when they
+        // reload after a successful confirm. For SetupIntent placeholders
+        // the Payment row's `status` stays at `processing` after a
+        // successful confirmSetup (the placeholder is a cron-driven row),
+        // so we don't infer anything from it for setup_intent yet — the
+        // parent would simply see the form and Stripe would resolve the
+        // duplicate confirm gracefully. Phase 3 hardens this case.
+        const isPaymentAlreadyAuthorized =
+          details.payment?.intentType === 'payment_intent' &&
+          (details.payment.status === 'requires_capture' || details.payment.status === 'succeeded')
 
         set(state => {
           state.bookingGroupId = details.id
@@ -143,6 +209,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
           state.selectedChildIds = selectedChildIds
           state.specialRequest = details.specialRequest ?? ''
           state.hasSubmitted = details.status !== 'draft'
+          state.paymentConfirmed = isPaymentAlreadyAuthorized
 
           const hasReviewMarker =
             details.specialRequest !== null && details.specialRequest !== undefined
@@ -539,37 +606,35 @@ export const useCampBookingStore = create<CampBookingStore>()(
     },
 
     submitBookingGroup: async () => {
+      // CRITICAL: this fn must NOT mutate the store between the caller's
+      // `elements.submit()` and `stripe.confirmPayment` calls. Any store write
+      // here would trigger React re-renders during the Stripe flow window and
+      // can cause Stripe.js to drop the form data queued by `elements.submit`.
+      // Server-side `submitForParent` is idempotent — it returns the same
+      // intent + a fresh `clientSecret` when called repeatedly while a Payment
+      // is in-flight — so retries are safe without any client-side cache.
       const state = get()
-      if (!state.bookingGroupId) return false
+      if (!state.bookingGroupId) return null
 
-      // Safety: persist add-ons + review marker even if user reached submit directly.
       try {
         const payload = buildSaveAddOnsPayload(state)
         await bookingGroupsService.saveAddOns(state.bookingGroupId, payload)
       } catch (_e) {
-        // ignore here; submit endpoint will throw if it can't change status
+        // ignore: submit endpoint will throw if it can't change status
       }
 
-      set(draft => {
-        draft.isLoading = true
-        draft.error = null
-      })
-      try {
-        const response = await bookingGroupsService.submit(state.bookingGroupId)
-        if (!response.success) throw new Error((response.data as any)?.message)
-        set(draft => {
-          draft.isLoading = false
-          draft.currentStep = 'review-and-pay'
-          draft.hasSubmitted = true
-        })
-        return true
-      } catch (error: any) {
-        set(draft => {
-          draft.error = error?.message ?? 'Failed to submit booking request'
-          draft.isLoading = false
-        })
-        return false
+      const response = await bookingGroupsService.submit(state.bookingGroupId)
+      if (!response.success) {
+        throw new Error((response.data as any)?.message ?? 'Failed to submit booking request')
       }
+      return response.data.payment
+    },
+
+    markPaymentConfirmed: () => {
+      set(draft => {
+        draft.paymentConfirmed = true
+        draft.hasSubmitted = true
+      })
     },
 
     resetForNewBooking: () => {
@@ -583,6 +648,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
         state.addOnSelectionsById = {}
         state.specialRequest = ''
         state.hasSubmitted = false
+        state.paymentConfirmed = false
       })
     },
   }))

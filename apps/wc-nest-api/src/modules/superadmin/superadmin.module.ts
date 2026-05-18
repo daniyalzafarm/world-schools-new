@@ -9,6 +9,8 @@ import { SuperAdminCampsModule } from './camps/camps.module'
 import { SuperAdminSessionsModule } from './sessions/sessions.module'
 import { SuperAdminParentsModule } from './parents/parents.module'
 import { AdminSettingsModule } from './admin-settings/admin-settings.module'
+import { SuperAdminBillingModule } from './billing/billing.module'
+import { SuperAdminDisputesModule } from './disputes/disputes.module'
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { AdminSettingsModule } from './admin-settings/admin-settings.module'
     SuperAdminSessionsModule,
     SuperAdminParentsModule,
     AdminSettingsModule,
+    SuperAdminBillingModule,
+    SuperAdminDisputesModule,
   ],
 })
 export class SuperAdminModule {}

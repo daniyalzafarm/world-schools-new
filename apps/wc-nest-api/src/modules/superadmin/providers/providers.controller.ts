@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Delete,
   Get,
   Param,
   Patch,
@@ -15,6 +14,8 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { SuperAdminProvidersService } from './providers.service'
 import { CreateProviderDto } from './dto/create-provider.dto'
+import { UpdateAppFeeDto } from './dto/update-app-fee.dto'
+import { UpdatePayoutModeDto } from './dto/update-payout-mode.dto'
 import { UpdateProviderDto } from './dto/update-provider.dto'
 import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
 import { Permissions } from '../../core/auth/decorators/permissions.decorator'
@@ -84,16 +85,46 @@ export class SuperAdminProvidersController {
     return ResponseUtil.success(provider)
   }
 
-  @Delete(':id')
-  @Permissions('providers.delete')
+  @Patch(':id/app-fee')
+  @Permissions('providers.update')
   @ApiOperation({
-    summary: 'Delete a provider',
-    description: 'Delete a provider if it has no parents or children enrolled',
+    summary: 'Set per-provider app-fee override',
+    description:
+      'Toggle a custom app fee for this provider. When custom=false, falls back to SystemSettings.defaultAppFee. Only future bookings are affected; existing bookings keep their snapshotted rate.',
   })
-  async remove(@Param('id') id: string) {
-    const result = await this.providersService.remove(id)
-    return ResponseUtil.success(result)
+  async setAppFee(
+    @Param('id') id: string,
+    @Body() dto: UpdateAppFeeDto,
+    @CurrentUser() admin: any
+  ) {
+    const provider = await this.providersService.setAppFee(id, dto, admin.id)
+    return ResponseUtil.success(provider)
   }
+
+  @Patch(':id/payout-mode')
+  @Permissions('providers.update')
+  @ApiOperation({
+    summary: 'Set per-provider payout mode',
+    description:
+      'Configure how this provider gets paid: `default_after_start` (single payout day-after-camp-start), `offset_days` (single payout X days before camp-start, requires offsetDays + agreementNote), or `policy_staged` (multi-tranche releases driven by deposit + cancellation policy, requires agreementNote). Only future bookings are affected; existing bookings keep their snapshotted mode.',
+  })
+  async setPayoutMode(
+    @Param('id') id: string,
+    @Body() dto: UpdatePayoutModeDto,
+    @CurrentUser() admin: any
+  ) {
+    const settings = await this.providersService.setPayoutMode(id, dto, admin.id)
+    return ResponseUtil.success(settings)
+  }
+
+  // M3 audit fix: the superadmin Provider delete endpoint is removed.
+  // Providers are not deletable once onboarding completes — they carry the
+  // foreign-key spine for every Payment / Booking / Payout / Refund /
+  // Reimbursement in the system, and deleting one would cascade across the
+  // entire billing audit trail (or fail with a constraint violation,
+  // leaving partial state). Lifecycle is "active → suspended → archived",
+  // never "deleted". If a provider truly must be removed (test data, GDPR
+  // erasure), do it through a one-off migration with cross-team review.
 
   @Post('import')
   @Permissions('providers.create')

@@ -3,7 +3,7 @@ import { IsNumber, Max, Min } from 'class-validator'
 
 export class UpdateSystemSettingsDto {
   @ApiProperty({
-    description: 'Default platform commission percentage applied to new providers',
+    description: 'Default app fee percentage applied to new providers',
     example: 10,
     minimum: 0,
     maximum: 100,
@@ -11,12 +11,12 @@ export class UpdateSystemSettingsDto {
   @IsNumber()
   @Min(0)
   @Max(100)
-  defaultCommission: number
+  defaultAppFee: number
 }
 
 export class SystemSettingsResponseDto {
-  @ApiProperty({ description: 'Default platform commission percentage', example: 10 })
-  defaultCommission: number
+  @ApiProperty({ description: 'Default app fee percentage', example: 10 })
+  defaultAppFee: number
 
   @ApiProperty({ description: 'Last updated timestamp' })
   updatedAt: string

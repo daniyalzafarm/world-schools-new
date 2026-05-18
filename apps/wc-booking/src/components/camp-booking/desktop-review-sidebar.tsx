@@ -1,28 +1,34 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useCampBookingStore } from '@/stores/camp-booking-store'
 import { formatCurrency } from '@/utils/currency'
 import { getChildAge } from '@/types/child'
-import { getSelectedChildrenSubtotal } from '@/components/camp-booking/booking-flow-pricing'
 import { CancellationPolicyModal } from '@/components/camp-booking/cancellation-policy-modal'
-import { getFreeCancellationCutoffDate } from '@world-schools/wc-utils'
+import { useBookingSidebarData } from '@/components/camp-booking/use-booking-sidebar-data'
+import { useBookingTotals } from '@/components/camp-booking/use-booking-totals'
+import { SidebarExtrasList } from '@/components/camp-booking/sidebar-extras-list'
+import { SidebarRatingsRow } from '@/components/camp-booking/sidebar-camp-info-card'
 
 export function DesktopReviewSidebar() {
-  const camp = useCampBookingStore(state => state.camp)
-  const sessions = useCampBookingStore(state => state.sessions)
-  const selectedSessionId = useCampBookingStore(state => state.selectedSessionId)
-  const children = useCampBookingStore(state => state.children)
-  const selectedChildIds = useCampBookingStore(state => state.selectedChildIds)
-  const addOns = useCampBookingStore(state => state.addOns)
-  const addOnSelectionsById = useCampBookingStore(state => state.addOnSelectionsById)
-  const setStep = useCampBookingStore(state => state.setStep)
-  const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
+  const {
+    camp,
+    selectedSession,
+    children,
+    selectedChildIds,
+    addOns,
+    currency,
+    setStep,
+    campPhotoUrl,
+    beforeCancellationText: beforeCancellationLabel,
+    systemRating,
+    systemReviewsCount,
+    hasSystemReviews,
+    googleRating,
+    googleReviewsCount,
+    hasGoogleReviews,
+    googleReviewsUrl,
+  } = useBookingSidebarData()
 
-  const selectedSession = useMemo(
-    () => sessions.find(session => session.id === selectedSessionId) ?? null,
-    [sessions, selectedSessionId]
-  )
   const selectedChildren = useMemo(
     () => children.filter(child => selectedChildIds.includes(child.id)),
     [children, selectedChildIds]
@@ -33,23 +39,8 @@ export function DesktopReviewSidebar() {
       return `${child.firstName}${age !== null ? ` (${age})` : ''}`
     })
     .join(', ')
-  const campPhotoUrl = useMemo(() => {
-    const photos = camp?.photos ?? []
-    const primary = photos.find(p => p.isPrimary)
-    const chosen = primary ?? photos[0]
-    return chosen?.url ?? chosen?.thumbnail ?? null
-  }, [camp])
 
   const [isCancellationOpen, setIsCancellationOpen] = useState(false)
-
-  const beforeCancellationLabel = useMemo(() => {
-    const cutoff = getFreeCancellationCutoffDate(
-      selectedSession?.startDate,
-      camp?.provider?.settings?.cancellationPolicy,
-      camp?.provider?.settings?.cancellationPolicyCustom
-    )
-    return cutoff ? cutoff.toLocaleString('en-US', { month: 'long', day: 'numeric' }) : ''
-  }, [selectedSession, camp])
 
   const sessionRangeLabel = useMemo(() => {
     if (!selectedSession) return 'Select a session'
@@ -67,47 +58,13 @@ export function DesktopReviewSidebar() {
     return `${startFmt} - ${endFmt} · ${weeks} week${weeks === 1 ? '' : 's'}`
   }, [selectedSession])
 
-  const campFee = useMemo(
-    () =>
-      getSelectedChildrenSubtotal({
-        session: selectedSession,
-        camp,
-        children,
-        selectedChildIds,
-      }),
-    [selectedSession, camp, children, selectedChildIds]
-  )
-
-  const extrasRows = useMemo(() => {
-    return Object.values(addOnSelectionsById)
-      .map(selection => {
-        const addon = addOns.find(a => a.addOnId === selection.addOnId)
-        if (!addon) return null
-        let qty = 0
-        if (selection.mode === 'per_child') qty = selection.childIds?.length ?? 0
-        else if (selection.mode === 'per_child_qty') {
-          qty = (selection.childQuantities ?? []).reduce(
-            (sum, item) => sum + (item.quantity ?? 0),
-            0
-          )
-        } else qty = selection.quantity ?? 0
-        if (qty <= 0) return null
-        return {
-          key: addon.addOnId,
-          label: qty > 1 ? `${addon.name} x ${qty}` : addon.name,
-          total: addon.price * qty,
-        }
-      })
-      .filter(Boolean) as Array<{ key: string; label: string; total: number }>
-  }, [addOnSelectionsById, addOns])
-
-  const total = campFee + extrasRows.reduce((sum, row) => sum + row.total, 0)
+  const { campFee, extrasRows, total, depositAmount } = useBookingTotals()
 
   return (
     <aside className="hidden lg:block sticky top-28 md:top-32">
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="p-5 border-b border-gray-200">
-          <div className="flex items-center gap-4">
+          <div className="flex gap-4">
             <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
               {campPhotoUrl ? (
                 <img
@@ -119,9 +76,15 @@ export function DesktopReviewSidebar() {
             </div>
             <div className="min-w-0">
               <p className="truncate font-semibold text-gray-900">{camp?.name ?? 'Camp'}</p>
-              <p className="mt-1 text-sm text-gray-600">
-                <span className="text-primary-600">★</span> 4.9 (241 reviews)
-              </p>
+              <SidebarRatingsRow
+                systemRating={systemRating}
+                systemReviewsCount={systemReviewsCount}
+                hasSystemReviews={hasSystemReviews}
+                googleRating={googleRating}
+                googleReviewsCount={googleReviewsCount}
+                hasGoogleReviews={hasGoogleReviews}
+                googleReviewsUrl={googleReviewsUrl}
+              />
             </div>
           </div>
         </div>
@@ -137,7 +100,7 @@ export function DesktopReviewSidebar() {
               <>
                 Cancel{' '}
                 <span className="underline decoration-gray-300 underline-offset-3">
-                  before {beforeCancellationLabel}
+                  by {beforeCancellationLabel}
                 </span>{' '}
                 for a full refund.
               </>
@@ -207,22 +170,7 @@ export function DesktopReviewSidebar() {
               </span>
               <span>{formatCurrency(campFee, currency)}</span>
             </div>
-            {extrasRows.length > 0 ? (
-              <>
-                <div className="pt-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Extras
-                </div>
-                {extrasRows.map(row => (
-                  <div
-                    key={row.key}
-                    className="flex items-center justify-between text-sm text-gray-700"
-                  >
-                    <span>{row.label}</span>
-                    <span>{formatCurrency(row.total, currency)}</span>
-                  </div>
-                ))}
-              </>
-            ) : null}
+            <SidebarExtrasList extrasRows={extrasRows} currency={currency} />
             <div className="h-px bg-gray-200" />
             <div className="flex items-center justify-between text-lg font-bold text-gray-900">
               <span>Total due</span>
@@ -239,6 +187,7 @@ export function DesktopReviewSidebar() {
         cancellationPolicyCustom={camp?.provider?.settings?.cancellationPolicyCustom}
         sessionStartDate={selectedSession?.startDate}
         bookingTotal={total}
+        depositAmount={depositAmount}
         currency={currency}
       />
     </aside>

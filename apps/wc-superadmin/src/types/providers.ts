@@ -76,6 +76,16 @@ export interface ProviderDetail {
     firstName: string | null
     lastName: string | null
   }
+  // Phase 5 — app fee override
+  appFeeCustom: boolean
+  appFeePercentage: number | null
+  appFeeUpdatedAt: string | null
+  appFeeUpdatedByAdmin: {
+    id: string
+    firstName: string | null
+    lastName: string | null
+    email: string
+  } | null
   settings: ProviderSettings | null
   verificationDocuments: VerificationDocument[]
   camps: ProviderCampSummary[]

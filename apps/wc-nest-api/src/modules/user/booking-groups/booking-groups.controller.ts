@@ -5,6 +5,7 @@ import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 import { Roles } from '../../core/auth/decorators/roles.decorator'
 import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
 import { BookingGroupsService } from '../../booking-groups/booking-groups.service'
+import { CancelBookingGroupDto } from './dto/cancel-booking-group.dto'
 import { CreateDraftBookingGroupDto } from './dto/create-draft-booking-group.dto'
 import { QueryParentBookingGroupsDto } from './dto/query-parent-booking-groups.dto'
 import { SaveBookingGroupAddOnsDto } from './dto/save-booking-group-addons.dto'
@@ -60,6 +61,20 @@ export class UserBookingGroupsController {
     return ResponseUtil.success(result)
   }
 
+  @Post(':id/sync-payment')
+  @ApiOperation({
+    summary: 'Sync the booking-group payments with Stripe',
+    description:
+      'Frontend calls this immediately after `stripe.confirmPayment` resolves so the ' +
+      'Payment row state advances from `requires_payment_method` → `requires_capture` ' +
+      '(or further) without depending on the Stripe webhook arriving. Idempotent: runs ' +
+      'the same handler logic that webhooks invoke.',
+  })
+  async syncPayment(@CurrentUser() user: any, @Param('id') id: string) {
+    const result = await this.bookingGroupsService.syncPaymentForParent(user.id, id)
+    return ResponseUtil.success(result)
+  }
+
   @Post(':id/addons')
   @ApiOperation({ summary: 'Save selected add-ons for each booking' })
   async saveAddOns(
@@ -96,6 +111,37 @@ export class UserBookingGroupsController {
   @ApiOperation({ summary: 'Delete a draft booking group' })
   async deleteDraft(@CurrentUser() user: any, @Param('id') id: string) {
     const result = await this.bookingGroupsService.deleteDraftForParent(user.id, id)
+    return ResponseUtil.success(result)
+  }
+
+  @Get(':id/refund-preview')
+  @ApiOperation({
+    summary: 'Preview the refund the parent would receive if they cancelled right now (read-only).',
+  })
+  async refundPreview(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Query() query: CancelBookingGroupDto
+  ) {
+    const result = await this.bookingGroupsService.previewParentCancel(user.id, id, {
+      circumstance: query.circumstance ?? null,
+    })
+    return ResponseUtil.success(result)
+  }
+
+  @Post(':id/cancel')
+  @ApiOperation({
+    summary:
+      'Cancel a booking. Routes server-side to grace / policy / void-auth based on live state.',
+  })
+  async cancel(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: CancelBookingGroupDto
+  ) {
+    const result = await this.bookingGroupsService.cancelForParent(user.id, id, {
+      circumstance: dto.circumstance ?? null,
+    })
     return ResponseUtil.success(result)
   }
 }

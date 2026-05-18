@@ -143,6 +143,21 @@ function dobToIso(
   return `${dob.year}-${m}-${d}`
 }
 
+/**
+ * Stripe's `accounts.create` expects a 2-letter ISO 3166-1 alpha-2 code for
+ * `country`. Our `Provider.legalCountry` field is a free-text column populated
+ * from a Google Business Profile lookup, so we cannot trust the format. We
+ * accept ONLY values that already look like alpha-2 codes (e.g. "US", "ch")
+ * and pass them upper-cased; anything else is dropped, which makes Stripe fall
+ * back to its email/IP-based heuristics — the pre-fix behavior.
+ */
+function normalizeCountryCode(value: string | null | undefined): string | undefined {
+  if (!value) return undefined
+  const trimmed = value.trim()
+  if (!/^[a-zA-Z]{2}$/.test(trimmed)) return undefined
+  return trimmed.toUpperCase()
+}
+
 function mapAddress(address: StripeAddressLike | null | undefined) {
   if (!address) return null
   // Treat an address with every field empty as no-address so the UI can hide
@@ -182,7 +197,7 @@ export class StripeConnectService {
   }
 
   /**
-   * Creates (or retrieves existing) Stripe Express connected account for a provider.
+   * Creates (or retrieves existing) Stripe Standard connected account (Direct Charges) for a provider.
    * Idempotent — safe to call multiple times, even concurrently.
    *
    * Concurrency contract (C4 + C5 from production audit):
@@ -238,32 +253,62 @@ export class StripeConnectService {
       )
     }
 
-    const systemSettings = await this.prisma.systemSettings.upsert({
-      where: { id: 'singleton' },
-      create: { id: 'singleton', defaultCommission: 10 },
-      update: {},
-    })
+    // B6: pass the provider's legal country to Stripe so it doesn't default to
+    // `US` and force non-US providers to switch country mid-form. We accept only
+    // a strict 2-letter ISO 3166-1 alpha-2 code (Stripe's contract); anything
+    // else (legacy free-text) is silently dropped and Stripe falls back to its
+    // default heuristics, which is the pre-fix behavior.
+    const country = normalizeCountryCode(provider.legalCountry)
 
     // Type inferred from the SDK directly; see note on
     // `createAccountWithIdempotencyRotation` for why we can't import
     // `Stripe.AccountCreateParams` as a named type in this file.
     const accountParams: Parameters<InstanceType<typeof Stripe>['accounts']['create']>[0] = {
       controller: {
-        stripe_dashboard: { type: 'express' },
-        fees: { payer: 'application' },
-        losses: { payments: 'application' },
+        // Stripe Dashboard account with platform controls (Direct Charges target).
+        // Per https://docs.stripe.com/connect/direct-charges?platform=web&ui=elements
+        // direct charges are recommended for accounts with full Dashboard access,
+        // so providers can self-serve payouts/disputes/reporting at
+        // `dashboard.stripe.com`. Replaces the prior `express` dashboard type.
+        stripe_dashboard: { type: 'full' },
+        // Full Stripe Dashboard accounts are responsible for their own Stripe
+        // relationship: the connected account pays Stripe processing fees from
+        // its balance (`fees.payer: 'account'`) and bears chargeback / dispute
+        // losses (`losses.payments: 'stripe'`). The platform's commission still
+        // flows via `application_fee_amount` on every PaymentIntent — that is
+        // independent of `fees.payer`. This is a Stripe-imposed constraint for
+        // `stripe_dashboard.type: 'full'`; `payer: 'application'` is only valid
+        // with `'express'` or `'none'`. Attempting `'application'` here returns
+        // `fees[payer]=application is not supported when creating an account
+        // with the full dashboard.` from accounts.create.
+        fees: { payer: 'account' },
+        losses: { payments: 'stripe' },
         requirement_collection: 'stripe',
       },
       capabilities: {
         card_payments: { requested: true },
         transfers: { requested: true },
       },
+      ...(country ? { country } : {}),
       default_currency: currency.toLowerCase(),
       email: provider.owner.email,
       business_profile: {
         mcc: PROVIDER_MCC,
         name: provider.legalCompanyName ?? undefined,
         url: provider.website ?? undefined,
+      },
+      // Manual payout schedule: captured funds settle to the connected account
+      // and stay there until the platform-driven `payout-release.cron.ts`
+      // (Phase 5) calls `payouts.create({}, { stripeAccount })` based on each
+      // booking's `transferDate`. This is what gives us per-booking precision
+      // for both the default (first business day after session start) and
+      // early-payout (agreed earlier date) flows. Required by the spec — do
+      // NOT change to `daily` / `weekly` without a coordinated payout-release
+      // refactor.
+      settings: {
+        payouts: {
+          schedule: { interval: 'manual' },
+        },
       },
     }
 
@@ -283,27 +328,67 @@ export class StripeConnectService {
       .slice(0, 16)
     const idempotencyKey = `provider-account:${providerId}:${paramsHash}`
 
-    const account = await this.withStripeErrors(() =>
-      this.stripeService.client.accounts.create(accountParams, { idempotencyKey })
-    )
+    // Concurrency cure for `idempotency_key_in_use`: two near-simultaneous
+    // POSTs to /provider/stripe-connect/account hash to the SAME idempotency
+    // key (by design — same provider, same params), so Stripe rejects the
+    // loser with `StripeAPIError code='idempotency_key_in_use'` while the
+    // winner is still in flight. Without recovery, `mapStripeError` 503s the
+    // loser even though the winner will succeed seconds later.
+    //
+    // The winner will populate `Provider.stripeAccountId` shortly after; the
+    // loser waits a beat, re-reads the row, and either:
+    //   (a) finds the winner's account id → `accounts.retrieve` and return; or
+    //   (b) re-issues `accounts.create` with the same key — Stripe's idempotency
+    //       cache replays the winner's response once it has settled.
+    // Bounded to MAX_IDEMPOTENCY_RETRIES so a Stripe-side hang doesn't wedge
+    // us indefinitely; the final iteration falls through to whatever error
+    // Stripe returns and `mapStripeError` handles it.
+    const MAX_IDEMPOTENCY_RETRIES = 3
+    const account = await this.withStripeErrors(async () => {
+      for (let attempt = 0; attempt <= MAX_IDEMPOTENCY_RETRIES; attempt++) {
+        try {
+          return await this.stripeService.client.accounts.create(accountParams, { idempotencyKey })
+        } catch (err) {
+          const isInFlightConflict =
+            err instanceof Stripe.errors.StripeAPIError && err.code === 'idempotency_key_in_use'
+          if (!isInFlightConflict || attempt === MAX_IDEMPOTENCY_RETRIES) throw err
+
+          this.logger.debug(
+            `idempotency_key_in_use for provider ${providerId}; concurrent winner in flight (attempt ${attempt + 1}/${MAX_IDEMPOTENCY_RETRIES + 1})`
+          )
+          // Backoff 250ms / 500ms / 1000ms — worst-case ≈ 1.75s before bubbling.
+          await new Promise(r => setTimeout(r, 250 * 2 ** attempt))
+
+          // Fast-path: if the winner has already committed the DB write, skip
+          // the next Stripe call entirely and fetch the live account.
+          const refreshed = await this.prisma.provider.findUnique({
+            where: { id: providerId },
+            select: { stripeAccountId: true },
+          })
+          if (refreshed?.stripeAccountId) {
+            return await this.stripeService.client.accounts.retrieve(refreshed.stripeAccountId)
+          }
+          // Otherwise loop and retry `accounts.create` with the same key.
+        }
+      }
+      // Unreachable — the loop either returns or throws above. Defensive
+      // throw so the surrounding `withStripeErrors` has a non-undefined return.
+      throw new Error('createAccount idempotency retry loop exhausted without exit')
+    })
 
     // Atomic claim: only the first concurrent caller's write succeeds. A losing
     // caller (count === 0) refetches — by which point the winning caller has
     // already populated `stripeAccountId` (with the SAME `account.id` returned
     // by Stripe's idempotency key, so the values agree).
     //
-    // H10 commission-snapshot semantics: we record the platform's CURRENT
-    // `defaultCommission` here ONCE. The provider's `stripeCommissionPercentage`
-    // does not auto-track later changes to `systemSettings.defaultCommission`;
-    // existing providers keep their original rate. The deauth webhook clears
-    // this back to `null`, so a subsequent reconnect re-snapshots the (then-)
-    // current default. Surface this column on the admin provider detail page
-    // for auditability.
+    // App-fee fields (`appFeeCustom`, `appFeePercentage`) are intentionally NOT
+    // touched here — they are managed exclusively by the superadmin via the
+    // Settings tab on the provider detail page (Phase 5). New providers fall
+    // back to `SystemSettings.defaultAppFee` until a custom rate is negotiated.
     const claim = await this.prisma.provider.updateMany({
       where: { id: providerId, stripeAccountId: null },
       data: {
         stripeAccountId: account.id,
-        stripeCommissionPercentage: systemSettings.defaultCommission,
         stripeChargesEnabled: account.charges_enabled,
         stripePayoutsEnabled: account.payouts_enabled,
         stripeDetailsSubmitted: account.details_submitted,
@@ -340,15 +425,13 @@ export class StripeConnectService {
       }
     } else {
       this.logger.log(
-        `Created Stripe account ${account.id} for provider ${providerId} ` +
-          `(currency: ${currency}, commission: ${systemSettings.defaultCommission}%)`
+        `Created Stripe account ${account.id} for provider ${providerId} (currency: ${currency})`
       )
       this.auditLog({
         action: 'create_account.created',
         providerId,
         stripeAccountId: account.id,
         currency,
-        commission: Number(systemSettings.defaultCommission),
       })
     }
 
@@ -374,15 +457,45 @@ export class StripeConnectService {
       )
     }
 
+    // B4 + H1: enable the components Stripe's Embedded Onboarding docs
+    // recommend for production:
+    //   - `account_onboarding`: the KYC form itself (used in `/onboarding/stripe-connect`)
+    //   - `account_management`: post-onboarding profile editing (used on the
+    //     Account → Stripe Account page so providers can update business info
+    //     in-place instead of bouncing to the Stripe Dashboard).
+    //   - `notification_banner`: surfaces new requirements / risk-review state
+    //     mid-rolling-KYC without us having to poll `/account` for changes.
+    //
+    // We do NOT set `disable_stripe_user_authentication`: Stripe rejects that
+    // flag for accounts where the platform doesn't own requirement collection.
+    // Our connected accounts are Standard with `controller.requirement_collection
+    // = 'stripe'` (see `accounts.create` above) ⇒ Stripe owns requirements ⇒
+    // the flag is invalid here. The flag's intent (suppress an in-iframe login
+    // prompt) is already satisfied for Standard accounts loaded inside an
+    // authenticated wc-provider session — Stripe doesn't prompt for a separate
+    // login in that path.
+    //
+    // `external_account_collection: true` lets the provider add/edit payout
+    // bank details inline (required for first-time onboarding, useful later).
+    const featuresWithExternalAccount = {
+      external_account_collection: true,
+    } as const
+
     const accountSession = await this.withStripeErrors(() =>
       this.stripeService.client.accountSessions.create({
         account: provider.stripeAccountId!,
         components: {
           account_onboarding: {
             enabled: true,
-            features: {
-              external_account_collection: true,
-            },
+            features: featuresWithExternalAccount,
+          },
+          account_management: {
+            enabled: true,
+            features: featuresWithExternalAccount,
+          },
+          notification_banner: {
+            enabled: true,
+            features: featuresWithExternalAccount,
           },
         },
       })
@@ -391,45 +504,6 @@ export class StripeConnectService {
     this.logger.debug(`Created AccountSession for provider ${providerId}`)
 
     return { clientSecret: accountSession.client_secret }
-  }
-
-  /**
-   * Creates a single-use login URL for the provider's Stripe Express dashboard.
-   *
-   * The URL Stripe returns is short-lived (a few minutes) and can only be used
-   * once — we MUST NOT cache it. The frontend should request a fresh link every
-   * time the provider clicks "Open Stripe dashboard".
-   *
-   * Stripe rejects login-link creation when the account hasn't submitted enough
-   * details to have a usable dashboard yet; surfaced as `BadRequestException`
-   * via `mapStripeError` (StripeInvalidRequestError → 400).
-   */
-  async createLoginLink(providerId: string): Promise<{ url: string }> {
-    const provider = await this.prisma.provider.findUnique({
-      where: { id: providerId },
-    })
-
-    if (!provider) {
-      throw new NotFoundException('Provider not found')
-    }
-
-    if (!provider.stripeAccountId) {
-      throw new BadRequestException(
-        'Stripe account has not been created yet. Complete payment setup first.'
-      )
-    }
-
-    const loginLink = await this.withStripeErrors(() =>
-      this.stripeService.client.accounts.createLoginLink(provider.stripeAccountId!)
-    )
-
-    this.auditLog({
-      action: 'create_login_link',
-      providerId,
-      stripeAccountId: provider.stripeAccountId,
-    })
-
-    return { url: loginLink.url }
   }
 
   /**
@@ -463,18 +537,42 @@ export class StripeConnectService {
       throw new BadRequestException('No Stripe account found for this provider')
     }
 
-    const account = await this.withStripeErrors(() =>
-      this.stripeService.client.accounts.retrieve(provider.stripeAccountId!)
-    )
+    let account: LiveStripeAccountSnapshot
+    try {
+      account = await this.stripeService.client.accounts.retrieve(provider.stripeAccountId)
+    } catch (err) {
+      // B1: a Stripe-side delete between createAccountSession and onExit shows
+      // up here as `resource_missing`. Without this branch the user gets a
+      // confusing 400 and the cached DB flags stay set ("verified" UI for a
+      // dead account). Scrub the cached state and return a no-account DTO so
+      // the frontend re-renders the "set up payment account" CTA.
+      const cleared = await this.scrubIfResourceMissing(providerId, err)
+      if (cleared) return this.buildStatusDto(cleared)
+      // mapStripeError is `: never`, but we add an explicit `throw err` after
+      // it as a defense-in-depth measure (B3) so a future tweak that adds a
+      // non-throwing branch can't silently fall through to a stale snapshot.
+      mapStripeError(err)
+      throw err
+    }
 
     const detailsSubmitted = Boolean(account.details_submitted)
     const finalized = detailsSubmitted
 
+    // H9: `details_submitted` is a one-way switch on Stripe's side — once true
+    // it stays true. Two concurrent `onExit` deliveries (e.g. two browser tabs)
+    // therefore converge: the first sets `stripeOnboardingCompleted=true`,
+    // clears the skip timestamp, and stamps `completedAt`; the second computes
+    // identical values from the same Stripe response and rewrites the same
+    // row. Last-write-wins is therefore safe — no risk of `skippedAt` flapping
+    // because both writers see `finalized=true`. Documenting here so a future
+    // refactor doesn't add a guard that breaks the convergence.
     const updated = await this.prisma.provider.update({
       where: { id: providerId },
       data: {
         stripeOnboardingCompleted: finalized,
-        stripeOnboardingCompletedAt: finalized ? new Date() : null,
+        stripeOnboardingCompletedAt: finalized
+          ? (provider.stripeOnboardingCompletedAt ?? new Date())
+          : null,
         // Save-and-exit: keep the skip flag set so the layout gate continues to
         // permit /onboarding/stripe-connect access. Don't overwrite an existing
         // earlier skip timestamp on every visit — preserve the original.
@@ -498,6 +596,54 @@ export class StripeConnectService {
     })
 
     return this.buildStatusDto(updated, account)
+  }
+
+  /**
+   * Shared resource_missing recovery path used by `getAccountStatus` and
+   * `completeOnboarding`. When Stripe returns `resource_missing` for the
+   * cached `stripeAccountId`, the connected account was deleted out from
+   * under us (rare, usually a manual platform-side delete via Stripe
+   * dashboard) without firing a deauth webhook.
+   *
+   * Returns the post-scrub provider row when scrubbing happened, or `null`
+   * for any other error so the caller can re-throw via `mapStripeError`.
+   *
+   * `appFeeCustom` / `appFeePercentage` are deliberately preserved — a
+   * Stripe disconnect is a payment-rails change, not a commercial-terms
+   * change, and the superadmin's negotiated rate must survive a deauth/
+   * reauth round-trip.
+   */
+  private async scrubIfResourceMissing(
+    providerId: string,
+    err: unknown
+  ): Promise<ProviderWithSettings | null> {
+    if (
+      !(err instanceof Stripe.errors.StripeInvalidRequestError) ||
+      err.code !== 'resource_missing'
+    ) {
+      return null
+    }
+    this.logger.warn(
+      `Stripe account for provider ${providerId} no longer exists — clearing cached state`
+    )
+    this.auditLog({
+      action: 'scrub_missing_account',
+      providerId,
+    })
+    return this.prisma.provider.update({
+      where: { id: providerId },
+      data: {
+        stripeAccountId: null,
+        stripeOnboardingCompleted: false,
+        stripeOnboardingCompletedAt: null,
+        stripeOnboardingSkippedAt: null,
+        stripeChargesEnabled: false,
+        stripePayoutsEnabled: false,
+        stripeDetailsSubmitted: false,
+        stripeAttentionRequired: false,
+      },
+      include: { settings: true, owner: true },
+    })
   }
 
   /**
@@ -546,6 +692,80 @@ export class StripeConnectService {
         details: {
           chargesEnabled: provider.stripeChargesEnabled,
           payoutsEnabled: provider.stripePayoutsEnabled,
+        },
+      })
+    }
+  }
+
+  /**
+   * H4 audit fix: live variant of `assertProviderPaymentReady` for paths where
+   * the cached DB flags could be dangerously stale.
+   *
+   * The cached check is fine for the booking-create / submit flow — the
+   * `account.updated` webhook syncs flags within seconds of a Stripe-side
+   * change, and a parent who submits during the gap will simply see the next
+   * page's PaymentIntent call fail (the existing fallback). The off-session
+   * balance-charge cron is different: it fires up to 90 days after the
+   * booking, the parent isn't watching, and a stale cache could lead to a
+   * charge attempt against a deauthorized connected account that fails
+   * silently.
+   *
+   * This method makes a live `accounts.retrieve` call against Stripe and
+   * applies the same gates as the cached variant, but using the
+   * authoritative state. The DB flags are also re-synced opportunistically
+   * so subsequent calls see fresh values without waiting for the webhook.
+   *
+   * Used by `PaymentIntentsService.chargeOffSession`.
+   */
+  async assertProviderPaymentReadyLive(providerId: string): Promise<void> {
+    const provider = await this.prisma.provider.findUnique({
+      where: { id: providerId },
+      select: { id: true, stripeAccountId: true },
+    })
+
+    if (!provider) throw new NotFoundException('Provider not found')
+    if (!provider.stripeAccountId) {
+      throw new PreconditionFailedException({
+        message:
+          'This provider has not finished connecting their Stripe account and cannot accept paid bookings yet.',
+        code: 'STRIPE_ACCOUNT_MISSING',
+      })
+    }
+
+    let liveAccount
+    try {
+      liveAccount = await this.stripeService.client.accounts.retrieve(provider.stripeAccountId)
+    } catch (err) {
+      // Transient Stripe outage — bubble the error so the caller (typically
+      // the off-session cron) can retry on the next tick rather than
+      // proceeding with a stale cached flag.
+      this.logger.warn(
+        `assertProviderPaymentReadyLive: accounts.retrieve failed for ${provider.stripeAccountId}: ${(err as Error).message}`
+      )
+      throw err
+    }
+
+    if (!liveAccount.charges_enabled || !liveAccount.payouts_enabled) {
+      // Refresh the cache so admin UIs / next-call paths see the new state
+      // without waiting for the next account.updated webhook delivery.
+      await this.prisma.provider
+        .update({
+          where: { id: provider.id },
+          data: {
+            stripeChargesEnabled: liveAccount.charges_enabled,
+            stripePayoutsEnabled: liveAccount.payouts_enabled,
+          },
+        })
+        .catch(() => {
+          /* cache refresh is best-effort */
+        })
+      throw new PreconditionFailedException({
+        message:
+          'This provider is not currently able to accept payments. Their Stripe account is awaiting verification, restricted, or has been deauthorized.',
+        code: 'STRIPE_CAPABILITIES_DISABLED',
+        details: {
+          chargesEnabled: liveAccount.charges_enabled,
+          payoutsEnabled: liveAccount.payouts_enabled,
         },
       })
     }
@@ -620,37 +840,16 @@ export class StripeConnectService {
     try {
       liveAccount = await this.stripeService.client.accounts.retrieve(provider.stripeAccountId)
     } catch (err) {
-      if (
-        err instanceof Stripe.errors.StripeInvalidRequestError &&
-        err.code === 'resource_missing'
-      ) {
-        // Stripe-side deletion without webhook delivery (rare but possible —
-        // e.g., a manual platform-side delete via Stripe dashboard). Reset the
-        // local cache so subsequent reads short-circuit and the UI offers a
-        // fresh "set up payment account" CTA.
-        this.logger.warn(
-          `Stripe account ${provider.stripeAccountId} for provider ${providerId} no longer exists — clearing cached state`
-        )
-        const cleared = await this.prisma.provider.update({
-          where: { id: providerId },
-          data: {
-            stripeAccountId: null,
-            stripeOnboardingCompleted: false,
-            stripeOnboardingCompletedAt: null,
-            stripeOnboardingSkippedAt: null,
-            stripeChargesEnabled: false,
-            stripePayoutsEnabled: false,
-            stripeDetailsSubmitted: false,
-            stripeAttentionRequired: false,
-            stripeCommissionPercentage: null,
-          },
-          include: { settings: true, owner: true },
-        })
-        return this.buildStatusDto(cleared)
-      }
+      const cleared = await this.scrubIfResourceMissing(providerId, err)
+      if (cleared) return this.buildStatusDto(cleared)
       // Any other failure (auth, network, rate limit) is surfaced as a typed
       // error via the global filter — better than a stale-cache white lie.
+      // The `throw err` after `mapStripeError` is defense-in-depth (B3): the
+      // util is `: never`, but a future regression that adds a non-throwing
+      // branch would otherwise fall through and silently return the cached
+      // snapshot the comment above warns against.
       mapStripeError(err)
+      throw err
     }
 
     return this.buildStatusDto(provider, liveAccount)
@@ -681,9 +880,7 @@ export class StripeConnectService {
       onboardingCompleted: provider.stripeOnboardingCompleted,
       onboardingSkippedAt: provider.stripeOnboardingSkippedAt?.toISOString() ?? null,
       currency: provider.settings?.currency ?? '',
-      commissionPercentage: provider.stripeCommissionPercentage
-        ? Number(provider.stripeCommissionPercentage)
-        : null,
+      appFeePercentage: provider.appFeePercentage ? Number(provider.appFeePercentage) : null,
       requirementsCurrentlyDue: requirements?.currently_due ?? [],
       requirementsPastDue: requirements?.past_due ?? [],
       requirementsEventuallyDue: requirements?.eventually_due ?? [],
@@ -754,7 +951,12 @@ export class StripeConnectService {
     try {
       return await fn()
     } catch (err) {
+      // `mapStripeError` is typed `: never` and always throws — but the type
+      // system doesn't enforce that at the call boundary, so a future refactor
+      // could accidentally turn it into a returning function and silently
+      // produce `undefined` here. N3: explicit re-throw as belt-and-suspenders.
       mapStripeError(err)
+      throw err
     }
   }
 }

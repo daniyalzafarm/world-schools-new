@@ -96,6 +96,14 @@ model User {
   // System Settings Relations
   systemSettingsUpdates SystemSettings[]
 
+  // Billing / Payments Relations
+  initiatedRefunds            Refund[]           @relation("RefundInitiatedBy")
+  cancelledBookingGroups      BookingGroup[]     @relation("BookingGroupCancelledBy")
+  payoutOverrideApprovals     BookingGroup[]     @relation("BookingGroupPayoutOverrideAdmin")
+  providerPayoutModeApprovals ProviderSettings[] @relation("ProviderPayoutModeAdmin")
+  providerAppFeeUpdates       Provider[]         @relation("ProviderAppFeeAdmin")
+  reimbursementSettlements    Reimbursement[]    @relation("ReimbursementSettledBy")
+
   @@map("users")
 }
 
@@ -220,7 +228,10 @@ model Provider {
   approvalStatus      ApprovalStatus @default(pending) @map("approval_status")
   approvalDecisionAt  DateTime?      @map("approval_decision_at")
   approvedByAdminId   String?        @map("approved_by_admin_id")
-  rejectionReason     String?        @map("rejection_reason") @db.Text
+  /// Phase 10 follow-up: bounded to 2000 chars. Phase 10 already escaped HTML
+  /// in the rejection email; the cap closes the email-deliverability /
+  /// payload-size foot-gun left over from the unbounded `@db.Text`.
+  rejectionReason     String?        @map("rejection_reason") @db.VarChar(2000)
   rejectionCategory   String?        @map("rejection_category")
 
   // Application Review
@@ -245,7 +256,6 @@ model Provider {
   stripeOnboardingCompleted   Boolean   @default(false) @map("stripe_onboarding_completed")
   stripeOnboardingCompletedAt DateTime? @map("stripe_onboarding_completed_at")
   stripeOnboardingSkippedAt   DateTime? @map("stripe_onboarding_skipped_at")
-  stripeCommissionPercentage  Decimal?  @map("stripe_commission_percentage") @db.Decimal(5, 2)
   stripeChargesEnabled        Boolean   @default(false) @map("stripe_charges_enabled")
   stripePayoutsEnabled        Boolean   @default(false) @map("stripe_payouts_enabled")
   stripeDetailsSubmitted      Boolean   @default(false) @map("stripe_details_submitted")
@@ -254,10 +264,19 @@ model Provider {
   // pills) can highlight providers needing action without a live Stripe fetch.
   stripeAttentionRequired     Boolean   @default(false) @map("stripe_attention_required")
 
+  // App fee — when `appFeeCustom` is false the system uses `SystemSettings.defaultAppFee`
+  // and `appFeePercentage` is ignored. When true, `appFeePercentage` is the negotiated
+  // per-provider rate. Audit fields stamp who/when the override was last changed.
+  appFeeCustom           Boolean   @default(false) @map("app_fee_custom")
+  appFeePercentage       Decimal?  @map("app_fee_percentage") @db.Decimal(5, 2)
+  appFeeUpdatedAt        DateTime? @map("app_fee_updated_at")
+  appFeeUpdatedByAdminId String?   @map("app_fee_updated_by_admin_id")
+
   // Relations
   owner                 User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   approvedByAdmin       User?                  @relation("ApprovedProviders", fields: [approvedByAdminId], references: [id])
   reviewedByUser        User?                  @relation("ReviewedApplications", fields: [applicationReviewedBy], references: [id])
+  appFeeUpdatedByAdmin  User?                  @relation("ProviderAppFeeAdmin", fields: [appFeeUpdatedByAdminId], references: [id])
   roles                 Role[]
   googleBusinessProfile GoogleBusinessProfile? @relation(fields: [gbpId], references: [id], onDelete: SetNull)
   settings              ProviderSettings?
@@ -271,6 +290,10 @@ model Provider {
   conversationParticipants ConversationParticipant[]
   supportTicketsRequested  SupportTicket[]           @relation("SupportTicketRequesterProvider")
   reviewResponses          CampReviewResponse[]
+
+  // Billing / Payments Relations
+  payoutEvents             PayoutEvent[]
+  providerConnectCustomers ProviderConnectCustomer[]
 
   @@index([ownerId])
   @@index([approvalStatus])
@@ -289,16 +312,20 @@ model Parent {
   primaryNationality   String?  @map("primary_nationality")
   secondaryNationality String?  @map("secondary_nationality")
   languages            String[] @default([])
-  createdAt            DateTime @default(now()) @map("created_at")
-  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  children      Children[]
-  bookings      Booking[]
-  bookingGroups BookingGroup[]
-  reviews       CampReview[]
-  wishlists     Wishlist[]
+  user                     User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  children                 Children[]
+  bookings                 Booking[]
+  bookingGroups            BookingGroup[]
+  reviews                  CampReview[]
+  wishlists                Wishlist[]
+  /// One row per (parent, provider) pair under the Direct Charges model.
+  /// Each row owns the connected-account Customer and its saved payment methods.
+  providerConnectCustomers ProviderConnectCustomer[]
 
   @@index([userId])
   @@map("parents")
@@ -588,15 +615,33 @@ model ProviderSettings {
   depositFixedAmount Decimal? @map("deposit_fixed_amount") @db.Decimal(10, 2)
 
   // Cancellation Policy
-  cancellationPolicy                     String    @default("moderate") @map("cancellation_policy") // 'flexible' | 'moderate' | 'strict' | 'custom'
+  cancellationPolicy                     String    @default("moderate") @map("cancellation_policy") // 'flexible' | 'moderate' | 'custom'
   cancellationPolicyCustom               Json?     @map("cancellation_policy_custom")
   cancellationPolicySpecialCircumstances Json?     @map("cancellation_policy_special_circumstances")
   cancellationPolicyAgreedAt             DateTime? @map("cancellation_policy_agreed_at")
 
+  /// Provider-level payout mode. Each booking accepted while this is set
+  /// snapshots its value into `BookingGroup.payoutMode` so post-acceptance
+  /// edits do not retroactively rewrite an in-flight schedule.
+  payoutMode PayoutMode @default(default_after_start) @map("payout_mode")
+
+  /// Required when `payoutMode == offset_days`. Number of days before
+  /// `session.startDate` to release the (single) payout. Validated 1..365 in
+  /// the controller DTO.
+  earlyPayoutOffsetDays Int? @map("early_payout_offset_days")
+
+  /// Audit trail for payout-mode changes. The note records the agreement
+  /// reference (contract id, email subject, etc.) — required by ops policy
+  /// for any non-default mode (parallel to the Phase-5 early-payout discipline).
+  payoutModeAgreementNote   String?   @map("payout_mode_agreement_note") @db.Text
+  payoutModeAgreedAt        DateTime? @map("payout_mode_agreed_at")
+  payoutModeAgreedByAdminId String?   @map("payout_mode_agreed_by_admin_id")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  provider                Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  payoutModeAgreedByAdmin User?    @relation("ProviderPayoutModeAdmin", fields: [payoutModeAgreedByAdminId], references: [id])
 
   @@map("provider_settings")
 }
@@ -616,8 +661,10 @@ model VerificationDocument {
   reviewedByAdminId String?              @map("reviewed_by_admin_id")
   reviewedAt        DateTime?            @map("reviewed_at")
   reviewChecklist   Json?                @map("review_checklist")
-  reviewNotes       String?              @map("review_notes") @db.Text
-  rejectionReason   String?              @map("rejection_reason") @db.Text
+  reviewNotes       String?              @map("review_notes") @db.VarChar(2000)
+  /// Phase 10 follow-up: bounded for the same reason as
+  /// `Provider.rejectionReason` — admin-typed free text that gets emailed.
+  rejectionReason   String?              @map("rejection_reason") @db.VarChar(2000)
 
   uploadedAt DateTime @default(now()) @map("uploaded_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
@@ -689,6 +736,20 @@ model Camp {
   // Publishing
   status      CampStatus @default(draft)
   publishedAt DateTime?  @map("published_at")
+
+  /// Per-camp deposit settings. Snapshotted from `ProviderSettings.deposit*`
+  /// at camp creation, then editable per camp via the camp edit page. Provider-
+  /// level settings remain the **default for new camps** — editing them does
+  /// NOT update existing camps. The booking submission flow reads these
+  /// values directly off the camp (no fallback to provider settings) so a
+  /// camp's payment behavior is fully determined by its own row.
+  ///
+  /// `depositRequired` defaults to `false` so newly seeded camps without
+  /// a snapshot still behave correctly (no deposit → full at booking).
+  depositRequired    Boolean  @default(false) @map("deposit_required")
+  depositType        String?  @map("deposit_type") // 'percentage' | 'fixed'
+  depositPercentage  Int?     @map("deposit_percentage")
+  depositFixedAmount Decimal? @map("deposit_fixed_amount") @db.Decimal(10, 2)
 
   // Metadata
   createdAt DateTime @default(now()) @map("created_at")
@@ -1064,15 +1125,81 @@ model BookingGroup {
   specialRequest String? @map("special_request") @db.Text
   internalNotes  String? @map("internal_notes") @db.Text
 
+  // ============================================
+  // Payments / payouts (Stripe billing module)
+  // ============================================
+
+  /// Frozen at submission so refund/payout math stays auditable even if the
+  /// provider's app fee rate or cancellation policy changes later.
+  appFeePercentageSnapshot Decimal? @map("app_fee_percentage_snapshot") @db.Decimal(5, 2)
+  /// Computed at submission: totalAmount * appFeePercentageSnapshot / 100.
+  serviceFeeAmount         Decimal? @map("service_fee_amount") @db.Decimal(12, 2)
+
+  /// Frozen cancellation policy at submission — preserves the parent's refund
+  /// schedule even if the provider edits their policy after the parent books.
+  /// Shape: `{ policyName, tiers: PolicyTier[], specialCircumstances: [...],
+  /// capturedAt }`. See `BookingPolicySnapshot` in `cancellation-policy.util.ts`.
+  cancellationPolicySnapshot Json? @map("cancellation_policy_snapshot") @db.JsonB
+
+  /// Drives whether we authorize deposit-only, full-at-due, or full-at-booking.
+  paymentMode PaymentMode? @map("payment_mode")
+
+  /// When the off-session balance charge is due (typically session.startDate - 60d
+  /// for deposit flow, -90d for no-deposit flow). Null when full payment is taken at booking.
+  balanceDueAt DateTime? @map("balance_due_at")
+
+  /// Cached pointer to the **earliest pending tranche's** `releaseAt` — kept
+  /// for fast sorting / superadmin display. Source of truth is
+  /// `BookingPayoutSchedule`. Null when no pending tranches remain (fully
+  /// released or fully canceled).
+  transferDate DateTime? @map("transfer_date")
+
+  /// Snapshot of `ProviderSettings.payoutMode` at acceptance. Frozen so a
+  /// post-acceptance edit to the provider's mode does not retroactively
+  /// rewrite the in-flight schedule.
+  payoutMode PayoutMode @default(default_after_start) @map("payout_mode")
+
+  /// Snapshot of `ProviderSettings.earlyPayoutOffsetDays` at acceptance, when
+  /// `payoutMode == offset_days`. Null otherwise.
+  payoutOffsetDaysSnapshot Int? @map("payout_offset_days_snapshot")
+
+  /// Per-booking admin override audit (replaces the old `earlyPayoutAgreedAt`
+  /// fields). Set when superadmin uses `enablePerBookingOverride` to flip a
+  /// single booking's mode mid-flight (cancels pending tranches and
+  /// regenerates).
+  payoutOverrideAgreedAt        DateTime? @map("payout_override_agreed_at")
+  payoutOverrideAgreedByAdminId String?   @map("payout_override_agreed_by_admin_id")
+
+  /// Set when accept transitions the group: respondedAt + 48h. Cached so refund
+  /// eligibility checks don't recompute from base fields.
+  gracePeriodEndsAt DateTime? @map("grace_period_ends_at")
+
+  /// Cached marker — populated when the **last** pending tranche releases.
+  /// Source of truth for "is this booking fully disbursed" is
+  /// `BookingPayoutSchedule.status` aggregation.
+  payoutReleasedAt DateTime? @map("payout_released_at")
+
+  /// Cancellation provenance.
+  cancelledAt       DateTime? @map("cancelled_at")
+  cancelledReason   String?   @map("cancelled_reason")
+  cancelledByUserId String?   @map("cancelled_by_user_id")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  parent   Parent       @relation(fields: [parentId], references: [id], onDelete: Restrict)
-  session  Session      @relation(fields: [sessionId], references: [id], onDelete: Restrict)
-  camp     Camp         @relation(fields: [campId], references: [id], onDelete: Restrict)
-  provider Provider     @relation(fields: [providerId], references: [id], onDelete: Restrict)
-  bookings Booking[]
-  reviews  CampReview[]
+  parent                      Parent                  @relation(fields: [parentId], references: [id], onDelete: Restrict)
+  session                     Session                 @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  camp                        Camp                    @relation(fields: [campId], references: [id], onDelete: Restrict)
+  provider                    Provider                @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  bookings                    Booking[]
+  reviews                     CampReview[]
+  payments                    Payment[]
+  refunds                     Refund[]
+  disputes                    Dispute[]
+  reimbursements              Reimbursement[]
+  payoutSchedule              BookingPayoutSchedule[]
+  cancelledByUser             User?                   @relation("BookingGroupCancelledBy", fields: [cancelledByUserId], references: [id])
+  payoutOverrideAgreedByAdmin User?                   @relation("BookingGroupPayoutOverrideAdmin", fields: [payoutOverrideAgreedByAdminId], references: [id])
 
   @@index([parentId])
   @@index([sessionId])
@@ -1080,6 +1207,8 @@ model BookingGroup {
   @@index([providerId])
   @@index([createdAt])
   @@index([status])
+  @@index([transferDate])
+  @@index([balanceDueAt])
   @@map("booking_groups")
 }
 
@@ -1188,15 +1317,19 @@ model Booking {
 /// Booking lifecycle: request → provider response → payment → at camp → completed; any → cancelled.
 enum BookingGroupStatus {
   draft // Parent draft before request submission
-  request // Awaiting provider response
-  accepted // Provider accepted
-  declined // Provider declined
-  expired // No provider response by request_expires_at
-  deposit_paid // Deposit received
-  fully_paid // Balance paid
+  request // Card authorized, awaiting provider response (PaymentIntent in requires_capture)
+  accepted // Provider accepted (deposit captured)
+  declined // Provider declined (auth voided)
+  expired // No provider response by request_expires_at (auth voided)
+  deposit_paid // Deposit captured; awaiting balance
+  fully_paid // Balance captured
   at_camp // Child currently at camp
   completed // Camp finished
   cancelled // Cancelled from any prior status
+  payment_failed // Off-session balance retries exhausted
+  partially_refunded // One or more refunds issued; some payments still net positive
+  fully_refunded // All payments fully reversed
+  disputed // Open dispute on at least one charge
 }
 
 // ============================================
@@ -2379,11 +2512,11 @@ model Notification {
 
 model SystemSettings {
   // Singleton row — always upserted with id = 'singleton'
-  id                String   @id @default("singleton")
-  defaultCommission Decimal  @default(10) @map("default_commission") @db.Decimal(5, 2)
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
-  updatedByAdminId  String?  @map("updated_by_admin_id")
+  id               String   @id @default("singleton")
+  defaultAppFee    Decimal  @default(10) @map("default_app_fee") @db.Decimal(5, 2)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  updatedByAdminId String?  @map("updated_by_admin_id")
 
   updatedByAdmin User? @relation(fields: [updatedByAdminId], references: [id])
 
@@ -2404,4 +2537,517 @@ model StripeWebhookEvent {
   @@index([accountId])
   @@index([processedAt])
   @@map("stripe_webhook_events")
+}
+
+// ============================================
+// Billing / Payments (PaymentIntent, Refund, Payout, Dispute, Reimbursement)
+// ============================================
+
+/// Payment kind drives downstream logic (refund eligibility, scheduling, retry rules).
+enum PaymentKind {
+  deposit // Non-refundable deposit captured at provider acceptance
+  balance // Off-session balance charge on configured due date
+  full // Single full charge (no-deposit, due-now path)
+  rebill // Re-attempt of a failed prior payment
+}
+
+/// Mirrors Stripe PaymentIntent statuses we care about, plus our own `processing`
+/// for placeholder rows awaiting an off-session attempt by cron.
+enum PaymentStatus {
+  requires_payment_method
+  requires_confirmation
+  requires_action
+  processing
+  requires_capture
+  succeeded
+  canceled
+  failed
+}
+
+enum CaptureMethod {
+  automatic
+  manual
+}
+
+/// Determines which kind of intents we create for a booking group at submission.
+/// Snapshot on BookingGroup.paymentMode so post-hoc provider settings changes don't
+/// rewrite history.
+enum PaymentMode {
+  deposit_then_balance // Deposit captured at accept; off-session balance later
+  full_at_due // No deposit, full off-session charge on dueAt
+  full_at_booking // No deposit, full charge captured at accept
+}
+
+enum RefundReason {
+  grace_period
+  policy_balance
+  /// Provider-configured special-circumstance refund (medical / force_majeure /
+  /// weather), overriding the standard tier % for the balance only. Deposit
+  /// remains non-refundable. The specific circumstance type lives on the
+  /// Refund.policySnapshot JSON (`appliedCircumstance.type`).
+  special_circumstance
+  provider_declined
+  provider_expired
+  camp_cancel
+  force_majeure
+  dispute
+  manual_admin
+  /// H1 audit fix: auto-refund triggered by an actionable Stripe Radar
+  /// Early Fraud Warning. The platform absorbs the cost (the refund includes
+  /// the application fee) on the theory that recouping a fraudulent
+  /// transaction is cheaper than absorbing a chargeback + fees later.
+  fraud
+}
+
+enum RefundStatus {
+  pending
+  succeeded
+  failed
+  canceled
+}
+
+enum ReimbursementStatus {
+  not_required
+  pending
+  invoiced
+  settled
+  written_off
+}
+
+enum DisputeOutcome {
+  open
+  won
+  lost
+  warning_closed
+  other
+}
+
+/// Mirrors Stripe Payout status values (kept minimal to what we surface).
+enum PayoutStatus {
+  pending
+  in_transit
+  paid
+  failed
+  canceled
+}
+
+/// How the platform schedules payouts to a connected provider.
+///   - `default_after_start`: single payout on the first business day after
+///     session.startDate (provider-timezone aware). Funds for both deposit and
+///     balance are held in the connected account until then.
+///   - `offset_days`: single payout on `session.startDate - earlyPayoutOffsetDays`,
+///     regardless of cancellation policy. Releases the full net amount.
+///   - `policy_staged`: multiple payouts driven by deposit settings + cancellation
+///     policy tiers. The deposit releases at the 48h grace-period boundary; each
+///     subsequent tier breakpoint releases the increment that becomes
+///     non-refundable; any residual at session start releases via the default
+///     transfer date. See `BookingPayoutSchedule`.
+enum PayoutMode {
+  default_after_start
+  offset_days
+  policy_staged
+}
+
+/// Why a particular tranche row was scheduled. Used by ops dashboards and the
+/// cron logger to keep the audit trail readable without parsing math.
+enum PayoutTrancheReason {
+  /// `policy_staged` only — released at `BookingGroup.gracePeriodEndsAt` (T+48h
+  /// after acceptance) when the deposit becomes non-refundable.
+  deposit_grace
+  /// `policy_staged` only — released at `sessionStart - tier.daysBeforeStart`
+  /// when a cancellation policy tier flips an additional balance increment to
+  /// non-refundable.
+  tier_threshold
+  /// `policy_staged` only — residual balance not covered by tier breakpoints,
+  /// released at the default first-business-day-after-camp-start window.
+  /// Also the single tranche reason for `default_after_start` mode.
+  final_default
+  /// `offset_days` mode only — releases the full net amount X days before
+  /// session start.
+  offset_release
+  /// Generated by `recomputeRemainingTranches` when a partial release leaves a
+  /// residual that needs to fire on the next cron tick.
+  partial_residual
+}
+
+/// Per-tranche execution state. Distinct from `PayoutStatus` because that mirrors
+/// the live Stripe payout object; this tracks our local lifecycle.
+enum PayoutTrancheStatus {
+  /// Awaiting `releaseAt`.
+  pending
+  /// `stripe.payouts.create` returned successfully; awaiting `payout.paid` /
+  /// `payout.failed` webhook.
+  released
+  /// `payout.paid` webhook fired — funds disbursed to the camp's bank.
+  paid
+  /// `payout.failed` webhook fired — cron will retry on the NEXT pending
+  /// tranche under a fresh Stripe payout id (failed tranches are not relinked,
+  /// matching the existing `recordPayoutFailed` semantics).
+  failed
+  /// Refund / camp-cancel invalidated this tranche before it released.
+  canceled
+  /// Net amount available was zero at release time (e.g., over-refunded). The
+  /// row is closed out without a Stripe call so the cron stops re-trying.
+  skipped
+}
+
+/// One row per Stripe PaymentIntent. A BookingGroup has 1..N (deposit + balance,
+/// or full, plus retry rebills). Refunds are tracked as separate Refund rows.
+model Payment {
+  id             String      @id @default(uuid())
+  bookingGroupId String      @map("booking_group_id")
+  kind           PaymentKind
+
+  /// Stripe identifiers (snapshot of the payment intent + most-recent successful charge).
+  ///
+  /// `stripePaymentIntentId` is nullable because rows created via the SetupIntent flow
+  /// (no-deposit-due-later, A.2) start without a real PaymentIntent — the off-session
+  /// charge cron upgrades the row to a real `pi_xxx` value when `dueAt` is reached.
+  /// Postgres allows multiple NULLs in a unique index, so the constraint still
+  /// catches duplicate real intent ids.
+  stripePaymentIntentId String? @unique @map("stripe_payment_intent_id")
+  /// Set when this Payment row was bootstrapped from a SetupIntent (parent saved
+  /// their card for an off-session charge). Cleared once `chargeOffSession`
+  /// upgrades the row to a real PaymentIntent.
+  stripeSetupIntentId   String? @unique @map("stripe_setup_intent_id")
+  // N4: unique so a webhook misrouting (e.g. a refund correlated by charge id)
+  // can't insert two Payment rows pointing at the same Stripe charge. Postgres
+  // allows multiple NULLs in a unique index, so SetupIntent placeholder rows
+  // (charge id null until the off-session charge upgrades them) coexist fine.
+  stripeChargeId        String? @unique @map("stripe_charge_id")
+  stripePaymentMethodId String? @map("stripe_payment_method_id")
+
+  /// FK to the per-(parent,provider) Stripe customer that owns the PaymentIntent
+  /// on the connected account. Lets us trace a Payment back to the customer +
+  /// connected account in a single join. Nullable so rows can exist before the
+  /// customer row is reconciled (rare; the create flow inserts the customer first).
+  providerConnectCustomerId String? @map("provider_connect_customer_id")
+
+  /// Money in booking currency. Decimal(12,2) matches BookingGroup precision;
+  /// converted to Stripe minor units only at the SDK boundary.
+  amount               Decimal @db.Decimal(12, 2)
+  applicationFeeAmount Decimal @map("application_fee_amount") @db.Decimal(12, 2)
+  /// ISO 4217, lowercase, snapshot at create-time so refunds always go in the
+  /// original currency even if ProviderSettings.currency changed later.
+  currency             String  @db.VarChar(3)
+
+  /// Snapshot of the connected account id the charge lives on (Direct Charges:
+  /// PaymentIntent created with `Stripe-Account: {stripeAccountId}`). Denormalized
+  /// from `providerConnectCustomer.stripeAccountId` so post-mortem queries (e.g.
+  /// "all PIs that hit this connected account") run without a join.
+  stripeAccountId String @map("stripe_account_id")
+
+  status        PaymentStatus
+  captureMethod CaptureMethod @map("capture_method")
+
+  /// Off-session retry tracking (spec: 48h window, 2 retries).
+  attemptCount Int       @default(0) @map("attempt_count")
+  nextRetryAt  DateTime? @map("next_retry_at")
+  /// When this Payment is due to be captured/charged. Null for deposits captured
+  /// synchronously on provider acceptance.
+  dueAt        DateTime? @map("due_at")
+
+  /// Stripe failure metadata (mirror of payment_intent.last_payment_error).
+  failureCode    String? @map("failure_code")
+  failureMessage String? @map("failure_message") @db.Text
+
+  capturedAt          DateTime? @map("captured_at")
+  succeededAt         DateTime? @map("succeeded_at")
+  canceledAt          DateTime? @map("canceled_at")
+  /// Stamped whenever the row enters `processing` or `requires_action`. Lets a
+  /// daily janitor cron query "rows stuck in processing for >48h" cheaply
+  /// without scanning by `updatedAt` (which flips on any unrelated field
+  /// change). Cleared back to NULL on transition into a terminal state so the
+  /// query stays selective.
+  processingStartedAt DateTime? @map("processing_started_at")
+
+  /// Content-hashed Stripe idempotency key. Mirrors the pattern used for
+  /// account creation in stripe-connect.service.ts.
+  idempotencyKey String @unique @map("idempotency_key")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bookingGroup            BookingGroup             @relation(fields: [bookingGroupId], references: [id], onDelete: Restrict)
+  providerConnectCustomer ProviderConnectCustomer? @relation(fields: [providerConnectCustomerId], references: [id], onDelete: SetNull)
+  refunds                 Refund[]
+  disputes                Dispute[]
+
+  @@index([bookingGroupId])
+  @@index([status])
+  @@index([dueAt])
+  @@index([nextRetryAt])
+  @@index([kind])
+  @@index([providerConnectCustomerId])
+  @@index([stripeAccountId])
+  // Janitor cron query for stuck rows (status processing/requires_action).
+  @@index([processingStartedAt])
+  @@map("payments")
+}
+
+/// One row per Stripe refunds.create() call. Linked to a Payment and back to the
+/// BookingGroup for fast lookup. Unique on (paymentId, reason) so duplicate
+/// re-clicks return the prior result instead of issuing a second Stripe refund.
+model Refund {
+  id             String       @id @default(uuid())
+  paymentId      String       @map("payment_id")
+  bookingGroupId String       @map("booking_group_id")
+  stripeRefundId String       @unique @map("stripe_refund_id")
+  amount         Decimal      @db.Decimal(12, 2)
+  reason         RefundReason
+  status         RefundStatus @default(pending)
+
+  /// Frozen evaluation of the cancellation policy at refund time: tier matched,
+  /// daysBeforeStart, refund percentage, snapshot of policy JSON. Audit-grade.
+  policySnapshot Json? @map("policy_snapshot")
+
+  /// True when transferDate has already passed (early-payout case). Under
+  /// Accounts v2 losses.payments='application', this means the platform absorbed
+  /// the refund and the camp owes World Camps directly.
+  requiresReimbursement Boolean             @default(false) @map("requires_reimbursement")
+  reimbursementStatus   ReimbursementStatus @default(not_required) @map("reimbursement_status")
+
+  stripeFailureReason String? @map("stripe_failure_reason")
+  initiatedByUserId   String? @map("initiated_by_user_id")
+
+  succeededAt DateTime? @map("succeeded_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  payment        Payment         @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  bookingGroup   BookingGroup    @relation(fields: [bookingGroupId], references: [id], onDelete: Restrict)
+  initiatedBy    User?           @relation("RefundInitiatedBy", fields: [initiatedByUserId], references: [id])
+  reimbursements Reimbursement[]
+
+  @@unique([paymentId, reason])
+  @@index([bookingGroupId])
+  @@index([reimbursementStatus])
+  @@index([status])
+  @@map("refunds")
+}
+
+/// Display surface for the parent's saved card. PAN/full PM payload stays on
+/// Stripe — we only persist what we render in the UI and what's needed to
+/// detect expiry warnings via the pm-expiry cron.
+///
+/// Under Direct Charges, PaymentMethods live on the connected (provider) account,
+/// not the platform. Each row is scoped to a `ProviderConnectCustomer` (one per
+/// `(parent, provider)` pair) so saved cards are per-provider. Parents booking
+/// with a new provider re-enter their card; this is acceptable for the current
+/// UX where the card is always re-entered per booking.
+model SavedPaymentMethod {
+  id                        String  @id @default(uuid())
+  providerConnectCustomerId String  @map("provider_connect_customer_id")
+  stripePaymentMethodId     String  @map("stripe_payment_method_id")
+  brand                     String  @db.VarChar(20)
+  last4                     String  @db.VarChar(4)
+  expMonth                  Int     @map("exp_month")
+  expYear                   Int     @map("exp_year")
+  funding                   String  @db.VarChar(20)
+  isDefault                 Boolean @default(false) @map("is_default")
+
+  archivedAt DateTime? @map("archived_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  providerConnectCustomer ProviderConnectCustomer @relation(fields: [providerConnectCustomerId], references: [id], onDelete: Cascade)
+
+  // PMs are unique within a connected-account customer (Stripe enforces this
+  // server-side too — same PM can't be attached to a customer twice). Across
+  // different connected accounts the same parent-entered card produces
+  // DIFFERENT pm_… ids, so the previous global @unique on
+  // `stripePaymentMethodId` is now scoped per-customer.
+  @@unique([providerConnectCustomerId, stripePaymentMethodId])
+  @@index([providerConnectCustomerId])
+  @@index([isDefault])
+  @@map("saved_payment_methods")
+}
+
+/// One Stripe Customer per `(parent, provider)` pair, living on the connected
+/// (provider) Stripe account. Created lazily when a parent's first PaymentIntent
+/// on that provider is authorized. Owns the saved PMs that the balance / rebill
+/// off-session crons will charge against.
+///
+/// Why per-provider scope: under Direct Charges the Customer + PMs must live on
+/// the connected account that the charge runs on. A single platform-side
+/// Customer is no longer usable.
+model ProviderConnectCustomer {
+  id               String   @id @default(uuid())
+  parentId         String   @map("parent_id")
+  providerId       String   @map("provider_id")
+  /// Mirrored from `Provider.stripeAccountId` at create time. Lets us issue API
+  /// calls (`paymentIntents.create(..., { stripeAccount })`) without joining
+  /// through `provider` on the hot path.
+  stripeAccountId  String   @map("stripe_account_id")
+  /// `cus_…` on the connected account (NOT the platform account).
+  stripeCustomerId String   @map("stripe_customer_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  parent              Parent               @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  provider            Provider             @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  savedPaymentMethods SavedPaymentMethod[]
+  payments            Payment[]
+
+  @@unique([parentId, providerId])
+  @@unique([stripeAccountId, stripeCustomerId])
+  @@index([stripeCustomerId])
+  @@map("provider_connect_customers")
+}
+
+/// Mirror of Stripe's charge.dispute object. Insert on charge.dispute.created;
+/// update on charge.dispute.closed. Critical for cash-flow visibility — disputes
+/// withdraw funds from the platform balance with little notice.
+model Dispute {
+  id              String         @id @default(uuid())
+  paymentId       String         @map("payment_id")
+  bookingGroupId  String         @map("booking_group_id")
+  stripeDisputeId String         @unique @map("stripe_dispute_id")
+  amount          Decimal        @db.Decimal(12, 2)
+  currency        String         @db.VarChar(3)
+  reason          String
+  /// Stripe's free-form status string (warning_needs_response, won, lost, etc.).
+  status          String
+  outcome         DisputeOutcome @default(open)
+  evidenceDueBy   DateTime?      @map("evidence_due_by")
+
+  /// Stripe debits the connected account immediately on dispute. We track the
+  /// most recent funds-withdrawal/reinstatement so admins can see at a glance
+  /// whether the camp's been hit (vs. dispute still in the standard window
+  /// before debit). Both nullable; flipped by the
+  /// charge.dispute.funds_withdrawn / .funds_reinstated webhooks.
+  fundsWithdrawnAt  DateTime? @map("funds_withdrawn_at")
+  fundsReinstatedAt DateTime? @map("funds_reinstated_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  payment      Payment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  bookingGroup BookingGroup @relation(fields: [bookingGroupId], references: [id], onDelete: Restrict)
+
+  @@index([bookingGroupId])
+  @@index([outcome])
+  @@map("disputes")
+}
+
+/// Audit row for payout.paid / payout.failed webhooks on connected accounts.
+/// Stripe payouts are batched on the connected account; not 1:1 with payments.
+model PayoutEvent {
+  id              String       @id @default(uuid())
+  providerId      String       @map("provider_id")
+  stripePayoutId  String       @unique @map("stripe_payout_id")
+  stripeAccountId String       @map("stripe_account_id")
+  amount          Decimal      @db.Decimal(12, 2)
+  currency        String       @db.VarChar(3)
+  arrivalDate     DateTime     @map("arrival_date")
+  status          PayoutStatus
+  failureCode     String?      @map("failure_code")
+  failureMessage  String?      @map("failure_message") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  provider Provider                @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  tranches BookingPayoutSchedule[]
+
+  @@index([providerId])
+  @@index([arrivalDate])
+  @@index([status])
+  @@map("payout_events")
+}
+
+/// One row per scheduled payout tranche. Three modes write to this table; the
+/// payout-release cron processes a single query (`status=pending AND
+/// releaseAt<=now`) regardless of mode. See `PayoutMode` and
+/// `PayoutTrancheReason` for the semantic model.
+///
+/// Idempotency: `releasePendingTranche` uses the row id in the Stripe
+/// idempotency key so a re-run on the same row collapses to the same Stripe
+/// payout. A failed tranche stays linked to a `failed` PayoutEvent and a NEW
+/// pending tranche is generated for the residual (mirrors the
+/// `recordPayoutFailed` non-relink semantics).
+model BookingPayoutSchedule {
+  id             String @id @default(uuid())
+  bookingGroupId String @map("booking_group_id")
+
+  /// Why this tranche was scheduled (drives ops visibility + log shape).
+  reason PayoutTrancheReason
+
+  /// Earliest moment the cron may release this tranche. May be clamped forward
+  /// by the schedule generator when `tier_threshold` lands before
+  /// `gracePeriodEndsAt` or `balanceDueAt`.
+  releaseAt DateTime @map("release_at")
+
+  /// Amount the schedule generator computed for this tranche. Released amount
+  /// can be lower (partial-release fallback when funds haven't fully captured
+  /// yet) — that is recorded in `releasedAmount`.
+  plannedAmount Decimal @map("planned_amount") @db.Decimal(12, 2)
+  currency      String  @db.VarChar(3)
+
+  /// Set on `tier_threshold` rows: which cancellation-policy tier breakpoint
+  /// triggered this tranche. Null on other reasons.
+  tierDaysBeforeStart Int? @map("tier_days_before_start")
+  tierRefundPercent   Int? @map("tier_refund_percent")
+
+  status PayoutTrancheStatus @default(pending)
+
+  releasedAt     DateTime? @map("released_at")
+  releasedAmount Decimal?  @map("released_amount") @db.Decimal(12, 2)
+  stripePayoutId String?   @map("stripe_payout_id")
+  payoutEventId  String?   @map("payout_event_id")
+  /// Free-text reason for `canceled` / `skipped` rows so ops can reconstruct
+  /// "why didn't this fire" without re-running the math.
+  skipReason     String?   @map("skip_reason") @db.Text
+
+  /// Number of unsuccessful release attempts. Incremented when the cron
+  /// reschedules a tranche because Stripe rejects with `balance_insufficient`
+  /// (Direct Charges: connected account's available balance hasn't caught up
+  /// with pending charges yet). Drives exponential backoff for `releaseAt`
+  /// and varies the Stripe idempotency key so a retry doesn't replay the
+  /// previously cached error response. After 5 attempts the row is parked as
+  /// `skipped` with `skipReason = 'balance_insufficient_max_retries'` so ops
+  /// can investigate (provider's available balance is genuinely stuck).
+  releaseAttempts Int @default(0) @map("release_attempts")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bookingGroup BookingGroup @relation(fields: [bookingGroupId], references: [id], onDelete: Cascade)
+  payoutEvent  PayoutEvent? @relation(fields: [payoutEventId], references: [id], onDelete: SetNull)
+
+  @@index([bookingGroupId])
+  @@index([releaseAt, status])
+  @@index([stripePayoutId])
+  @@index([payoutEventId])
+  @@map("booking_payout_schedules")
+}
+
+/// Tracks a camp's debt to World Camps when a refund was issued after funds
+/// were already disbursed. Settled via deduction from next payout or direct
+/// bank transfer per spec Part D (Camp cancels — early payout already disbursed).
+model Reimbursement {
+  id             String              @id @default(uuid())
+  bookingGroupId String              @map("booking_group_id")
+  refundId       String              @map("refund_id")
+  amountOwed     Decimal             @map("amount_owed") @db.Decimal(12, 2)
+  currency       String              @db.VarChar(3)
+  /// 7-day deadline per spec.
+  dueDate        DateTime            @map("due_date")
+  status         ReimbursementStatus @default(pending)
+
+  lastReminderSentAt DateTime? @map("last_reminder_sent_at")
+  settledAt          DateTime? @map("settled_at")
+  settledByUserId    String?   @map("settled_by_user_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bookingGroup BookingGroup @relation(fields: [bookingGroupId], references: [id], onDelete: Restrict)
+  refund       Refund       @relation(fields: [refundId], references: [id], onDelete: Restrict)
+  settledBy    User?        @relation("ReimbursementSettledBy", fields: [settledByUserId], references: [id])
+
+  @@index([bookingGroupId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("reimbursements")
 }

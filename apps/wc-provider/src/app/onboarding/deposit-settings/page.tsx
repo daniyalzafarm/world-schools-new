@@ -2,29 +2,26 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Spinner } from '@heroui/react'
+import { addToast, Skeleton, Spinner } from '@heroui/react'
 import { DatePicker, Input } from '@world-schools/ui-web'
-import { type CalendarDate, parseDate } from '@internationalized/date'
+import type { CalendarDate } from '@internationalized/date'
+import { formatCurrency, getCurrencySymbol } from '@world-schools/wc-utils'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
 import { OnboardingFooter } from '../../../components/onboarding/OnboardingFooter'
 import type { DepositType, SaveDepositSettingsRequest } from '../../../types/onboarding'
 import { canAccessStep, getNextAccessibleStep } from '../../../utils/onboarding-access'
 import { onboardingService } from '../../../services/onboarding.services'
-
-// Helper function to convert string dates to CalendarDate
-const stringToCalendarDate = (dateString: string): CalendarDate | null => {
-  if (!dateString) return null
-  try {
-    return parseDate(dateString)
-  } catch {
-    return null
-  }
-}
+import { useCalculatorConfig } from '../_use-calculator-config'
 
 export default function OnboardingStep5DepositSettingsPage() {
   const router = useRouter()
-  const { status, saveDepositSettings } = useOnboardingStore()
+  const { status, saveDepositSettings, calcPrice, calcStartDate, setCalcPrice, setCalcStartDate } =
+    useOnboardingStore()
+  const calculatorConfig = useCalculatorConfig()
+  // Sentinel values used only while `calculatorConfig` is loading; the body
+  // of the calculator is gated below so these never reach the screen.
+  const { currency, appFeePercentage } = calculatorConfig ?? { currency: '', appFeePercentage: 0 }
 
   // Check if onboarding is completed (read-only mode)
   const isReadOnly = status?.isCompleted ?? false
@@ -53,22 +50,19 @@ export default function OnboardingStep5DepositSettingsPage() {
   const [depositFixedAmountError, setDepositFixedAmountError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
-  // Calculator state
-  const [calcPrice, setCalcPrice] = useState(2000)
-  const [calcStartDate, setCalcStartDate] = useState<CalendarDate | null>(() => {
-    const date = new Date()
-    date.setMonth(date.getMonth() + 8)
-    const dateString = date.toISOString().split('T')[0]
-    return stringToCalendarDate(dateString)
-  })
-
   // Refs for auto-focus
   const percentageInputRef = useRef<HTMLInputElement>(null)
   const fixedAmountInputRef = useRef<HTMLInputElement>(null)
   const isInitialLoadRef = useRef(true)
 
-  // Load saved deposit settings
+  // Load saved deposit settings — only after the step has actually been saved.
+  // Before first save, the backend returns defaults (depositRequired=false)
+  // that would clobber the form's "Percentage 25%" default and flip the
+  // selection to "No deposit" on first visit.
+  const isStep5Completed = status?.stepCompletion.step5 ?? false
   useEffect(() => {
+    if (!isStep5Completed) return
+
     const loadSettings = async () => {
       const response = await onboardingService.getDepositSettings()
 
@@ -107,7 +101,7 @@ export default function OnboardingStep5DepositSettingsPage() {
     }
 
     void loadSettings()
-  }, [])
+  }, [isStep5Completed])
 
   // Auto-focus input when deposit type changes (but not on initial load)
   useEffect(() => {
@@ -162,23 +156,37 @@ export default function OnboardingStep5DepositSettingsPage() {
     return false
   }
 
+  // M9 audit fix: compute every breakdown value at FULL precision. Rounding
+  // to whole units inside the helper (`Math.round` per line item) lets the
+  // table sub-rows drift from the headline total when a currency uses
+  // fractional minor units (e.g. €499.99 + €1500.01 = €2000, not €500 +
+  // €1500). Formatting at the render boundary via `formatCurrency` (which
+  // wraps `Intl.NumberFormat`) respects the currency's natural precision
+  // (2 decimals for EUR/USD, 0 for JPY, 3 for KWD) and the breakdown sums
+  // back to the total exactly.
   const calculateDeposit = (price: number = calcPrice) => {
     if (!depositRequired) return 0
 
     if (depositType === 'percentage') {
       const percentage = parseFloat(depositPercentage) || 0
-      return Math.round((price * percentage) / 100)
-    } else {
-      return parseFloat(depositFixedAmount) || 0
+      return (price * percentage) / 100
     }
+    return parseFloat(depositFixedAmount) || 0
   }
 
   const calculateServiceFee = (price: number = calcPrice) => {
-    return Math.round(price * 0.1)
+    return (price * appFeePercentage) / 100
   }
 
   const calculateEarnings = (price: number = calcPrice) => {
     return price - calculateServiceFee(price)
+  }
+
+  // Net amount released to the provider for the deposit (gross deposit minus
+  // the platform's percentage fee on it). Used in the Payment Schedule so the
+  // "At booking" + "Balance released" rows sum to "Your earnings" exactly.
+  const calculateDepositNet = (price: number = calcPrice) => {
+    return calculateDeposit(price) * (1 - appFeePercentage / 100)
   }
 
   const handleSaveAndContinue = async () => {
@@ -199,7 +207,14 @@ export default function OnboardingStep5DepositSettingsPage() {
       } else {
         const amount = parseFloat(depositFixedAmount)
         if (isNaN(amount) || amount < 1) {
-          setDepositFixedAmountError('Deposit amount must be at least $1')
+          // H5 audit fix: render the minimum in the provider's configured
+          // currency rather than a hardcoded "$1" — EUR/GBP/JPY providers
+          // would otherwise see a USD message that contradicts the rest of
+          // the UI. `formatCurrency` respects zero-decimal currencies (JPY,
+          // KRW, etc.) automatically.
+          setDepositFixedAmountError(
+            `Deposit amount must be at least ${formatCurrency(1, currency)}`
+          )
           hasErrors = true
         }
       }
@@ -222,26 +237,25 @@ export default function OnboardingStep5DepositSettingsPage() {
         depositRequired && depositType === 'fixed_amount' ? parseFloat(depositFixedAmount) : null,
     }
 
-    try {
-      setIsSaving(true)
-      // Use store method which automatically fetches updated status
-      await saveDepositSettings(settings)
-      setIsSaving(false)
-
-      // Navigate to Step 6 (Cancellation Policy) on success
-      // Note: Backend automatically advances to Step 6, and store fetches updated status
-      router.push('/onboarding/payment-policies')
-    } catch (error: any) {
-      setIsSaving(false)
-      console.error('Failed to save deposit settings:', error)
-
-      // Handle save errors
-      if (depositType === 'percentage') {
-        setDepositPercentageError('Failed to save settings. Please try again.')
-      } else {
-        setDepositFixedAmountError('Failed to save settings. Please try again.')
-      }
+    // C3 audit fix: `saveDepositSettings` returns a boolean (no longer
+    // throws), with the human-readable error left on `state.error`. Branch
+    // on the boolean and surface the server error via toast rather than
+    // navigating silently past failed saves.
+    setIsSaving(true)
+    const ok = await saveDepositSettings(settings)
+    setIsSaving(false)
+    if (!ok) {
+      const error = useOnboardingStore.getState().error
+      addToast({
+        title: 'Could not save deposit settings',
+        description: error ?? 'Please try again in a moment.',
+        color: 'danger',
+      })
+      return
     }
+    // Backend automatically advances to Step 6 on success; the store has
+    // already refetched onboarding status.
+    router.push('/onboarding/payment-policies')
   }
 
   if (!status) {
@@ -251,6 +265,18 @@ export default function OnboardingStep5DepositSettingsPage() {
       </div>
     )
   }
+
+  // Calculator values — pre-computed so the breakdown table cells stay in sync
+  // with the Payment Schedule below (depositFee + remainingFee = total fee,
+  // and depositNet + remainingNet = your earnings, regardless of rounding).
+  const deposit = calculateDeposit(calcPrice)
+  const remaining = calcPrice - deposit
+  const depositNet = calculateDepositNet(calcPrice)
+  const earnings = calculateEarnings(calcPrice)
+  const serviceFee = calculateServiceFee(calcPrice)
+  const remainingNet = earnings - depositNet
+  const depositFee = deposit - depositNet
+  const remainingFee = remaining - remainingNet
 
   // Payment Calculator Component for Right Sidebar
   const paymentCalculator = (
@@ -272,11 +298,14 @@ export default function OnboardingStep5DepositSettingsPage() {
               classNames={{
                 label: 'text-xs font-semibold uppercase tracking-wide',
               }}
+              startContent={
+                <span className="text-sm text-default-500">{getCurrencySymbol(currency)}</span>
+              }
             />
           </div>
           <div className="flex-1">
             <DatePicker
-              label="Start Date"
+              label="Camp Start Date"
               labelPlacement="outside"
               value={calcStartDate}
               onChange={date => setCalcStartDate(date as CalendarDate | null)}
@@ -292,37 +321,129 @@ export default function OnboardingStep5DepositSettingsPage() {
       <div className="flex flex-col gap-5 pb-10">
         {/* Breakdown Section */}
         <div className="rounded-xl bg-default-50 p-4">
-          {/* Deposit Info Row - Conditional */}
-          {depositRequired && (
+          {/* Total Amount */}
+          <div className="flex items-center justify-between py-2 text-sm">
+            <span className="text-default-500">Total Amount</span>
+            <span className="font-semibold text-foreground">
+              {calculatorConfig === null ? (
+                <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+              ) : (
+                formatCurrency(calcPrice, currency)
+              )}
+            </span>
+          </div>
+
+          {depositRequired ? (
+            /* Three-column breakdown: row label | Deposit | Remaining */
+            <div className="mt-2 border-t border-default-200 pt-3">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs uppercase tracking-wide text-default-400">
+                    <th className="pb-2 text-left font-semibold"></th>
+                    <th className="pb-2 text-right font-semibold">
+                      Deposit
+                      {depositType === 'percentage' && depositPercentage && (
+                        <span className="ml-1 font-normal normal-case text-default-400">
+                          ({depositPercentage}%)
+                        </span>
+                      )}
+                    </th>
+                    <th className="pb-2 text-right font-semibold">Remaining</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="py-1.5 text-default-500">Amount</td>
+                    <td className="py-1.5 text-right font-semibold text-foreground">
+                      {calculatorConfig === null ? (
+                        <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                      ) : (
+                        formatCurrency(deposit, currency)
+                      )}
+                    </td>
+                    <td className="py-1.5 text-right font-semibold text-foreground">
+                      {calculatorConfig === null ? (
+                        <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                      ) : (
+                        formatCurrency(remaining, currency)
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 text-default-500">
+                      Service fee{' '}
+                      {calculatorConfig === null ? (
+                        <Skeleton className="inline-block h-3 w-6 rounded align-middle" />
+                      ) : (
+                        <span className="text-default-400">({appFeePercentage}%)</span>
+                      )}
+                    </td>
+                    <td className="py-1.5 text-right font-semibold text-danger">
+                      {calculatorConfig === null ? (
+                        <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                      ) : (
+                        <>-{formatCurrency(depositFee, currency)}</>
+                      )}
+                    </td>
+                    <td className="py-1.5 text-right font-semibold text-danger">
+                      {calculatorConfig === null ? (
+                        <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                      ) : (
+                        <>-{formatCurrency(remainingFee, currency)}</>
+                      )}
+                    </td>
+                  </tr>
+                  <tr className="border-t border-default-200">
+                    <td className="pt-2 text-sm font-semibold text-foreground">You receive</td>
+                    <td className="pt-2 text-right text-sm font-bold text-success">
+                      {calculatorConfig === null ? (
+                        <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                      ) : (
+                        formatCurrency(depositNet, currency)
+                      )}
+                    </td>
+                    <td className="pt-2 text-right text-sm font-bold text-success">
+                      {calculatorConfig === null ? (
+                        <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                      ) : (
+                        formatCurrency(remainingNet, currency)
+                      )}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            /* No deposit — single service-fee row */
             <div className="flex items-center justify-between py-2 text-sm">
-              <span className="text-default-500">Deposit (non-refundable)</span>
-              <span className="font-semibold text-foreground">
-                {depositType === 'percentage'
-                  ? `${depositPercentage}% ($${calculateDeposit(calcPrice).toLocaleString()})`
-                  : `$${calculateDeposit(calcPrice).toLocaleString()}`}
+              <span className="text-default-500">
+                Service fee (
+                {calculatorConfig === null ? (
+                  <Skeleton className="inline-block h-3 w-6 rounded align-middle" />
+                ) : (
+                  <>{appFeePercentage}%</>
+                )}
+                )
+              </span>
+              <span className="font-semibold text-danger">
+                {calculatorConfig === null ? (
+                  <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                ) : (
+                  <>-{formatCurrency(serviceFee, currency)}</>
+                )}
               </span>
             </div>
           )}
 
-          {/* Program Price */}
-          <div className="flex items-center justify-between py-2 text-sm">
-            <span className="text-default-500">Program price</span>
-            <span className="font-semibold text-foreground">${calcPrice.toLocaleString()}</span>
-          </div>
-
-          {/* Service Fee */}
-          <div className="flex items-center justify-between py-2 text-sm">
-            <span className="text-default-500">Service fee (10%)</span>
-            <span className="font-semibold text-danger">
-              -${calculateServiceFee(calcPrice).toLocaleString()}
-            </span>
-          </div>
-
           {/* Your Earnings - Total */}
-          <div className="mt-1 flex items-center justify-between border-t border-default-200 pt-3">
+          <div className="mt-3 flex items-center justify-between border-t border-default-200 pt-3">
             <span className="text-sm font-bold text-foreground">Your earnings</span>
             <span className="text-xl font-bold text-success">
-              ${calculateEarnings(calcPrice).toLocaleString()}
+              {calculatorConfig === null ? (
+                <Skeleton className="inline-block h-5 w-24 rounded align-middle" />
+              ) : (
+                formatCurrency(earnings, currency)
+              )}
             </span>
           </div>
         </div>
@@ -340,7 +461,11 @@ export default function OnboardingStep5DepositSettingsPage() {
               <div className="grid grid-cols-[100px_90px_1fr] items-center gap-3 border-b border-primary-200 pb-3">
                 <span className="text-sm font-semibold text-foreground">At booking</span>
                 <span className="text-right text-sm font-bold text-success">
-                  ${calculateDeposit(calcPrice).toLocaleString()}
+                  {calculatorConfig === null ? (
+                    <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                  ) : (
+                    formatCurrency(calculateDepositNet(calcPrice), currency)
+                  )}
                 </span>
                 <span className="text-sm leading-snug text-default-500">After 48h</span>
               </div>
@@ -361,11 +486,15 @@ export default function OnboardingStep5DepositSettingsPage() {
                   : ''}
               </span>
               <span className="text-right text-sm font-bold text-success">
-                $
-                {(
-                  calculateEarnings(calcPrice) -
-                  (depositRequired ? Math.round(calculateDeposit(calcPrice) * 0.9) : 0)
-                ).toLocaleString()}
+                {calculatorConfig === null ? (
+                  <Skeleton className="inline-block h-3 w-16 rounded align-middle" />
+                ) : (
+                  formatCurrency(
+                    calculateEarnings(calcPrice) -
+                      (depositRequired ? calculateDepositNet(calcPrice) : 0),
+                    currency
+                  )
+                )}
               </span>
               <span className="text-sm leading-snug text-default-500">Balance released</span>
             </div>
@@ -373,7 +502,12 @@ export default function OnboardingStep5DepositSettingsPage() {
 
           {/* Service Fee Note */}
           <div className="mt-2 border-t border-primary-200 pt-3 text-center text-xs text-default-500">
-            10% service fee applied to each payment
+            {calculatorConfig === null ? (
+              <Skeleton className="inline-block h-3 w-6 rounded align-middle" />
+            ) : (
+              <>{appFeePercentage}%</>
+            )}{' '}
+            service fee applied to each payment
           </div>
         </div>
       </div>
