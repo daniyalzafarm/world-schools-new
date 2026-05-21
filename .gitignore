@@ -2,17 +2,23 @@
 
 # compiled output
 dist
+**/dist/
 tmp
 out-tsc
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+*.d.ts.map
+*.map
 
 # environment variables
-*.env
+.env
+.env.*
+!.env.example
 
 # dependencies
 node_modules
+**/node_modules/
 
 # IDEs and editors
 /.idea
@@ -34,18 +40,31 @@ node_modules
 /.sass-cache
 /connect.lock
 /coverage
+**/coverage/
 /libpeerconnection.log
 npm-debug.log
+npm-debug.log*
+*.log
+logs/
+**/logs/
 yarn-error.log
 testem.log
 /typings
+
+# Caches
+.cache/
+**/.cache/
+.vercel/
+**/.vercel/
+.eslintcache
 
 # System Files
 .DS_Store
 Thumbs.db
 
-.nx/cache
-.nx/workspace-data
+# Nx
+.nx/
+**/.nx/
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 
@@ -54,16 +73,34 @@ vitest.config.*.timestamp*
 
 # Next.js
 .next
+**/.next/
 out
+**/out/
 next-env.d.ts
 static/
 graph.html
-.nx/polygraph
 .cursor
+
+# Temporary files
+temp/
+.tmp/
+**/tmp/
+**/temp/
+**/.tmp/
+
+# Backup files
+*.dump
+*.backup
+*.bak
+
+# Editor swap / merge-conflict leftovers
+*.swp
+*.swo
+*~
+*.orig
+*.rej
 
 # Claude Code — local user settings (project settings.json is tracked)
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
-
-.nx/self-healing
 .claude/worktrees
