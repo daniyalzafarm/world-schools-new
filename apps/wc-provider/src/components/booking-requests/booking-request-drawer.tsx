@@ -29,12 +29,14 @@ import {
   providerRequestBannerVariant,
 } from '@world-schools/wc-frontend-utils'
 import type { BookingGroupStatus, ProviderBookingGroupDetail } from '@world-schools/wc-types'
-import { cn, Textarea, useConfirmDialog } from '@world-schools/ui-web'
+import { cn, Textarea } from '@world-schools/ui-web'
 import { Calendar, Globe, Languages, MapPin, Star } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMessagingStore } from '@/stores/messaging-store'
 import { providerBookingGroupsService } from '@/services/provider-booking-groups.services'
+import { AcceptBookingConfirmationModal } from './accept-booking-confirmation-modal'
+import { DeclineBookingModal, type DeclinePayload } from './decline-booking-modal'
 
 export interface BookingRequestDrawerProps {
   isOpen: boolean
@@ -45,7 +47,9 @@ export interface BookingRequestDrawerProps {
   onRetry: () => void
   actionLoading: boolean
   onAccept: (providerNote: string) => Promise<{ ok: boolean; message?: string }>
-  onDecline: (providerNote: string) => Promise<{ ok: boolean; message?: string }>
+  onDecline: (
+    payload: DeclinePayload & { providerNote: string }
+  ) => Promise<{ ok: boolean; message?: string }>
   onDetailRefresh?: () => void
 }
 
@@ -125,7 +129,6 @@ export function BookingRequestDrawer({
   onDecline,
   onDetailRefresh,
 }: BookingRequestDrawerProps) {
-  const { confirm } = useConfirmDialog()
   const router = useRouter()
   const setActiveConversation = useMessagingStore(state => state.setActiveConversation)
 
@@ -137,6 +140,8 @@ export function BookingRequestDrawer({
   const [moreTimeOpen, setMoreTimeOpen] = React.useState(false)
   const [extensionConfirmOpen, setExtensionConfirmOpen] = React.useState(false)
   const [extensionLoading, setExtensionLoading] = React.useState(false)
+  const [acceptConfirmOpen, setAcceptConfirmOpen] = React.useState(false)
+  const [declineModalOpen, setDeclineModalOpen] = React.useState(false)
 
   React.useEffect(() => {
     if (isOpen) {
@@ -541,10 +546,9 @@ export function BookingRequestDrawer({
               className="w-full rounded-lg bg-primary-200 py-3.5 text-base font-semibold text-secondary-500 hover:bg-primary-300 disabled:cursor-not-allowed disabled:opacity-50"
               isDisabled={actionLoading}
               isLoading={actionLoading}
-              onPress={async () => {
+              onPress={() => {
                 setLocalError(null)
-                const r = await onAccept(note.trim())
-                if (!r.ok) setLocalError(r.message ?? 'Could not accept')
+                setAcceptConfirmOpen(true)
               }}
             >
               Accept
@@ -556,18 +560,9 @@ export function BookingRequestDrawer({
                 radius="md"
                 className="flex-1 rounded-lg border border-danger-200 bg-white py-2.5 text-sm font-medium text-danger"
                 isDisabled={actionLoading}
-                onPress={async () => {
+                onPress={() => {
                   setLocalError(null)
-                  const ok = await confirm({
-                    title: 'Decline this request?',
-                    message: 'The parent will be notified that their booking request was declined.',
-                    confirmText: 'Decline',
-                    cancelText: 'Cancel',
-                    variant: 'danger',
-                  })
-                  if (!ok) return
-                  const r = await onDecline(note.trim())
-                  if (!r.ok) setLocalError(r.message ?? 'Could not decline')
+                  setDeclineModalOpen(true)
                 }}
               >
                 Decline
@@ -1120,6 +1115,37 @@ export function BookingRequestDrawer({
               </ModalFooter>
             </ModalContent>
           </Modal>
+
+          {detail && (
+            <AcceptBookingConfirmationModal
+              isOpen={acceptConfirmOpen}
+              onClose={() => setAcceptConfirmOpen(false)}
+              isLoading={actionLoading}
+              detail={detail}
+              onConfirm={async () => {
+                const r = await onAccept(note.trim())
+                if (r.ok) {
+                  setAcceptConfirmOpen(false)
+                } else {
+                  setLocalError(r.message ?? 'Could not accept')
+                }
+              }}
+            />
+          )}
+
+          <DeclineBookingModal
+            isOpen={declineModalOpen}
+            onClose={() => setDeclineModalOpen(false)}
+            isLoading={actionLoading}
+            onConfirm={async payload => {
+              const r = await onDecline({ ...payload, providerNote: note.trim() })
+              if (r.ok) {
+                setDeclineModalOpen(false)
+              } else {
+                setLocalError(r.message ?? 'Could not decline')
+              }
+            }}
+          />
         </>
       </DrawerContent>
     </Drawer>

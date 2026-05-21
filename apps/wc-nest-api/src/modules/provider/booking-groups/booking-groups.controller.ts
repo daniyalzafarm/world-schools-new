@@ -8,6 +8,7 @@ import { BookingGroupsService } from '../../booking-groups/booking-groups.servic
 import { PatchProviderBookingGroupDto } from './dto/patch-provider-booking-group.dto'
 import { QueryProviderBookingGroupsDto } from './dto/query-provider-booking-groups.dto'
 import { RespondBookingGroupDto } from './dto/respond-booking-group.dto'
+import { DeclineBookingGroupDto } from './dto/decline-booking-group.dto'
 
 @ApiTags('Provider Booking Groups')
 @ApiBearerAuth()
@@ -54,13 +55,13 @@ export class ProviderBookingGroupsController {
   async decline(
     @CurrentUser() user: any,
     @Param('id') id: string,
-    @Body() dto: RespondBookingGroupDto
+    @Body() dto: DeclineBookingGroupDto
   ) {
-    const result = await this.bookingGroupsService.declineForProvider(
-      user.providerId,
-      id,
-      dto.providerNote
-    )
+    const result = await this.bookingGroupsService.declineForProvider(user.providerId, id, {
+      declineReason: dto.declineReason,
+      declineReasonOther: dto.declineReasonOther,
+      providerNote: dto.providerNote,
+    })
     return ResponseUtil.success(result)
   }
 

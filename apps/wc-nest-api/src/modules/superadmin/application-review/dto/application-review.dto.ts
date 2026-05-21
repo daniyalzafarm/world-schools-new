@@ -177,12 +177,36 @@ export class ApplicationDetailDto {
   trustScoreBreakdown: any | null
 }
 
+/**
+ * Underlying conditions that produced `operationalStatus`. Returned alongside
+ * the status so the SuperAdmin tooltip can show "✓ Stripe connected, ✗ No
+ * published sessions" without re-deriving the checks on the frontend.
+ */
+export interface OperationalStatusReasons {
+  stripeConnected: boolean
+  publishedCampCount: number
+  publishedSessionCount: number
+  hasRecentFailedPayout: boolean
+  /// ISO 8601 timestamp of the most recent successful login by any user
+  /// tied to this provider (owner or staff). Null when no one has ever
+  /// logged in. The frontend derives both the precise time AND the
+  /// relative-days display from this single field.
+  lastLoginAt: string | null
+}
+
 export class ApplicationListItemDto {
   id: string
   businessName: string
   email: string
   approvalStatus: string
   trustScore: number | null
+  /// Computed by `ApplicationReviewService.computeOperationalStatus`.
+  /// Null for non-approved providers (the dot is only meaningful once a
+  /// provider has been approved).
+  operationalStatus: string | null
+  /// Per-provider checklist that produced the status above. Null on
+  /// non-approved rows for symmetry with `operationalStatus`.
+  operationalStatusReasons: OperationalStatusReasons | null
   onboardingCompletedAt: string | null
   submittedAt: string | null
   legalCompanyName: string | null

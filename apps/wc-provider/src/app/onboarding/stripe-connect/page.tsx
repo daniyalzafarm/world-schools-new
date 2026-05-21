@@ -5,7 +5,16 @@ import { useRouter } from 'next/navigation'
 import { addToast, Button, Spinner } from '@heroui/react'
 import { ConnectAccountOnboarding, ConnectComponentsProvider } from '@stripe/react-connect-js'
 import { loadConnectAndInitialize } from '@stripe/connect-js'
-import { AlertCircle, Clock, Lock, Percent, RefreshCw, ShieldCheck, Wallet } from 'lucide-react'
+import {
+  AlertCircle,
+  Clock,
+  Info,
+  Lock,
+  Percent,
+  RefreshCw,
+  ShieldCheck,
+  Wallet,
+} from 'lucide-react'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { canAccessStripeConnect, getNextAccessibleStep } from '../../../utils/onboarding-access'
 import {
@@ -352,6 +361,29 @@ export default function StripeConnectPage() {
             Connect your bank account so we can pay out booking earnings to you. You can complete
             this now or skip and come back later from your account settings.
           </p>
+
+          <div className="mt-4 flex flex-col gap-3 rounded-xl border-2 border-warning bg-warning-50 px-4 py-3 text-sm text-default-700 sm:flex-row sm:items-start">
+            <div className="flex flex-1 items-start gap-2">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+              <p>
+                Stripe onboarding can be completed later. An authorised colleague (e.g. finance
+                administrator or business owner) can be invited to complete the Stripe setup from{' '}
+                <span className="font-semibold text-foreground">Account → Users</span>. Bookings
+                cannot be processed until Stripe onboarding is complete.
+              </p>
+            </div>
+            <Button
+              variant="bordered"
+              color="warning"
+              size="sm"
+              className="shrink-0 self-start"
+              onPress={() => void handleSkip()}
+              disabled={isSkipping || isCompleting}
+            >
+              {isSkipping ? 'Saving…' : 'Skip for now'}
+            </Button>
+          </div>
+
           {status.stripeOnboardingSkippedAt && !liveAccountStatus?.onboardingCompleted && (
             <div className="mt-3 inline-flex items-center gap-2 rounded-md border border-default-200 bg-default-50 px-3 py-1.5 text-xs text-default-600">
               <Clock className="h-3.5 w-3.5" />

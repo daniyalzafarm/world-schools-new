@@ -1184,6 +1184,15 @@ model BookingGroup {
   cancelledReason   String?   @map("cancelled_reason")
   cancelledByUserId String?   @map("cancelled_by_user_id")
 
+  /// Decline provenance — Provider Terms v1.5 §5.1(h)(iii) requires every
+  /// provider-initiated decline to be tagged with a reason from the controlled
+  /// list so the Platform can perform §5.1(h)(iv) pattern monitoring.
+  /// `declineReasonOther` is only populated when `declineReason = other` and
+  /// captures the provider's free-text justification (subject to moderation
+  /// before being surfaced to parents).
+  declineReason      BookingDeclineReason? @map("decline_reason")
+  declineReasonOther String?               @map("decline_reason_other") @db.Text
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -1312,6 +1321,18 @@ model Booking {
   @@index([childId])
   @@index([requestExpiresAt])
   @@map("bookings")
+}
+
+/// Controlled list of decline reasons required by Provider Terms v1.5
+/// §5.1(h)(iii). The Platform uses this to monitor for patterns of
+/// discriminatory declines per §5.1(h)(iv). `other` requires a free-text
+/// justification stored in `BookingGroup.declineReasonOther`.
+enum BookingDeclineReason {
+  capacity_or_scheduling
+  eligibility_criteria_not_met
+  operational_inability
+  safeguarding_concerns
+  other
 }
 
 /// Booking lifecycle: request → provider response → payment → at camp → completed; any → cancelled.

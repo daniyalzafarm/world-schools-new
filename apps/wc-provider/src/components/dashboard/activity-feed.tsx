@@ -55,7 +55,7 @@ export function buildBookingActivity(
     { title: string; tone: 'primary' | 'warning' | 'success' | 'default' }
   > = {
     request: { title: 'New booking request', tone: 'warning' },
-    accepted: { title: 'Request accepted', tone: 'primary' },
+    accepted: { title: 'Booking confirmed', tone: 'primary' },
     deposit_paid: { title: 'Deposit paid', tone: 'success' },
     fully_paid: { title: 'Booking fully paid', tone: 'success' },
     at_camp: { title: 'Booking checked in', tone: 'primary' },

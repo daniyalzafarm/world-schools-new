@@ -3,13 +3,17 @@ import { OnEvent } from '@nestjs/event-emitter'
 import { PrismaService } from '../../prisma/prisma.service'
 import { WebSocketService } from '../websocket/websocket.service'
 import { NotificationsService } from '../notifications/notifications.service'
+import { BookingNotificationService } from '../common/email-templates/booking-notification.service'
 import {
+  BOOKING_DECLINE_REASON_LABELS,
+  BookingDeclineReason,
   NotificationEntityType,
   NotificationType,
   type WsBookingRequestReceivedPayload,
   type WsBookingStatusPayload,
   WsServerEvent,
 } from '@world-schools/wc-types'
+import { formatCurrency } from '@world-schools/wc-utils'
 import { WsInternalEvent } from '../websocket/ws-internal-events'
 
 /**
@@ -29,7 +33,8 @@ export class BookingWebSocketHandler {
   constructor(
     private readonly wsService: WebSocketService,
     private readonly prisma: PrismaService,
-    private readonly notificationsService: NotificationsService
+    private readonly notificationsService: NotificationsService,
+    private readonly bookingNotificationService: BookingNotificationService
   ) {}
 
   /**
@@ -37,6 +42,7 @@ export class BookingWebSocketHandler {
    * Notifies:
    *  - The parent (booker) via their user room
    *  - All provider staff users via their individual user rooms
+   *  - The parent again via email (best-effort)
    */
   @OnEvent(WsInternalEvent.BookingStatusChanged)
   async handleBookingStatusChanged(payload: WsBookingStatusPayload) {
@@ -52,12 +58,36 @@ export class BookingWebSocketHandler {
         }
       }
 
-      // Persist notifications so offline users don't miss the event.
-      // One row per user is created — each recipient has independent read state.
-      const notificationType =
-        payload.newStatus === 'accepted'
-          ? NotificationType.BookingAccepted
-          : NotificationType.BookingDeclined
+      const isAccepted = payload.newStatus === 'accepted'
+      const isDeclined = payload.newStatus === 'declined'
+      const notificationType = isAccepted
+        ? NotificationType.BookingAccepted
+        : NotificationType.BookingDeclined
+
+      const chargedAmountFormatted =
+        isAccepted && payload.chargedAmount != null
+          ? formatCurrency(payload.chargedAmount, payload.currency ?? 'USD')
+          : null
+
+      const sessionRange = formatSessionRange(payload.sessionStartDate, payload.sessionEndDate)
+      const reasonLabel =
+        isDeclined && payload.declineReason
+          ? BOOKING_DECLINE_REASON_LABELS[payload.declineReason as BookingDeclineReason]
+          : undefined
+
+      const parentBody = isAccepted
+        ? chargedAmountFormatted
+          ? `Your booking at ${payload.campName} has been confirmed and your card has been charged ${chargedAmountFormatted}. Check your booking for full details.`
+          : `Your booking at ${payload.campName} has been confirmed. Check your booking for full details.`
+        : isDeclined
+          ? sessionRange
+            ? `Your booking request for ${payload.campName} on ${sessionRange} was declined. No charge has been made.${
+                reasonLabel ? ` Reason: ${reasonLabel}.` : ''
+              }`
+            : `Your booking request for ${payload.campName} was declined. No charge has been made.${
+                reasonLabel ? ` Reason: ${reasonLabel}.` : ''
+              }`
+          : `Your booking status has changed to ${payload.newStatus}.`
 
       const notificationBase = {
         type: notificationType,
@@ -69,19 +99,34 @@ export class BookingWebSocketHandler {
         },
       }
 
+      // Persist in-app notifications and (best-effort) dispatch the parent
+      // email in the same allSettled batch — email failures must not break
+      // the WS/notification flow.
+      const parentEmailTask =
+        isAccepted || isDeclined
+          ? this.dispatchParentEmail({
+              parentUserId: payload.parentUserId,
+              bookingGroupId: payload.bookingGroupId,
+              campName: payload.campName,
+              sessionRange,
+              isAccepted,
+              chargedAmount: payload.chargedAmount,
+              currency: payload.currency,
+              reasonLabel,
+            })
+          : Promise.resolve()
+
       await Promise.allSettled([
-        // Parent: actionable message directing them to next step
+        // Parent: actionable message reflecting the actual booking state
         this.notificationsService.create({
           userId: payload.parentUserId,
           ...notificationBase,
-          title:
-            payload.newStatus === 'accepted'
-              ? `Booking accepted — ${payload.campName}`
-              : `Booking declined — ${payload.campName}`,
-          body:
-            payload.newStatus === 'accepted'
-              ? 'Your booking request has been accepted. Proceed to payment to confirm your spot.'
-              : 'Your booking request was declined. You can browse other camps or contact the provider.',
+          title: isAccepted
+            ? `Booking confirmed — ${payload.campName}`
+            : isDeclined
+              ? `Booking declined — ${payload.campName}`
+              : `Booking update — ${payload.campName}`,
+          body: parentBody,
           metadata: {
             ...notificationBase.metadata,
             redirectUrl: `/bookings/${payload.bookingGroupId}`,
@@ -93,10 +138,9 @@ export class BookingWebSocketHandler {
           providerUserIds.filter(id => id !== payload.parentUserId),
           {
             ...notificationBase,
-            title:
-              payload.newStatus === 'accepted'
-                ? `You accepted booking ${payload.bookingGroupNumber}`
-                : `You declined booking ${payload.bookingGroupNumber}`,
+            title: isAccepted
+              ? `You accepted booking ${payload.bookingGroupNumber}`
+              : `You declined booking ${payload.bookingGroupNumber}`,
             body: `Camp: ${payload.campName}`,
             metadata: {
               ...notificationBase.metadata,
@@ -104,6 +148,8 @@ export class BookingWebSocketHandler {
             },
           }
         ),
+
+        parentEmailTask,
       ])
 
       this.logger.log(
@@ -114,6 +160,64 @@ export class BookingWebSocketHandler {
       const msg = error instanceof Error ? error.message : String(error)
       this.logger.error(`Failed to deliver booking:status_changed: ${msg}`)
     }
+  }
+
+  /**
+   * Look up parent contact details and dispatch the matching email.
+   * Failures are swallowed inside `BookingNotificationService` — this
+   * wrapper exists so we can keep the orchestration above readable.
+   */
+  private async dispatchParentEmail(args: {
+    parentUserId: string
+    bookingGroupId: string
+    campName: string
+    sessionRange: string
+    isAccepted: boolean
+    chargedAmount?: number
+    currency?: string
+    reasonLabel?: string
+  }): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: args.parentUserId },
+      select: { email: true, firstName: true },
+    })
+    if (!user?.email) {
+      this.logger.warn(
+        `Skipping booking email — no email on user ${args.parentUserId} for booking ${args.bookingGroupId}`
+      )
+      return
+    }
+
+    if (args.isAccepted) {
+      // Without an amount we cannot send a truthful "charged X" email —
+      // fall back to the in-app notification only rather than send a
+      // misleading "your card has been charged" with no value.
+      if (args.chargedAmount == null || !args.currency) {
+        this.logger.warn(
+          `Skipping booking-accepted email for ${args.bookingGroupId} — missing chargedAmount or currency`
+        )
+        return
+      }
+      await this.bookingNotificationService.sendBookingAcceptedEmail({
+        parentEmail: user.email,
+        parentFirstName: user.firstName ?? 'there',
+        bookingGroupId: args.bookingGroupId,
+        campName: args.campName,
+        sessionRange: args.sessionRange,
+        chargedAmount: args.chargedAmount,
+        currency: args.currency,
+      })
+      return
+    }
+
+    await this.bookingNotificationService.sendBookingDeclinedEmail({
+      parentEmail: user.email,
+      parentFirstName: user.firstName ?? 'there',
+      bookingGroupId: args.bookingGroupId,
+      campName: args.campName,
+      sessionRange: args.sessionRange,
+      reasonLabel: args.reasonLabel,
+    })
   }
 
   /**
@@ -179,4 +283,35 @@ export class BookingWebSocketHandler {
     if (provider?.ownerId) ids.add(provider.ownerId)
     return Array.from(ids)
   }
+}
+
+/**
+ * Renders the ISO date pair on the payload as a compact human range, e.g.
+ * "10–17 Aug 2026" or "29 Jul – 4 Aug 2026". Used by both the in-app body
+ * and the email template so the wording stays consistent.
+ */
+function formatSessionRange(startIso?: string, endIso?: string): string {
+  if (!startIso || !endIso) return ''
+  const start = new Date(startIso)
+  const end = new Date(endIso)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return ''
+
+  const sameYear = start.getFullYear() === end.getFullYear()
+  const sameMonth = sameYear && start.getMonth() === end.getMonth()
+
+  const dayFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric' })
+  const dayMonthFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' })
+  const fullFmt = new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+
+  if (sameMonth) {
+    return `${dayFmt.format(start)}–${fullFmt.format(end)}`
+  }
+  if (sameYear) {
+    return `${dayMonthFmt.format(start)} – ${fullFmt.format(end)}`
+  }
+  return `${fullFmt.format(start)} – ${fullFmt.format(end)}`
 }

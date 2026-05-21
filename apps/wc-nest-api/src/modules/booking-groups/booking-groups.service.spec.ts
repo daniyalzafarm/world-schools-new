@@ -14,6 +14,7 @@ import { RedisService } from '../redis/redis.service'
 import { RefundsService } from '../billing/refunds/refunds.service'
 import { RefundsNotificationsService } from '../billing/refunds/notifications/refunds-notifications.service'
 import { ProfilePhotoService } from '../user/auth/services/profile-photo.service'
+import { BookingDeclineReason } from '@world-schools/wc-types'
 import { BookingGroupsService } from './booking-groups.service'
 
 /**
@@ -623,8 +624,14 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         status: 'request',
         bookingGroupNumber: 'BG-0001',
         parentId: 'p-1',
+        totalAmount: new Prisma.Decimal('600.00'),
         camp: { name: 'C' },
         parent: { userId: 'u-1' },
+        session: {
+          startDate: new Date('2026-08-01T00:00:00Z'),
+          endDate: new Date('2026-08-08T00:00:00Z'),
+        },
+        provider: { settings: { currency: 'GBP' } },
       })
       payments.captureForBookingGroup.mockResolvedValueOnce(['pay-1'])
 
@@ -650,8 +657,14 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         status: 'request',
         bookingGroupNumber: 'BG-0001',
         parentId: 'p-1',
+        totalAmount: new Prisma.Decimal('600.00'),
         camp: { name: 'C' },
         parent: { userId: 'u-1' },
+        session: {
+          startDate: new Date('2026-08-01T00:00:00Z'),
+          endDate: new Date('2026-08-08T00:00:00Z'),
+        },
+        provider: { settings: { currency: 'GBP' } },
       })
       payments.captureForBookingGroup.mockRejectedValueOnce(
         new PaymentAuthorizationExpiredError('pay-1')
@@ -687,7 +700,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
   })
 
   describe('declineForProvider', () => {
-    it('cancels the auth before flipping status to declined', async () => {
+    it('cancels the auth before flipping status to declined and persists the controlled-list reason', async () => {
       prisma.bookingGroup.findFirst.mockResolvedValueOnce({
         id: 'bg-1',
         status: 'request',
@@ -695,10 +708,18 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         parentId: 'p-1',
         camp: { name: 'C' },
         parent: { userId: 'u-1' },
+        session: {
+          startDate: new Date('2026-08-01T00:00:00Z'),
+          endDate: new Date('2026-08-08T00:00:00Z'),
+        },
+        provider: { settings: { currency: 'GBP' } },
       })
       payments.cancelForBookingGroup.mockResolvedValueOnce(['pay-1'])
 
-      const result = await service.declineForProvider('pr-1', 'bg-1', 'no spots left')
+      const result = await service.declineForProvider('pr-1', 'bg-1', {
+        declineReason: BookingDeclineReason.CapacityOrScheduling,
+        providerNote: 'no spots left',
+      })
 
       expect(payments.cancelForBookingGroup).toHaveBeenCalledWith('bg-1', 'requested_by_customer')
       expect(prisma.bookingGroup.update).toHaveBeenCalledWith(
@@ -707,6 +728,8 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
           data: expect.objectContaining({
             status: 'declined',
             respondedAt: expect.any(Date),
+            declineReason: BookingDeclineReason.CapacityOrScheduling,
+            declineReasonOther: null,
           }),
         })
       )
@@ -726,10 +749,19 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         parentId: 'p-1',
         camp: { name: 'C' },
         parent: { userId: 'u-1' },
+        session: {
+          startDate: new Date('2026-08-01T00:00:00Z'),
+          endDate: new Date('2026-08-08T00:00:00Z'),
+        },
+        provider: { settings: { currency: 'GBP' } },
       })
       payments.cancelForBookingGroup.mockRejectedValueOnce(new Error('Stripe down'))
 
-      await expect(service.declineForProvider('pr-1', 'bg-1')).rejects.toThrow('Stripe down')
+      await expect(
+        service.declineForProvider('pr-1', 'bg-1', {
+          declineReason: BookingDeclineReason.OperationalInability,
+        })
+      ).rejects.toThrow('Stripe down')
       expect(prisma.bookingGroup.update).not.toHaveBeenCalled()
     })
   })

@@ -27,6 +27,7 @@ import {
   statusBadgeClass,
 } from '@world-schools/wc-frontend-utils'
 import {
+  type BookingDeclineReason,
   type BookingGroupStatus,
   PROVIDER_TAB_STATUS_FILTER,
   type ProviderBookingGroupDetail,
@@ -124,11 +125,17 @@ export function BookingRequestsView() {
   )
 
   const runDecline = useCallback(
-    async (note: string) => {
+    async (payload: {
+      declineReason: BookingDeclineReason
+      declineReasonOther?: string
+      providerNote: string
+    }) => {
       if (!selectedId) return { ok: false as const, message: 'No booking selected' }
       setActionLoading(true)
       const res = await providerBookingGroupsService.decline(selectedId, {
-        providerNote: note || undefined,
+        declineReason: payload.declineReason,
+        declineReasonOther: payload.declineReasonOther,
+        providerNote: payload.providerNote || undefined,
       })
       setActionLoading(false)
       if (!res.success) {

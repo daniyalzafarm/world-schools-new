@@ -119,6 +119,45 @@ export interface WsBookingStatusPayload {
   providerId: string
   campName: string
   respondedAt?: string
+  /// Captured charge total in major units. Set on `accepted` so the parent
+  /// notification can include the exact amount taken from the card.
+  chargedAmount?: number
+  /// ISO-4217 currency code paired with `chargedAmount` / decline messaging.
+  currency?: string
+  /// Session window for `declined` notifications so the parent sees which
+  /// booking was rejected without an extra lookup.
+  sessionStartDate?: string
+  sessionEndDate?: string
+  /// Decline reason from the controlled list (Provider Terms §5.1(h)(iii)).
+  /// `declineReasonOther` free-text is intentionally NOT included — parent
+  /// notifications surface a fixed reason label, not provider free-text.
+  declineReason?: BookingDeclineReason
+}
+
+/**
+ * Provider Terms v1.5 §5.1(h)(iii) controlled list of decline reasons.
+ * Mirrored from the Prisma `BookingDeclineReason` enum so the frontend can
+ * render the dropdown without depending on the backend types package.
+ */
+export enum BookingDeclineReason {
+  CapacityOrScheduling = 'capacity_or_scheduling',
+  EligibilityCriteriaNotMet = 'eligibility_criteria_not_met',
+  OperationalInability = 'operational_inability',
+  SafeguardingConcerns = 'safeguarding_concerns',
+  Other = 'other',
+}
+
+/// Parent-facing labels for the decline-reason dropdown and notification
+/// copy. Keep wording aligned with Provider Terms so legal review stays
+/// straightforward.
+export const BOOKING_DECLINE_REASON_LABELS: Record<BookingDeclineReason, string> = {
+  [BookingDeclineReason.CapacityOrScheduling]: 'Capacity or scheduling conflict',
+  [BookingDeclineReason.EligibilityCriteriaNotMet]:
+    'Eligibility criteria not met (age, skill level, prior experience)',
+  [BookingDeclineReason.OperationalInability]:
+    'Operational inability to accommodate a specific requirement',
+  [BookingDeclineReason.SafeguardingConcerns]: 'Safeguarding concerns',
+  [BookingDeclineReason.Other]: 'Other',
 }
 
 export interface WsBookingRequestReceivedPayload {

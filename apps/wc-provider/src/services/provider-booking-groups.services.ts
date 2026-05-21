@@ -1,5 +1,6 @@
 import apiClient, { type ApiResult } from '@/utils/api-client'
 import type {
+  BookingDeclineReason,
   ProviderBookingGroupDetail,
   ProviderBookingGroupsQuery,
   ProviderBookingGroupSummary,
@@ -48,7 +49,11 @@ export const providerBookingGroupsService = {
 
   async decline(
     id: string,
-    body: { providerNote?: string }
+    body: {
+      declineReason: BookingDeclineReason
+      declineReasonOther?: string
+      providerNote?: string
+    }
   ): Promise<ApiResult<{ bookingGroupId: string; status: string }>> {
     return apiClient.post<{ bookingGroupId: string; status: string }>(
       `/provider/booking-groups/${encodeURIComponent(id)}/decline`,

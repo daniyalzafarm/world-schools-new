@@ -1122,7 +1122,8 @@ export class CampsService {
       reviewCount,
       reviewsWithResponseCount,
       revenueTotalAgg,
-      revenueThisMonthAgg,
+      bookingsValueThisMonthAgg,
+      payoutsThisMonthAgg,
       revenueLastSeasonAgg,
       pendingRevenueAgg,
       refundedAgg,
@@ -1167,12 +1168,29 @@ export class CampsService {
         where: { providerId },
         _sum: { paidAmount: true },
       }),
+      // BUG-111: this counter used to filter by `session.startDate`, which
+      // made any booking confirmed in month X for a camp that ran in month
+      // X+n show as £0 in the current month. Filter by `respondedAt` (when
+      // the provider accepted, which is also when capture completes) and
+      // restrict to confirmed statuses to exclude pending/declined.
       this.prisma.bookingGroup.aggregate({
         where: {
           providerId,
-          session: { startDate: { gte: startOfMonth, lt: startOfNextMonth } },
+          status: { in: CONFIRMED_STATUSES as unknown as string[] } as any,
+          respondedAt: { gte: startOfMonth, lt: startOfNextMonth },
         },
-        _sum: { paidAmount: true },
+        _sum: { totalAmount: true },
+      }),
+      // Disbursed funds: Stripe payouts that hit the provider's bank in
+      // the current month. Separate metric so providers can see what
+      // landed in their account vs. what's been earned but not yet paid.
+      this.prisma.payoutEvent.aggregate({
+        where: {
+          providerId,
+          status: 'paid',
+          arrivalDate: { gte: startOfMonth, lt: startOfNextMonth },
+        },
+        _sum: { amount: true },
       }),
       this.prisma.bookingGroup.aggregate({
         where: {
@@ -1226,7 +1244,8 @@ export class CampsService {
       reviewCount,
       unrespondedReviews: reviewsWithResponseCount,
       revenueTotalPaid: Number(revenueTotalAgg._sum.paidAmount ?? 0),
-      revenueThisMonth: Number(revenueThisMonthAgg._sum.paidAmount ?? 0),
+      bookingsValueThisMonth: Number(bookingsValueThisMonthAgg._sum.totalAmount ?? 0),
+      payoutsThisMonth: Number(payoutsThisMonthAgg._sum.amount ?? 0),
       revenueLastSeason: Number(revenueLastSeasonAgg._sum.paidAmount ?? 0),
       pendingRevenue: Number(pendingRevenueAgg._sum.totalAmount ?? 0),
       refundedTotal: Number(refundedAgg._sum.refundedAmount ?? 0),

@@ -1,3 +1,5 @@
+import type { OperationalStatus as OperationalStatusType } from '@world-schools/wc-types'
+
 export type ApprovalStatus =
   | 'pending'
   | 'under_review'
@@ -6,6 +8,9 @@ export type ApprovalStatus =
   | 'rejected'
   | 'suspended'
 
+/** Re-exported from `@world-schools/wc-types` for convenience. */
+export { OperationalStatus, OPERATIONAL_STATUS_LABELS } from '@world-schools/wc-types'
+
 export type DocumentReviewStatus = 'pending' | 'approved' | 'rejected' | 'needs_reupload'
 
 export type DocumentType =
@@ -13,6 +18,20 @@ export type DocumentType =
   | 'insurance_certificate'
   | 'tax_document'
   | 'other'
+
+/// Underlying conditions that produced `operationalStatus`. Returned by the
+/// API so the SuperAdmin tooltip can render "✓ Stripe connected, ✗ No
+/// published sessions" without re-deriving the checks on the frontend.
+export interface OperationalStatusReasons {
+  stripeConnected: boolean
+  publishedCampCount: number
+  publishedSessionCount: number
+  hasRecentFailedPayout: boolean
+  /// ISO 8601 timestamp of the most recent provider login. Null when no
+  /// one tied to the provider has logged in. The tooltip derives both
+  /// the absolute datetime and the relative offset from this field.
+  lastLoginAt: string | null
+}
 
 export interface ApplicationListItem {
   id: string
@@ -23,6 +42,12 @@ export interface ApplicationListItem {
   contactLastName?: string
   approvalStatus: ApprovalStatus
   trustScore?: number | null
+  /// Computed by the API only for approved providers (BUG-107).
+  /// Null on rejected/suspended/pending rows so the column renders empty.
+  operationalStatus?: OperationalStatusType | null
+  /// Per-provider checklist powering the operational-status tooltip.
+  /// Null on non-approved rows for symmetry with `operationalStatus`.
+  operationalStatusReasons?: OperationalStatusReasons | null
   onboardingStartedAt?: string
   onboardingCompletedAt?: string | null
   createdAt: string

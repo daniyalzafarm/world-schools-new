@@ -500,6 +500,97 @@ export class EmailTemplateService {
   }
 
   /**
+   * Booking accepted — parent-facing confirmation that the card has been
+   * charged and the spot is secured. Replaces the earlier in-app copy that
+   * incorrectly told parents to "proceed to payment" after capture had
+   * already succeeded (BUG-110).
+   */
+  getBookingAcceptedTemplate(params: {
+    parentFirstName: string
+    campName: string
+    sessionRange: string
+    chargedAmountFormatted: string
+    bookingUrl: string
+  }): string {
+    const parentFirstName = this.escapeHtml(params.parentFirstName)
+    const campName = this.escapeHtml(params.campName)
+    const sessionRange = this.escapeHtml(params.sessionRange)
+    const chargedAmount = this.escapeHtml(params.chargedAmountFormatted)
+    const content = `
+      <div class="email-header">
+        <div class="logo">World-Camps</div>
+        <h1>Your booking is confirmed</h1>
+      </div>
+      <div class="email-body">
+        <h2>Great news, ${parentFirstName}!</h2>
+        <p>Your booking at <strong>${campName}</strong> for ${sessionRange} has been accepted by the provider and confirmed.</p>
+
+        <div class="success-box">
+          <p style="margin: 0;"><strong>Charged today:</strong> ${chargedAmount}</p>
+          <p style="margin: 8px 0 0 0;">Your card has been charged in full. No further action is required.</p>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="${params.bookingUrl}" class="button">View your booking</a>
+        </div>
+
+        <p>We'll be in touch closer to the start date with logistics. In the meantime, you can message the provider directly from your booking page.</p>
+
+        <div class="divider"></div>
+        <p class="text-secondary" style="font-size: 14px;">Thanks for booking with World-Camps.</p>
+      </div>
+      <div class="email-footer">
+        <p>&copy; ${new Date().getFullYear()} World-Camps. All rights reserved.</p>
+      </div>
+    `
+    return this.getBaseTemplate(content)
+  }
+
+  /**
+   * Booking declined — parent-facing confirmation that the request was not
+   * accepted AND that no charge has been made (BUG-113). When a reason from
+   * the controlled list is provided we surface the human-readable label.
+   * Free-text "other" justifications are intentionally NOT shown to parents
+   * here (moderation policy pending).
+   */
+  getBookingDeclinedTemplate(params: {
+    parentFirstName: string
+    campName: string
+    sessionRange: string
+    reasonLabel?: string
+  }): string {
+    const parentFirstName = this.escapeHtml(params.parentFirstName)
+    const campName = this.escapeHtml(params.campName)
+    const sessionRange = this.escapeHtml(params.sessionRange)
+    const reasonLabel = params.reasonLabel ? this.escapeHtml(params.reasonLabel) : undefined
+    const content = `
+      <div class="email-header">
+        <div class="logo">World-Camps</div>
+        <h1>Your booking request was declined</h1>
+      </div>
+      <div class="email-body">
+        <p>Hi ${parentFirstName},</p>
+        <p>Your booking request for <strong>${campName}</strong> on ${sessionRange} was declined by the provider.</p>
+
+        <div class="info-box">
+          <p style="margin: 0;"><strong>No charge has been made.</strong> Any payment authorisation on your card has been released and will drop off within a few business days.</p>
+        </div>
+
+        ${reasonLabel ? `<p><strong>Reason given by the provider:</strong> ${reasonLabel}</p>` : ''}
+
+        <p>You can browse other camps that match your dates, or message this provider if you'd like to discuss alternative options.</p>
+
+        <div class="divider"></div>
+        <p class="text-secondary" style="font-size: 14px;">Thanks for trying World-Camps. We're sorry this one didn't work out.</p>
+      </div>
+      <div class="email-footer">
+        <p>&copy; ${new Date().getFullYear()} World-Camps. All rights reserved.</p>
+      </div>
+    `
+    return this.getBaseTemplate(content)
+  }
+
+  /**
    * Get welcome email template for provider accounts created via admin import
    */
   getProviderImportWelcomeTemplate(params: {

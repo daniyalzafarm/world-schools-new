@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { EmailTemplateService } from './email-template.service'
 import { ApplicationNotificationService } from './application-notification.service'
+import { BookingNotificationService } from './booking-notification.service'
 import { PrismaModule } from '../../../prisma/prisma.module'
 import { ConfigModule } from '../../../config/config.module'
 import { ConfigService } from '../../../config/config.service'
@@ -11,6 +12,7 @@ import { EmailService } from '@world-schools/global-utils'
   providers: [
     EmailTemplateService,
     ApplicationNotificationService,
+    BookingNotificationService,
     {
       provide: EmailService,
       useFactory: (configService: ConfigService) => {
@@ -19,6 +21,11 @@ import { EmailService } from '@world-schools/global-utils'
       inject: [ConfigService],
     },
   ],
-  exports: [EmailTemplateService, ApplicationNotificationService, EmailService],
+  exports: [
+    EmailTemplateService,
+    ApplicationNotificationService,
+    BookingNotificationService,
+    EmailService,
+  ],
 })
 export class EmailTemplatesModule {}

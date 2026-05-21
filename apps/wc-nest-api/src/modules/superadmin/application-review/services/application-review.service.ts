@@ -15,6 +15,7 @@ import {
 } from '../dto/application-review.dto'
 import { ApplicationNotificationService } from '../../../common/email-templates/application-notification.service'
 import { WsInternalEvent } from '../../../websocket/ws-internal-events'
+import { OperationalStatus } from '@world-schools/wc-types'
 
 @Injectable()
 export class ApplicationReviewService {
@@ -113,27 +114,85 @@ export class ApplicationReviewService {
         contactLastName: true,
         createdAt: true, // Added for sorting support
         logoUrl: true,
+        // Operational-status inputs (BUG-107)
+        stripeAccountId: true,
+        stripeChargesEnabled: true,
+        stripePayoutsEnabled: true,
+        lastLoginAt: true,
+        _count: {
+          select: {
+            camps: { where: { status: 'published' } },
+          },
+        },
+        camps: {
+          where: { status: 'published' },
+          select: {
+            _count: { select: { sessions: { where: { status: 'published' } } } },
+          },
+        },
       },
       orderBy: { [sortBy]: sortOrder },
       skip: (page - 1) * limit,
       take: limit,
     })
 
+    // Identify approved providers with any failed payout in the last 90
+    // days — single query rather than N subqueries on the list endpoint.
+    const approvedProviderIds = providers
+      .filter(p => p.approvalStatus === 'approved')
+      .map(p => p.id)
+    const failedPayoutsByProviderId =
+      await this.findRecentFailedPayoutProviderIds(approvedProviderIds)
+
     const data: ApplicationListItemDto[] = await Promise.all(
-      providers.map(async p => ({
-        id: p.id,
-        businessName: p.legalCompanyName || '',
-        email: p.email || '',
-        approvalStatus: p.approvalStatus,
-        trustScore: p.trustScore,
-        onboardingCompletedAt: p.onboardingCompletedAt?.toISOString() || null,
-        submittedAt: p.applicationSubmittedAt?.toISOString() || null,
-        legalCompanyName: p.legalCompanyName,
-        contactFirstName: p.contactFirstName,
-        contactLastName: p.contactLastName,
-        createdAt: p.createdAt.toISOString(),
-        logoUrl: p.logoUrl ? await this.providerLogoService.generateLogoUrl(p.logoUrl) : null,
-      }))
+      providers.map(async p => {
+        const publishedSessionCount = (p.camps as Array<{ _count: { sessions: number } }>).reduce(
+          (sum, c) => sum + c._count.sessions,
+          0
+        )
+        const stripeConnected =
+          !!p.stripeAccountId && p.stripeChargesEnabled && p.stripePayoutsEnabled
+        const hasRecentFailedPayout = failedPayoutsByProviderId.has(p.id)
+
+        const isApproved = p.approvalStatus === 'approved'
+        const operationalStatus = isApproved
+          ? this.computeOperationalStatus({
+              stripeAccountId: p.stripeAccountId,
+              stripeChargesEnabled: p.stripeChargesEnabled,
+              stripePayoutsEnabled: p.stripePayoutsEnabled,
+              lastLoginAt: p.lastLoginAt,
+              publishedCampCount: p._count.camps,
+              publishedSessionCount,
+              hasRecentFailedPayout,
+            })
+          : null
+        const operationalStatusReasons = isApproved
+          ? {
+              stripeConnected,
+              publishedCampCount: p._count.camps,
+              publishedSessionCount,
+              hasRecentFailedPayout,
+              lastLoginAt: p.lastLoginAt?.toISOString() ?? null,
+            }
+          : null
+
+        return {
+          id: p.id,
+          businessName: p.legalCompanyName || '',
+          email: p.email || '',
+          approvalStatus: p.approvalStatus,
+          trustScore: p.trustScore,
+          operationalStatus,
+          operationalStatusReasons,
+          onboardingCompletedAt: p.onboardingCompletedAt?.toISOString() || null,
+          submittedAt: p.applicationSubmittedAt?.toISOString() || null,
+          legalCompanyName: p.legalCompanyName,
+          contactFirstName: p.contactFirstName,
+          contactLastName: p.contactLastName,
+          createdAt: p.createdAt.toISOString(),
+          logoUrl: p.logoUrl ? await this.providerLogoService.generateLogoUrl(p.logoUrl) : null,
+        }
+      })
     )
 
     return {
@@ -463,5 +522,73 @@ export class ApplicationReviewService {
       newStatus: 'suspended',
       previousStatus: provider.approvalStatus,
     })
+  }
+
+  /**
+   * Operational readiness signal for an approved provider (BUG-107).
+   * Independent of approval status — Approved + Stripe disconnected is
+   * still `setup_incomplete`, not "approved and ready". SuperAdmin uses
+   * this to triage which approved providers need follow-up.
+   *
+   * Returns null for providers that haven't been approved yet (the dot is
+   * not meaningful before approval).
+   */
+  private computeOperationalStatus(args: {
+    stripeAccountId: string | null
+    stripeChargesEnabled: boolean
+    stripePayoutsEnabled: boolean
+    lastLoginAt: Date | null
+    publishedCampCount: number
+    publishedSessionCount: number
+    hasRecentFailedPayout: boolean
+  }): OperationalStatus {
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+    const stripeConnected =
+      !!args.stripeAccountId && args.stripeChargesEnabled && args.stripePayoutsEnabled
+    const isDormant =
+      args.publishedCampCount === 0 && (!args.lastLoginAt || args.lastLoginAt < ninetyDaysAgo)
+
+    if (isDormant) return OperationalStatus.Inactive
+
+    // Action Required — a regression from a previously working state, or
+    // a published camp left without any sessions to book against, or a
+    // failed payout that needs ops to investigate. Stripe being missing
+    // from the start is `setup_incomplete`, not `action_required` — we
+    // can't distinguish "was connected, now broken" from "never connected"
+    // without persisting prior Stripe state, so we approximate using
+    // `stripeAccountId set but charges/payouts disabled`.
+    if (args.hasRecentFailedPayout) return OperationalStatus.ActionRequired
+    if (args.stripeAccountId && (!args.stripeChargesEnabled || !args.stripePayoutsEnabled)) {
+      return OperationalStatus.ActionRequired
+    }
+    if (args.publishedCampCount > 0 && args.publishedSessionCount === 0) {
+      return OperationalStatus.ActionRequired
+    }
+
+    if (stripeConnected && args.publishedCampCount > 0 && args.publishedSessionCount > 0) {
+      return OperationalStatus.FullyActive
+    }
+
+    return OperationalStatus.SetupIncomplete
+  }
+
+  /**
+   * Single query — returns the subset of `providerIds` that have any
+   * `PayoutEvent` in `failed` status in the last 90 days. Used by the
+   * list endpoint to avoid N subqueries.
+   */
+  private async findRecentFailedPayoutProviderIds(providerIds: string[]): Promise<Set<string>> {
+    if (providerIds.length === 0) return new Set()
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+    const rows = await this.prisma.payoutEvent.findMany({
+      where: {
+        providerId: { in: providerIds },
+        status: 'failed',
+        createdAt: { gte: ninetyDaysAgo },
+      },
+      select: { providerId: true },
+      distinct: ['providerId'],
+    })
+    return new Set(rows.map(r => r.providerId))
   }
 }

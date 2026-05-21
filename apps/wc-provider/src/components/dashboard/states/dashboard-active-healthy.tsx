@@ -1,7 +1,8 @@
 'use client'
 
-import { Calendar, DollarSign, MailOpen, MessageCircle, Tent } from 'lucide-react'
+import { Banknote, Calendar, DollarSign, MailOpen, MessageCircle, Tent } from 'lucide-react'
 import type { ProviderBookingGroupSummary } from '@world-schools/wc-types'
+import { formatCurrency } from '@world-schools/wc-utils'
 import type { Session } from '@/types/sessions'
 import type { CampStatistics } from '@/services/camps.services'
 import type { ProviderReviewSummary } from '@/services/provider-reviews.services'
@@ -26,18 +27,6 @@ interface DashboardActiveHealthyProps {
   unreadMessages: number
 }
 
-function formatCurrency(value: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat('en', {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 0,
-    }).format(value)
-  } catch {
-    return `${currency} ${value}`
-  }
-}
-
 export function DashboardActiveHealthy({
   businessName,
   bookingRequests,
@@ -49,7 +38,8 @@ export function DashboardActiveHealthy({
 }: DashboardActiveHealthyProps) {
   const publishedSessions = sessions.filter(s => s.status === 'published')
   const currency = statistics?.currency ?? 'EUR'
-  const revenueThisMonth = statistics?.revenueThisMonth ?? 0
+  const bookingsValueThisMonth = statistics?.bookingsValueThisMonth ?? 0
+  const payoutsThisMonth = statistics?.payoutsThisMonth ?? 0
   const totalBookings = statistics?.totalBookings ?? upcomingBookings.length
   const activeSessions = statistics?.activeSessions ?? publishedSessions.length
 
@@ -67,17 +57,27 @@ export function DashboardActiveHealthy({
           tone={bookingRequests.length > 0 ? 'warning' : 'default'}
           href="/bookings"
         />
+        {/* BUG-111: split the old "Revenue this month" card into two —
+            bookings value (charges captured) and payouts (Stripe
+            disbursements) — so a confirmed booking shows up immediately
+            and providers can distinguish earned vs. paid-out. */}
         <StatCard
           icon={<DollarSign size={20} />}
-          label="Revenue this month"
-          value={formatCurrency(revenueThisMonth, currency)}
+          label="Bookings value this month"
+          value={formatCurrency(bookingsValueThisMonth, currency)}
           tone="success"
+        />
+        <StatCard
+          icon={<Banknote size={20} />}
+          label="Payouts this month"
+          value={formatCurrency(payoutsThisMonth, currency)}
+          tone="primary"
         />
         <StatCard
           icon={<Calendar size={20} />}
           label="Total bookings"
           value={totalBookings}
-          tone="primary"
+          tone="default"
           href="/bookings"
         />
         <StatCard

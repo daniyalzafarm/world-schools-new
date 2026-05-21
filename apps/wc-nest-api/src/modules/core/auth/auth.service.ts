@@ -101,6 +101,44 @@ export class AuthService {
     }
   }
 
+  /**
+   * Stamp `Provider.lastLoginAt = now` for every provider the user is
+   * associated with (as owner or via a provider-scoped role). Powers the
+   * SuperAdmin Inactive operational state (BUG-107) which keys on
+   * `lastLoginAt < now - 90d`.
+   *
+   * Fire-and-forget by design — failures are logged but never surfaced to
+   * the auth caller, because the underlying login has already succeeded
+   * and we don't want a transient Prisma blip to lock a user out.
+   */
+  async recordProviderLastLogin(userId: string): Promise<void> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          ownedProvider: { select: { id: true } },
+          roles: { select: { role: { select: { providerId: true } } } },
+        },
+      })
+      if (!user) return
+
+      const providerIds = new Set<string>()
+      if (user.ownedProvider?.id) providerIds.add(user.ownedProvider.id)
+      for (const ur of user.roles) {
+        if (ur.role.providerId) providerIds.add(ur.role.providerId)
+      }
+      if (providerIds.size === 0) return
+
+      await this.prisma.provider.updateMany({
+        where: { id: { in: Array.from(providerIds) } },
+        data: { lastLoginAt: new Date() },
+      })
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      this.logger.warn(`Failed to record provider lastLoginAt for user ${userId}: ${msg}`)
+    }
+  }
+
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
     const { email, password } = loginDto
 

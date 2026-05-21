@@ -34,7 +34,7 @@ import {
   computeProviderResponseDeadline,
 } from './booking-snapshot.util'
 import { buildBookingPolicySnapshot } from '../billing/shared/cancellation-policy.util'
-import type { SpecialCircumstanceType } from '@world-schools/wc-types'
+import type { BookingDeclineReason, SpecialCircumstanceType } from '@world-schools/wc-types'
 import type {
   ProviderBookingSortField,
   ProviderBookingTab,
@@ -2447,8 +2447,11 @@ export class BookingGroupsService {
         status: true,
         bookingGroupNumber: true,
         parentId: true,
+        totalAmount: true,
         camp: { select: { name: true } },
         parent: { select: { userId: true } },
+        session: { select: { startDate: true, endDate: true } },
+        provider: { select: { settings: { select: { currency: true } } } },
       },
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
@@ -2521,6 +2524,10 @@ export class BookingGroupsService {
       providerId,
       campName: bookingGroup.camp.name,
       respondedAt: now.toISOString(),
+      chargedAmount: Number(bookingGroup.totalAmount),
+      currency: bookingGroup.provider.settings?.currency ?? undefined,
+      sessionStartDate: bookingGroup.session.startDate.toISOString(),
+      sessionEndDate: bookingGroup.session.endDate.toISOString(),
     })
 
     return { bookingGroupId: bookingGroup.id, status: 'accepted' }
@@ -2530,8 +2537,20 @@ export class BookingGroupsService {
    * Provider declines the booking. Voids any open card authorizations (and
    * cancels any SetupIntent placeholders) so the parent never sees a charge.
    * Idempotent — already-canceled intents return without error.
+   *
+   * Provider Terms v1.5 §5.1(h)(iii) requires every decline to carry a
+   * reason from the controlled list, persisted to enable §5.1(h)(iv)
+   * pattern monitoring.
    */
-  async declineForProvider(providerId: string, bookingGroupId: string, providerNote?: string) {
+  async declineForProvider(
+    providerId: string,
+    bookingGroupId: string,
+    args: {
+      declineReason: BookingDeclineReason
+      declineReasonOther?: string
+      providerNote?: string
+    }
+  ) {
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
       where: { providerId, ...bookingGroupWhereByRef(bookingGroupId) },
       select: {
@@ -2541,6 +2560,8 @@ export class BookingGroupsService {
         parentId: true,
         camp: { select: { name: true } },
         parent: { select: { userId: true } },
+        session: { select: { startDate: true, endDate: true } },
+        provider: { select: { settings: { select: { currency: true } } } },
       },
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
@@ -2561,13 +2582,16 @@ export class BookingGroupsService {
         data: {
           status: 'declined',
           respondedAt: now,
+          declineReason: args.declineReason,
+          declineReasonOther:
+            args.declineReason === 'other' ? (args.declineReasonOther ?? null) : null,
         },
       })
       await tx.booking.updateMany({
         where: { bookingGroupId: bookingGroup.id },
         data: {
           respondedAt: now,
-          providerNote: providerNote ?? null,
+          providerNote: args.providerNote ?? null,
         },
       })
     })
@@ -2581,6 +2605,10 @@ export class BookingGroupsService {
       providerId,
       campName: bookingGroup.camp.name,
       respondedAt: now.toISOString(),
+      currency: bookingGroup.provider.settings?.currency ?? undefined,
+      sessionStartDate: bookingGroup.session.startDate.toISOString(),
+      sessionEndDate: bookingGroup.session.endDate.toISOString(),
+      declineReason: args.declineReason,
     })
 
     return { bookingGroupId: bookingGroup.id, status: 'declined' }

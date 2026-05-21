@@ -59,7 +59,14 @@ export interface CampStatistics {
   reviewCount: number
   unrespondedReviews: number
   revenueTotalPaid: number
-  revenueThisMonth: number
+  /// Total value of bookings the provider confirmed this calendar month
+  /// (BUG-111: previously filtered by session.startDate, now by
+  /// respondedAt so confirmed bookings show up the month they happened).
+  bookingsValueThisMonth: number
+  /// Sum of Stripe payouts that arrived in the provider's bank this
+  /// month. Separate from bookingsValueThisMonth so providers can see
+  /// what's been earned vs. what's been disbursed.
+  payoutsThisMonth: number
   revenueLastSeason: number
   pendingRevenue: number
   refundedTotal: number

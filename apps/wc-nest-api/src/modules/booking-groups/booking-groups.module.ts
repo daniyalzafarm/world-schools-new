@@ -6,6 +6,7 @@ import { NotificationsModule } from '../notifications/notifications.module'
 import { ProfilePhotoService } from '../user/auth/services/profile-photo.service'
 import { BillingModule } from '../billing/billing.module'
 import { RedisModule } from '../redis/redis.module'
+import { EmailTemplatesModule } from '../common/email-templates/email-templates.module'
 import { BookingGroupsService } from './booking-groups.service'
 import { BookingWebSocketHandler } from './booking-websocket.handler'
 
@@ -27,6 +28,7 @@ import { BookingWebSocketHandler } from './booking-websocket.handler'
     NotificationsModule,
     BillingModule,
     RedisModule,
+    EmailTemplatesModule,
   ],
   providers: [BookingGroupsService, ProfilePhotoService, BookingWebSocketHandler],
   exports: [BookingGroupsService],

@@ -17,14 +17,20 @@ import {
   TableHeader,
   TableRow,
   Tabs,
+  Tooltip,
 } from '@heroui/react'
 import { Check, Eye, FilterX, LogIn, Search, Upload } from 'lucide-react'
 import { getInitials, Input, useDebounce } from '@world-schools/ui-web'
+import { OPERATIONAL_STATUS_LABELS, OperationalStatus } from '@world-schools/wc-types'
 import { PageSlot } from '@/components/layout/page-slot'
 import { useApplicationReviewStore } from '@/stores/application-review-store'
 import { providersService } from '@/services/providers.services'
 import config from '@/config/config'
-import type { ApplicationListItem, ApprovalStatus } from '@/types/application-review'
+import type {
+  ApplicationListItem,
+  ApprovalStatus,
+  OperationalStatusReasons,
+} from '@/types/application-review'
 
 type AllProvidersTab = 'all' | 'pending-review' | 'approved' | 'rejected' | 'suspended'
 
@@ -48,45 +54,131 @@ const getActiveTab = (path: string): AllProvidersTab =>
   (Object.entries(TAB_PATHS).find(([, p]) => p === path)?.[0] as AllProvidersTab) ??
   'pending-review'
 
-const getStatusColor = (status: ApprovalStatus) => {
-  switch (status) {
-    case 'approved':
-      return 'success'
-    case 'rejected':
-      return 'danger'
-    case 'under_review':
-      return 'primary'
-    case 'info_requested':
-      return 'warning'
-    case 'suspended':
-      return 'default'
-    default:
-      return 'warning'
-  }
-}
-
-const getStatusLabel = (status: ApprovalStatus) => {
-  switch (status) {
-    case 'approved':
-      return 'Approved'
-    case 'rejected':
-      return 'Rejected'
-    case 'under_review':
-      return 'Pending Review'
-    case 'info_requested':
-      return 'Info Requested'
-    case 'suspended':
-      return 'Suspended'
-    default:
-      return 'Pending'
-  }
-}
-
 const getTrustScoreColor = (score?: number | null) => {
   if (!score) return 'default'
   if (score >= 80) return 'success'
   if (score >= 50) return 'warning'
   return 'danger'
+}
+
+/**
+ * Coloured-dot mapping for the OPERATIONAL column (BUG-107). Kept inline
+ * rather than extracted to ui-web since SuperAdmin is the only consumer
+ * today — promote when a second consumer appears.
+ */
+const OPERATIONAL_STATUS_DOT_CLASS: Record<OperationalStatus, string> = {
+  [OperationalStatus.FullyActive]: 'bg-success',
+  [OperationalStatus.SetupIncomplete]: 'bg-warning',
+  [OperationalStatus.ActionRequired]: 'bg-danger',
+  [OperationalStatus.Inactive]: 'bg-default-400',
+}
+
+// `timeZoneName: 'short'` appends "BST" / "GMT" / "GMT+1" etc so the
+// SuperAdmin always knows which zone they're looking at — uses the
+// browser's local zone (no override) so it matches the on-call's wall
+// clock.
+const LAST_LOGIN_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  timeZoneName: 'short',
+})
+const LAST_LOGIN_TIME_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  timeZoneName: 'short',
+})
+
+/**
+ * Formats `lastLoginAt` for the operational-status tooltip. Renders the
+ * SuperAdmin's local time so on-call ops see what they expect — no fixed
+ * timezone override.
+ *
+ *   null                         → "Has never logged in"
+ *   same calendar day as today   → "Last login: today at 14:32"
+ *   any other day                → "Last login: 15 Mar 2026, 14:32 (12 days ago)"
+ */
+function formatLastLogin(iso: string | null): string {
+  if (iso == null) return 'Has never logged in'
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return 'Has never logged in'
+
+  const now = new Date()
+  const isSameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+
+  if (isSameDay) {
+    return `Last login: Today at ${LAST_LOGIN_TIME_FORMATTER.format(date)}`
+  }
+
+  // Whole-day difference based on calendar dates, not 24h windows — so
+  // "logged in yesterday at 23:50" reads as "1 day ago", not "<1 day ago".
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOfLogin = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const days = Math.round((startOfToday.getTime() - startOfLogin.getTime()) / 86_400_000)
+  const relative = days === 1 ? '1 day ago' : `${days} days ago`
+
+  return `Last login: ${LAST_LOGIN_FORMATTER.format(date)} (${relative})`
+}
+
+/**
+ * Tooltip body rendered when the SuperAdmin hovers a provider's operational
+ * dot. Lists the underlying conditions (Stripe / camps / sessions / payouts
+ * / activity) using ✓ / ✗ markers driven entirely by the API response.
+ */
+function OperationalStatusReasonsList({ reasons }: { reasons: OperationalStatusReasons }) {
+  const items: Array<{ ok: boolean; label: string }> = [
+    {
+      ok: reasons.stripeConnected,
+      label: reasons.stripeConnected ? 'Stripe connected' : 'Stripe not connected',
+    },
+    {
+      ok: reasons.publishedCampCount > 0,
+      label:
+        reasons.publishedCampCount > 0
+          ? `${reasons.publishedCampCount} published camp${reasons.publishedCampCount === 1 ? '' : 's'}`
+          : 'No published camps',
+    },
+    {
+      ok: reasons.publishedSessionCount > 0,
+      label:
+        reasons.publishedSessionCount > 0
+          ? `${reasons.publishedSessionCount} published session${reasons.publishedSessionCount === 1 ? '' : 's'}`
+          : 'No published sessions',
+    },
+    {
+      // "ok" here means "no failure" — invert the boolean.
+      ok: !reasons.hasRecentFailedPayout,
+      label: reasons.hasRecentFailedPayout
+        ? 'Failed payout in last 90 days'
+        : 'No recent failed payouts',
+    },
+  ]
+
+  return (
+    <div className="min-w-56 text-xs">
+      <p className="mb-2 font-semibold text-foreground">Operational checks</p>
+      <ul className="space-y-1">
+        {items.map(item => (
+          <li key={item.label} className="flex items-start gap-2">
+            <span aria-hidden="true" className={item.ok ? 'text-success' : 'text-danger'}>
+              {item.ok ? '✓' : '✗'}
+            </span>
+            <span className="text-default-700">{item.label}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 border-t border-default-200 pt-2 text-default-500">
+        {formatLastLogin(reasons.lastLoginAt)}
+      </p>
+    </div>
+  )
 }
 
 const formatDate = (dateString: string) =>
@@ -313,7 +405,7 @@ export function AllProvidersView() {
             >
               <TableHeader>
                 <TableColumn>PROVIDER</TableColumn>
-                <TableColumn>STATUS</TableColumn>
+                <TableColumn>OPERATIONAL</TableColumn>
                 <TableColumn>TRUST SCORE</TableColumn>
                 <TableColumn>JOINED</TableColumn>
                 <TableColumn>ACTIONS</TableColumn>
@@ -358,9 +450,30 @@ export function AllProvidersView() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Chip size="sm" color={getStatusColor(app.approvalStatus)} variant="flat">
-                        {getStatusLabel(app.approvalStatus)}
-                      </Chip>
+                      {app.operationalStatus && app.operationalStatusReasons ? (
+                        <Tooltip
+                          placement="top"
+                          content={
+                            <OperationalStatusReasonsList reasons={app.operationalStatusReasons} />
+                          }
+                          classNames={{ content: 'p-3' }}
+                        >
+                          <div
+                            tabIndex={0}
+                            className="flex w-fit cursor-help items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-default-300 rounded"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`h-2.5 w-2.5 shrink-0 rounded-full ${OPERATIONAL_STATUS_DOT_CLASS[app.operationalStatus]}`}
+                            />
+                            <span className="text-sm text-default-700">
+                              {OPERATIONAL_STATUS_LABELS[app.operationalStatus]}
+                            </span>
+                          </div>
+                        </Tooltip>
+                      ) : (
+                        <span className="text-sm text-default-400">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {app.trustScore !== null && app.trustScore !== undefined ? (
