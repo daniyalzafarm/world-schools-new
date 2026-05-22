@@ -170,6 +170,21 @@ const billingPermissions: PermissionGroup = {
   ],
 }
 
+const analyticsPermissions: PermissionGroup = {
+  name: 'Analytics Dashboard',
+  permissions: [{ id: 'analytics.read', name: 'View the platform analytics dashboard' }],
+}
+
+const financialPermissions: PermissionGroup = {
+  name: 'Financial Dashboard',
+  permissions: [
+    {
+      id: 'financial.read',
+      name: 'View the financial dashboard (revenue, Stripe balance, payouts)',
+    },
+  ],
+}
+
 // Context-based main groups
 export const superadminContext: PermissionContext = {
   name: 'SuperAdmin',
@@ -188,6 +203,8 @@ export const superadminContext: PermissionContext = {
     parentsPermissions,
     billingPermissions,
     disputesPermissions,
+    analyticsPermissions,
+    financialPermissions,
   ],
 }
 

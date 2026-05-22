@@ -11,6 +11,8 @@ import { SuperAdminParentsModule } from './parents/parents.module'
 import { AdminSettingsModule } from './admin-settings/admin-settings.module'
 import { SuperAdminBillingModule } from './billing/billing.module'
 import { SuperAdminDisputesModule } from './disputes/disputes.module'
+import { SuperAdminAnalyticsModule } from './analytics/analytics.module'
+import { SuperAdminFinancialModule } from './financial/financial.module'
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { SuperAdminDisputesModule } from './disputes/disputes.module'
     AdminSettingsModule,
     SuperAdminBillingModule,
     SuperAdminDisputesModule,
+    SuperAdminAnalyticsModule,
+    SuperAdminFinancialModule,
   ],
 })
 export class SuperAdminModule {}

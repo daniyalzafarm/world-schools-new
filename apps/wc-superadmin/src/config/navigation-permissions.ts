@@ -80,6 +80,16 @@ export const NAVIGATION_PERMISSIONS: Record<string, NavigationPermissionConfig> 
       'provider_documents.reject',
     ],
   },
+  analytics: {
+    navigationPermission: 'analytics.read',
+    label: 'Analytics Dashboard',
+    groupPermissions: ['analytics.read'],
+  },
+  financial: {
+    navigationPermission: 'financial.read',
+    label: 'Financial Dashboard',
+    groupPermissions: ['financial.read'],
+  },
 }
 
 /**

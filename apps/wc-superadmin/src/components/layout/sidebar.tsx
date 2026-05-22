@@ -93,14 +93,14 @@ const NAV_ITEMS: NavItem[] = [
     href: '/analytics-dashboard',
     icon: <House size={20} />,
     type: 'regular',
-    // No permission required - available to all authenticated users
+    permission: 'analytics.read',
   },
   {
     name: 'Financial Dashboard',
     href: '/financial-dashboard',
     icon: <Banknote size={20} />,
     type: 'regular',
-    // No permission required - available to all authenticated users
+    permission: 'financial.read',
   },
   {
     name: 'Reimbursements',
