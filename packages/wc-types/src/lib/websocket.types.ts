@@ -181,6 +181,13 @@ export interface WsNotificationPayload {
   createdAt: string
 }
 
+export interface WsApplicationSubmittedPayload {
+  providerId: string
+  businessName: string
+  submittedAt: string
+  ownerUserId: string
+}
+
 export interface WsTicketStatusUpdatedPayload {
   ticketId: string
   status: string
@@ -306,6 +313,8 @@ export const WsServerEvent = {
   AuthTokenRefreshed: 'auth:token_refreshed',
   // Onboarding
   OnboardingStatusChanged: 'onboarding:status_changed',
+  // Provider applications (superadmin-facing)
+  ApplicationSubmitted: 'application:submitted',
 } as const
 
 /** Socket.io events emitted by the client and received by the server */
@@ -353,6 +362,7 @@ export interface WsServerToClientEvents {
   'auth:expired': (data: Record<string, never>) => void
   'auth:token_refreshed': (data: Record<string, never>) => void
   'onboarding:status_changed': (data: WsOnboardingStatusChangedPayload) => void
+  'application:submitted': (data: WsApplicationSubmittedPayload) => void
 }
 
 /** Events the client emits and the server handles */

@@ -3,6 +3,7 @@ import { ApplicationReviewController } from './application-review.controller'
 import { ApplicationReviewService } from './services/application-review.service'
 import { DocumentReviewService } from './services/document-review.service'
 import { ApplicationReviewWebSocketHandler } from './application-review-websocket.handler'
+import { ApplicationSubmittedWebSocketHandler } from './application-submitted-websocket.handler'
 import { PrismaModule } from '../../../prisma/prisma.module'
 import { ConfigModule } from '../../../config/config.module'
 import { AuthModule } from '../../core/auth/auth.module'
@@ -20,7 +21,12 @@ import { WebSocketModule } from '../../websocket/websocket.module'
     WebSocketModule,
   ],
   controllers: [ApplicationReviewController],
-  providers: [ApplicationReviewService, DocumentReviewService, ApplicationReviewWebSocketHandler],
+  providers: [
+    ApplicationReviewService,
+    DocumentReviewService,
+    ApplicationReviewWebSocketHandler,
+    ApplicationSubmittedWebSocketHandler,
+  ],
   exports: [ApplicationReviewService, DocumentReviewService],
 })
 export class ApplicationReviewModule {}

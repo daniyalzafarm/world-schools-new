@@ -205,6 +205,16 @@ export class ApplicationReviewService {
   }
 
   /**
+   * Count provider applications currently awaiting superadmin review.
+   * Used by the real-time sidebar badge in wc-superadmin.
+   */
+  async countUnderReview(): Promise<number> {
+    return this.prisma.provider.count({
+      where: { approvalStatus: 'under_review' },
+    })
+  }
+
+  /**
    * Get detailed application information
    */
   async getApplicationDetail(providerId: string): Promise<ApplicationDetailDto> {

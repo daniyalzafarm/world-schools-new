@@ -40,6 +40,18 @@ export class ApplicationReviewController {
   }
 
   /**
+   * Get the count of provider applications currently awaiting review.
+   * Drives the real-time "All Providers" sidebar badge in wc-superadmin.
+   */
+  @Get('under-review-count')
+  @Permissions('provider_applications.read')
+  @ApiOperation({ summary: 'Get count of provider applications in under_review state' })
+  async getUnderReviewCount() {
+    const count = await this.applicationReviewService.countUnderReview()
+    return ResponseUtil.success({ count })
+  }
+
+  /**
    * Get application detail
    */
   @Get(':providerId')

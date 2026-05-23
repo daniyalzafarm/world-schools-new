@@ -26,6 +26,8 @@ import { useAuthStore } from '@/stores/auth-store'
 import { eventBus } from '@world-schools/wc-utils'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useUnreadMessagesCount } from '@/hooks/use-unread-messages-count'
+import { useUnreadNotificationsCount } from '@/hooks/use-unread-notifications-count'
+import { useUnreadBookingsCount } from '@/hooks/use-unread-bookings-count'
 import { onboardingService } from '@/services/onboarding.services'
 
 // Custom hook for sidebar expansion state management
@@ -135,7 +137,6 @@ const NAV_ITEMS: NavItem[] = [
     name: 'Notifications',
     href: '/notifications',
     icon: <Bell size={20} />,
-    badge: 2,
     type: 'regular',
     // No permission required - available to all authenticated users
   },
@@ -160,6 +161,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   const { user } = useAuthStore()
   const { hasPermission } = usePermissions()
   const unreadCount = useUnreadMessagesCount()
+  const unreadNotificationsCount = useUnreadNotificationsCount()
+  const unreadBookingsCount = useUnreadBookingsCount()
   const [providerLogoUrl, setProviderLogoUrl] = React.useState<string | null>(null)
   const [providerName, setProviderName] = React.useState<string>('My Business')
 
@@ -356,10 +359,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
    * Filter navigation items based on user permissions
    */
   const visibleNavItems = React.useMemo(() => {
-    return NAV_ITEMS.filter(isNavItemVisible).map(item =>
-      item.name === 'Messages' ? { ...item, badge: unreadCount || undefined } : item
-    )
-  }, [isNavItemVisible, unreadCount])
+    return NAV_ITEMS.filter(isNavItemVisible).map(item => {
+      if (item.name === 'Messages') return { ...item, badge: unreadCount || undefined }
+      if (item.name === 'Notifications')
+        return { ...item, badge: unreadNotificationsCount || undefined }
+      if (item.name === 'Bookings') return { ...item, badge: unreadBookingsCount || undefined }
+      return item
+    })
+  }, [isNavItemVisible, unreadCount, unreadNotificationsCount, unreadBookingsCount])
 
   const userFullName = user?.firstName ? `${user.firstName} ${user.lastName}`.trim() : 'Provider'
 

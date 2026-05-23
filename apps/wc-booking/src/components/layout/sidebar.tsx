@@ -24,6 +24,7 @@ import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
 import eventBus from '@/utils/event-bus'
 import { useUnreadMessagesCount } from '@/hooks/use-unread-messages-count'
+import { useUnreadNotificationsCount } from '@/hooks/use-unread-notifications-count'
 
 // Custom hook for sidebar expansion state management
 const useSidebarExpansion = (onToggleCollapse: () => void) => {
@@ -113,7 +114,6 @@ export const NAV_ITEMS: NavItem[] = [
     name: 'Notifications',
     href: '/notifications',
     icon: <Bell size={20} />,
-    badge: 2,
     type: 'regular',
   },
   {
@@ -140,6 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { user } = useAuthStore()
   const isCampDrawer = variant === 'camp-drawer'
   const unreadCount = useUnreadMessagesCount()
+  const unreadNotificationsCount = useUnreadNotificationsCount()
 
   // Collapsed state is managed locally within the sidebar
   const [isCollapsed, setIsCollapsed] = React.useState(false) // Start expanded
@@ -302,10 +303,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const navItemsWithBadges = React.useMemo(
     () =>
-      NAV_ITEMS.map(item =>
-        item.name === 'Messages' ? { ...item, badge: unreadCount || undefined } : item
-      ),
-    [unreadCount]
+      NAV_ITEMS.map(item => {
+        if (item.name === 'Messages') return { ...item, badge: unreadCount || undefined }
+        if (item.name === 'Notifications')
+          return { ...item, badge: unreadNotificationsCount || undefined }
+        return item
+      }),
+    [unreadCount, unreadNotificationsCount]
   )
 
   const drawerCollapsed = isCampDrawer ? false : isCollapsed

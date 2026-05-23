@@ -28,4 +28,7 @@ export const WsInternalEvent = {
 
   // ApplicationReviewService → ApplicationReviewWebSocketHandler routing
   OnboardingStatusChanged: 'onboarding:status_changed',
+
+  // OnboardingService → ApplicationSubmittedWebSocketHandler routing
+  ApplicationSubmitted: 'application:submitted',
 } as const

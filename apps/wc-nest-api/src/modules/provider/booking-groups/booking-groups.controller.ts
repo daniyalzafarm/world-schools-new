@@ -25,6 +25,14 @@ export class ProviderBookingGroupsController {
     return ResponseUtil.success(result.data, result.meta)
   }
 
+  @Get('requests-count')
+  @Permissions('bookings.read')
+  @ApiOperation({ summary: 'Get count of pending booking requests for provider' })
+  async getRequestsCount(@CurrentUser() user: any) {
+    const count = await this.bookingGroupsService.countRequestsForProvider(user.providerId)
+    return ResponseUtil.success({ count })
+  }
+
   @Get(':id')
   @Permissions('bookings.read')
   @ApiOperation({ summary: 'Get booking request details for provider' })

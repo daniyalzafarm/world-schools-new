@@ -29,11 +29,12 @@ import { cn, UserAvatar } from '@world-schools/ui-web'
 
 import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
-import { useApplicationReviewStore } from '@/stores/application-review-store'
 import { eventBus } from '@world-schools/wc-utils'
 import { usePermissions } from '@/hooks/use-permissions'
 import { disputesService } from '@/services/disputes.services'
 import { supportTicketsService } from '@/services/support-tickets.services'
+import { useUnreadNotificationsCount } from '@/hooks/use-unread-notifications-count'
+import { useUnreadApplicationsCount } from '@/hooks/use-unread-applications-count'
 
 // Custom hook for sidebar expansion state management
 const useSidebarExpansion = (onToggleCollapse: () => void) => {
@@ -183,7 +184,6 @@ const NAV_ITEMS: NavItem[] = [
     name: 'Notifications',
     href: '/notifications',
     icon: <Bell size={20} />,
-    badge: 2,
     type: 'regular',
     // No permission required - available to all authenticated users
   },
@@ -207,22 +207,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   const pathname = usePathname()
   const { user } = useAuthStore()
   const { hasPermission } = usePermissions()
-  const { underReviewCount, fetchUnderReviewCount } = useApplicationReviewStore()
   const [openTicketCount, setOpenTicketCount] = React.useState<number>(0)
   const [openDisputeCount, setOpenDisputeCount] = React.useState<number>(0)
+  const unreadNotificationsCount = useUnreadNotificationsCount()
+  const unreadApplicationsCount = useUnreadApplicationsCount()
 
   // Collapsed state is managed locally within the sidebar
   const [isCollapsed, setIsCollapsed] = React.useState(false) // Start expanded
   const toggleCollapsed = () => {
     setIsCollapsed(prev => !prev)
   }
-
-  // Fetch badge count on mount and periodically
-  React.useEffect(() => {
-    void fetchUnderReviewCount()
-    const interval = setInterval(() => void fetchUnderReviewCount(), 5 * 60 * 1000)
-    return () => clearInterval(interval)
-  }, [fetchUnderReviewCount])
 
   // Support tickets open count (for badge) when user has permission
   React.useEffect(() => {
@@ -484,13 +478,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
 
               // Get dynamic badge count for Provider Requests / Support Tickets / Disputes
               const badgeCount =
-                item.name === 'All Providers' && underReviewCount > 0
-                  ? underReviewCount
+                item.name === 'All Providers' && unreadApplicationsCount > 0
+                  ? unreadApplicationsCount
                   : item.name === 'Support Tickets' && openTicketCount > 0
                     ? openTicketCount
                     : item.name === 'Disputes' && openDisputeCount > 0
                       ? openDisputeCount
-                      : item.badge
+                      : item.name === 'Notifications' && unreadNotificationsCount > 0
+                        ? unreadNotificationsCount
+                        : item.badge
 
               const NavigationItem = (
                 <div key={item.name} className="w-full">

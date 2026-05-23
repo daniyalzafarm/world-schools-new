@@ -5,6 +5,7 @@ import type {
   ProviderBookingGroupsQuery,
   ProviderBookingGroupSummary,
 } from '@world-schools/wc-types'
+import { eventBus } from '@world-schools/wc-utils'
 
 function appendBookingGroupsQuery(
   params: ProviderBookingGroupsQuery | undefined,
@@ -41,10 +42,12 @@ export const providerBookingGroupsService = {
     id: string,
     body: { providerNote?: string }
   ): Promise<ApiResult<{ bookingGroupId: string; status: string }>> {
-    return apiClient.post<{ bookingGroupId: string; status: string }>(
+    const result = await apiClient.post<{ bookingGroupId: string; status: string }>(
       `/provider/booking-groups/${encodeURIComponent(id)}/accept`,
       body
     )
+    if (result.success) eventBus.$emit('bookings:read', { id })
+    return result
   },
 
   async decline(
@@ -55,10 +58,12 @@ export const providerBookingGroupsService = {
       providerNote?: string
     }
   ): Promise<ApiResult<{ bookingGroupId: string; status: string }>> {
-    return apiClient.post<{ bookingGroupId: string; status: string }>(
+    const result = await apiClient.post<{ bookingGroupId: string; status: string }>(
       `/provider/booking-groups/${encodeURIComponent(id)}/decline`,
       body
     )
+    if (result.success) eventBus.$emit('bookings:read', { id })
+    return result
   },
 
   async patch(

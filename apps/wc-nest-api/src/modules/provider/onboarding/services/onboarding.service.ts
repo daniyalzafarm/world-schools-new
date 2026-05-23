@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { PrismaService } from '../../../../prisma/prisma.service'
 import { SaveContactInfoDto } from '../dto/contact-info.dto'
 import { SaveCampInfoDto } from '../dto/camp-info.dto'
@@ -10,6 +11,8 @@ import {
   CURRENT_TERMS_VERSION,
 } from '../constants/terms-versions'
 import { ApplicationNotificationService } from '../../../common/email-templates/application-notification.service'
+import { WsInternalEvent } from '../../../websocket/ws-internal-events'
+import type { WsApplicationSubmittedPayload } from '@world-schools/wc-types'
 
 @Injectable()
 export class OnboardingService {
@@ -18,7 +21,8 @@ export class OnboardingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly trustScoreService: TrustScoreService,
-    private readonly applicationNotificationService: ApplicationNotificationService
+    private readonly applicationNotificationService: ApplicationNotificationService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   /**
@@ -564,7 +568,7 @@ export class OnboardingService {
     const now = new Date()
 
     // Mark onboarding as completed with terms acceptance tracking
-    await this.prisma.provider.update({
+    const updated = await this.prisma.provider.update({
       where: { id: providerId },
       data: {
         onboardingCompletedAt: now,
@@ -578,6 +582,7 @@ export class OnboardingService {
         providerAgreementAcceptedAt: now,
         providerAgreementVersion: CURRENT_PROVIDER_AGREEMENT_VERSION,
       },
+      select: { legalCompanyName: true, ownerId: true },
     })
 
     // Update trust score
@@ -586,6 +591,15 @@ export class OnboardingService {
     this.logger.log(
       `Completed onboarding for provider ${providerId} - Terms v${CURRENT_TERMS_VERSION} and Provider Agreement v${CURRENT_PROVIDER_AGREEMENT_VERSION} accepted at ${now.toISOString()}`
     )
+
+    // Notify connected superadmins in real-time so the All Providers badge can update without polling.
+    const payload: WsApplicationSubmittedPayload = {
+      providerId,
+      businessName: updated.legalCompanyName ?? '',
+      submittedAt: now.toISOString(),
+      ownerUserId: updated.ownerId,
+    }
+    this.eventEmitter.emit(WsInternalEvent.ApplicationSubmitted, payload)
 
     // Send application submitted confirmation email
     await this.applicationNotificationService.sendApplicationSubmittedEmail(providerId)

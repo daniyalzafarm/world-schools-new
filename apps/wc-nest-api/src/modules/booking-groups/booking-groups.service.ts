@@ -1165,6 +1165,19 @@ export class BookingGroupsService {
    * Provider dashboard: booking groups for this provider (excludes parent drafts).
    * Paginated with optional search and sort; meta includes tab counts (global, not search-scoped).
    */
+  /**
+   * Count booking groups in `request` status for a provider.
+   * Drives the real-time "Bookings" sidebar badge in wc-provider.
+   */
+  async countRequestsForProvider(providerId: string): Promise<number> {
+    return this.prisma.bookingGroup.count({
+      where: {
+        providerId,
+        status: BookingGroupStatus.request,
+      },
+    })
+  }
+
   async listForProvider(providerId: string, query: QueryProviderBookingGroupsDto = {}) {
     const tab = query.tab ?? 'requests'
     const page = query.page ?? 1

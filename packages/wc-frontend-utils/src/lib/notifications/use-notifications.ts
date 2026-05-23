@@ -21,7 +21,10 @@ import { useRouter } from 'next/navigation'
 export interface BrowserNotificationOptions {
   title: string
   body: string
-  conversationId: string
+  /** Conversation ID for message notifications — drives the default tag and click target. */
+  conversationId?: string
+  /** Override the click target. If omitted, falls back to `/messages?conversation=${conversationId}`. */
+  url?: string
   icon?: string
   tag?: string
 }
@@ -153,21 +156,23 @@ export function useNotifications({ storageKey }: UseNotificationsOptions) {
   const showNotification = useCallback(
     (options: BrowserNotificationOptions) => {
       if (typeof window === 'undefined' || !preferences.enabled) return
-      const { title, body, conversationId, icon = DEFAULT_ICON, tag } = options
+      const { title, body, conversationId, url, icon = DEFAULT_ICON, tag } = options
       if (preferences.soundEnabled) playSound()
       if (!('Notification' in window) || permission !== 'granted') return
+      const defaultTag = conversationId ? `conversation-${conversationId}` : title
+      const targetUrl = url ?? (conversationId ? `/messages?conversation=${conversationId}` : '/')
       try {
         const notification = new Notification(title, {
           body,
           icon,
-          tag: tag || `conversation-${conversationId}`,
+          tag: tag || defaultTag,
           badge: DEFAULT_ICON,
           requireInteraction: false,
           silent: true,
         })
         notification.onclick = () => {
           window.focus()
-          router.push(`/messages?conversation=${conversationId}`)
+          router.push(targetUrl)
           notification.close()
         }
         setTimeout(() => notification.close(), 5000)

@@ -1,4 +1,5 @@
 import apiClient from '../utils/api-client'
+import { eventBus } from '@world-schools/wc-utils'
 import type {
   ApplicationDetail,
   ApproveApplicationRequest,
@@ -58,6 +59,7 @@ export const applicationReviewService = {
    */
   async approveApplication(providerId: string, data: ApproveApplicationRequest): Promise<void> {
     await apiClient.post(`/superadmin/applications/${providerId}/approve`, data)
+    eventBus.$emit('applications:read', { providerId })
   },
 
   /**
@@ -65,6 +67,7 @@ export const applicationReviewService = {
    */
   async rejectApplication(providerId: string, data: RejectApplicationRequest): Promise<void> {
     await apiClient.post(`/superadmin/applications/${providerId}/reject`, data)
+    eventBus.$emit('applications:read', { providerId })
   },
 
   /**
@@ -72,6 +75,7 @@ export const applicationReviewService = {
    */
   async requestInfo(providerId: string, data: RequestInfoRequest): Promise<void> {
     await apiClient.post(`/superadmin/applications/${providerId}/request-info`, data)
+    eventBus.$emit('applications:read', { providerId })
   },
 
   /**
