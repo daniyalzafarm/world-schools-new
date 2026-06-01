@@ -122,8 +122,9 @@ export interface WsBookingStatusPayload {
   /// Captured charge total in major units. Set on `accepted` so the parent
   /// notification can include the exact amount taken from the card.
   chargedAmount?: number
-  /// ISO-4217 currency code paired with `chargedAmount` / decline messaging.
-  currency?: string
+  /// ISO-4217 currency code (Provider settlement currency). Always set;
+  /// every booking is denominated in the provider's settlement currency.
+  currency: string
   /// Session window for `declined` notifications so the parent sees which
   /// booking was rejected without an extra lookup.
   sessionStartDate?: string

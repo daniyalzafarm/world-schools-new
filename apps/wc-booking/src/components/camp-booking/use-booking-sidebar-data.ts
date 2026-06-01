@@ -6,6 +6,7 @@ import {
   formatSessionRangeShort,
 } from '@/components/camp-booking/booking-flow-format'
 import { useBookingRatings } from '@/components/camp-booking/use-booking-ratings'
+import { getCampCurrency } from '@/utils/currency'
 
 export function useBookingSidebarData() {
   const camp = useCampBookingStore(state => state.camp)
@@ -16,7 +17,7 @@ export function useBookingSidebarData() {
   const addOns = useCampBookingStore(state => state.addOns)
   const addOnSelectionsById = useCampBookingStore(state => state.addOnSelectionsById)
   const setStep = useCampBookingStore(state => state.setStep)
-  const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
+  const currency = useCampBookingStore(state => getCampCurrency(state.camp, 'booking-sidebar'))
 
   const selectedSession = useMemo(
     () => sessions.find(s => s.id === selectedSessionId) ?? null,

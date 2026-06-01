@@ -67,7 +67,7 @@ interface SessionFormProps {
   onSubmit: (data: SessionFormData) => void
   onSubmitRef?: { current?: () => void }
   campType: CampType | null
-  camp?: Camp | null
+  camp: Camp
   globalDiscounts?: GlobalDiscount[]
   // For creation mode
   selectedDiscountIds?: string[]
@@ -543,7 +543,7 @@ export function SessionForm({
                   setFormData(prev => ({ ...prev, price: value ?? 0 }))
                   clearError('price')
                 }}
-                currency="USD"
+                currency={camp.currency}
                 isRequired
                 isInvalid={!!errors.price}
                 errorMessage={errors.price}
@@ -606,7 +606,7 @@ export function SessionForm({
                           })
                           clearError('ageGroupPrices')
                         }}
-                        currency="USD"
+                        currency={camp.currency}
                         isRequired
                         isInvalid={!!errors.ageGroupPrices}
                       />

@@ -211,7 +211,7 @@ export function SessionDiscountsCreationSection({
   }
 
   const formatDiscountValue = (type: string, value: number) => {
-    return type === 'percent' ? `-${value}%` : `-${camp.currency ?? 'USD'}${value}`
+    return type === 'percent' ? `-${value}%` : `-${camp.currency}${value}`
   }
 
   const getDiscountDetails = (gd: GlobalDiscount) => {

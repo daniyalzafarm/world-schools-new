@@ -6,6 +6,7 @@ import { Info, PackageOpen, Plus, Search, X } from 'lucide-react'
 import { Input, SelectField, useDebounce } from '@world-schools/ui-web'
 import { PageSlot } from '@/components/layout/page-slot'
 import { useAddOnsStore } from '@/stores/add-ons.store'
+import { useOnboardingStore } from '@/stores/onboarding-store'
 import { AddOnCard } from '@/components/add-ons/add-on-card'
 import { AddOnModal } from '@/components/add-ons/add-on-modal'
 import { ADD_ON_TYPES, type AddOn, type AddOnType } from '@/types/add-ons'
@@ -25,6 +26,18 @@ export default function AddOnsPage() {
     setPage,
     clearError,
   } = useAddOnsStore()
+
+  // Add-ons are provider-level, so prices are denominated in the provider's
+  // settlement currency. Source it from the calculator-config endpoint
+  // (reads ProviderSettings.currency) — same source the deposit-settings
+  // and payment-policies pages use.
+  const calculatorConfig = useOnboardingStore(state => state.calculatorConfig)
+  const fetchCalculatorConfig = useOnboardingStore(state => state.fetchCalculatorConfig)
+  const providerCurrency = calculatorConfig?.currency ?? null
+
+  useEffect(() => {
+    void fetchCalculatorConfig()
+  }, [fetchCalculatorConfig])
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingAddOn, setEditingAddOn] = useState<AddOn | null>(null)
@@ -96,6 +109,7 @@ export default function AddOnsPage() {
             color="primary"
             startContent={<Plus className="h-5 w-5" />}
             onPress={() => handleOpenModal()}
+            isDisabled={!providerCurrency}
           >
             Create Add-on
           </Button>
@@ -199,19 +213,28 @@ export default function AddOnsPage() {
                       color="primary"
                       startContent={<Plus className="h-4 w-4" />}
                       onPress={() => handleOpenModal()}
+                      isDisabled={!providerCurrency}
                     >
                       Create Your First Add-on
                     </Button>
                   )}
                 </div>
-              ) : (
+              ) : providerCurrency ? (
                 <ul className="divide-y divide-default-200">
                   {addOns.map(addOn => (
                     <li key={addOn.id}>
-                      <AddOnCard addOn={addOn} onEdit={() => handleOpenModal(addOn)} />
+                      <AddOnCard
+                        addOn={addOn}
+                        currency={providerCurrency}
+                        onEdit={() => handleOpenModal(addOn)}
+                      />
                     </li>
                   ))}
                 </ul>
+              ) : (
+                <div className="flex justify-center py-20">
+                  <Spinner size="lg" label="Loading provider currency" />
+                </div>
               )}
 
               {pagination.total > 0 && (
@@ -234,12 +257,15 @@ export default function AddOnsPage() {
         )}
       </section>
 
-      <AddOnModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        onSuccess={handleSuccess}
-        addOn={editingAddOn}
-      />
+      {providerCurrency && (
+        <AddOnModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          onSuccess={handleSuccess}
+          addOn={editingAddOn}
+          providerCurrency={providerCurrency}
+        />
+      )}
     </PageSlot>
   )
 }

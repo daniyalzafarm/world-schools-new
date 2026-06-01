@@ -230,7 +230,7 @@ export function SessionDiscountsSection({
   }
 
   const formatDiscountValue = (type: string, value: number) => {
-    return type === 'percent' ? `-${value}%` : `-${camp.currency ?? 'USD'}${value}`
+    return type === 'percent' ? `-${value}%` : `-${camp.currency}${value}`
   }
 
   const getCategoryLabel = (category: string) => {

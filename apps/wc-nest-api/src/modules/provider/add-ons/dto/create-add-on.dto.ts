@@ -49,23 +49,14 @@ export class CreateAddOnDto {
   type: 'activity' | 'service' | 'equipment' | 'language'
 
   @ApiProperty({
-    description: 'Price of the add-on',
+    description:
+      "Price of the add-on. Always denominated in the provider's settlement currency — currency is derived server-side from ProviderSettings.",
     example: 75,
   })
   @IsNumber()
   @Type(() => Number)
   @Min(0)
   price: number
-
-  @ApiPropertyOptional({
-    description: 'Currency code (ISO 4217)',
-    example: 'CHF',
-    default: 'CHF',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(3)
-  currency?: string
 
   @ApiProperty({
     description: 'Pricing unit',

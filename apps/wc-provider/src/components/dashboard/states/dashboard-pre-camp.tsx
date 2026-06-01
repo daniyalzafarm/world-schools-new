@@ -22,7 +22,7 @@ interface DashboardPreCampProps {
   primaryCampName?: string
   upcomingBookings: ProviderBookingGroupSummary[]
   sessions: Session[]
-  statistics: CampStatistics | null
+  statistics: CampStatistics
   unreadMessages: number
 }
 
@@ -56,7 +56,7 @@ export function DashboardPreCamp({
   const confirmedChildren = confirmed.reduce((sum, b) => sum + b.children.length, 0)
   const totalSpots = primarySession.totalSpots ?? 0
   const sessionRevenue = confirmed.reduce((sum, b) => sum + (b.paidAmount ?? 0), 0)
-  const currency = statistics?.currency ?? confirmed[0]?.currency ?? 'EUR'
+  const currency = statistics.currency
 
   const items: ChecklistItemViewModel[] = [
     {

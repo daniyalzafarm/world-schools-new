@@ -20,6 +20,8 @@ import { calculateCapacityPercentage } from '@/utils/sessionCalculations'
 
 interface SessionCardProps {
   session: Session
+  /** Camp's settlement currency (ISO 4217). Required. */
+  currency: string
   onEdit: (session: Session) => void
   onDelete: (session: Session) => void
   onDuplicate: (session: Session) => void
@@ -32,6 +34,7 @@ interface SessionCardProps {
  */
 export function SessionCard({
   session,
+  currency,
   onEdit,
   onDelete,
   onDuplicate,
@@ -113,6 +116,7 @@ export function SessionCard({
               pricingType={session.pricingType}
               price={session.price}
               ageGroupPrices={session.ageGroupPrices}
+              currency={currency}
               variant="compact"
             />
           </div>

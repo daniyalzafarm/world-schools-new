@@ -18,7 +18,7 @@ interface DashboardPostSeasonProps {
   businessName: string | null
   pastBookings: ProviderBookingGroupSummary[]
   camps: Camp[]
-  statistics: CampStatistics | null
+  statistics: CampStatistics
   recentReviews: ProviderReviewSummary[]
 }
 
@@ -45,8 +45,8 @@ export function DashboardPostSeason({
   const totalCampers = completed.reduce((sum, b) => sum + b.children.length, 0)
   const sessionsRun = new Set(completed.map(b => `${b.camp.name}|${b.session.startDate}`)).size
   const totalRevenue = completed.reduce((sum, b) => sum + (b.paidAmount ?? 0), 0)
-  const currency = statistics?.currency ?? completed[0]?.currency ?? 'EUR'
-  const averageRating = statistics?.averageRating ?? 0
+  const currency = statistics.currency
+  const averageRating = statistics.averageRating
 
   const year = (() => {
     if (pastBookings.length === 0) return new Date().getFullYear()
@@ -98,7 +98,7 @@ export function DashboardPostSeason({
             icon={<Star size={20} />}
             label="Avg rating"
             value={averageRating > 0 ? averageRating.toFixed(1) : '—'}
-            hint={statistics?.reviewCount ? `${statistics.reviewCount} reviews` : undefined}
+            hint={statistics.reviewCount ? `${statistics.reviewCount} reviews` : undefined}
             tone="warning"
           />
         </StatsGrid>

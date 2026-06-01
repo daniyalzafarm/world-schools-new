@@ -56,7 +56,9 @@ function pickHotSessions(sessions: Session[]): Session[] {
 export default function DashboardPage() {
   const data = useProviderDashboardData()
 
-  if (data.isLoading) return <ProviderDashboardSkeleton />
+  // Hold the skeleton until statistics (with provider currency) has resolved
+  // — every widget renders amounts in `statistics.currency`, no fallback.
+  if (data.isLoading || !data.statistics) return <ProviderDashboardSkeleton />
 
   const state: ProviderDashboardState = getProviderDashboardState(data)
 
@@ -96,6 +98,10 @@ function renderState(
     unreadMessages,
   } = data
 
+  // Caller (DashboardPage) gates rendering on `data.statistics` being loaded,
+  // but TS doesn't propagate that narrowing through the function boundary.
+  if (!statistics) return null
+
   switch (state) {
     case 'fresh-start':
       return <DashboardFreshStart businessName={businessName} onboardingStatus={onboardingStatus} />
@@ -119,6 +125,7 @@ function renderState(
           bookingRequests={bookingRequests}
           sessions={sessions}
           unreadMessages={unreadMessages}
+          statistics={statistics}
         />
       )
     case 'active-healthy':
@@ -220,6 +227,7 @@ function renderState(
           bookingRequests={bookingRequests}
           upcomingBookings={upcomingBookings}
           sessions={sessions}
+          statistics={statistics}
         />
       )
     }

@@ -22,7 +22,7 @@ interface DashboardActiveHealthyProps {
   bookingRequests: ProviderBookingGroupSummary[]
   upcomingBookings: ProviderBookingGroupSummary[]
   sessions: Session[]
-  statistics: CampStatistics | null
+  statistics: CampStatistics
   recentReviews: ProviderReviewSummary[]
   unreadMessages: number
 }
@@ -37,11 +37,11 @@ export function DashboardActiveHealthy({
   unreadMessages,
 }: DashboardActiveHealthyProps) {
   const publishedSessions = sessions.filter(s => s.status === 'published')
-  const currency = statistics?.currency ?? 'EUR'
-  const bookingsValueThisMonth = statistics?.bookingsValueThisMonth ?? 0
-  const payoutsThisMonth = statistics?.payoutsThisMonth ?? 0
-  const totalBookings = statistics?.totalBookings ?? upcomingBookings.length
-  const activeSessions = statistics?.activeSessions ?? publishedSessions.length
+  const currency = statistics.currency
+  const bookingsValueThisMonth = statistics.bookingsValueThisMonth
+  const payoutsThisMonth = statistics.payoutsThisMonth
+  const totalBookings = statistics.totalBookings
+  const activeSessions = statistics.activeSessions
 
   return (
     <>

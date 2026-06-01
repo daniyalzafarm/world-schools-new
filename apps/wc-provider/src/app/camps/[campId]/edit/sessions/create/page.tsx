@@ -156,6 +156,8 @@ export default function CreateSessionPage() {
     }
   }, [])
 
+  if (!currentCamp) return null
+
   return (
     <>
       {/* Add padding-bottom to prevent content from being hidden behind fixed footer */}

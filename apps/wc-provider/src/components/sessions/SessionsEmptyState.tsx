@@ -2,6 +2,7 @@
 
 import { Button, Card, CardBody } from '@heroui/react'
 import { Calendar, Copy, DollarSign, Plus, Users } from 'lucide-react'
+import { useCampsStore } from '@/stores/camps-store'
 
 interface SessionsEmptyStateProps {
   onCreateSession: () => void
@@ -12,6 +13,17 @@ interface SessionsEmptyStateProps {
  * Shown when no sessions exist yet
  */
 export function SessionsEmptyState({ onCreateSession }: SessionsEmptyStateProps) {
+  const camp = useCampsStore(state => state.currentCamp)
+  // currentCamp is loaded by the camp-edit layout before this empty state is
+  // shown. Short-circuit during the brief initial-load window rather than
+  // fall back to a guessed currency.
+  if (!camp) return null
+  const examplePrice = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: camp.currency,
+    maximumFractionDigits: 0,
+  }).format(1200)
+
   return (
     <Card className="shadow-sm border border-default-200">
       <CardBody className="p-8">
@@ -93,7 +105,7 @@ export function SessionsEmptyState({ onCreateSession }: SessionsEmptyStateProps)
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-default-600">Price:</span>
-                <span className="text-sm font-semibold text-default-900">$1,200</span>
+                <span className="text-sm font-semibold text-default-900">{examplePrice}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-default-600">Capacity:</span>

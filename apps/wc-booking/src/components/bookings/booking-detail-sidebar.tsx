@@ -54,6 +54,7 @@ export function BookingDetailSidebar({
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const status = detail.status as ParentBookingGroupStatus
   const showCancelButton = PARENT_CANCELABLE_STATUSES.has(status)
+  const currency = detail.currency
   const cover = detail.camp.coverImageUrl
   const pct = progressPercent(status)
   const barColor = progressBarColor(status)
@@ -161,7 +162,7 @@ export function BookingDetailSidebar({
                   <p className="font-medium text-secondary">{b.child.firstName}</p>
                   <p className="text-xs text-default-500">
                     {age !== null ? `Age ${age}` : 'Child booking'}
-                    {b.totalPrice > 0 ? ` · ${formatCurrency(b.totalPrice)}` : ''}
+                    {b.totalPrice > 0 ? ` · ${formatCurrency(b.totalPrice, currency)}` : ''}
                   </p>
                 </div>
               </li>
@@ -224,40 +225,40 @@ export function BookingDetailSidebar({
         <div className="space-y-2 rounded-xl border border-default-200 bg-default-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
           <div className="flex justify-between text-sm">
             <span className="text-default-600">Subtotal</span>
-            <span className="font-medium">{formatCurrency(detail.subtotalAmount)}</span>
+            <span className="font-medium">{formatCurrency(detail.subtotalAmount, currency)}</span>
           </div>
           {detail.discountTotal > 0 ? (
             <div className="flex justify-between text-sm">
               <span className="text-default-600">Discounts</span>
               <span className="font-medium text-success-600">
-                −{formatCurrency(detail.discountTotal)}
+                −{formatCurrency(detail.discountTotal, currency)}
               </span>
             </div>
           ) : null}
           <div className="flex justify-between text-sm">
             <span className="text-default-600">Total</span>
-            <span className="font-medium">{formatCurrency(detail.totalAmount)}</span>
+            <span className="font-medium">{formatCurrency(detail.totalAmount, currency)}</span>
           </div>
           {detail.depositAmount != null && detail.depositAmount > 0 ? (
             <div className="flex justify-between text-sm">
               <span className="text-default-600">Deposit</span>
-              <span className="font-medium">{formatCurrency(detail.depositAmount)}</span>
+              <span className="font-medium">{formatCurrency(detail.depositAmount, currency)}</span>
             </div>
           ) : null}
           <div className="flex justify-between border-t border-default-200 pt-3 text-sm font-semibold dark:border-slate-600">
             <span>Paid to date</span>
-            <span className="text-success-600">{formatCurrency(detail.paidAmount)}</span>
+            <span className="text-success-600">{formatCurrency(detail.paidAmount, currency)}</span>
           </div>
           {balanceDue > 0 ? (
             <div className="flex justify-between text-sm font-semibold">
               <span>Balance due</span>
-              <span>{formatCurrency(balanceDue)}</span>
+              <span>{formatCurrency(balanceDue, currency)}</span>
             </div>
           ) : null}
           {detail.refundedAmount > 0 ? (
             <div className="flex justify-between text-sm text-default-600">
               <span>Refunded</span>
-              <span>{formatCurrency(detail.refundedAmount)}</span>
+              <span>{formatCurrency(detail.refundedAmount, currency)}</span>
             </div>
           ) : null}
         </div>

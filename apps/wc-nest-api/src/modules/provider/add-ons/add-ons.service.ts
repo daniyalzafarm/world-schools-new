@@ -24,19 +24,17 @@ export class AddOnsService {
   }
 
   /**
-   * Create a new add-on
+   * Create a new add-on. The price is always denominated in the provider's
+   * settlement currency (ProviderSettings.currency); there is no per-add-on
+   * currency.
    */
   async create(providerId: string, dto: CreateAddOnDto) {
-    // Get provider's currency from settings if not provided
-    let currency = dto.currency || 'CHF'
-
-    if (!dto.currency) {
-      const providerSettings = await this.prisma.providerSettings.findUnique({
-        where: { providerId },
-      })
-      if (providerSettings) {
-        currency = providerSettings.currency
-      }
+    const providerSettings = await this.prisma.providerSettings.findUnique({
+      where: { providerId },
+      select: { providerId: true },
+    })
+    if (!providerSettings) {
+      throw new BadRequestException('Provider onboarding must be completed before creating add-ons')
     }
 
     // Validate age range if both are provided
@@ -52,7 +50,6 @@ export class AddOnsService {
         icon: dto.icon,
         type: dto.type,
         price: dto.price,
-        currency,
         pricingUnit: dto.pricingUnit,
         maxQuantity: dto.maxQuantity,
         quantityUnit: dto.quantityUnit,

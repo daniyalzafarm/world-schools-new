@@ -52,6 +52,7 @@ import {
 } from '@/utils/faq-builders'
 import { CampPageTopbar } from '@/components/camp/CampPageTopbar'
 import { formatRating, formatReviewCount } from '@/utils/rating-format'
+import { getCampCurrency } from '@/utils/currency'
 
 const PREDEFINED_TRANSPORT = [
   { id: 'airport-pickup', name: 'Airport Pickup', icon: '✈️' },
@@ -207,7 +208,7 @@ export default function CampPage() {
 
   const sessions = camp.sessions ?? []
   const activeSessions = sessions.filter(s => s.status === 'published')
-  const currency = camp.provider?.settings?.currency || 'USD'
+  const currency = getCampCurrency(camp, `camp:${camp.slug}`)
 
   // Derive primary activity from campFocusRecord (authoritative) or campFocus (fallback)
   const primaryActivity =
@@ -636,6 +637,7 @@ export default function CampPage() {
               weeklySchedule={camp.weeklySchedule}
               screenPolicy={camp.screenPolicy}
               addOns={addOns}
+              currency={currency}
             />
 
             {/* ── 10. Cancellation Policy ───────────────────────────── */}

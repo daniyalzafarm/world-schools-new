@@ -12,7 +12,8 @@ interface SessionsSectionProps {
   sessions: Session[]
   sessionType?: SessionType | null
   campName: string
-  currency?: string
+  /** Camp's settlement currency (ISO 4217). Required. */
+  currency: string
   ageGroups?: AgeGroup[]
   campType?: CampType
   campSlug: string
@@ -54,7 +55,7 @@ function fmtDayName(date: Date): string {
 export function SessionsSection({
   sessions,
   campName: _campName,
-  currency = 'USD',
+  currency,
   ageGroups = [],
   campType = 'day',
   campSlug,

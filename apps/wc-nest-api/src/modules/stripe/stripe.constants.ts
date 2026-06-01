@@ -46,28 +46,17 @@ export const STRIPE_SERVICE_AGREEMENT = 'full' as const
 /**
  * Allow-list of currencies the platform officially supports for provider payouts.
  *
- * Stripe Connect supports many currencies across many countries, but the
- * `default_currency` we set on `accounts.create` MUST be one Stripe accepts for
- * the connected account's country. Sending an unsupported currency surfaces a
- * cryptic 400 from the Stripe API at create time. We pre-validate against this
- * list so providers see a friendly platform-policy error instead.
+ * Restricted to USD / GBP / CHF / EUR per Payments and Payouts Spec v1.0 §3.3:
+ * the platform holds bank accounts in exactly these four currencies, wired to
+ * the Stripe platform account as external accounts in matching currencies so
+ * payouts incur no Stripe FX margin. Any currency outside this set would land
+ * in a Stripe balance with no matching WC external account.
  *
  * Currencies are in lower-case to match Stripe's API contract.
- *
- * Add new currencies here as the platform expands to new regions.
  */
 export const SUPPORTED_CONNECT_CURRENCIES: ReadonlySet<string> = new Set([
   'usd',
-  'eur',
   'gbp',
-  'cad',
-  'aud',
-  'nzd',
   'chf',
-  'sek',
-  'nok',
-  'dkk',
-  'sgd',
-  'hkd',
-  'jpy',
+  'eur',
 ])

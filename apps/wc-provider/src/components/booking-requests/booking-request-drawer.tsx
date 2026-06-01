@@ -159,7 +159,8 @@ export function BookingRequestDrawer({
     setInternalEditing(false)
   }, [detail?.id, detail?.internalNotes])
 
-  const currency = detail?.currency ?? 'CHF'
+  // No fallback — every usage site already lives inside a `detail` guard
+  // (and types reflect that `detail.currency` is always present).
   const bannerVariant =
     detail?.status === 'request' && detail.expiresAt
       ? providerRequestBannerVariant(detail.expiresAt)
@@ -214,7 +215,7 @@ export function BookingRequestDrawer({
 
   const renderStatusBanner = () => {
     if (!detail) return null
-    const amount = formatCurrency(detail.totalAmount, currency)
+    const amount = formatCurrency(detail.totalAmount, detail.currency)
 
     const bannerBase = 'flex items-center justify-between border-b border-gray-200 px-6 py-3.5'
 
@@ -359,7 +360,7 @@ export function BookingRequestDrawer({
             </div>
           </div>
           <div className="text-lg font-bold text-secondary-500">
-            {formatCurrency(detail.paidAmount, currency)}
+            {formatCurrency(detail.paidAmount, detail.currency)}
           </div>
         </div>
       )
@@ -805,7 +806,7 @@ export function BookingRequestDrawer({
                           <div className="mt-2 flex justify-between border-t border-gray-100 pt-2 text-sm">
                             <span className="text-gray-500">Line total</span>
                             <span className="font-medium text-secondary-500">
-                              {formatCurrency(b.totalPrice, currency)}
+                              {formatCurrency(b.totalPrice, detail.currency)}
                             </span>
                           </div>
                           {b.providerNote ? (
@@ -911,14 +912,14 @@ export function BookingRequestDrawer({
                           {b.child.firstName}
                           {age != null ? ` (${age})` : ''} × {w} week{w === 1 ? '' : 's'}
                         </span>
-                        <span>{formatCurrency(lineSub, currency)}</span>
+                        <span>{formatCurrency(lineSub, detail.currency)}</span>
                       </div>
                     )
                   })}
                   {detail.discountTotal > 0 ? (
                     <div className="flex justify-between py-2 text-sm text-success-600">
                       <span>Discounts</span>
-                      <span>−{formatCurrency(detail.discountTotal, currency)}</span>
+                      <span>−{formatCurrency(detail.discountTotal, detail.currency)}</span>
                     </div>
                   ) : null}
                   <div className="flex justify-between py-2 text-sm text-gray-500">
@@ -927,12 +928,12 @@ export function BookingRequestDrawer({
                   </div>
                   <div className="mt-2 flex justify-between border-t-2 border-secondary-500 pt-3 text-base font-semibold text-secondary-500">
                     <span>Total</span>
-                    <span>{formatCurrency(detail.totalAmount, currency)}</span>
+                    <span>{formatCurrency(detail.totalAmount, detail.currency)}</span>
                   </div>
                   {detail.depositAmount != null && detail.depositAmount > 0 ? (
                     <div className="mt-2 flex justify-between text-xs text-gray-400">
                       <span>Deposit (reference)</span>
-                      <span>{formatCurrency(detail.depositAmount, currency)}</span>
+                      <span>{formatCurrency(detail.depositAmount, detail.currency)}</span>
                     </div>
                   ) : null}
                 </div>

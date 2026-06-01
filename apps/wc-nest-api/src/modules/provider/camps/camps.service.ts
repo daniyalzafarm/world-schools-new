@@ -447,6 +447,7 @@ export class CampsService {
     }
 
     // Generate SAS URLs for photos and attach counts
+    const currency = await this.requireProviderCurrency(providerId)
     const campsWithPhotoUrls = await Promise.all(
       camps.map(async camp => {
         const counts = {
@@ -462,9 +463,10 @@ export class CampsService {
             ...camp,
             photos: photosWithUrls,
             ...counts,
+            currency,
           }
         }
-        return { ...camp, ...counts }
+        return { ...camp, ...counts, currency }
       })
     )
 
@@ -476,14 +478,15 @@ export class CampsService {
    */
   async getCamp(campId: string, providerId: string) {
     const camp = await this.verifyCampOwnership(campId, providerId)
+    const currency = await this.requireProviderCurrency(providerId)
 
     // Generate SAS URLs for photos if they exist
     if (camp.photos && Array.isArray(camp.photos) && camp.photos.length > 0) {
       const photosWithUrls = await this.photoUploadService.generatePhotoUrls(camp.photos as any[])
-      return { ...camp, photos: photosWithUrls }
+      return { ...camp, photos: photosWithUrls, currency }
     }
 
-    return camp
+    return { ...camp, currency }
   }
 
   /**
@@ -1231,7 +1234,10 @@ export class CampsService {
     }
     const averageRating = ratingCount > 0 ? Number((ratingSum / ratingCount).toFixed(2)) : 0
 
-    const currency = providerSettings?.currency ?? 'CHF'
+    if (!providerSettings?.currency) {
+      throw new BadRequestException('Provider currency must be configured')
+    }
+    const currency = providerSettings.currency
 
     return {
       totalCamps: camps.length,
@@ -1468,6 +1474,22 @@ export class CampsService {
       return Math.min(...prices)
     }
     return null
+  }
+
+  /**
+   * Resolves the provider's settlement currency from ProviderSettings.
+   * Currency is required at onboarding and immutable thereafter — a missing
+   * value is a data bug, not a runtime fallback.
+   */
+  private async requireProviderCurrency(providerId: string): Promise<string> {
+    const settings = await this.prisma.providerSettings.findUnique({
+      where: { providerId },
+      select: { currency: true },
+    })
+    if (!settings?.currency) {
+      throw new BadRequestException('Provider currency must be configured')
+    }
+    return settings.currency
   }
 
   /**

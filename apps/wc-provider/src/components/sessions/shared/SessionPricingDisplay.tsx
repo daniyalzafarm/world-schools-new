@@ -7,7 +7,8 @@ interface SessionPricingDisplayProps {
   pricingType: PricingType
   price?: number
   ageGroupPrices?: AgeGroupPrice[]
-  currency?: string
+  /** Provider settlement currency (ISO 4217). Required — no silent default. */
+  currency: string
   variant?: 'chips' | 'text' | 'compact'
 }
 
@@ -20,7 +21,7 @@ export function SessionPricingDisplay({
   pricingType,
   price,
   ageGroupPrices,
-  currency = 'USD',
+  currency,
   variant = 'chips',
 }: SessionPricingDisplayProps) {
   // For single pricing

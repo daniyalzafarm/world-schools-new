@@ -64,6 +64,8 @@ export interface CampDetail {
   providerId: string
   providerLogoUrl: string | null
   providerContactEmail: string | null
+  /** ISO 4217 settlement currency from ProviderSettings. Null only for providers that haven't completed onboarding. */
+  currency: string | null
   providerMemberSince: string
   providerCampsCount: number
   providerAvgRating: number | null

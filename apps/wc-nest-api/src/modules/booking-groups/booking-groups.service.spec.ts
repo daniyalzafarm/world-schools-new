@@ -809,7 +809,10 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
           arrivalTime: null,
           departureTime: null,
         },
-        provider: { legalCompanyName: 'Cool Camp Ltd' },
+        provider: {
+          legalCompanyName: 'Cool Camp Ltd',
+          settings: { currency: 'EUR' },
+        },
         bookings: [],
         payments: [],
         ...overrides,

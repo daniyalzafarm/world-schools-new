@@ -72,10 +72,14 @@ function getChildAge(dateOfBirth?: string): number | null {
   return age
 }
 
-function formatCurrency(amount: number): string {
+function formatCurrency(amount: number, currency: string | null): string {
+  // Parent spend rolls up across multiple providers (and currencies); the
+  // parent record doesn't carry a single settlement currency. Until the
+  // backend exposes a per-currency breakdown, render the bare amount.
+  if (!currency) return amount.toLocaleString('en-US', { maximumFractionDigits: 0 })
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'EUR',
+    currency,
     maximumFractionDigits: 0,
   }).format(amount)
 }
@@ -352,11 +356,11 @@ export default function ParentsPage() {
                         <TableCell>
                           <div>
                             <div className="font-semibold text-foreground">
-                              {formatCurrency(parent.totalSpent)}
+                              {formatCurrency(parent.totalSpent, null)}
                             </div>
                             <div className="text-xs text-default-400">
                               {parent.bookingCount > 0
-                                ? `Avg ${formatCurrency(parent.avgSpent)}`
+                                ? `Avg ${formatCurrency(parent.avgSpent, null)}`
                                 : '—'}
                             </div>
                           </div>

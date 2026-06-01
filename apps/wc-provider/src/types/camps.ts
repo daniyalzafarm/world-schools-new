@@ -118,7 +118,7 @@ export interface Camp {
     description: string
   } | null
   sessionType?: 'flexible' | 'fixed' | null
-  currency?: string // Currency code (e.g., 'USD', 'EUR', 'GBP')
+  currency: string // ISO 4217 currency code. Inherited from ProviderSettings.currency, always present.
   sessionsCount?: { published: number; total: number }
   addOnsCount?: { enabled: number; total: number }
   eligibilityCount?: number

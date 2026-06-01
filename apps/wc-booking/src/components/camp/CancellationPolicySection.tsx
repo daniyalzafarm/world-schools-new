@@ -21,7 +21,8 @@ interface CancellationPolicySectionProps {
   depositType?: string | null
   depositPercentage?: number | null
   depositFixedAmount?: number | null
-  currency?: string
+  /** Camp's settlement currency (ISO 4217). Required. */
+  currency: string
   selectedSession?: Session | null
 }
 
@@ -32,7 +33,7 @@ export function CancellationPolicySection({
   depositType,
   depositPercentage,
   depositFixedAmount,
-  currency = 'EUR',
+  currency,
   selectedSession,
 }: CancellationPolicySectionProps) {
   const rows = buildCancellationPolicyRows(policy, customPolicy, selectedSession?.startDate)

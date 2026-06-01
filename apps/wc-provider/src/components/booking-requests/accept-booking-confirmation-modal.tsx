@@ -30,13 +30,12 @@ export function AcceptBookingConfirmationModal({
   isLoading = false,
   detail,
 }: AcceptBookingConfirmationModalProps) {
-  const currency = detail.currency ?? 'CHF'
   const sessionRange = formatSessionRange(
     detail.session.startDate,
     detail.session.endDate,
     detail.session.name
   )
-  const formattedTotal = formatCurrency(detail.totalAmount, currency)
+  const formattedTotal = formatCurrency(detail.totalAmount, detail.currency)
 
   return (
     <Modal

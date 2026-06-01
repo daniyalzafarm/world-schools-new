@@ -66,7 +66,7 @@ export class BookingWebSocketHandler {
 
       const chargedAmountFormatted =
         isAccepted && payload.chargedAmount != null
-          ? formatCurrency(payload.chargedAmount, payload.currency ?? 'USD')
+          ? formatCurrency(payload.chargedAmount, payload.currency)
           : null
 
       const sessionRange = formatSessionRange(payload.sessionStartDate, payload.sessionEndDate)

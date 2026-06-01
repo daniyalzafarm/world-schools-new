@@ -7,7 +7,7 @@ import { useEffect, useRef } from 'react'
 import { GoogleMapsLoader } from '@/components/map/GoogleMapsLoader'
 import config from '@/config/config'
 import type { WishlistItem } from '@/types/wishlists'
-import { formatCurrency } from '@/utils/currency'
+import { formatCurrency, getCampCurrency } from '@/utils/currency'
 import { MapPin } from 'lucide-react'
 
 interface WishlistMapPanelProps {
@@ -16,7 +16,7 @@ interface WishlistMapPanelProps {
 }
 
 function getCampPriceLabel(item: WishlistItem): string {
-  const currency = item.camp?.provider?.settings?.currency ?? 'CHF'
+  const currency = getCampCurrency(item.camp, 'wishlist-map-panel')
   const sessionsToCheck = item.selectedSession
     ? [item.selectedSession]
     : (item.camp?.sessions ?? [])

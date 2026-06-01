@@ -20,7 +20,7 @@ import {
 import { Textarea } from '@world-schools/ui-web'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
 import { getChildAge } from '@/types/child'
-import { formatCurrency } from '@/utils/currency'
+import { formatCurrency, getCampCurrency } from '@/utils/currency'
 import type { CampBookingAddOnSelectionMode } from '@/types/camp-booking'
 import { getAddOnMode, getAddOnTileLabel, getAddOnUnitNoun } from '@/utils/addon-pricing'
 import { MobileBookingFooter } from '@/components/camp-booking/mobile-booking-footer'
@@ -55,7 +55,7 @@ function SessionsStep() {
   const setStep = useCampBookingStore(state => state.setStep)
   const camp = useCampBookingStore(state => state.camp)
 
-  const currency = camp?.provider?.settings?.currency ?? 'EUR'
+  const currency = getCampCurrency(camp, 'camp-booking-flow')
 
   const [monthFilter, setMonthFilter] = useState<string | null>(null)
   const [ageRangeFilter, setAgeRangeFilter] = useState<string | null>(null)
@@ -503,7 +503,7 @@ function ChildrenStep() {
   const createDraftBookingGroup = useCampBookingStore(state => state.createDraftBookingGroup)
   const addChild = useCampBookingStore(state => state.addChild)
   const camp = useCampBookingStore(state => state.camp)
-  const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
+  const currency = useCampBookingStore(state => getCampCurrency(state.camp, 'camp-booking-flow'))
   const [isAddingChild, setIsAddingChild] = useState(false)
 
   const eligibleChildren = useMemo(
@@ -666,7 +666,7 @@ function AddonsStep() {
   const camp = useCampBookingStore(state => state.camp)
   const children = useCampBookingStore(state => state.children)
   const selectedChildIds = useCampBookingStore(state => state.selectedChildIds)
-  const currency = camp?.provider?.settings?.currency || 'EUR'
+  const currency = getCampCurrency(camp, 'camp-booking-flow')
 
   const inferMode = (addon: (typeof addOns)[number]): CampBookingAddOnSelectionMode =>
     getAddOnMode(addon)
@@ -1488,7 +1488,7 @@ function ReviewStep({
     [addOns, addOnSelectionsById]
   )
 
-  const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
+  const currency = useCampBookingStore(state => getCampCurrency(state.camp, 'camp-booking-flow'))
   // Stable lowercase reference for Stripe Elements `currency` option. The
   // <Elements> options object is memoized inside StripePaymentSection on
   // (currency, amount, isSetupOnly); a fresh string from .toLowerCase() each
@@ -1991,7 +1991,7 @@ export function CampBookingFlow() {
   )
   const hydrateFromBookingGroupId = useCampBookingStore(state => state.hydrateFromBookingGroupId)
   const createDraftBookingGroup = useCampBookingStore(state => state.createDraftBookingGroup)
-  const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
+  const currency = useCampBookingStore(state => getCampCurrency(state.camp, 'camp-booking-flow'))
 
   // Lifted up so MobileBookingFooter (sibling to ReviewStep) can drive the
   // Stripe submit on review-and-pay — the inner <Elements> form must stay

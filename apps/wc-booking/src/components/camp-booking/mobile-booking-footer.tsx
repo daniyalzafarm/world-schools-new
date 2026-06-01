@@ -3,7 +3,7 @@
 import { Button } from '@heroui/react'
 import { useMemo } from 'react'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
-import { formatCurrency } from '@/utils/currency'
+import { formatCurrency, getCampCurrency } from '@/utils/currency'
 import type { Session } from '@/types/sessions'
 import { getSelectedChildrenSubtotal } from '@/components/camp-booking/booking-flow-pricing'
 import { calcExtrasTotal } from '@/utils/addon-pricing'
@@ -93,7 +93,9 @@ export function MobileBookingFooter({ paymentPending, onSubmitPayment }: MobileB
   const addOns = useCampBookingStore(state => state.addOns)
   const addOnSelectionsById = useCampBookingStore(state => state.addOnSelectionsById)
 
-  const currency = useCampBookingStore(state => state.camp?.provider?.settings?.currency ?? 'EUR')
+  const currency = useCampBookingStore(state =>
+    getCampCurrency(state.camp, 'mobile-booking-footer')
+  )
   const setStep = useCampBookingStore(state => state.setStep)
   const createDraftBookingGroup = useCampBookingStore(state => state.createDraftBookingGroup)
   const saveAddOnsAndGoToReview = useCampBookingStore(state => state.saveAddOnsAndGoToReview)

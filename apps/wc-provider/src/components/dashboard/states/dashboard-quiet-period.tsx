@@ -21,7 +21,7 @@ interface DashboardQuietPeriodProps {
   businessName: string | null
   camps: Camp[]
   pastBookings: ProviderBookingGroupSummary[]
-  statistics: CampStatistics | null
+  statistics: CampStatistics
   recentReviews: ProviderReviewSummary[]
 }
 
@@ -53,10 +53,10 @@ export function DashboardQuietPeriod({
   })()
 
   const totalCampers = pastBookings.reduce((sum, b) => sum + b.children.length, 0)
-  const currency = statistics?.currency ?? 'EUR'
-  const lastSeasonRevenue = statistics?.revenueLastSeason ?? 0
-  const averageRating = statistics?.averageRating ?? 0
-  const unrespondedReviews = statistics?.unrespondedReviews ?? 0
+  const currency = statistics.currency
+  const lastSeasonRevenue = statistics.revenueLastSeason
+  const averageRating = statistics.averageRating
+  const unrespondedReviews = statistics.unrespondedReviews
 
   const items: ChecklistItemViewModel[] = [
     {
@@ -103,7 +103,7 @@ export function DashboardQuietPeriod({
           icon={<Star size={20} />}
           label="Avg rating"
           value={averageRating > 0 ? averageRating.toFixed(1) : '—'}
-          hint={statistics?.reviewCount ? `${statistics.reviewCount} reviews` : undefined}
+          hint={statistics.reviewCount ? `${statistics.reviewCount} reviews` : undefined}
           tone="warning"
         />
         <StatCard

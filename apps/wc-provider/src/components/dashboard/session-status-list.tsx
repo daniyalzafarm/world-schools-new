@@ -6,7 +6,8 @@ interface SessionStatusListProps {
   badgeLabel: string
   statusLabel?: string
   manageHref?: string
-  currency?: string
+  /** Provider settlement currency (ISO 4217). Required. */
+  currency: string
   limit?: number
   emptyLabel?: string
 }

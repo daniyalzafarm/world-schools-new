@@ -32,7 +32,7 @@ interface DashboardPublishedWaitingProps {
   businessName: string | null
   camps: Camp[]
   sessions: Session[]
-  statistics: CampStatistics | null
+  statistics: CampStatistics
 }
 
 function formatCurrency(value: number, currency: string): string {
@@ -57,7 +57,7 @@ export function DashboardPublishedWaiting({
   const publishedSessions = sessions.filter(
     s => s.status === 'published' && publishedCampIds.has(s.campId)
   )
-  const currency = statistics?.currency ?? 'EUR'
+  const currency = statistics.currency
   const primaryCamp = camps.find(c => c.status === 'published') ?? camps[0] ?? null
 
   const handleViewPublicProfile = useCallback(async () => {

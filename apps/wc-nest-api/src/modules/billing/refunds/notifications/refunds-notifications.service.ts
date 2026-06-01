@@ -44,7 +44,7 @@ export class RefundsNotificationsService {
     mode: ParentCancelMode
     refundedAmountMajor: string | null
     nonRefundedAmountMajor?: string | null
-    currency: string | null
+    currency: string
   }): Promise<void> {
     if (input.mode === 'not_cancelable') {
       // Defensive — caller should never reach this path. No email, no log noise.
@@ -97,9 +97,9 @@ export class RefundsNotificationsService {
   }
 }
 
-function formatAmount(majorUnits: string, currency: string | null): string {
+function formatAmount(majorUnits: string, currency: string): string {
   const num = Number(majorUnits)
-  const ccy = (currency ?? 'EUR').toUpperCase()
+  const ccy = currency.toUpperCase()
   if (!Number.isFinite(num)) return `${majorUnits} ${ccy}`
   try {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: ccy }).format(num)

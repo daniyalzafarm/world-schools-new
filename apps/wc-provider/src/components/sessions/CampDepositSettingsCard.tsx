@@ -32,7 +32,7 @@ export function CampDepositSettingsCard({ campId }: CampDepositSettingsCardProps
   const [savedSettings, setSavedSettings] = useState<CampDepositSettings | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const currency = useCampsStore(state => state.currentCamp?.currency) ?? 'USD'
+  const currentCamp = useCampsStore(state => state.currentCamp)
 
   useEffect(() => {
     let cancelled = false
@@ -50,7 +50,7 @@ export function CampDepositSettingsCard({ campId }: CampDepositSettingsCardProps
     }
   }, [campId])
 
-  if (isLoading) {
+  if (isLoading || !currentCamp) {
     return (
       <Card shadow="none" className="border border-default-200 mb-4">
         <CardBody className="p-4 flex items-center justify-center min-h-[72px]">
@@ -68,7 +68,7 @@ export function CampDepositSettingsCard({ campId }: CampDepositSettingsCardProps
             <h3 className="font-semibold text-foreground">Deposit Settings</h3>
             <p className="text-sm text-default-700 mt-0.5 truncate">
               {savedSettings
-                ? summarize(savedSettings, currency)
+                ? summarize(savedSettings, currentCamp.currency)
                 : 'Unable to load deposit settings'}
             </p>
           </div>
@@ -89,7 +89,7 @@ export function CampDepositSettingsCard({ campId }: CampDepositSettingsCardProps
           onClose={() => setIsModalOpen(false)}
           campId={campId}
           initialSettings={savedSettings}
-          currency={currency}
+          currency={currentCamp.currency}
           onSaved={s => setSavedSettings(s)}
         />
       )}

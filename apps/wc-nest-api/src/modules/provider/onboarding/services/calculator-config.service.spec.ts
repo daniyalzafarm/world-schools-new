@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common'
+import { BadRequestException, NotFoundException } from '@nestjs/common'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Prisma } from '../../../../generated/client/client'
 import { PrismaService } from '../../../../prisma/prisma.service'
@@ -62,16 +62,14 @@ describe('CalculatorConfigService', () => {
     expect(config.appFeePercentage).toBe(10)
   })
 
-  it('defaults currency to EUR when ProviderSettings is missing', async () => {
+  it('throws BadRequestException when ProviderSettings is missing', async () => {
     prisma.provider.findUnique.mockResolvedValueOnce({
       appFeeCustom: true,
       appFeePercentage: new Prisma.Decimal('12.5'),
       settings: null,
     })
 
-    const config = await service.getConfig('prov-1')
-    expect(config.currency).toBe('EUR')
-    expect(config.appFeePercentage).toBe(12.5)
+    await expect(service.getConfig('prov-1')).rejects.toBeInstanceOf(BadRequestException)
   })
 
   it('throws NotFoundException when the provider does not exist', async () => {

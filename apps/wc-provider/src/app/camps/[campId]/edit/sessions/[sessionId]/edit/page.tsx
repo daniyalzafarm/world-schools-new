@@ -165,7 +165,7 @@ export default function EditSessionPage() {
   }, [])
 
   // Loading state
-  if (isLoading || !session) {
+  if (isLoading || !session || !currentCamp) {
     return (
       <div className="flex items-center justify-center min-h-96">
         <Spinner size="lg" />

@@ -46,8 +46,9 @@ export function formatDateRange(startDate: string, endDate: string): string {
 
 /**
  * Format currency (e.g., "$1,234") — shared Intl-based implementation.
+ * `currency` is required (no silent default) to keep currency display honest.
  */
-export function formatCurrency(amount: number, currency = 'USD'): string {
+export function formatCurrency(amount: number, currency: string): string {
   return formatCurrencyFromUtils(amount, currency)
 }
 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../../../../prisma/prisma.service'
 
 export interface CalculatorConfig {
@@ -46,7 +46,10 @@ export class CalculatorConfigService {
       throw new NotFoundException(`Provider ${providerId} not found`)
     }
 
-    const currency = provider.settings?.currency?.toUpperCase() ?? 'EUR'
+    if (!provider.settings?.currency) {
+      throw new BadRequestException('Provider currency must be configured')
+    }
+    const currency = provider.settings.currency.toUpperCase()
 
     let appFeePercentage: number
     if (provider.appFeeCustom && provider.appFeePercentage) {

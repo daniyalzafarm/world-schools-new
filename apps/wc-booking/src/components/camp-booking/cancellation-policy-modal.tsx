@@ -26,7 +26,7 @@ export interface CancellationPolicyModalProps {
    * no deposit (the modal then applies tier % to the full booking total).
    */
   depositAmount?: number | null
-  currency?: string | null
+  currency: string
 }
 
 export function CancellationPolicyModal({
@@ -46,8 +46,7 @@ export function CancellationPolicyModal({
   )
 
   const hasAmounts = typeof bookingTotal === 'number' && bookingTotal > 0
-  const currencyCode = currency ?? 'EUR'
-  const formattedTotal = hasAmounts ? formatCurrency(bookingTotal, currencyCode) : null
+  const formattedTotal = hasAmounts ? formatCurrency(bookingTotal, currency) : null
   const hasDeposit = typeof depositAmount === 'number' && depositAmount > 0
   // Tiers apply to the balance only — deposit is non-refundable post-grace.
   // Without subtracting the deposit, every row would overstate the refund.
@@ -56,7 +55,7 @@ export function CancellationPolicyModal({
       ? Math.max(0, bookingTotal - depositAmount)
       : bookingTotal
     : null
-  const formattedDeposit = hasDeposit ? formatCurrency(depositAmount, currencyCode) : null
+  const formattedDeposit = hasDeposit ? formatCurrency(depositAmount, currency) : null
 
   return (
     <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="md" scrollBehavior="inside">
@@ -94,7 +93,7 @@ export function CancellationPolicyModal({
                     : 'text-gray-700'
               const amountText =
                 refundBasis != null
-                  ? formatCurrency(getRefundAmount(refundBasis, row.refundPercentage), currencyCode)
+                  ? formatCurrency(getRefundAmount(refundBasis, row.refundPercentage), currency)
                   : null
               const primary = row.dateRangeLabel ?? row.rangeLabel
               const secondary = row.dateRangeLabel ? row.rangeLabel : null

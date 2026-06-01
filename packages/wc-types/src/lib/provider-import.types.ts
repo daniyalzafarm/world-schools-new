@@ -85,8 +85,8 @@ export const PROVIDER_IMPORT_COLUMNS: ProviderImportColumn[] = [
   {
     key: 'currency',
     label: 'Currency',
-    description: 'ISO 4217 currency code (defaults to USD)',
-    required: false,
+    description: 'ISO 4217 currency code (USD, GBP, CHF, EUR)',
+    required: true,
     type: 'string',
     example: 'USD',
   },

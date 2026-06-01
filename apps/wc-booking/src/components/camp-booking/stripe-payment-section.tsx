@@ -447,15 +447,18 @@ function toStripeMinorUnits(amount: number, currency: string): number {
 }
 
 /**
- * H6 audit fix: render a major-unit amount in the parent's locale + the
- * configured currency. Falls back to a `${amount} ${CCY}` string when
- * `Intl.NumberFormat` rejects the currency code (which it shouldn't for
- * any of our supported ISO 4217 codes, but a misconfigured provider
+ * H6 audit fix: render a major-unit amount in the camp's settlement
+ * currency. Pinned to `en-US` locale (matching the app shell at
+ * `apps/wc-booking/src/app/layout.tsx`) so the thousands/decimal
+ * separators stay consistent across the booking flow regardless of the
+ * parent's browser locale. Falls back to a `${amount} ${CCY}` string
+ * when `Intl.NumberFormat` rejects the currency code (which it shouldn't
+ * for any of our supported ISO 4217 codes, but a misconfigured provider
  * shouldn't break the payment form).
  */
 function formatMajor(amount: number, currency: string): string {
   try {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency.toUpperCase(),
     }).format(amount)

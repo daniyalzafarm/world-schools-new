@@ -71,6 +71,20 @@ export class BookingGroupsService {
   // retries forever.
   private static readonly SUBMIT_LOCK_TTL_SECONDS = 30
 
+  /**
+   * Resolves the booking-group's settlement currency from the provider's
+   * settings. Returns upper-case ISO 4217 for parent-facing payloads
+   * (Intl.NumberFormat contract). Throws if missing — every active provider
+   * must have a currency set at onboarding.
+   */
+  private requireCurrency(group: { provider: { settings: { currency: string } | null } }): string {
+    const currency = group.provider.settings?.currency
+    if (!currency) {
+      throw new BadRequestException('Provider has no currency configured')
+    }
+    return currency.toUpperCase()
+  }
+
   /** Same SAS URL generation as user/provider GET profile (`ProfilePhotoService.generatePhotoUrl`). */
   private async resolveProfilePhotoSasUrl(
     blobPath: string | null | undefined
@@ -793,6 +807,7 @@ export class BookingGroupsService {
         provider: {
           select: {
             legalCompanyName: true,
+            settings: { select: { currency: true } },
           },
         },
         bookings: {
@@ -881,6 +896,7 @@ export class BookingGroupsService {
         arrivalTime: bookingGroup.session.arrivalTime,
         departureTime: bookingGroup.session.departureTime,
       },
+      currency: this.requireCurrency(bookingGroup),
       provider: {
         legalCompanyName: bookingGroup.provider.legalCompanyName,
       },
@@ -1362,7 +1378,7 @@ export class BookingGroupsService {
     const data = await Promise.all(
       rows.map(async row => {
         const coverImageUrl = await resolveCoverImageUrl(row.camp.id, row.camp.photos)
-        const currency = row.provider.settings?.currency ?? 'CHF'
+        const currency = this.requireCurrency(row)
         const u = row.parent.user
         const displayName = [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.email
         return {
@@ -1631,7 +1647,7 @@ export class BookingGroupsService {
     const coverImageUrl = await this.resolveCampCoverImageUrl(bookingGroup.camp.photos)
     const lat = bookingGroup.camp.locationLat
     const lng = bookingGroup.camp.locationLng
-    const currency = bookingGroup.provider.settings?.currency ?? 'CHF'
+    const currency = this.requireCurrency(bookingGroup)
     const u = bookingGroup.parent.user
     const parentDisplayName = [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.email
 
@@ -2334,10 +2350,13 @@ export class BookingGroupsService {
         id: true,
         status: true,
         bookingGroupNumber: true,
+        providerId: true,
         camp: { select: { name: true } },
+        provider: { select: { settings: { select: { currency: true } } } },
       },
     })
     if (!owned) throw new NotFoundException('Booking group not found')
+    const ownedCurrency = this.requireCurrency(owned)
 
     // Pass voidAuthFn so the pre-capture path can void the open auth /
     // SetupIntent. PaymentIntentsService.cancelForBookingGroup is idempotent
@@ -2359,8 +2378,10 @@ export class BookingGroupsService {
       newStatus: 'cancelled',
       previousStatus: owned.status,
       parentUserId: userId,
+      providerId: owned.providerId,
       campName: owned.camp.name,
       respondedAt: new Date().toISOString(),
+      currency: ownedCurrency,
     })
 
     // Best-effort confirmation email. We sum refund amounts from the actual
@@ -2371,7 +2392,6 @@ export class BookingGroupsService {
     const refundedTotal = result.refunds
       .reduce((acc, r) => acc.plus(r.amount), new Prisma.Decimal(0))
       .toFixed(2)
-    const currency = await this.resolveBookingCurrency(owned.id)
     const nonRefunded =
       result.mode === 'policy' ? await this.computeNonRefundedAmount(owned.id, refundedTotal) : null
     void this.refundsNotifications
@@ -2380,7 +2400,7 @@ export class BookingGroupsService {
         mode: result.mode,
         refundedAmountMajor: result.mode === 'void_auth' ? null : refundedTotal,
         nonRefundedAmountMajor: nonRefunded,
-        currency,
+        currency: ownedCurrency,
       })
       .catch(err => {
         // Already logged inside the notifications service. Swallow so
@@ -2393,24 +2413,6 @@ export class BookingGroupsService {
       mode: result.mode,
       refundCount: result.refunds.length,
     }
-  }
-
-  /**
-   * Pulls the currency snapshot from any succeeded payment on the booking,
-   * falling back to provider settings. Used by the cancel notification path
-   * so the refund amount renders in the correct currency.
-   */
-  private async resolveBookingCurrency(bookingGroupId: string): Promise<string | null> {
-    const anyPayment = await this.prisma.payment.findFirst({
-      where: { bookingGroupId, status: { not: 'canceled' } },
-      select: { currency: true },
-    })
-    if (anyPayment?.currency) return anyPayment.currency
-    const group = await this.prisma.bookingGroup.findUnique({
-      where: { id: bookingGroupId },
-      select: { provider: { select: { settings: { select: { currency: true } } } } },
-    })
-    return group?.provider?.settings?.currency ?? null
   }
 
   /**
@@ -2538,7 +2540,7 @@ export class BookingGroupsService {
       campName: bookingGroup.camp.name,
       respondedAt: now.toISOString(),
       chargedAmount: Number(bookingGroup.totalAmount),
-      currency: bookingGroup.provider.settings?.currency ?? undefined,
+      currency: this.requireCurrency(bookingGroup),
       sessionStartDate: bookingGroup.session.startDate.toISOString(),
       sessionEndDate: bookingGroup.session.endDate.toISOString(),
     })
@@ -2618,7 +2620,7 @@ export class BookingGroupsService {
       providerId,
       campName: bookingGroup.camp.name,
       respondedAt: now.toISOString(),
-      currency: bookingGroup.provider.settings?.currency ?? undefined,
+      currency: this.requireCurrency(bookingGroup),
       sessionStartDate: bookingGroup.session.startDate.toISOString(),
       sessionEndDate: bookingGroup.session.endDate.toISOString(),
       declineReason: args.declineReason,

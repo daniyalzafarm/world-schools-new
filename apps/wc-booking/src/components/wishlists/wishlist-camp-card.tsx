@@ -6,7 +6,7 @@ import type { WishlistItem } from '@/types/wishlists'
 import { useWishlistsStore } from '@/stores/wishlists-store'
 import { Button } from '@heroui/react'
 import { Calendar, ChartNoAxesColumn, MessageCircle } from 'lucide-react'
-import { formatCurrency } from '@/utils/currency'
+import { formatCurrency, getCampCurrency } from '@/utils/currency'
 import { StarRating } from '@world-schools/ui-web'
 
 interface WishlistCampCardProps {
@@ -25,7 +25,7 @@ export function WishlistCampCard({ item, readOnly = false, id }: WishlistCampCar
   const isCompareSelected = compareIds.includes(item.campId)
   const campSlug = camp?.slug
 
-  const currency = camp?.provider?.settings?.currency ?? 'CHF'
+  const currency = getCampCurrency(camp, 'wishlist-camp-card')
   const sessionsToCheck = item.selectedSession ? [item.selectedSession] : (camp?.sessions ?? [])
   let minPrice: number | undefined
   for (const session of sessionsToCheck) {

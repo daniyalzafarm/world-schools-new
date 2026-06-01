@@ -314,7 +314,6 @@ export class UserCampsService {
       icon: item.addOn.icon,
       type: item.addOn.type,
       price: Number(item.addOn.price),
-      currency: item.addOn.currency,
       pricingUnit: item.addOn.pricingUnit,
       maxQuantity: item.addOn.maxQuantity,
       quantityUnit: item.addOn.quantityUnit,

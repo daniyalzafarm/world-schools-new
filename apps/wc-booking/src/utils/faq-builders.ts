@@ -132,7 +132,7 @@ export function buildCancellationFaq(
  * FAQ Item 7 — Transport
  * Condition: addOns contains a transport-related add-on
  */
-export function buildTransportFaq(addOns: CampBookingAddOn[], currency?: string): FaqItem | null {
+export function buildTransportFaq(addOns: CampBookingAddOn[], currency: string): FaqItem | null {
   if (!addOns?.length) return null
 
   const transportAddon = addOns.find(a => /transport|coach|transfer|shuttle|pickup/i.test(a.name))
@@ -140,7 +140,7 @@ export function buildTransportFaq(addOns: CampBookingAddOn[], currency?: string)
 
   const price = new Intl.NumberFormat('en-GB', {
     style: 'currency',
-    currency: transportAddon.currency ?? currency ?? 'EUR',
+    currency,
     maximumFractionDigits: 0,
   }).format(transportAddon.price)
 

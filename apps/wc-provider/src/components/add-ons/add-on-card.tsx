@@ -10,10 +10,12 @@ import { useAddOnsStore } from '@/stores/add-ons.store'
 
 interface AddOnCardProps {
   addOn: AddOn
+  /** Provider's settlement currency — add-on prices are always denominated in this. */
+  currency: string
   onEdit: () => void
 }
 
-export function AddOnCard({ addOn, onEdit }: AddOnCardProps) {
+export function AddOnCard({ addOn, currency, onEdit }: AddOnCardProps) {
   const { deleteAddOn } = useAddOnsStore()
   const { confirm } = useConfirmDialog()
   const [isDeleting, setIsDeleting] = useState(false)
@@ -65,9 +67,7 @@ export function AddOnCard({ addOn, onEdit }: AddOnCardProps) {
       </div>
 
       <div className="shrink-0 text-right min-w-24">
-        <div className="text-lg font-bold text-default-900">
-          {formatCurrency(price, addOn.currency)}
-        </div>
+        <div className="text-lg font-bold text-default-900">{formatCurrency(price, currency)}</div>
         <div className="text-xs text-default-400">
           {formatPricingUnit(addOn.pricingUnit)}
           {addOn.maxQuantity ? (

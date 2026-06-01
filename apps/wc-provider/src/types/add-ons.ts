@@ -9,6 +9,10 @@ export type PricingUnit =
   | 'per_bag'
   | 'one_time'
 
+/**
+ * Add-on price is denominated in the provider's settlement currency
+ * (ProviderSettings.currency). There is no per-add-on currency field.
+ */
 export interface AddOn {
   id: string
   providerId: string
@@ -17,7 +21,6 @@ export interface AddOn {
   icon?: string
   type: AddOnType
   price: number
-  currency: string
   pricingUnit: PricingUnit
   maxQuantity?: number
   quantityUnit?: string
@@ -32,13 +35,16 @@ export interface AddOn {
   }
 }
 
+/**
+ * Add-on currency is always derived server-side from the provider's
+ * settlement currency — clients do not pass currency on create/update.
+ */
 export interface CreateAddOnDto {
   name: string
   description?: string
   icon?: string
   type: AddOnType
   price: number
-  currency?: string
   pricingUnit: PricingUnit
   maxQuantity?: number
   quantityUnit?: string
@@ -53,7 +59,6 @@ export interface UpdateAddOnDto {
   icon?: string
   type?: AddOnType
   price?: number
-  currency?: string
   pricingUnit?: PricingUnit
   maxQuantity?: number
   quantityUnit?: string

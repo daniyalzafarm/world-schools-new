@@ -25,7 +25,7 @@ function modeFromSettings(s: CampDepositSettings): DepositMode {
 }
 
 export function CampDepositSettingsPanel({ campId, onClose }: CampDepositSettingsPanelProps) {
-  const currency = useCampsStore(state => state.currentCamp?.currency) ?? 'USD'
+  const currentCamp = useCampsStore(state => state.currentCamp)
 
   const [savedSettings, setSavedSettings] = useState<CampDepositSettings | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -268,7 +268,7 @@ export function CampDepositSettingsPanel({ campId, onClose }: CampDepositSetting
                 >
                   <div className="inline-flex overflow-hidden rounded-lg border-2 border-default-200 bg-background transition-colors focus-within:border-primary">
                     <span className="bg-default-100 px-3.5 py-3 text-base font-semibold text-default-600">
-                      {getCurrencySymbol(currency)}
+                      {currentCamp ? getCurrencySymbol(currentCamp.currency) : ''}
                     </span>
                     <input
                       ref={fixedAmountInputRef}

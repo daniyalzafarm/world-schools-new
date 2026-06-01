@@ -17,6 +17,7 @@ export default function CampAddOnsEditorPage() {
   const router = useRouter()
   const campId = params.campId as string
 
+  const currentCamp = useCampsStore(state => state.currentCamp)
   const [addOns, setAddOns] = useState<CampAddOn[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -207,13 +208,15 @@ export default function CampAddOnsEditorPage() {
                   {/* Pricing */}
                   <div className="min-w-28 shrink-0 text-right">
                     <div className="text-lg font-bold text-foreground">
-                      {addOn.currency} {price.toFixed(0)}
+                      {currentCamp?.currency} {price.toFixed(0)}
                     </div>
                     <div className="text-xs text-default-400">
-                      {formatPrice(price, addOn.currency, addOn.pricingUnit)
-                        .split(' ')
-                        .slice(2)
-                        .join(' ')}
+                      {currentCamp
+                        ? formatPrice(price, currentCamp.currency, addOn.pricingUnit)
+                            .split(' ')
+                            .slice(2)
+                            .join(' ')
+                        : null}
                       {addOn.maxQuantity && (
                         <span>
                           {' '}

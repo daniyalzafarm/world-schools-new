@@ -26,6 +26,8 @@ interface AddOnModalProps {
   onClose: () => void
   onSuccess: () => void
   addOn?: AddOn | null
+  /** Provider's settlement currency. Add-on prices are always denominated in this. */
+  providerCurrency: string
 }
 
 const DEFAULT_TYPE: AddOnType = 'activity'
@@ -61,7 +63,13 @@ const buildInitialFormData = (addOn?: AddOn | null): CreateAddOnDto => {
   }
 }
 
-export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProps) {
+export function AddOnModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  addOn,
+  providerCurrency,
+}: AddOnModalProps) {
   const { createAddOn, updateAddOn, isLoading } = useAddOnsStore()
 
   const [formData, setFormData] = useState<CreateAddOnDto>(() => buildInitialFormData(addOn))
@@ -116,7 +124,7 @@ export function AddOnModal({ isOpen, onClose, onSuccess, addOn }: AddOnModalProp
     })
   }
 
-  const currency = addOn?.currency ?? 'CHF'
+  const currency = providerCurrency
 
   return (
     <Modal

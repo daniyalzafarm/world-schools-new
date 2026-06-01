@@ -1,5 +1,8 @@
-import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator'
+import { IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
+import { SUPPORTED_CONNECT_CURRENCIES } from '../../../stripe/stripe.constants'
+
+const SUPPORTED_CURRENCY_CODES = Array.from(SUPPORTED_CONNECT_CURRENCIES).map(c => c.toUpperCase())
 
 export class SearchGoogleBusinessDto {
   @ApiProperty({
@@ -138,11 +141,15 @@ export class SaveGoogleBusinessProfileDto {
   website?: string
 
   @ApiProperty({
-    description: 'Currency code (ISO 4217)',
+    description: 'Currency code (ISO 4217). Restricted to launch-scope currencies.',
+    enum: SUPPORTED_CURRENCY_CODES,
     example: 'USD',
   })
   @IsString()
   @IsNotEmpty()
+  @IsIn(SUPPORTED_CURRENCY_CODES, {
+    message: `currency must be one of: ${SUPPORTED_CURRENCY_CODES.join(', ')}`,
+  })
   currency: string
 
   @ApiProperty({
@@ -211,9 +218,16 @@ export class UpdateCompanyDetailsDto {
   @IsString()
   website?: string
 
-  @ApiProperty({ description: 'Currency code (ISO 4217)', example: 'USD' })
+  @ApiProperty({
+    description: 'Currency code (ISO 4217). Restricted to launch-scope currencies.',
+    enum: SUPPORTED_CURRENCY_CODES,
+    example: 'USD',
+  })
   @IsString()
   @IsNotEmpty()
+  @IsIn(SUPPORTED_CURRENCY_CODES, {
+    message: `currency must be one of: ${SUPPORTED_CURRENCY_CODES.join(', ')}`,
+  })
   currency: string
 
   @ApiProperty({ description: 'Timezone (IANA timezone)', example: 'America/New_York' })

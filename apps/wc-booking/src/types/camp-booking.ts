@@ -30,6 +30,11 @@ export interface SubmitBookingGroupResponse {
   payment: SubmitPaymentResponse
 }
 
+/**
+ * Add-on price is denominated in the camp's provider currency
+ * (`camp.provider.settings.currency`). There is no per-add-on currency
+ * field — consumers read currency from the camp context.
+ */
 export interface CampBookingAddOn {
   addOnId: string
   campId: string
@@ -38,7 +43,6 @@ export interface CampBookingAddOn {
   icon?: string | null
   type: string
   price: number
-  currency: string
   pricingUnit: string
   maxQuantity?: number | null
   quantityUnit?: string | null
@@ -149,6 +153,8 @@ export interface ParentBookingGroupDetail {
   depositAmount: number | null
   paidAmount: number
   refundedAmount: number
+  /** ISO 4217 settlement currency for this booking — always the Provider's currency. */
+  currency: string
   requestedAt: string
   respondedAt: string | null
   expiresAt: string | null

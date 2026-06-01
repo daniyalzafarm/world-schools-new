@@ -87,12 +87,14 @@ const formatDate = (d?: string | null): string => {
   })
 }
 
-const formatCurrency = (n: number): string =>
-  new Intl.NumberFormat('en-US', {
+const formatCurrency = (n: number, currency: string | null): string => {
+  if (!currency) return '—'
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD',
+    currency,
     maximumFractionDigits: 0,
   }).format(n)
+}
 
 const formatAgeRange = (groups: AgeGroup[]): string => {
   if (!groups.length) return '—'
@@ -171,10 +173,10 @@ export default function CampDetailPage() {
                 <CampDetailsTab detail={detail} />
               </Tab>
               <Tab key="sessions" title={`Sessions (${detail.sessionsCount})`}>
-                <SessionsTab campId={detail.id} />
+                <SessionsTab campId={detail.id} currency={detail.currency} />
               </Tab>
               <Tab key="bookings" title={`Bookings (${detail.totalBookings})`}>
-                <BookingsTab campId={detail.id} />
+                <BookingsTab campId={detail.id} currency={detail.currency} />
               </Tab>
               <Tab key="reviews" title={`Reviews (${detail.totalReviews})`}>
                 <ReviewsTab campId={detail.id} detail={detail} />
@@ -292,7 +294,7 @@ function HeroCampCard({
               <span className="text-xs uppercase leading-none text-default-400">Price Range</span>
               <span className="text-sm font-semibold text-foreground">
                 {detail.priceMin !== null && detail.priceMax !== null
-                  ? `${formatCurrency(detail.priceMin)} – ${formatCurrency(detail.priceMax)}`
+                  ? `${formatCurrency(detail.priceMin, detail.currency)} – ${formatCurrency(detail.priceMax, detail.currency)}`
                   : '—'}
               </span>
             </div>
@@ -317,7 +319,7 @@ function HeroCampCard({
           </div>
           <div className="rounded-lg bg-default-100 px-4 py-2 text-center">
             <div className="text-xl font-bold text-foreground">
-              {formatCurrency(detail.totalRevenue)}
+              {formatCurrency(detail.totalRevenue, detail.currency)}
             </div>
             <div className="text-xs text-default-500">Revenue</div>
           </div>
@@ -381,7 +383,7 @@ function StatsGridCard({ detail }: { detail: CampDetail }) {
         <CardBody className="p-5">
           <div className="mb-1 text-xs text-default-500">Total Revenue</div>
           <div className="text-3xl font-bold text-foreground">
-            {formatCurrency(detail.totalRevenue)}
+            {formatCurrency(detail.totalRevenue, detail.currency)}
           </div>
         </CardBody>
       </Card>
@@ -1496,7 +1498,7 @@ const SESSION_STATUS_FILTERS = [
   { key: 'draft', label: 'Draft' },
 ]
 
-function SessionsTab({ campId }: { campId: string }) {
+function SessionsTab({ campId, currency }: { campId: string; currency: string | null }) {
   const [data, setData] = useState<PaginatedCampSubResponse<CampSessionItem> | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -1564,7 +1566,9 @@ function SessionsTab({ campId }: { campId: string }) {
                     </TableCell>
                     <TableCell>
                       <span className="text-sm font-medium text-foreground">
-                        {session.pricingType === 'free' ? 'Free' : formatCurrency(session.price)}
+                        {session.pricingType === 'free'
+                          ? 'Free'
+                          : formatCurrency(session.price, currency)}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -1645,7 +1649,7 @@ const BOOKING_STATUS_FILTERS = [
   { key: 'cancelled', label: 'Cancelled' },
 ]
 
-function BookingsTab({ campId }: { campId: string }) {
+function BookingsTab({ campId, currency }: { campId: string; currency: string | null }) {
   const [data, setData] = useState<PaginatedCampSubResponse<CampBookingItem> | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -1730,7 +1734,7 @@ function BookingsTab({ campId }: { campId: string }) {
                     </TableCell>
                     <TableCell>
                       <span className="text-sm font-medium text-foreground">
-                        {formatCurrency(booking.totalAmount)}
+                        {formatCurrency(booking.totalAmount, currency)}
                       </span>
                     </TableCell>
                     <TableCell>

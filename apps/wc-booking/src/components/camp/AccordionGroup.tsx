@@ -30,6 +30,8 @@ interface AccordionGroupProps {
   weeklySchedule?: Camp['weeklySchedule']
   screenPolicy?: Camp['screenPolicy']
   addOns?: CampBookingAddOn[]
+  /** Camp's settlement currency — used for all add-on prices (ISO 4217). */
+  currency: string
 }
 
 // ─── Chevron icon ─────────────────────────────────────────────────────────────
@@ -90,6 +92,7 @@ export function AccordionGroup({
   weeklySchedule,
   screenPolicy,
   addOns,
+  currency,
 }: AccordionGroupProps) {
   const [openKey, setOpenKey] = useState<string | null>(null)
 
@@ -199,7 +202,7 @@ export function AccordionGroup({
                   <div className="text-base font-bold text-gray-900">
                     {new Intl.NumberFormat('en-GB', {
                       style: 'currency',
-                      currency: addon.currency ?? 'EUR',
+                      currency,
                       maximumFractionDigits: 0,
                     }).format(addon.price)}
                   </div>

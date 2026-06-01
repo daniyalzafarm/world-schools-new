@@ -9,7 +9,8 @@ interface SessionStatusCardProps {
   badgeLabel: string
   statusLabel?: string
   manageHref?: string
-  currency?: string
+  /** Provider settlement currency (ISO 4217). Required — no silent default. */
+  currency: string
 }
 
 function formatRange(start: string, end: string): string {
@@ -58,7 +59,7 @@ export function SessionStatusCard({
   badgeLabel,
   statusLabel = 'Live and searchable',
   manageHref = '/camps',
-  currency = 'EUR',
+  currency,
 }: SessionStatusCardProps) {
   const total = session.totalSpots ?? 0
   const booked = session.bookedCount ?? 0

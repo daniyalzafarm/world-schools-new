@@ -110,7 +110,7 @@ export function parseProviderCsvRow(row: Record<string, string>): ParsedProvider
     googlePlaceId: str('googlePlaceId'),
     legalCompanyName: str('legalCompanyName'),
     yearFounded: row['yearFounded']?.trim() ? parseInt(row['yearFounded'], 10) : undefined,
-    currency: str('currency') ?? 'USD',
+    currency: row['currency'].trim(),
     timezone: str('timezone') ?? 'America/New_York',
     providerPhone: str('providerPhone'),
     providerEmail: str('providerEmail'),

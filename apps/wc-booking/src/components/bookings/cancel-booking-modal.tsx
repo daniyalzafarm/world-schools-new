@@ -193,7 +193,17 @@ export function CancelBookingModal({
     }
 
     const total = Number(preview.totalRefundMajor)
-    const ccy = preview.currency ?? 'EUR'
+    if (!preview.currency) {
+      // grace / policy modes always have at least one captured payment, so
+      // the backend should have populated currency. A null here is a data
+      // bug — render an explicit unavailable state rather than guessing.
+      return (
+        <p className="text-sm text-danger">
+          Refund currency is unavailable for this booking. Please contact support before cancelling.
+        </p>
+      )
+    }
+    const ccy = preview.currency
 
     if (preview.mode === 'grace') {
       return (

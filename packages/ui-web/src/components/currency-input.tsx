@@ -10,7 +10,8 @@ export interface CurrencyInputProps extends Omit<
 > {
   value?: number | null
   onValueChange?: (value: number | null) => void
-  currency?: string
+  /** ISO 4217 currency code. Required — no silent default. */
+  currency: string
   min?: number
   max?: number
 }
@@ -18,7 +19,7 @@ export interface CurrencyInputProps extends Omit<
 export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   value,
   onValueChange,
-  currency = 'USD',
+  currency,
   min = 0,
   max,
   ...props
@@ -72,9 +73,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
       USD: '$',
       EUR: '€',
       GBP: '£',
-      JPY: '¥',
-      CAD: 'C$',
-      AUD: 'A$',
+      CHF: 'CHF',
     }
     return symbols[curr] || curr
   }

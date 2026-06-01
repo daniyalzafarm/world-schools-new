@@ -2,6 +2,7 @@
 
 import { Calendar, DollarSign, MailOpen, MessageCircle, Tent } from 'lucide-react'
 import type { ProviderBookingGroupSummary } from '@world-schools/wc-types'
+import type { CampStatistics } from '@/services/camps.services'
 import type { Session } from '@/types/sessions'
 import { GreetingHeader } from '../greeting-header'
 import { Section } from '../section'
@@ -18,6 +19,7 @@ interface DashboardFirstRequestsProps {
   bookingRequests: ProviderBookingGroupSummary[]
   sessions: Session[]
   unreadMessages: number
+  statistics: CampStatistics
 }
 
 export function DashboardFirstRequests({
@@ -25,9 +27,10 @@ export function DashboardFirstRequests({
   bookingRequests,
   sessions,
   unreadMessages,
+  statistics,
 }: DashboardFirstRequestsProps) {
   const potentialRevenue = bookingRequests.reduce((sum, r) => sum + r.totalAmount, 0)
-  const currency = bookingRequests[0]?.currency ?? 'EUR'
+  const currency = statistics.currency
   const formatted = (() => {
     try {
       return new Intl.NumberFormat('en', {

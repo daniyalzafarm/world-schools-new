@@ -7,6 +7,7 @@
   "targets": {
     "build": {
       "executor": "nx:run-commands",
+      "dependsOn": ["prisma:generate"],
       "options": {
         "command": "webpack-cli build",
         "args": ["--node-env=production"],
@@ -68,6 +69,9 @@
       }
     },
     "prisma:generate": {
+      "cache": true,
+      "inputs": ["{projectRoot}/prisma/schema.prisma"],
+      "outputs": ["{projectRoot}/src/generated"],
       "executor": "nx:run-commands",
       "options": {
         "command": "node -r dotenv/config node_modules/.bin/prisma generate"

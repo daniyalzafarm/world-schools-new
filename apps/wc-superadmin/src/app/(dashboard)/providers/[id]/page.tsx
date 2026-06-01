@@ -100,11 +100,11 @@ const formatDate = (dateString: string | null | undefined) => {
   })
 }
 
-const formatCurrency = (amount: number, currency?: string | null) => {
-  const code = currency ?? 'USD'
+const formatCurrency = (amount: number, currency: string | null) => {
+  if (!currency) return '—'
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: code,
+    currency,
     maximumFractionDigits: 0,
   }).format(amount)
 }

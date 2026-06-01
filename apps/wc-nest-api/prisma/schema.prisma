@@ -1393,9 +1393,12 @@ model AddOn {
   icon        String?   @db.VarChar(10) // Emoji
   type        AddOnType
 
-  // Pricing
+  // Pricing — denominated in the provider's settlement currency
+  // (ProviderSettings.currency). No per-add-on currency column: providers
+  // cannot change settlement currency post-onboarding (Stripe Connect
+  // account is locked), so this would be a denormalized snapshot with
+  // drift risk. Sessions follow the same pattern (no currency column).
   price       Decimal     @db.Decimal(10, 2)
-  currency    String      @default("CHF") @db.VarChar(3)
   pricingUnit PricingUnit
 
   // Quantity Limits

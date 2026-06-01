@@ -2,6 +2,7 @@
 
 import { Calendar, DollarSign, Flame, MailOpen, Plus, TrendingUp } from 'lucide-react'
 import type { ProviderBookingGroupSummary } from '@world-schools/wc-types'
+import type { CampStatistics } from '@/services/camps.services'
 import type { Session } from '@/types/sessions'
 import { GreetingHeader } from '../greeting-header'
 import { DemandBanner } from '../demand-banner'
@@ -20,6 +21,7 @@ interface DashboardHighDemandProps {
   bookingRequests: ProviderBookingGroupSummary[]
   upcomingBookings: ProviderBookingGroupSummary[]
   sessions: Session[]
+  statistics: CampStatistics
 }
 
 export function DashboardHighDemand({
@@ -28,6 +30,7 @@ export function DashboardHighDemand({
   bookingRequests,
   upcomingBookings,
   sessions,
+  statistics,
 }: DashboardHighDemandProps) {
   const otherPublished = sessions.filter(
     s => s.status === 'published' && !hotSessions.some(h => h.id === s.id)
@@ -41,7 +44,7 @@ export function DashboardHighDemand({
   const pendingRevenue = bookingRequests.reduce((sum, r) => sum + r.totalAmount, 0)
   const confirmedPaid = upcomingBookings.reduce((sum, b) => sum + (b.paidAmount ?? 0), 0)
   const revenueProjection = confirmedPaid + pendingRevenue
-  const currency = bookingRequests[0]?.currency ?? upcomingBookings[0]?.currency ?? 'EUR'
+  const currency = statistics.currency
 
   const formatCurrency = (value: number) => {
     try {
