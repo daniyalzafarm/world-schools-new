@@ -8,6 +8,7 @@ import {
   extractCityFromAddress,
   PREDEFINED_FACILITIES,
 } from '@world-schools/wc-frontend-utils'
+import { isSessionBookable } from '@world-schools/wc-utils'
 import { Button } from '@heroui/react'
 import { HiBadgeCheck } from 'react-icons/hi'
 import { FcGoogle } from 'react-icons/fc'
@@ -113,11 +114,13 @@ export default function CampPage() {
       .catch(() => {})
   }, [camp?.id])
 
-  // Auto-select when there's exactly one reservable session (published + not sold out).
+  // Auto-select when there's exactly one reservable session (bookable + not sold out).
   useEffect(() => {
     if (!camp) return
     const reservable = (camp.sessions ?? []).filter(s => {
-      if (s.status !== 'published') return false
+      // Bookable = published, sane dates, and starts in the future. This drops
+      // past/invalid sessions so we never auto-select one the booking flow rejects.
+      if (!isSessionBookable(s)) return false
       const spotsLeft =
         s.totalSpots != null && s.bookedCount != null
           ? s.totalSpots - s.bookedCount
@@ -207,6 +210,8 @@ export default function CampPage() {
   const primaryPhotoUrl = primaryPhoto ? getImageUrl(primaryPhoto) : null
 
   const sessions = camp.sessions ?? []
+  // Show every published session; past/non-bookable ones are rendered disabled
+  // (not hidden) by the session components, mirroring the sold-out treatment.
   const activeSessions = sessions.filter(s => s.status === 'published')
   const currency = getCampCurrency(camp, `camp:${camp.slug}`)
 

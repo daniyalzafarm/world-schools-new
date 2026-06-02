@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ContextType } from '@world-schools/wc-frontend-utils'
+import { isSessionBookable } from '@world-schools/wc-utils'
 import { useAuth } from '../../hooks/use-auth'
 import { useMessagingStore } from '../../stores/messaging-store'
 import { formatCurrency } from '../../utils/currency'
@@ -80,15 +81,19 @@ function CompactSessionCard({
   const endDate = new Date(session.endDate)
   const spotsLeft = getSessionSpotsLeft(session)
   const isSoldOut = spotsLeft !== null && spotsLeft <= 0
+  // Past/invalid sessions stay visible but are non-reservable, same as sold-out.
+  const notBookable = !isSessionBookable(session)
+  const isDisabled = isSoldOut || notBookable
+  const statusLabel = isSoldOut ? 'Sold out' : notBookable ? 'No longer available' : null
   const price = getSessionPrice(session)
   const durationLabel = getSessionDurationLabel(session, campType)
-  const metaText = isSoldOut
-    ? `Sold out · ${durationLabel}`
+  const metaText = statusLabel
+    ? `${statusLabel} · ${durationLabel}`
     : `${campAgeLabel ? `${campAgeLabel} · ` : ''}${durationLabel}`
   const dateRange = fmtDateRange(startDate, endDate)
   const titleLabel = session.name || dateRange
 
-  if (isSoldOut) {
+  if (isDisabled) {
     return (
       <div className="border-2 border-gray-200 rounded-xl px-4 py-3.5 mb-2 flex items-center gap-3 bg-white opacity-40 cursor-not-allowed pointer-events-none">
         <div className="flex-1 min-w-0">
@@ -187,6 +192,15 @@ export function CampSidebar({
         return spotsLeft !== null && spotsLeft <= 0
       })()
     : false
+  // A selected session can become non-reservable (sold out or past); block the
+  // Reserve CTA and explain why instead of linking into a doomed booking flow.
+  const selectedUnavailableLabel = !selectedSession
+    ? null
+    : isSelectedSoldOut
+      ? 'Sold out'
+      : !isSessionBookable(selectedSession)
+        ? 'No longer available'
+        : null
 
   const showExceptional = (camp.provider?.trustScore ?? 0) >= 90
 
@@ -321,12 +335,12 @@ export function CampSidebar({
             </div>
 
             {/* ── CTA ─────────────────────────────────────────────── */}
-            {isSelectedSoldOut ? (
+            {selectedUnavailableLabel ? (
               <button
                 disabled
                 className="cursor-not-allowed pointer-events-none block w-full py-4 px-5 bg-gray-200 text-gray-400 text-base font-bold rounded-xl text-center mt-3"
               >
-                Sold out
+                {selectedUnavailableLabel}
               </button>
             ) : selectedSession ? (
               <>

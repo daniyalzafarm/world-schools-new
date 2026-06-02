@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react'
+import { isSessionBookable } from '@world-schools/wc-utils'
 import type { Session } from '../../types/sessions'
 import type { AgeGroup, CampType } from '../../types/camps'
 import { formatCurrency } from '../../utils/currency'
@@ -318,8 +319,12 @@ function SessionRadioCard({
       : (session.totalSpots ?? null)
 
   const isSoldOut = spotsLeft !== null && spotsLeft <= 0
-  const isAlmostFull = !isSoldOut && spotsLeft !== null && spotsLeft <= 5
-  const isAmple = !isSoldOut && spotsLeft !== null && spotsLeft > 5
+  // Past/invalid sessions remain listed but cannot be selected, like sold-out ones.
+  const notBookable = !isSessionBookable(session)
+  const isDisabled = isSoldOut || notBookable
+  const statusLabel = isSoldOut ? 'Fully booked' : notBookable ? 'No longer available' : null
+  const isAlmostFull = !isDisabled && spotsLeft !== null && spotsLeft <= 5
+  const isAmple = !isDisabled && spotsLeft !== null && spotsLeft > 5
 
   const getPrice = () => {
     if (session.pricingType === 'single' && session.price !== undefined) return session.price
@@ -336,9 +341,9 @@ function SessionRadioCard({
 
   return (
     <div
-      onClick={() => !isSoldOut && onSelect(session.id)}
+      onClick={() => !isDisabled && onSelect(session.id)}
       className={`border-2 rounded-2xl p-4 bg-white transition-all flex items-start gap-3.5 ${
-        isSoldOut
+        isDisabled
           ? 'opacity-50 cursor-not-allowed border-gray-200'
           : selected
             ? 'border-gray-900 bg-gray-50 shadow-sm cursor-pointer'
@@ -376,9 +381,9 @@ function SessionRadioCard({
               {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
             </span>
           )}
-          {isSoldOut && (
+          {statusLabel && (
             <span className="text-xs font-semibold border-2 border-red-300 rounded-full px-2.5 py-0.5 text-red-700 bg-red-50">
-              Fully booked
+              {statusLabel}
             </span>
           )}
         </div>
@@ -389,7 +394,7 @@ function SessionRadioCard({
         {isFromPrice && <p className="text-xs text-gray-400 mb-0.5">from</p>}
         <p
           className={`text-lg font-extrabold leading-none tracking-tight whitespace-nowrap ${
-            isSoldOut ? 'line-through text-gray-300' : 'text-gray-900'
+            isDisabled ? 'line-through text-gray-300' : 'text-gray-900'
           }`}
         >
           {formatCurrency(price, currency)}

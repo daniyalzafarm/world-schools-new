@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { isSessionBookable } from '@world-schools/wc-utils'
 import type { Session } from '@/types/sessions'
 import type { AgeGroup, CampType, SessionType } from '@/types/camps'
 import { formatCurrency } from '@/utils/currency'
@@ -235,7 +236,11 @@ function getSessionCardData(
       ? session.totalSpots - session.bookedCount
       : (session.totalSpots ?? null)
   const isSoldOut = spotsLeft !== null && spotsLeft <= 0
-  const isFewSpots = !isSoldOut && spotsLeft !== null && spotsLeft <= 5
+  // Past/invalid sessions are shown but not selectable, same treatment as sold-out.
+  const notBookable = !isSessionBookable(session)
+  const isDisabled = isSoldOut || notBookable
+  const statusLabel = isSoldOut ? 'Sold out' : notBookable ? 'No longer available' : null
+  const isFewSpots = !isDisabled && spotsLeft !== null && spotsLeft <= 5
 
   const price =
     session.pricingType === 'single' && session.price !== undefined
@@ -254,6 +259,9 @@ function getSessionCardData(
     endDayName,
     spotsLeft,
     isSoldOut,
+    notBookable,
+    isDisabled,
+    statusLabel,
     isFewSpots,
     price,
     ageLabel,
@@ -285,7 +293,8 @@ function SessionCard({
     durationLabel,
     startDayName,
     endDayName,
-    isSoldOut,
+    isDisabled,
+    statusLabel,
     isFewSpots,
     spotsLeft,
     ageLabel,
@@ -295,7 +304,7 @@ function SessionCard({
 
   const className = [
     'no-underline border-2 rounded-xl px-4 py-4 transition-all flex items-center gap-4',
-    isSoldOut
+    isDisabled
       ? 'opacity-40 cursor-not-allowed pointer-events-none border-gray-200 bg-white'
       : selected
         ? 'border-gray-900 bg-gray-50 shadow-sm cursor-pointer'
@@ -310,7 +319,7 @@ function SessionCard({
       <div className="flex-1 min-w-0">
         <p
           className={`text-lg font-extrabold leading-tight mb-1 ${
-            isSoldOut ? 'line-through text-gray-400' : 'text-gray-900'
+            isDisabled ? 'line-through text-gray-400' : 'text-gray-900'
           }`}
         >
           {session.name || dateRange}
@@ -334,9 +343,9 @@ function SessionCard({
               ⚡ {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
             </span>
           )}
-          {isSoldOut && (
+          {statusLabel && (
             <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
-              Sold out
+              {statusLabel}
             </span>
           )}
         </div>
@@ -347,7 +356,7 @@ function SessionCard({
         <p className="text-xs text-gray-400 leading-none">from</p>
         <p
           className={`text-xl font-extrabold leading-tight whitespace-nowrap ${
-            isSoldOut ? 'line-through text-gray-400' : 'text-gray-900'
+            isDisabled ? 'line-through text-gray-400' : 'text-gray-900'
           }`}
         >
           {formattedPrice}
@@ -357,7 +366,7 @@ function SessionCard({
     </>
   )
 
-  if (isSoldOut) return <div className={className}>{body}</div>
+  if (isDisabled) return <div className={className}>{body}</div>
   return (
     <Link href={`/camps/${campSlug}/book?sessionId=${session.id}`} className={className}>
       {body}
@@ -390,7 +399,8 @@ function SessionRadioCard({
     durationLabel,
     startDayName,
     endDayName,
-    isSoldOut,
+    isDisabled,
+    statusLabel,
     isFewSpots,
     spotsLeft,
     ageLabel,
@@ -410,10 +420,10 @@ function SessionRadioCard({
 
   return (
     <div
-      onClick={() => !isSoldOut && onSelect(session.id)}
+      onClick={() => !isDisabled && onSelect(session.id)}
       className={[
         'border-2 rounded-xl px-4 py-4 bg-white transition-all',
-        isSoldOut
+        isDisabled
           ? 'opacity-40 cursor-not-allowed pointer-events-none border-gray-200'
           : selected
             ? 'border-gray-900 bg-gray-50 shadow-sm cursor-pointer'
@@ -426,7 +436,7 @@ function SessionRadioCard({
       <div className="flex items-start justify-between gap-3 mb-1">
         <p
           className={`text-lg font-extrabold leading-tight flex-1 ${
-            isSoldOut ? 'line-through text-gray-400' : 'text-gray-900'
+            isDisabled ? 'line-through text-gray-400' : 'text-gray-900'
           }`}
         >
           {session.name || dateRange}
@@ -455,9 +465,9 @@ function SessionRadioCard({
               ⚡ {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
             </span>
           )}
-          {isSoldOut && (
+          {statusLabel && (
             <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
-              Sold out
+              {statusLabel}
             </span>
           )}
         </div>
@@ -465,7 +475,7 @@ function SessionRadioCard({
           <p className="text-xs text-gray-400 leading-none mb-0.5">from</p>
           <p
             className={`text-xl font-extrabold leading-tight whitespace-nowrap ${
-              isSoldOut ? 'line-through text-gray-400' : 'text-gray-900'
+              isDisabled ? 'line-through text-gray-400' : 'text-gray-900'
             }`}
           >
             {formattedPrice}

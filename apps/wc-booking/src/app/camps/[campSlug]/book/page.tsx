@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { isSessionBookable } from '@world-schools/wc-utils'
 import { CampBookingFlow } from '@/components/camp-booking/camp-booking-flow'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
 
@@ -32,23 +33,23 @@ export default function CampBookingPage() {
 
     const initialize = async () => {
       await initByCampSlug(campSlug)
-      if (preselectedSessionId) {
-        selectSession(preselectedSessionId)
-        // If the user arrived from the camp profile with a specific session,
-        // skip step 1 and open step 2 directly — but only when we aren't about
-        // to hydrate a draft, which sets its own step.
-        if (!bookingGroupId) {
-          const { sessions } = useCampBookingStore.getState()
-          const session = sessions.find(s => s.id === preselectedSessionId)
-          if (session) {
-            const spotsLeft =
-              session.totalSpots != null && session.bookedCount != null
-                ? session.totalSpots - session.bookedCount
-                : (session.totalSpots ?? null)
-            const isBookable =
-              session.status === 'published' && !(spotsLeft !== null && spotsLeft <= 0)
-            if (isBookable) setStep('children')
-          }
+      // A draft hydration (below) sets its own session/step, so the deep-link
+      // `sessionId` only applies to fresh bookings.
+      if (preselectedSessionId && !bookingGroupId) {
+        const { sessions } = useCampBookingStore.getState()
+        const session = sessions.find(s => s.id === preselectedSessionId)
+        const spotsLeft =
+          session?.totalSpots != null && session.bookedCount != null
+            ? session.totalSpots - session.bookedCount
+            : (session?.totalSpots ?? null)
+        // Reservable = bookable (published, sane dates, starts in the future) AND not
+        // sold out. Only then do we pre-select and skip to step 2; a stale/past deep
+        // link instead lands the user on step 1, where SessionsStep hides it.
+        const isReservable =
+          session != null && isSessionBookable(session) && !(spotsLeft !== null && spotsLeft <= 0)
+        if (isReservable) {
+          selectSession(preselectedSessionId)
+          setStep('children')
         }
       }
       if (bookingGroupId) {

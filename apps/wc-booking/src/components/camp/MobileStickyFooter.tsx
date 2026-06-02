@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { isSessionBookable } from '@world-schools/wc-utils'
 import { formatCurrency } from '../../utils/currency'
 import type { Session } from '../../types/sessions'
 import type { Camp } from '../../types/camps'
@@ -57,6 +58,10 @@ export function MobileStickyFooter({
 
   const isHidden = isAnyModalOpen || bodyLocked
 
+  // Only treat the selection as reservable when it's still bookable (not past/invalid);
+  // otherwise fall back to the "see all sessions" CTA rather than a dead Reserve link.
+  const hasReservableSelection = selectedSession != null && isSessionBookable(selectedSession)
+
   const selectedPrice = selectedSession ? getSessionPrice(selectedSession) : null
   const isFromPrice =
     selectedSession?.pricingType === 'age_group' &&
@@ -68,7 +73,7 @@ export function MobileStickyFooter({
         isHidden ? 'translate-y-full' : 'translate-y-0'
       }`}
     >
-      {selectedSession ? (
+      {hasReservableSelection && selectedSession ? (
         /* Session selected state */
         <div className="flex items-center gap-3">
           <div className="flex-1 min-w-0">
