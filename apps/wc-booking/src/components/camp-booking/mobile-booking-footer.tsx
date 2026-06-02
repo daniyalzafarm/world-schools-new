@@ -6,6 +6,7 @@ import { useCampBookingStore } from '@/stores/camp-booking-store'
 import { formatCurrency, getCampCurrency } from '@/utils/currency'
 import type { Session } from '@/types/sessions'
 import { getSelectedChildrenSubtotal } from '@/components/camp-booking/booking-flow-pricing'
+import { hasEligibleSelection } from '@/utils/child-eligibility'
 import { calcExtrasTotal } from '@/utils/addon-pricing'
 import { computePaymentPlan } from '@/utils/payment-plan'
 
@@ -105,6 +106,13 @@ export function MobileBookingFooter({ paymentPending, onSubmitPayment }: MobileB
     [children, selectedChildIds]
   )
 
+  // Continue out of the children step requires at least one *eligible* selected
+  // child — matches the desktop gate and the store's auto-select.
+  const hasValidChildSelection = useMemo(
+    () => hasEligibleSelection(camp, selectedSession, children, selectedChildIds),
+    [camp, selectedSession, children, selectedChildIds]
+  )
+
   const sessionPrice = getSessionPrice(selectedSession)
   const childrenSubtotal = useMemo(
     () =>
@@ -170,7 +178,7 @@ export function MobileBookingFooter({ paymentPending, onSubmitPayment }: MobileB
   const isDisabled =
     isLoading ||
     (currentStep === 'sessions' && !selectedSessionId) ||
-    (currentStep === 'children' && selectedChildIds.length === 0) ||
+    (currentStep === 'children' && !hasValidChildSelection) ||
     (currentStep === 'review-and-pay' && (hasSubmitted || paymentPending))
 
   const label =

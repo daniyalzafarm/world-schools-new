@@ -6,17 +6,37 @@ import {
   Logger,
   NotFoundException,
   PreconditionFailedException,
+  UnprocessableEntityException,
 } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { WsInternalEvent } from '../websocket/ws-internal-events'
 import { AzureStorageService } from '@world-schools/wc-utils/backend'
+import {
+  type AgeGroupSpot,
+  calculateAgeAtDate,
+  type CapacityCheckResult,
+  checkCapacityFit,
+  isSessionBookable,
+  sessionBookabilityIssue,
+} from '@world-schools/wc-utils'
+import {
+  assertValidTransition,
+  type BookingDeclineReason,
+  type BookingGroupStatus as BookingGroupStatusType,
+  type SpecialCircumstanceType,
+} from '@world-schools/wc-types'
+import { EligibilityService } from './eligibility.service'
 import { ConfigService } from '../../config/config.service'
 import {
   bookingGroupWhereByRef,
   generateBookingGroupNumber,
   generateNextBookingLineNumber,
 } from '../../common/utils/wc-reference.util'
-import { BookingGroupStatus, PaymentMode } from '../../generated/client/enums'
+import {
+  BookingGroupStatus,
+  PaymentMode,
+  PaymentStatus,
+} from '../../generated/client/enums'
 import { Prisma } from '../../generated/client/client'
 import { PrismaService } from '../../prisma/prisma.service'
 import { ProfilePhotoService } from '../user/auth/services/profile-photo.service'
@@ -34,7 +54,6 @@ import {
   computeProviderResponseDeadline,
 } from './booking-snapshot.util'
 import { buildBookingPolicySnapshot } from '../billing/shared/cancellation-policy.util'
-import type { BookingDeclineReason, SpecialCircumstanceType } from '@world-schools/wc-types'
 import type {
   ProviderBookingSortField,
   ProviderBookingTab,
@@ -61,8 +80,91 @@ export class BookingGroupsService {
     private readonly payoutsService: PayoutsService,
     private readonly refundsService: RefundsService,
     private readonly refundsNotifications: RefundsNotificationsService,
-    private readonly redis: RedisService
+    private readonly redis: RedisService,
+    private readonly eligibilityService: EligibilityService
   ) {}
+
+  /**
+   * Statuses that count toward a session's used capacity (a child holding a
+   * spot). Drafts and terminal-negative statuses (declined/expired/cancelled/
+   * refunded) do NOT consume a spot. Shared by the submit-time capacity guard
+   * and the duplicate-booking guard.
+   */
+  private static readonly CAPACITY_CONSUMING_STATUSES: BookingGroupStatus[] = [
+    BookingGroupStatus.request,
+    BookingGroupStatus.accepted,
+    BookingGroupStatus.deposit_paid,
+    BookingGroupStatus.fully_paid,
+    BookingGroupStatus.at_camp,
+    BookingGroupStatus.completed,
+  ]
+
+  /**
+   * Assert a booking-group status transition is legal per the shared state
+   * machine, surfacing an illegal move as a 409 (defense-in-depth alongside the
+   * status-scoped `updateMany` guards). A same-state write is always allowed.
+   */
+  private assertTransition(from: BookingGroupStatus, to: BookingGroupStatus): void {
+    try {
+      assertValidTransition(from as BookingGroupStatusType, to as BookingGroupStatusType)
+    } catch {
+      throw new ConflictException(`Cannot change booking status from ${from} to ${to}.`)
+    }
+  }
+
+  /**
+   * Reject assigning an age-restricted add-on to a child outside its
+   * [minAge, maxAge] window (age computed at the session start). No-op when the
+   * add-on has no age restriction.
+   */
+  private assertChildWithinAddOnAge(
+    addOn: { name: string; minAge: number | null; maxAge: number | null },
+    childDob: Date | null,
+    sessionStart: Date
+  ): void {
+    if (addOn.minAge == null && addOn.maxAge == null) return
+    const age = calculateAgeAtDate(childDob, sessionStart)
+    if (age == null) {
+      throw new BadRequestException(
+        `Add a date of birth for this child before selecting the add-on "${addOn.name}".`
+      )
+    }
+    if (
+      (addOn.minAge != null && age < addOn.minAge) ||
+      (addOn.maxAge != null && age > addOn.maxAge)
+    ) {
+      throw new BadRequestException(
+        `The add-on "${addOn.name}" is not available for this child's age (${age}).`
+      )
+    }
+  }
+
+  /**
+   * Reject if any of `childIds` already holds a capacity-consuming booking on
+   * `sessionId` (prevents double-booking the same child into the same session).
+   */
+  private async assertNoDuplicateBookings(sessionId: string, childIds: string[]): Promise<void> {
+    if (childIds.length === 0) return
+    const existing = await this.prisma.booking.findMany({
+      where: {
+        sessionId,
+        childId: { in: childIds },
+        bookingGroup: { status: { in: BookingGroupsService.CAPACITY_CONSUMING_STATUSES } },
+      },
+      select: { childId: true },
+      distinct: ['childId'],
+    })
+    if (existing.length > 0) {
+      throw new ConflictException({
+        code: 'DUPLICATE_BOOKING',
+        childIds: existing.map(b => b.childId),
+        message:
+          existing.length === 1
+            ? 'This child already has a booking for this session.'
+            : 'One or more of these children already have a booking for this session.',
+      })
+    }
+  }
 
   // C5 audit fix: how long the submit lock is held. Submit is a sub-second
   // operation in the happy path, but the PaymentIntent create round-trip
@@ -228,6 +330,7 @@ export class BookingGroupsService {
         camp: {
           select: {
             providerId: true,
+            status: true,
           },
         },
       },
@@ -235,6 +338,18 @@ export class BookingGroupsService {
     if (!session) throw new BadRequestException('Session is invalid for this booking group')
     if (session.camp.providerId !== bookingGroup.providerId) {
       throw new BadRequestException('Session provider mismatch')
+    }
+    if (session.camp.status !== 'published') {
+      throw new BadRequestException('This camp is not currently available for booking')
+    }
+    if (
+      !isSessionBookable({
+        status: session.status,
+        startDate: session.startDate,
+        endDate: session.endDate,
+      })
+    ) {
+      throw new BadRequestException('This session is no longer open for booking')
     }
 
     const children = await this.prisma.children.findMany({
@@ -248,6 +363,10 @@ export class BookingGroupsService {
     if (children.length !== params.childIds.length) {
       throw new BadRequestException('One or more children are invalid')
     }
+
+    // Block double-booking a child into the session (drafts don't count, so a
+    // child already in THIS draft won't trip it; a confirmed booking elsewhere will).
+    await this.assertNoDuplicateBookings(params.sessionId, params.childIds)
 
     const nextChildIdSet = new Set(params.childIds)
     const existingByChildId = new Map(bookingGroup.bookings.map(b => [b.childId, b]))
@@ -442,11 +561,13 @@ export class BookingGroupsService {
         status: true,
         campId: true,
         specialRequest: true,
+        session: { select: { startDate: true } },
         bookings: {
           select: {
             id: true,
             childId: true,
             basePrice: true,
+            child: { select: { dateOfBirth: true } },
           },
         },
       },
@@ -456,6 +577,7 @@ export class BookingGroupsService {
       throw new BadRequestException('Only draft bookings can be modified')
     }
 
+    const sessionStart = bookingGroup.session.startDate
     const bookingIds = bookingGroup.bookings.map(b => b.id)
     if (bookingIds.length === 0) {
       throw new BadRequestException('Booking group has no bookings')
@@ -523,6 +645,7 @@ export class BookingGroupsService {
             if (!booking) {
               throw new BadRequestException('One or more selected children are invalid')
             }
+            this.assertChildWithinAddOnAge(campAddOn.addOn, booking.child.dateOfBirth, sessionStart)
             const qty = 1
             toCreate.push({
               bookingId: booking.id,
@@ -544,6 +667,7 @@ export class BookingGroupsService {
             if (!booking) {
               throw new BadRequestException('One or more selected children are invalid')
             }
+            this.assertChildWithinAddOnAge(campAddOn.addOn, booking.child.dateOfBirth, sessionStart)
             const qty = cq.quantity
             toCreate.push({
               bookingId: booking.id,
@@ -665,11 +789,30 @@ export class BookingGroupsService {
         camp: {
           select: {
             providerId: true,
+            status: true,
           },
         },
       },
     })
     if (!session) throw new NotFoundException('Session not found')
+
+    // Guard: only published camps are bookable (a published session can still
+    // hang off a draft/archived/suspended/pending_review camp).
+    if (session.camp.status !== 'published') {
+      throw new BadRequestException('This camp is not currently available for booking')
+    }
+
+    // Guard: the session must still be bookable today (published + starts in
+    // the future + sane dates). Shared rule so FE and BE agree.
+    if (
+      !isSessionBookable({
+        status: session.status,
+        startDate: session.startDate,
+        endDate: session.endDate,
+      })
+    ) {
+      throw new BadRequestException('This session is no longer open for booking')
+    }
 
     const children = await this.prisma.children.findMany({
       where: {
@@ -682,6 +825,13 @@ export class BookingGroupsService {
     if (children.length !== params.childIds.length) {
       throw new BadRequestException('One or more children are invalid')
     }
+
+    // Guard: prevent double-booking the same child into the same session. A
+    // child already holding a spot (request..completed) in this session cannot
+    // be added to another booking group. Enforced at the app layer — a DB
+    // partial-unique index is not possible because the status lives on
+    // `booking_groups`, not `bookings`.
+    await this.assertNoDuplicateBookings(params.sessionId, params.childIds)
 
     if (!params.forceNew) {
       const existingDraft = await this.prisma.bookingGroup.findFirst({
@@ -766,6 +916,40 @@ export class BookingGroupsService {
       status: bookingGroup.status,
       bookings: bookingGroup.bookings,
     }
+  }
+
+  /**
+   * Pre-validation for the booking UI: evaluate the parent's selected children
+   * against a camp/session WITHOUT creating a draft. Non-mutating; mirrors the
+   * authoritative gate run at submit so the frontend can disable ineligible
+   * children and show the exact reasons up front.
+   */
+  async checkEligibilityForParent(
+    userId: string,
+    params: { campId: string; sessionId: string; childIds: string[] }
+  ) {
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+      select: { id: true },
+    })
+    if (!parent) throw new ForbiddenException('Only parents can check eligibility')
+    if (params.childIds.length === 0) return { results: [] }
+
+    // Scope to the parent's own children — never evaluate someone else's child.
+    const owned = await this.prisma.children.findMany({
+      where: { id: { in: params.childIds }, parentId: parent.id, archived: false },
+      select: { id: true },
+    })
+    if (owned.length !== params.childIds.length) {
+      throw new BadRequestException('One or more children are invalid')
+    }
+
+    const results = await this.eligibilityService.evaluateChildren({
+      campId: params.campId,
+      sessionId: params.sessionId,
+      childIds: params.childIds,
+    })
+    return { results }
   }
 
   async getForParent(userId: string, bookingGroupId: string) {
@@ -1328,6 +1512,7 @@ export class BookingGroupsService {
               },
             },
           },
+          eligibilityCheckSnapshot: true,
           bookings: {
             select: {
               child: {
@@ -1417,6 +1602,9 @@ export class BookingGroupsService {
               photoUrl: await this.resolveProfilePhotoSasUrl(b.child.photoUrl),
             }))
           ),
+          // Eligibility summary for the list column: true when every child
+          // passed the gate at submit, null for legacy bookings with no snapshot.
+          eligibilityAllMet: summarizeEligibilitySnapshot(row.eligibilityCheckSnapshot),
         }
       })
     )
@@ -1460,66 +1648,62 @@ export class BookingGroupsService {
   }
 
   /**
-   * C4 audit fix: enforce session capacity at submit time, defending against
-   * the TOCTOU race between the session-select step in the booking UI and
-   * the actual draft → request transition. The session-select check shows
-   * the parent the (then-)live spots-remaining; this check guarantees we
-   * don't oversell by the time their PaymentIntent fires.
+   * Evaluate session capacity for filling THIS booking group, using the shared
+   * `checkCapacityFit` rule (handles single-total AND per-age-group sessions —
+   * the latter was silently ignored by the old generic count).
    *
-   * Counting strategy:
-   *   - `currentParticipants` is the count of `Booking` rows on THIS draft
-   *     (those are the spots the parent is about to commit).
-   *   - `otherBooked` is the count of `Booking` rows on OTHER bookingGroups
-   *     for the same session whose status counts toward capacity:
-   *     request/accepted/deposit_paid/fully_paid/at_camp/completed.
-   *     Drafts and cancelled/declined/expired bookings do NOT count.
-   *   - Capacity comes from the session row (single-spot total OR sum of
-   *     per-age-group spots).
-   *
-   * Throws `ConflictException` if filling this draft would oversell. The 409
-   * is intentionally distinct from the 4xx the rest of submit emits so the
-   * frontend can surface a different "session is full" error to parents
-   * (vs. a generic validation failure).
-   *
-   * Capacity = null means "unlimited" (legacy bookings or admin sessions
-   * with no cap). Skip the check in that case.
+   * Accepts any Prisma client so callers can run it inside a `SELECT … FOR
+   * UPDATE` transaction (submit, atomic) or standalone (accept-time re-check).
+   *   - incoming = children on this booking group (the spots being committed)
+   *   - existing = children on OTHER groups for this session whose status
+   *     consumes a spot (request..completed). Drafts and negative-terminal
+   *     statuses do NOT count.
+   * Capacity == null means unlimited → always fits.
    */
-  private async assertSessionCapacityAvailable(
-    bookingGroupId: string,
-    sessionId: string,
-    session: { availabilityType: string; totalSpots: number | null; ageGroupSpots: unknown }
-  ): Promise<void> {
-    const capacity = this.sessionTotalCapacity(session)
-    if (capacity == null) return
-
-    const [currentParticipants, otherBooked] = await Promise.all([
-      this.prisma.booking.count({ where: { bookingGroupId } }),
-      this.prisma.booking.count({
+  private async evaluateSessionCapacity(
+    client: Prisma.TransactionClient,
+    args: {
+      bookingGroupId: string
+      sessionId: string
+      availabilityType: string
+      totalSpots: number | null
+      ageGroupSpots: unknown
+      campAgeGroups: unknown
+      sessionStart: Date
+    }
+  ): Promise<CapacityCheckResult> {
+    const [incoming, existing] = await Promise.all([
+      client.booking.findMany({
+        where: { bookingGroupId: args.bookingGroupId },
+        select: { child: { select: { dateOfBirth: true } } },
+      }),
+      client.booking.findMany({
         where: {
-          sessionId,
-          bookingGroupId: { not: bookingGroupId },
-          bookingGroup: {
-            status: {
-              in: [
-                BookingGroupStatus.request,
-                BookingGroupStatus.accepted,
-                BookingGroupStatus.deposit_paid,
-                BookingGroupStatus.fully_paid,
-                BookingGroupStatus.at_camp,
-                BookingGroupStatus.completed,
-              ],
-            },
-          },
+          sessionId: args.sessionId,
+          bookingGroupId: { not: args.bookingGroupId },
+          bookingGroup: { status: { in: BookingGroupsService.CAPACITY_CONSUMING_STATUSES } },
         },
+        select: { child: { select: { dateOfBirth: true } } },
       }),
     ])
 
-    if (otherBooked + currentParticipants > capacity) {
-      const remaining = Math.max(0, capacity - otherBooked)
-      throw new ConflictException(
-        `Session is now full. Only ${remaining} spot(s) remaining (your booking has ${currentParticipants} participant(s)).`
-      )
-    }
+    const campAgeGroups = Array.isArray(args.campAgeGroups)
+      ? (args.campAgeGroups as { id?: string; min?: number; max?: number }[])
+          .filter(g => typeof g?.min === 'number' && typeof g?.max === 'number')
+          .map(g => ({ id: g.id ?? null, min: g.min as number, max: g.max as number }))
+      : []
+
+    return checkCapacityFit({
+      config: {
+        availabilityType: args.availabilityType,
+        totalSpots: args.totalSpots,
+        ageGroupSpots: (args.ageGroupSpots as AgeGroupSpot[] | null) ?? null,
+      },
+      campAgeGroups,
+      sessionStart: args.sessionStart,
+      existingChildDobs: existing.map(b => b.child.dateOfBirth),
+      incomingChildDobs: incoming.map(b => b.child.dateOfBirth),
+    })
   }
 
   private durationWeeksFromDates(start: Date, end: Date): number | null {
@@ -1719,6 +1903,10 @@ export class BookingGroupsService {
       expiresAt: bookingGroup.expiresAt?.toISOString() ?? null,
       updatedAt: bookingGroup.updatedAt.toISOString(),
       discountDetails: bookingGroup.discountDetails ?? null,
+      // Per-child eligibility results captured at submit (the gate every
+      // non-draft booking passed). Drives the request-drawer eligibility
+      // badges. Shape: `{ checkedAt, results: EligibilityResult[] }`.
+      eligibilityCheck: bookingGroup.eligibilityCheckSnapshot ?? null,
       parent: {
         id: bookingGroup.parent.id,
         userId: u.id,
@@ -1831,14 +2019,24 @@ export class BookingGroupsService {
     return { bookingGroupId: bookingGroup.id, internalNotes }
   }
 
+  /** Max number of times a provider may extend the response window per request. */
+  private static readonly MAX_RESPONSE_EXTENSIONS = 3
+
   async requestExtensionForProvider(providerId: string, bookingGroupId: string) {
     const bookingGroup = await this.prisma.bookingGroup.findFirst({
       where: { providerId, ...bookingGroupWhereByRef(bookingGroupId) },
-      select: { id: true, status: true, expiresAt: true },
+      select: { id: true, status: true, expiresAt: true, extensionCount: true },
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
     if (bookingGroup.status !== 'request') {
       throw new BadRequestException('Only pending requests can be extended')
+    }
+
+    // Rate-limit: cap extensions so a request cannot be held open indefinitely.
+    if (bookingGroup.extensionCount >= BookingGroupsService.MAX_RESPONSE_EXTENSIONS) {
+      throw new ConflictException(
+        `This request has already been extended the maximum number of times (${BookingGroupsService.MAX_RESPONSE_EXTENSIONS}).`
+      )
     }
 
     const now = new Date()
@@ -1848,10 +2046,18 @@ export class BookingGroupsService {
         : now
     const extended = new Date(base.getTime() + 24 * 60 * 60 * 1000)
 
-    await this.prisma.bookingGroup.update({
-      where: { id: bookingGroup.id },
-      data: { expiresAt: extended },
+    // Status-guarded so a concurrent expiry/accept/decline can't be overwritten.
+    const res = await this.prisma.bookingGroup.updateMany({
+      where: { id: bookingGroup.id, status: BookingGroupStatus.request },
+      data: {
+        expiresAt: extended,
+        extensionCount: { increment: 1 },
+        lastExtendedAt: now,
+      },
     })
+    if (res.count === 0) {
+      throw new ConflictException('This request is no longer pending and cannot be extended.')
+    }
 
     return { bookingGroupId: bookingGroup.id, expiresAt: extended.toISOString() }
   }
@@ -1927,6 +2133,7 @@ export class BookingGroupsService {
         id: true,
         status: true,
         bookingGroupNumber: true,
+        campId: true,
         providerId: true,
         sessionId: true,
         totalAmount: true,
@@ -1934,6 +2141,9 @@ export class BookingGroupsService {
         // Snapshot fields needed for the resume case (status=request reload).
         paymentMode: true,
         depositAmount: true,
+        // Children on this draft — needed for the eligibility gate and the
+        // per-age-group capacity tally.
+        bookings: { select: { childId: true } },
         // Per-camp deposit settings — snapshotted onto Camp at create time
         // (with provider-level defaults), editable per-camp on the
         // edit/sessions page. Read directly off the camp; provider-level
@@ -1941,6 +2151,8 @@ export class BookingGroupsService {
         camp: {
           select: {
             name: true,
+            status: true,
+            ageGroups: true,
             depositRequired: true,
             depositType: true,
             depositPercentage: true,
@@ -1954,6 +2166,8 @@ export class BookingGroupsService {
         session: {
           select: {
             startDate: true,
+            endDate: true,
+            status: true,
             availabilityType: true,
             totalSpots: true,
             ageGroupSpots: true,
@@ -2011,20 +2225,49 @@ export class BookingGroupsService {
       throw new BadRequestException('Only draft or in-progress bookings can be submitted')
     }
 
-    // C4 audit fix: re-check session capacity right before the draft → request
-    // transition. The session-select UI capacity check is necessary but not
-    // sufficient — multiple parents on the review-and-pay screen can race
-    // each other to the last spot. We rely on the booking-group `findFirst`
-    // above to have row-locked the draft already; here we count siblings
-    // and compare against the snapshotted capacity to fail-fast before
-    // the Stripe PaymentIntent is created.
-    await this.assertSessionCapacityAvailable(bookingGroup.id, bookingGroup.sessionId, {
-      availabilityType: bookingGroup.session.availabilityType,
-      totalSpots: bookingGroup.session.totalSpots,
-      ageGroupSpots: bookingGroup.session.ageGroupSpots,
+    // State-machine assertion (defense-in-depth alongside the status-guarded
+    // updateMany below).
+    this.assertTransition(BookingGroupStatus.draft, BookingGroupStatus.request)
+
+    // Re-validate camp + session bookability at submit. The provider may have
+    // unpublished/archived the camp or the session may have started since the
+    // draft was created.
+    if (bookingGroup.camp.status !== 'published') {
+      throw new BadRequestException('This camp is not currently available for booking')
+    }
+    const bookableIssue = sessionBookabilityIssue({
+      status: bookingGroup.session.status,
+      startDate: bookingGroup.session.startDate,
+      endDate: bookingGroup.session.endDate,
     })
+    if (bookableIssue) {
+      throw new BadRequestException('This session is no longer open for booking')
+    }
+
+    // ELIGIBILITY GATE — the authoritative check. Every child on the draft must
+    // satisfy the camp's age / gender / GATE-skill rules and the readiness
+    // requirements (DOB, emergency contact, residential medical). Runs BEFORE
+    // any Stripe intent so an ineligible booking never authorizes a card.
+    const childIds = bookingGroup.bookings.map(b => b.childId)
+    const eligibilityResults = await this.eligibilityService.evaluateChildren({
+      campId: bookingGroup.campId,
+      sessionId: bookingGroup.sessionId,
+      childIds,
+    })
+    const ineligible = eligibilityResults.filter(r => !r.eligible)
+    if (ineligible.length > 0) {
+      throw new UnprocessableEntityException({
+        code: 'ELIGIBILITY_FAILED',
+        message: 'One or more children do not meet this camp’s requirements.',
+        results: ineligible,
+      })
+    }
 
     const now = new Date()
+    const eligibilityCheckSnapshot = {
+      checkedAt: now.toISOString(),
+      results: eligibilityResults,
+    }
 
     // Snapshot app fee + deposit + balance-due-at + payment mode. These
     // values become the audit-grade source of truth for refund and payout
@@ -2071,31 +2314,49 @@ export class BookingGroupsService {
       now,
     })
 
-    // C5 audit fix: persist snapshot + transition draft → request via a
-    // status-guarded updateMany. If two concurrent submits race, only the
-    // first transition wins; the loser sees `count: 0` and re-routes through
-    // the resume path (which is idempotent end-to-end via the existing
-    // `authorizeForPaymentMode` dedup). This prevents two parallel writes of
-    // identical snapshots and — more importantly — eliminates the only
-    // remaining surface where two callers could both think they "won" the
-    // draft→request flip.
+    // C5 + capacity audit fix: do the capacity recount and the status-guarded
+    // draft → request transition ATOMICALLY. A `SELECT … FOR UPDATE` on the
+    // session row serializes concurrent submits competing for the last spot,
+    // closing the TOCTOU window the old count-then-write left open. Per-age-group
+    // sessions are tallied by each child's matched age group (shared helper).
+    // If two concurrent submits race the transition, only the first wins; the
+    // loser sees `count: 0` and re-routes through the idempotent resume path.
     //
     // If the Stripe call below fails, we roll back via the catch handler.
-    const transitionResult = await this.prisma.bookingGroup.updateMany({
-      where: { id: bookingGroup.id, status: 'draft' },
-      data: {
-        status: 'request',
-        requestedAt: now,
-        expiresAt,
-        appFeePercentageSnapshot: snapshot.appFeePercentageSnapshot,
-        serviceFeeAmount: snapshot.serviceFeeAmount,
-        depositAmount: snapshot.depositAmount,
-        paymentMode: snapshot.paymentMode,
-        balanceDueAt: snapshot.balanceDueAt,
-        payoutMode,
-        payoutOffsetDaysSnapshot,
-        cancellationPolicySnapshot: cancellationPolicySnapshot as unknown as Prisma.InputJsonValue,
-      },
+    const transitionResult = await this.prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM sessions WHERE id = ${bookingGroup.sessionId} FOR UPDATE`
+
+      const capacity = await this.evaluateSessionCapacity(tx, {
+        bookingGroupId: bookingGroup.id,
+        sessionId: bookingGroup.sessionId,
+        availabilityType: bookingGroup.session.availabilityType,
+        totalSpots: bookingGroup.session.totalSpots,
+        ageGroupSpots: bookingGroup.session.ageGroupSpots,
+        campAgeGroups: bookingGroup.camp.ageGroups,
+        sessionStart: bookingGroup.session.startDate,
+      })
+      if (!capacity.fits) {
+        throw new ConflictException(capacity.message ?? 'Session is now full.')
+      }
+
+      return tx.bookingGroup.updateMany({
+        where: { id: bookingGroup.id, status: 'draft' },
+        data: {
+          status: 'request',
+          requestedAt: now,
+          expiresAt,
+          appFeePercentageSnapshot: snapshot.appFeePercentageSnapshot,
+          serviceFeeAmount: snapshot.serviceFeeAmount,
+          depositAmount: snapshot.depositAmount,
+          paymentMode: snapshot.paymentMode,
+          balanceDueAt: snapshot.balanceDueAt,
+          payoutMode,
+          payoutOffsetDaysSnapshot,
+          cancellationPolicySnapshot:
+            cancellationPolicySnapshot as unknown as Prisma.InputJsonValue,
+          eligibilityCheckSnapshot: eligibilityCheckSnapshot as unknown as Prisma.InputJsonValue,
+        },
+      })
     })
     if (transitionResult.count === 0) {
       // A concurrent submit raced past us between our `findFirst` and this
@@ -2462,10 +2723,20 @@ export class BookingGroupsService {
         status: true,
         bookingGroupNumber: true,
         parentId: true,
+        sessionId: true,
         totalAmount: true,
-        camp: { select: { name: true } },
+        expiresAt: true,
+        camp: { select: { name: true, ageGroups: true } },
         parent: { select: { userId: true } },
-        session: { select: { startDate: true, endDate: true } },
+        session: {
+          select: {
+            startDate: true,
+            endDate: true,
+            availabilityType: true,
+            totalSpots: true,
+            ageGroupSpots: true,
+          },
+        },
         provider: { select: { settings: { select: { currency: true } } } },
       },
     })
@@ -2475,6 +2746,59 @@ export class BookingGroupsService {
     }
 
     const now = new Date()
+
+    // State-machine assertion (defense-in-depth alongside the status-guarded
+    // updateMany below).
+    this.assertTransition(BookingGroupStatus.request, BookingGroupStatus.accepted)
+
+    // Acceptance-window guard: a request past its `expiresAt` deadline can no
+    // longer be accepted. Makes the 72h provider-response window authoritative
+    // instead of relying on the ~6-day Stripe auth cliff. The response-expiry
+    // cron voids any that slip past before a provider acts.
+    if (bookingGroup.expiresAt && bookingGroup.expiresAt.getTime() < now.getTime()) {
+      throw new ConflictException({
+        code: 'REQUEST_EXPIRED',
+        message: 'This booking request has expired and can no longer be accepted.',
+      })
+    }
+
+    // Payment-linkage guard (G2): never accept a booking with no live payment
+    // authorization. submit always creates a Payment; if there is none, or all
+    // are canceled/failed (auth voided/expired), block with a recovery hint
+    // rather than producing a "ghost" accepted booking with no money behind it.
+    const payments = await this.prisma.payment.findMany({
+      where: { bookingGroupId: bookingGroup.id },
+      select: { status: true },
+    })
+    const hasLiveAuth = payments.some(
+      p => p.status !== PaymentStatus.canceled && p.status !== PaymentStatus.failed
+    )
+    if (payments.length === 0 || !hasLiveAuth) {
+      throw new PreconditionFailedException({
+        code: 'NO_PAYMENT_AUTHORIZATION',
+        message:
+          'This booking has no active payment authorization. Ask the parent to re-enter their card before accepting.',
+      })
+    }
+
+    // Capacity re-check: the session may have filled between request and accept
+    // (other requests submitted/accepted in the interim).
+    const capacity = await this.evaluateSessionCapacity(this.prisma, {
+      bookingGroupId: bookingGroup.id,
+      sessionId: bookingGroup.sessionId,
+      availabilityType: bookingGroup.session.availabilityType,
+      totalSpots: bookingGroup.session.totalSpots,
+      ageGroupSpots: bookingGroup.session.ageGroupSpots,
+      campAgeGroups: bookingGroup.camp.ageGroups,
+      sessionStart: bookingGroup.session.startDate,
+    })
+    if (!capacity.fits) {
+      throw new ConflictException({
+        code: 'SESSION_FULL',
+        message: capacity.message ?? 'This session is now full and cannot be accepted.',
+      })
+    }
+
     const gracePeriodEndsAt = computeGracePeriodDeadline(now)
 
     // Capture before flipping status: if the capture fails (stale auth),
@@ -2497,15 +2821,20 @@ export class BookingGroupsService {
       throw err
     }
 
-    await this.prisma.$transaction(async tx => {
-      await tx.bookingGroup.update({
-        where: { id: bookingGroup.id },
+    // Status-guarded transition (C2): only flip when still `request`, so a
+    // concurrent accept/decline/expiry cannot double-apply side effects. The
+    // capture above is idempotent, so a lost race that already reached
+    // `accepted` is reported as success.
+    const accepted = await this.prisma.$transaction(async tx => {
+      const res = await tx.bookingGroup.updateMany({
+        where: { id: bookingGroup.id, status: BookingGroupStatus.request },
         data: {
           status: 'accepted',
           respondedAt: now,
           gracePeriodEndsAt,
         },
       })
+      if (res.count === 0) return false
       await tx.booking.updateMany({
         where: { bookingGroupId: bookingGroup.id },
         data: {
@@ -2513,7 +2842,18 @@ export class BookingGroupsService {
           providerNote: providerNote ?? null,
         },
       })
+      return true
     })
+    if (!accepted) {
+      const current = await this.prisma.bookingGroup.findUnique({
+        where: { id: bookingGroup.id },
+        select: { status: true },
+      })
+      if (current?.status === 'accepted') {
+        return { bookingGroupId: bookingGroup.id, status: 'accepted' }
+      }
+      throw new ConflictException('This booking is no longer awaiting a response.')
+    }
 
     // Phase 8: with `gracePeriodEndsAt` set + capture complete, generate the
     // payout schedule. The schedule reads the booking's snapshotted
@@ -2584,24 +2924,37 @@ export class BookingGroupsService {
       throw new BadRequestException('Only requested bookings can be declined')
     }
 
+    // `other` declines require a substantive free-text justification (Provider
+    // Terms §5.1(h)(iii)) so it can be moderated before being surfaced to the
+    // parent. Enforced here in addition to the DTO so it cannot be bypassed.
+    if (args.declineReason === 'other' && (args.declineReasonOther?.trim().length ?? 0) < 10) {
+      throw new BadRequestException(
+        'Please provide a justification of at least 10 characters when declining with reason "Other".'
+      )
+    }
+
+    // State-machine assertion (defense-in-depth alongside the status guard).
+    this.assertTransition(BookingGroupStatus.request, BookingGroupStatus.declined)
+
     // Void the auth before flipping status. If this fails (transient Stripe
     // error), the booking stays in `request` so the cron / a manual retry
     // can re-attempt — better than declining the booking but leaving an
     // open auth on the parent's card.
     await this.paymentIntentsService.cancelForBookingGroup(bookingGroup.id, 'requested_by_customer')
 
+    const isOther = args.declineReason === 'other'
     const now = new Date()
-    await this.prisma.$transaction(async tx => {
-      await tx.bookingGroup.update({
-        where: { id: bookingGroup.id },
+    const declined = await this.prisma.$transaction(async tx => {
+      const res = await tx.bookingGroup.updateMany({
+        where: { id: bookingGroup.id, status: BookingGroupStatus.request },
         data: {
           status: 'declined',
           respondedAt: now,
           declineReason: args.declineReason,
-          declineReasonOther:
-            args.declineReason === 'other' ? (args.declineReasonOther ?? null) : null,
+          declineReasonOther: isOther ? (args.declineReasonOther ?? null) : null,
         },
       })
+      if (res.count === 0) return false
       await tx.booking.updateMany({
         where: { bookingGroupId: bookingGroup.id },
         data: {
@@ -2609,7 +2962,18 @@ export class BookingGroupsService {
           providerNote: args.providerNote ?? null,
         },
       })
+      return true
     })
+    if (!declined) {
+      const current = await this.prisma.bookingGroup.findUnique({
+        where: { id: bookingGroup.id },
+        select: { status: true },
+      })
+      if (current?.status === 'declined') {
+        return { bookingGroupId: bookingGroup.id, status: 'declined' }
+      }
+      throw new ConflictException('This booking is no longer awaiting a response.')
+    }
 
     this.eventEmitter.emit(WsInternalEvent.BookingStatusChanged, {
       bookingGroupId: bookingGroup.id,
@@ -2628,6 +2992,18 @@ export class BookingGroupsService {
 
     return { bookingGroupId: bookingGroup.id, status: 'declined' }
   }
+}
+
+/**
+ * Collapse a persisted `eligibilityCheckSnapshot` into a single flag for the
+ * provider list column: true when every child was eligible at submit, false if
+ * any failed, null when there is no snapshot (legacy bookings).
+ */
+function summarizeEligibilitySnapshot(snapshot: unknown): boolean | null {
+  if (!snapshot || typeof snapshot !== 'object') return null
+  const results = (snapshot as { results?: { eligible?: boolean }[] }).results
+  if (!Array.isArray(results) || results.length === 0) return null
+  return results.every(r => r?.eligible === true)
 }
 
 /**

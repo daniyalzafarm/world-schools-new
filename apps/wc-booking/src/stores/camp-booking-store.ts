@@ -6,7 +6,7 @@ import { campSessionsService } from '@/services/camp-sessions.services'
 import { campAddOnsService } from '@/services/camp-addons.services'
 import { bookingGroupsService } from '@/services/booking-groups.services'
 import type { Camp } from '@/types/camps'
-import { type Child, getChildAge } from '@/types/child'
+import type { Child } from '@/types/child'
 import type { CampReviewsData } from '@/types/reviews'
 import type { Session } from '@/types/sessions'
 import type {
@@ -19,6 +19,7 @@ import type {
   SubmitPaymentResponse,
 } from '@/types/camp-booking'
 import { getAddOnMode } from '@/utils/addon-pricing'
+import { getEligibleChildIds } from '@/utils/child-eligibility'
 
 interface CampBookingState {
   campSlug: string | null
@@ -339,12 +340,10 @@ export const useCampBookingStore = create<CampBookingStore>()(
         if (state.selectedChildIds.length > 0) return
         const session = state.sessions.find(s => s.id === state.selectedSessionId)
         const maxSpots = session?.totalSpots ?? null
-        const eligibleIds = state.children
-          .filter(c => {
-            const age = getChildAge(c)
-            return age !== null && age >= 8 && age <= 17
-          })
-          .map(c => c.id)
+        // Only auto-select children that actually pass the eligibility gate
+        // (camp age groups + gender + readiness) — the same check the step-2 UI
+        // shows. A simple age range would pre-select children the camp rejects.
+        const eligibleIds = getEligibleChildIds(state.camp, session, state.children)
         state.selectedChildIds = maxSpots !== null ? eligibleIds.slice(0, maxSpots) : eligibleIds
       })
     },
@@ -497,6 +496,40 @@ export const useCampBookingStore = create<CampBookingStore>()(
 
     createDraftBookingGroup: async options => {
       const state = get()
+
+      // Pre-flight eligibility re-validation against the authoritative server
+      // rules — catches skill-GATE failures the client can't evaluate on its
+      // own, so the parent sees the reason here instead of a late error at the
+      // payment step. Advisory only: on a network/non-success response we let
+      // the flow continue (the submit gate still enforces).
+      if (state.camp?.id && state.selectedSessionId && state.selectedChildIds.length > 0) {
+        set(draft => {
+          draft.isLoading = true
+          draft.error = null
+        })
+        try {
+          const eligibility = await bookingGroupsService.checkEligibility({
+            campId: state.camp.id,
+            sessionId: state.selectedSessionId,
+            childIds: state.selectedChildIds,
+          })
+          if (eligibility.success) {
+            const ineligible = (eligibility.data?.results ?? []).filter(r => !r.eligible)
+            if (ineligible.length > 0) {
+              const reason =
+                ineligible[0]?.failures?.[0]?.message ??
+                "A selected child does not meet this camp's requirements."
+              set(draft => {
+                draft.error = reason
+                draft.isLoading = false
+              })
+              return { bookingGroupId: null }
+            }
+          }
+        } catch {
+          // Advisory check failed — proceed; the submit gate is authoritative.
+        }
+      }
 
       // Reuse existing draft when user navigates back and forth between steps.
       // This prevents creating duplicate booking groups for the same flow.

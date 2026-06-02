@@ -523,6 +523,10 @@ export function BookingRequestDrawer({
     const footerShell = 'border-t border-gray-200 bg-white px-6 py-4'
 
     if (detail.status === 'request') {
+      // The request can no longer be accepted once past its deadline — the
+      // backend rejects a late accept and the response-expiry cron will void it.
+      // Decline / "Need more time" remain available.
+      const isExpired = !!detail.expiresAt && new Date(detail.expiresAt).getTime() < Date.now()
       return (
         <DrawerFooter className={cn(footerShell, 'p-0')}>
           <div className="px-6 pt-4">
@@ -545,7 +549,7 @@ export function BookingRequestDrawer({
               fullWidth
               radius="md"
               className="w-full rounded-lg bg-primary-200 py-3.5 text-base font-semibold text-secondary-500 hover:bg-primary-300 disabled:cursor-not-allowed disabled:opacity-50"
-              isDisabled={actionLoading}
+              isDisabled={actionLoading || isExpired}
               isLoading={actionLoading}
               onPress={() => {
                 setLocalError(null)
@@ -554,6 +558,11 @@ export function BookingRequestDrawer({
             >
               Accept
             </Button>
+            {isExpired ? (
+              <p className="mt-2 text-center text-xs font-medium text-danger">
+                This request has expired and can no longer be accepted.
+              </p>
+            ) : null}
             <div className="mt-2 flex gap-2">
               <Button
                 variant="bordered"
@@ -892,6 +901,26 @@ export function BookingRequestDrawer({
                         {dropoffPickup.pickupTime ? ` · ${dropoffPickup.pickupTime}` : ''}
                       </p>
                     ) : null}
+                    {detail.status === 'request' && detail.eligibilityCheck
+                      ? (() => {
+                          const results = detail.eligibilityCheck.results
+                          const allEligible = results.length > 0 && results.every(r => r.eligible)
+                          return (
+                            <div
+                              className={cn(
+                                'mt-3 rounded-lg px-3 py-2 text-xs font-medium',
+                                allEligible
+                                  ? 'bg-success-50 text-success-700'
+                                  : 'bg-warning-50 text-warning-700'
+                              )}
+                            >
+                              {allEligible
+                                ? `✓ All ${results.length} ${results.length > 1 ? 'children' : 'child'} met this camp's requirements at booking`
+                                : "Some children did not fully meet this camp's requirements"}
+                            </div>
+                          )
+                        })()
+                      : null}
                   </div>
                 </div>
 

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import {
   addToast,
   Button,
@@ -22,7 +23,12 @@ import { useCampBookingStore } from '@/stores/camp-booking-store'
 import { getChildAge } from '@/types/child'
 import { formatCurrency, getCampCurrency } from '@/utils/currency'
 import type { CampBookingAddOnSelectionMode } from '@/types/camp-booking'
-import { getAddOnMode, getAddOnTileLabel, getAddOnUnitNoun } from '@/utils/addon-pricing'
+import {
+  formatAddOnAgeRange,
+  getAddOnMode,
+  getAddOnTileLabel,
+  getAddOnUnitNoun,
+} from '@/utils/addon-pricing'
 import { MobileBookingFooter } from '@/components/camp-booking/mobile-booking-footer'
 import { DesktopSessionsSidebar } from '@/components/camp-booking/desktop-sessions-sidebar'
 import { DesktopChildrenSidebar } from '@/components/camp-booking/desktop-children-sidebar'
@@ -35,7 +41,8 @@ import {
   type StripePaymentSectionHandle,
 } from '@/components/camp-booking/stripe-payment-section'
 import { computePaymentPlan } from '@/utils/payment-plan'
-import { PROVIDER_RESPONSE_WINDOW_HOURS } from '@world-schools/wc-utils'
+import { isSessionBookable, PROVIDER_RESPONSE_WINDOW_HOURS } from '@world-schools/wc-utils'
+import { getChildrenEligibility, type IneligibleReason } from '@/utils/child-eligibility'
 import { DuplicateDraftModal } from '@/components/camp-booking/duplicate-draft-modal'
 import { CampRulesModal } from '@/components/camp-booking/camp-rules-modal'
 import { CancellationPolicyModal } from '@/components/camp-booking/cancellation-policy-modal'
@@ -149,6 +156,10 @@ function SessionsStep() {
   }, [ageRangeFilter, camp])
 
   const filteredSessions = sessions.filter(session => {
+    // Hide sessions that are no longer bookable (already started / past), matching
+    // the backend gate so parents never pick a session that submit will reject.
+    if (!isSessionBookable({ startDate: session.startDate, endDate: session.endDate })) return false
+
     const month = new Date(session.startDate).toLocaleString('en-US', { month: 'short' })
     if (monthFilter && month !== monthFilter) return false
 
@@ -490,6 +501,32 @@ function SessionsStep() {
   )
 }
 
+/**
+ * Renders an ineligibility reason, linking ONLY the actionable noun phrase
+ * (e.g. "emergency contact") to the relevant profile section — not the whole
+ * sentence. Falls back to plain text when there's no link or the phrase isn't
+ * found in the message.
+ */
+function IneligibleReasonText({ reason }: { reason: IneligibleReason }) {
+  const phraseStart = reason.linkText && reason.href ? reason.message.indexOf(reason.linkText) : -1
+
+  if (phraseStart === -1 || !reason.linkText || !reason.href) {
+    return <span>{reason.message}</span>
+  }
+
+  const before = reason.message.slice(0, phraseStart)
+  const after = reason.message.slice(phraseStart + reason.linkText.length)
+  return (
+    <span>
+      {before}
+      <Link href={reason.href} className="underline underline-offset-2 hover:text-error-600">
+        {reason.linkText}
+      </Link>
+      {after}
+    </span>
+  )
+}
+
 function ChildrenStep() {
   const selectedSessionId = useCampBookingStore(state => state.selectedSessionId)
   const sessions = useCampBookingStore(state => state.sessions)
@@ -507,12 +544,16 @@ function ChildrenStep() {
   const [isAddingChild, setIsAddingChild] = useState(false)
 
   const eligibleChildren = useMemo(
-    () =>
-      children.map(child => {
-        const age = getChildAge(child)
-        return { child, age, isEligible: age !== null && age >= 8 && age <= 17 }
-      }),
-    [children]
+    () => getChildrenEligibility(camp, session, children),
+    [children, camp, session]
+  )
+
+  // Continue is only valid when at least one *eligible* child is selected.
+  // Guards against a stale/ineligible selection (e.g. session change) leaving
+  // the button enabled with nothing actually bookable.
+  const hasValidSelection = useMemo(
+    () => eligibleChildren.some(e => e.isEligible && selectedChildIds.includes(e.child.id)),
+    [eligibleChildren, selectedChildIds]
   )
 
   const onContinue = async () => {
@@ -535,35 +576,40 @@ function ChildrenStep() {
         </p>
       </div>
       <div className="grid gap-3">
-        {eligibleChildren.map(({ child, age, isEligible }) => {
+        {eligibleChildren.map(({ child, age, isEligible, ineligibleReasons }) => {
           const selected = selectedChildIds.includes(child.id)
           const unitPrice = getChildUnitPrice(session, camp, child)
           return (
-            <button
+            <div
               key={child.id}
-              type="button"
-              disabled={!isEligible}
-              onClick={() => {
-                if (!isEligible) return
-                if (maxSpots !== null) {
-                  const alreadySelected = selectedChildIds.includes(child.id)
-                  const nextSelectedCount = alreadySelected
-                    ? selectedChildIds.length - 1
-                    : selectedChildIds.length + 1
-                  if (!alreadySelected && nextSelectedCount > maxSpots) {
-                    setShowWaitlist(true)
-                    return
-                  }
-                }
-                toggleChild(child.id)
-              }}
               className={[
-                'cursor-pointer rounded-xl border p-4 text-left transition hover:opacity-hover',
-                selected ? 'border-secondary' : 'border-gray-200 hover:border-gray-300',
-                !isEligible ? 'cursor-not-allowed bg-gray-50 opacity-60' : '',
+                'rounded-xl border p-4 transition',
+                selected ? 'border-secondary' : 'border-gray-200',
+                !isEligible ? 'bg-gray-50' : 'hover:border-gray-300',
               ].join(' ')}
             >
-              <div className="flex items-start justify-between gap-3">
+              <button
+                type="button"
+                disabled={!isEligible}
+                onClick={() => {
+                  if (!isEligible) return
+                  if (maxSpots !== null) {
+                    const alreadySelected = selectedChildIds.includes(child.id)
+                    const nextSelectedCount = alreadySelected
+                      ? selectedChildIds.length - 1
+                      : selectedChildIds.length + 1
+                    if (!alreadySelected && nextSelectedCount > maxSpots) {
+                      setShowWaitlist(true)
+                      return
+                    }
+                  }
+                  toggleChild(child.id)
+                }}
+                className={[
+                  'flex w-full items-start justify-between gap-3 text-left transition',
+                  isEligible ? 'cursor-pointer hover:opacity-hover' : 'cursor-not-allowed',
+                ].join(' ')}
+              >
                 <div className="flex min-w-0 items-start gap-4">
                   <span
                     className={[
@@ -576,25 +622,44 @@ function ChildrenStep() {
                   </span>
 
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">
+                    <p
+                      className={`font-semibold text-gray-900 truncate ${!isEligible ? 'opacity-60' : ''}`}
+                    >
                       {child.firstName} {child.lastName}
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className={`text-sm text-gray-500 ${!isEligible ? 'opacity-60' : ''}`}>
                       {age !== null ? `${age} years old` : 'Unknown age'}
                     </p>
-                    {!isEligible ? (
-                      <p className="mt-1 text-xs font-semibold text-error-500">Not eligible</p>
-                    ) : null}
                   </div>
                 </div>
 
                 <div className="flex flex-col items-end gap-1">
-                  <p className="text-lg font-bold text-gray-900 whitespace-nowrap">
+                  <p
+                    className={`text-lg font-bold text-gray-900 whitespace-nowrap ${!isEligible ? 'opacity-60' : ''}`}
+                  >
                     {formatCurrency(unitPrice, currency)}
                   </p>
                 </div>
-              </div>
-            </button>
+              </button>
+
+              {!isEligible ? (
+                ineligibleReasons.length > 0 ? (
+                  <ul className="mt-2 space-y-1 pl-9">
+                    {ineligibleReasons.map((reason, idx) => (
+                      <li
+                        key={idx}
+                        className="flex items-start gap-1 text-xs font-semibold text-error-500"
+                      >
+                        <span aria-hidden="true">•</span>
+                        <IneligibleReasonText reason={reason} />
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 pl-9 text-xs font-semibold text-error-500">Not eligible</p>
+                )
+              ) : null}
+            </div>
           )
         })}
 
@@ -615,7 +680,13 @@ function ChildrenStep() {
               onCancel={() => setIsAddingChild(false)}
               onSubmit={(payload: AddChildPayload) => addChild(payload)}
               onSuccess={createdChild => {
-                if (maxSpots === null || selectedChildIds.length < maxSpots) {
+                // Only auto-select the new child if it actually passes the
+                // eligibility gate. The quick-add form omits emergency contacts
+                // and medical info, so most newly-added children are not yet
+                // bookable — selecting them would re-introduce invalid selections.
+                const isEligible =
+                  getChildrenEligibility(camp, session, [createdChild])[0]?.isEligible ?? false
+                if (isEligible && (maxSpots === null || selectedChildIds.length < maxSpots)) {
                   toggleChild(createdChild.id)
                 }
                 addToast({
@@ -643,7 +714,7 @@ function ChildrenStep() {
         <Button
           color="primary"
           className="w-full"
-          isDisabled={selectedChildIds.length === 0}
+          isDisabled={!hasValidSelection}
           onPress={onContinue}
           endContent={<ChevronRight size={16} />}
         >
@@ -674,6 +745,20 @@ function AddonsStep() {
   const sortedAddOns = addOns.slice().sort((a, b) => a.sortOrder - b.sortOrder)
   const selectedChildren = children.filter(c => selectedChildIds.includes(c.id))
 
+  // Add-ons can be age-restricted (minAge/maxAge). Mirror the backend guard so
+  // an ineligible child can't be assigned the add-on; backend re-validates.
+  const isChildAddOnEligible = (
+    child: (typeof children)[number],
+    addon: { minAge?: number | null; maxAge?: number | null }
+  ): boolean => {
+    if (addon.minAge == null && addon.maxAge == null) return true
+    const age = getChildAge(child)
+    if (age === null) return false
+    if (addon.minAge != null && age < addon.minAge) return false
+    if (addon.maxAge != null && age > addon.maxAge) return false
+    return true
+  }
+
   const [sheetAddonId, setSheetAddonId] = useState<string | null>(null)
   const [sheetDraft, setSheetDraft] = useState<{
     mode: CampBookingAddOnSelectionMode
@@ -686,6 +771,11 @@ function AddonsStep() {
   const sheetAddon = sheetAddonId ? addOns.find(a => a.addOnId === sheetAddonId) : undefined
   const sheetMode = sheetDraft?.mode ?? (sheetAddon ? inferMode(sheetAddon) : null)
   const isConfiguratorOpen = Boolean(sheetAddonId && sheetAddon && sheetDraft)
+  // Age-restriction label for the open add-on, e.g. "ages 8–12" (null = no limit).
+  const sheetAddonAgeRange = sheetAddon ? formatAddOnAgeRange(sheetAddon) : null
+  const ineligibleAgeMessage = sheetAddonAgeRange
+    ? `Only available for ${sheetAddonAgeRange}`
+    : "Not available for this child's age"
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -1000,12 +1090,14 @@ function AddonsStep() {
                   <div className="flex flex-col gap-3 divide-y divide-gray-100">
                     {selectedChildren.map(child => {
                       const checked = sheetDraft.childIds?.includes(child.id) ?? false
+                      const ageEligible = isChildAddOnEligible(child, sheetAddon)
                       return (
                         <Checkbox
                           key={child.id}
                           aria-label={`${child.firstName} ${child.lastName}`}
                           color="secondary"
                           isSelected={checked}
+                          isDisabled={!ageEligible}
                           onValueChange={() =>
                             setSheetDraft(prev => {
                               if (prev?.mode !== 'per_child') return prev
@@ -1027,6 +1119,11 @@ function AddonsStep() {
                                   ? `${getChildAge(child)} years old`
                                   : 'Unknown age'}
                               </p>
+                              {!ageEligible ? (
+                                <p className="mt-0.5 text-xs font-medium text-warning-600">
+                                  {ineligibleAgeMessage}
+                                </p>
+                              ) : null}
                             </div>
                             <div className="shrink-0 text-sm font-semibold text-gray-900 whitespace-nowrap">
                               {checked ? `+${formatCurrency(sheetAddon.price, currency)}` : '—'}
@@ -1043,6 +1140,7 @@ function AddonsStep() {
                       const qty = cq?.quantity ?? 0
                       const maxQuantity = sheetAddon.maxQuantity ?? null
                       const atMax = typeof maxQuantity === 'number' && qty >= maxQuantity
+                      const ageEligible = isChildAddOnEligible(child, sheetAddon)
 
                       return (
                         <div
@@ -1095,7 +1193,7 @@ function AddonsStep() {
                               size="sm"
                               radius="full"
                               color="secondary"
-                              isDisabled={atMax}
+                              isDisabled={atMax || !ageEligible}
                               onPress={() =>
                                 setSheetDraft(prev => {
                                   if (prev?.mode !== 'per_child_qty') return prev
@@ -1225,12 +1323,14 @@ function AddonsStep() {
                   <div className="flex flex-col gap-4 divide-y divide-gray-100">
                     {selectedChildren.map(child => {
                       const checked = sheetDraft.childIds?.includes(child.id) ?? false
+                      const ageEligible = isChildAddOnEligible(child, sheetAddon)
                       return (
                         <Checkbox
                           key={child.id}
                           aria-label={`${child.firstName} ${child.lastName}`}
                           color="secondary"
                           isSelected={checked}
+                          isDisabled={!ageEligible}
                           onValueChange={() =>
                             setSheetDraft(prev => {
                               if (prev?.mode !== 'per_child') return prev
@@ -1252,6 +1352,11 @@ function AddonsStep() {
                                   ? `${getChildAge(child)} years old`
                                   : 'Unknown age'}
                               </p>
+                              {!ageEligible ? (
+                                <p className="mt-0.5 text-xs font-medium text-warning-600">
+                                  {ineligibleAgeMessage}
+                                </p>
+                              ) : null}
                             </div>
                             <div className="shrink-0 text-sm font-semibold text-gray-900 whitespace-nowrap">
                               {checked ? `+${formatCurrency(sheetAddon.price, currency)}` : '—'}
@@ -1268,6 +1373,7 @@ function AddonsStep() {
                       const qty = cq?.quantity ?? 0
                       const maxQuantity = sheetAddon.maxQuantity ?? null
                       const atMax = typeof maxQuantity === 'number' && qty >= maxQuantity
+                      const ageEligible = isChildAddOnEligible(child, sheetAddon)
 
                       return (
                         <div
@@ -1320,7 +1426,7 @@ function AddonsStep() {
                               size="sm"
                               radius="full"
                               color="secondary"
-                              isDisabled={atMax}
+                              isDisabled={atMax || !ageEligible}
                               onPress={() =>
                                 setSheetDraft(prev => {
                                   if (prev?.mode !== 'per_child_qty') return prev
@@ -1866,10 +1972,14 @@ function ReviewStep({
           </div>
           <Textarea
             minRows={5}
+            maxLength={1000}
             placeholder="Introduce your children, mention any special requests (allergies, dietary needs, medical conditions, arrival details)..."
             value={specialRequest}
             onValueChange={setSpecialRequest}
           />
+          <p className="mt-1 text-right text-xs text-gray-400">
+            {specialRequest?.length ?? 0}/1000
+          </p>
         </div>
 
         <p className="mt-3 hidden text-sm text-gray-500 lg:block">

@@ -6,6 +6,7 @@ import { Roles } from '../../core/auth/decorators/roles.decorator'
 import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
 import { BookingGroupsService } from '../../booking-groups/booking-groups.service'
 import { CancelBookingGroupDto } from './dto/cancel-booking-group.dto'
+import { CheckEligibilityDto } from './dto/check-eligibility.dto'
 import { CreateDraftBookingGroupDto } from './dto/create-draft-booking-group.dto'
 import { QueryParentBookingGroupsDto } from './dto/query-parent-booking-groups.dto'
 import { SaveBookingGroupAddOnsDto } from './dto/save-booking-group-addons.dto'
@@ -18,6 +19,17 @@ import { UpdateDraftBookingGroupDto } from './dto/update-draft-booking-group.dto
 @Roles('Parent')
 export class UserBookingGroupsController {
   constructor(private readonly bookingGroupsService: BookingGroupsService) {}
+
+  @Post('eligibility-check')
+  @ApiOperation({ summary: 'Pre-validate children against a camp/session (non-mutating)' })
+  async checkEligibility(@CurrentUser() user: any, @Body() dto: CheckEligibilityDto) {
+    const result = await this.bookingGroupsService.checkEligibilityForParent(user.id, {
+      campId: dto.campId,
+      sessionId: dto.sessionId,
+      childIds: dto.childIds,
+    })
+    return ResponseUtil.success(result)
+  }
 
   @Post('draft')
   @ApiOperation({ summary: 'Create draft booking group' })

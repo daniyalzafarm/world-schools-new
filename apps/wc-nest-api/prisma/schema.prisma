@@ -1122,6 +1122,12 @@ model BookingGroup {
   respondedAt DateTime? @map("responded_at")
   expiresAt   DateTime? @map("expires_at")
 
+  /// Acceptance-window extension audit. `extensionCount` is incremented (and
+  /// `lastExtendedAt` stamped) each time a provider extends the response
+  /// deadline; the booking service caps extensions to prevent indefinite holds.
+  extensionCount Int       @default(0) @map("extension_count")
+  lastExtendedAt DateTime? @map("last_extended_at")
+
   specialRequest String? @map("special_request") @db.Text
   internalNotes  String? @map("internal_notes") @db.Text
 
@@ -1140,6 +1146,12 @@ model BookingGroup {
   /// Shape: `{ policyName, tiers: PolicyTier[], specialCircumstances: [...],
   /// capturedAt }`. See `BookingPolicySnapshot` in `cancellation-policy.util.ts`.
   cancellationPolicySnapshot Json? @map("cancellation_policy_snapshot") @db.JsonB
+
+  /// Audit snapshot of the child-eligibility gate evaluated at submit time
+  /// (`{ checkedAt, results: EligibilityResult[] }`). Frozen so we can prove
+  /// which rules a booking passed even if the camp's age groups / eligibility
+  /// requirements change afterwards. See `booking-eligibility.ts`.
+  eligibilityCheckSnapshot Json? @map("eligibility_check_snapshot") @db.JsonB
 
   /// Drives whether we authorize deposit-only, full-at-due, or full-at-booking.
   paymentMode PaymentMode? @map("payment_mode")
@@ -1188,8 +1200,8 @@ model BookingGroup {
   /// provider-initiated decline to be tagged with a reason from the controlled
   /// list so the Platform can perform §5.1(h)(iv) pattern monitoring.
   /// `declineReasonOther` is only populated when `declineReason = other` and
-  /// captures the provider's free-text justification (subject to moderation
-  /// before being surfaced to parents).
+  /// captures the provider's free-text justification. The text is stored but
+  /// not yet surfaced to parents — a moderation flow is pending.
   declineReason      BookingDeclineReason? @map("decline_reason")
   declineReasonOther String?               @map("decline_reason_other") @db.Text
 

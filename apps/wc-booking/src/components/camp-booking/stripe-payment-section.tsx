@@ -119,29 +119,43 @@ export const StripePaymentSection = forwardRef<
   // Memoize the Stripe.js promise on `stripeAccountId` so swapping providers
   // (rare — would only happen if the parent navigates back to pick a different
   // camp) cleanly re-initializes Elements against the new connected account.
-  const stripePromise = useMemo(() => getStripeForAccount(stripeAccountId), [stripeAccountId])
+  // Bumping the nonce re-creates the Stripe.js promise (via the memo dep) so the
+  // "Try again" button can re-attempt the load without a full page reload.
+  const [retryNonce, setRetryNonce] = useState(0)
+  const stripePromise = useMemo(
+    () => getStripeForAccount(stripeAccountId),
+    [stripeAccountId, retryNonce]
+  )
 
   // H5: detect "Stripe.js failed to load" up front and render a recovery
   // panel instead of a frozen Elements form. `getStripeForAccount` already
   // coerces the rejection to `null` (ad-blocker / CSP / regional outage /
   // captive-portal), but `<Elements stripe={null}>` only surfaces that via
   // a cryptic error after the user clicks "Pay". Awaiting once on mount
-  // lets us swap the panel before the form is even visible.
+  // lets us swap the panel before the form is even visible. A timeout guards
+  // against a promise that never settles (hung network) — without it the form
+  // would spin forever.
   const [stripeLoadState, setStripeLoadState] = useState<'loading' | 'ready' | 'failed'>('loading')
   useEffect(() => {
     let cancelled = false
     setStripeLoadState('loading')
+    const timeout = setTimeout(() => {
+      if (!cancelled) setStripeLoadState('failed')
+    }, 15000)
     stripePromise
       .then(stripe => {
         if (cancelled) return
+        clearTimeout(timeout)
         setStripeLoadState(stripe ? 'ready' : 'failed')
       })
       .catch(() => {
         if (cancelled) return
+        clearTimeout(timeout)
         setStripeLoadState('failed')
       })
     return () => {
       cancelled = true
+      clearTimeout(timeout)
     }
   }, [stripePromise])
 
@@ -156,15 +170,27 @@ export const StripePaymentSection = forwardRef<
           This usually means an ad-blocker, browser extension, or your network is blocking
           {' js.stripe.com'}. Disable extensions / try a different browser, then refresh this page.
         </p>
-        <button
-          type="button"
-          className="rounded-lg border border-danger-300 px-3 py-1 text-xs font-medium hover:bg-danger-100"
-          onClick={() => {
-            if (typeof window !== 'undefined') window.location.reload()
-          }}
-        >
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className="rounded-lg border border-danger-300 px-3 py-1 text-xs font-medium hover:bg-danger-100"
+            onClick={() => {
+              setStripeLoadState('loading')
+              setRetryNonce(n => n + 1)
+            }}
+          >
+            Try again
+          </button>
+          <button
+            type="button"
+            className="rounded-lg border border-danger-300 px-3 py-1 text-xs font-medium hover:bg-danger-100"
+            onClick={() => {
+              if (typeof window !== 'undefined') window.location.reload()
+            }}
+          >
+            Refresh page
+          </button>
+        </div>
       </div>
     )
   }

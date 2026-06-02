@@ -1,5 +1,9 @@
 import apiClient, { type ApiResult } from '@/utils/api-client'
-import type { ParentBookingGroupsQuery, SpecialCircumstanceType } from '@world-schools/wc-types'
+import type {
+  EligibilityResult,
+  ParentBookingGroupsQuery,
+  SpecialCircumstanceType,
+} from '@world-schools/wc-types'
 import type {
   CreateDraftBookingGroupRequest,
   DraftBookingGroupResponse,
@@ -35,6 +39,24 @@ export const bookingGroupsService = {
 
   async getById(bookingGroupId: string): Promise<ApiResult<ParentBookingGroupDetail>> {
     return apiClient.get<ParentBookingGroupDetail>(`/user/booking-groups/${bookingGroupId}`)
+  },
+
+  /**
+   * Non-mutating pre-validation: evaluates the selected children against a
+   * camp/session (age, gender, GATE skills, readiness). Mirrors the
+   * authoritative gate run at submit so the UI can block / explain BEFORE the
+   * payment step — in particular it surfaces skill-gate failures the client
+   * cannot evaluate on its own.
+   */
+  async checkEligibility(payload: {
+    campId: string
+    sessionId: string
+    childIds: string[]
+  }): Promise<ApiResult<{ results: EligibilityResult[] }>> {
+    return apiClient.post<{ results: EligibilityResult[] }>(
+      '/user/booking-groups/eligibility-check',
+      payload
+    )
   },
 
   async getLatestDraftPreviews(campId: string): Promise<ApiResult<DraftBookingPreview[]>> {

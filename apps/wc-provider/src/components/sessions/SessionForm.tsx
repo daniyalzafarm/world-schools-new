@@ -359,6 +359,15 @@ export function SessionForm({
 
   return (
     <div className="flex flex-col">
+      {/* Edit-mode notice: once a session has bookings, the API locks date /
+          pricing changes and rejects capacity reductions below the booked
+          count — surface that here so providers aren't surprised on save. */}
+      {session ? (
+        <div className="mt-2 rounded-lg border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-800">
+          Heads up: if this session already has bookings, its dates and pricing can&apos;t be
+          changed and capacity can&apos;t be reduced below the number of children already booked.
+        </div>
+      ) : null}
       {/* Section 1: Session details */}
       <div className="bg-background py-10 border-b border-default-200 last:border-b-0">
         <div className="mb-6">

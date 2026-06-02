@@ -9,6 +9,9 @@ import { RedisModule } from '../redis/redis.module'
 import { EmailTemplatesModule } from '../common/email-templates/email-templates.module'
 import { BookingGroupsService } from './booking-groups.service'
 import { BookingWebSocketHandler } from './booking-websocket.handler'
+import { EligibilityModule } from './eligibility.module'
+import { BookingResponseExpiryCron } from './crons/response-expiry.cron'
+import { BookingDraftCleanupCron } from './crons/draft-cleanup.cron'
 
 /**
  * BookingGroupsModule depends on BillingModule for the
@@ -29,8 +32,15 @@ import { BookingWebSocketHandler } from './booking-websocket.handler'
     BillingModule,
     RedisModule,
     EmailTemplatesModule,
+    EligibilityModule,
   ],
-  providers: [BookingGroupsService, ProfilePhotoService, BookingWebSocketHandler],
+  providers: [
+    BookingGroupsService,
+    ProfilePhotoService,
+    BookingWebSocketHandler,
+    BookingResponseExpiryCron,
+    BookingDraftCleanupCron,
+  ],
   exports: [BookingGroupsService],
 })
 export class BookingGroupsModule {}

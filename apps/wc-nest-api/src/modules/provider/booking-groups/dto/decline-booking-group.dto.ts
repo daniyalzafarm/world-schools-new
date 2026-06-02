@@ -13,7 +13,9 @@ export class DeclineBookingGroupDto {
 
   @ValidateIf(o => o.declineReason === BookingDeclineReason.Other)
   @IsString()
-  @MinLength(1)
+  @MinLength(10, {
+    message: 'Please provide a justification of at least 10 characters for an "Other" decline.',
+  })
   @MaxLength(1000)
   declineReasonOther?: string
 

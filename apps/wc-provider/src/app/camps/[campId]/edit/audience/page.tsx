@@ -80,6 +80,7 @@ export default function AudienceEditorPage() {
         formData={formData}
         onChange={data => setFormData({ ...formData, ...data })}
         onValidationChange={setHasValidationErrors}
+        editContext
       />
     </div>
   )

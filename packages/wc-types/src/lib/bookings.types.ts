@@ -9,6 +9,76 @@ export type BookingGroupStatus =
   | 'at_camp'
   | 'completed'
   | 'cancelled'
+  // Billing-driven terminal/edge statuses (mirror the Prisma enum so the
+  // shared state machine and status maps stay exhaustive).
+  | 'payment_failed'
+  | 'partially_refunded'
+  | 'fully_refunded'
+  | 'disputed'
+
+/**
+ * Provider Terms v1.5 §5.1(h)(iii) controlled list of decline reasons.
+ * Mirrored from the Prisma `BookingDeclineReason` enum so the frontend can
+ * render the dropdown without depending on the backend types package.
+ *
+ * NOTE: this is the canonical home for the decline-reason domain type. It was
+ * previously defined in `websocket.types.ts`; consumers import it from the
+ * `@world-schools/wc-types` package root, so the move is transparent.
+ */
+export enum BookingDeclineReason {
+  CapacityOrScheduling = 'capacity_or_scheduling',
+  EligibilityCriteriaNotMet = 'eligibility_criteria_not_met',
+  OperationalInability = 'operational_inability',
+  SafeguardingConcerns = 'safeguarding_concerns',
+  Other = 'other',
+}
+
+/// Parent-facing labels for the decline-reason dropdown and notification
+/// copy. Keep wording aligned with Provider Terms so legal review stays
+/// straightforward.
+export const BOOKING_DECLINE_REASON_LABELS: Record<BookingDeclineReason, string> = {
+  [BookingDeclineReason.CapacityOrScheduling]: 'Capacity or scheduling conflict',
+  [BookingDeclineReason.EligibilityCriteriaNotMet]:
+    'Eligibility criteria not met (age, skill level, prior experience)',
+  [BookingDeclineReason.OperationalInability]:
+    'Operational inability to accommodate a specific requirement',
+  [BookingDeclineReason.SafeguardingConcerns]: 'Safeguarding concerns',
+  [BookingDeclineReason.Other]: 'Other',
+}
+
+/**
+ * Reasons a child can fail the camp eligibility gate at booking time. Returned
+ * by the shared `validateChildAgainstCamp` engine (wc-utils) and surfaced both
+ * as a structured API error (parent) and as drawer badges (provider).
+ */
+export type EligibilityFailureCode =
+  | 'age_out_of_range'
+  | 'gender_mismatch'
+  | 'skill_gate_not_met'
+  | 'dob_missing'
+  | 'no_emergency_contact'
+  | 'medical_required'
+
+export interface EligibilityFailure {
+  code: EligibilityFailureCode
+  /// Human-readable, parent-safe explanation.
+  message: string
+  /// Skill-gate context (code === 'skill_gate_not_met').
+  activityId?: string
+  activityName?: string
+  requiredLevel?: string
+  childLevel?: string | null
+  /// Age context (code === 'age_out_of_range').
+  childAge?: number | null
+  /// Gender context (code === 'gender_mismatch').
+  requiredGender?: string
+}
+
+export interface EligibilityResult {
+  childId: string
+  eligible: boolean
+  failures: EligibilityFailure[]
+}
 
 export interface CreateDraftBookingGroupDto {
   campId: string
@@ -166,6 +236,11 @@ export interface ProviderBookingGroupSummary {
     dateOfBirth: string | null
     photoUrl: string | null
   }[]
+  /**
+   * Eligibility summary for the list column: true when every child passed the
+   * gate at submit, false if any failed, null for legacy bookings (no snapshot).
+   */
+  eligibilityAllMet?: boolean | null
 }
 
 export interface ProviderBookingGroupBookingLine {
@@ -225,6 +300,12 @@ export interface ProviderBookingGroupDetail {
   expiresAt: string | null
   updatedAt: string
   discountDetails: unknown | null
+  /**
+   * Per-child eligibility results captured at submit — the gate every non-draft
+   * booking passed. Drives the request-drawer eligibility badge. Null for
+   * legacy bookings submitted before the eligibility gate shipped.
+   */
+  eligibilityCheck?: { checkedAt: string; results: EligibilityResult[] } | null
   parent: {
     id: string
     userId: string

@@ -11,6 +11,11 @@
  * WebSocket adapter gives compile-time safety against payload drift.
  */
 
+// `BookingDeclineReason` now lives in `bookings.types.ts` (its domain home).
+// Imported here only for the `WsBookingStatusChangedPayload.declineReason`
+// field type. It is re-exported from the package root via index.ts.
+import { BookingDeclineReason } from './bookings.types'
+
 // ---------------------------------------------------------------------------
 // Shared enums (no DB enum — extensible without Prisma migrations)
 // ---------------------------------------------------------------------------
@@ -133,32 +138,6 @@ export interface WsBookingStatusPayload {
   /// `declineReasonOther` free-text is intentionally NOT included — parent
   /// notifications surface a fixed reason label, not provider free-text.
   declineReason?: BookingDeclineReason
-}
-
-/**
- * Provider Terms v1.5 §5.1(h)(iii) controlled list of decline reasons.
- * Mirrored from the Prisma `BookingDeclineReason` enum so the frontend can
- * render the dropdown without depending on the backend types package.
- */
-export enum BookingDeclineReason {
-  CapacityOrScheduling = 'capacity_or_scheduling',
-  EligibilityCriteriaNotMet = 'eligibility_criteria_not_met',
-  OperationalInability = 'operational_inability',
-  SafeguardingConcerns = 'safeguarding_concerns',
-  Other = 'other',
-}
-
-/// Parent-facing labels for the decline-reason dropdown and notification
-/// copy. Keep wording aligned with Provider Terms so legal review stays
-/// straightforward.
-export const BOOKING_DECLINE_REASON_LABELS: Record<BookingDeclineReason, string> = {
-  [BookingDeclineReason.CapacityOrScheduling]: 'Capacity or scheduling conflict',
-  [BookingDeclineReason.EligibilityCriteriaNotMet]:
-    'Eligibility criteria not met (age, skill level, prior experience)',
-  [BookingDeclineReason.OperationalInability]:
-    'Operational inability to accommodate a specific requirement',
-  [BookingDeclineReason.SafeguardingConcerns]: 'Safeguarding concerns',
-  [BookingDeclineReason.Other]: 'Other',
 }
 
 export interface WsBookingRequestReceivedPayload {

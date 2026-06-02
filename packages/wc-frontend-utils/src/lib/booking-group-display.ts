@@ -23,6 +23,10 @@ export function statusLabel(status: BookingGroupStatus): string {
     at_camp: 'At camp',
     completed: 'Completed',
     cancelled: 'Cancelled',
+    payment_failed: 'Payment failed',
+    partially_refunded: 'Partially refunded',
+    fully_refunded: 'Refunded',
+    disputed: 'Disputed',
   }
   return map[status] ?? status
 }
@@ -40,6 +44,10 @@ export function providerStatusLabel(status: BookingGroupStatus): string {
     at_camp: 'At camp',
     completed: 'Completed',
     cancelled: 'Cancelled',
+    payment_failed: 'Payment failed',
+    partially_refunded: 'Partially refunded',
+    fully_refunded: 'Refunded',
+    disputed: 'Disputed',
   }
   return map[status] ?? status
 }
@@ -79,6 +87,10 @@ export function progressPercent(status: BookingGroupStatus): number {
     at_camp: 88,
     completed: 100,
     cancelled: 0,
+    payment_failed: 58,
+    partially_refunded: 72,
+    fully_refunded: 0,
+    disputed: 72,
   }
   return map[status] ?? 20
 }

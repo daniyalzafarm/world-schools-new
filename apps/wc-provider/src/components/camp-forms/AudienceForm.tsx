@@ -27,6 +27,12 @@ export interface AudienceFormProps {
   formData: AudienceFormData
   onChange: (data: Partial<AudienceFormData>) => void
   onValidationChange?: (hasErrors: boolean) => void
+  /**
+   * When true (camp editor, not the create wizard), shows an impact warning:
+   * age groups feed per-age-group session pricing/availability and the
+   * eligibility gate, so changing them affects existing sessions and bookings.
+   */
+  editContext?: boolean
 }
 
 interface AgeGroupError {
@@ -39,6 +45,7 @@ export const AudienceForm: React.FC<AudienceFormProps> = ({
   formData,
   onChange,
   onValidationChange,
+  editContext = false,
 }) => {
   // Validate individual age group
   const validateAgeGroup = (ageGroup: AgeGroup): AgeGroupError => {
@@ -174,6 +181,12 @@ export const AudienceForm: React.FC<AudienceFormProps> = ({
 
   return (
     <div className="flex flex-col gap-4">
+      {editContext ? (
+        <div className="rounded-lg border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-800">
+          Changing age groups affects this camp&apos;s sessions (per-age-group pricing and
+          availability) and which children are eligible to book. Review your sessions after saving.
+        </div>
+      ) : null}
       {/* Age Groups */}
       <div className="form-group">
         <label className="text-base font-medium text-foreground">

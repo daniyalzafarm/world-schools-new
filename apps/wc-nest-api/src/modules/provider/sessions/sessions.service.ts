@@ -146,6 +146,11 @@ export class SessionsService {
   /**
    * Create a session
    */
+  /** Whole-days duration between two session dates (rounded). */
+  private sessionDurationDays(startDate: Date, endDate: Date): number {
+    return Math.round((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000))
+  }
+
   async createFixedSession(campId: string, providerId: string, dto: CreateFixedSessionDto) {
     const camp = await this.validateCampOwnership(campId, providerId)
 
@@ -159,6 +164,12 @@ export class SessionsService {
 
     if (startDate < new Date()) {
       throw new BadRequestException('Start date must be in the future')
+    }
+
+    // Upper bound on duration — guards a typo'd year producing a multi-year
+    // session (the lower bound is already covered by end > start above).
+    if (this.sessionDurationDays(startDate, endDate) > 365) {
+      throw new BadRequestException('Session cannot be longer than 365 days')
     }
 
     // Validate half-day sessions (only for day camps)
@@ -327,6 +338,16 @@ export class SessionsService {
           `Cannot reduce total spots to ${dto.totalSpots}. Current bookings: ${bookingsCount}`
         )
       }
+      // Same protection for per-age-group availability: the new total capacity
+      // must still cover everyone already booked.
+      if (dto.ageGroupSpots) {
+        const newTotal = dto.ageGroupSpots.reduce((sum, g) => sum + (g.spots ?? 0), 0)
+        if (newTotal < bookingsCount) {
+          throw new BadRequestException(
+            `Cannot reduce capacity to ${newTotal}. Current bookings: ${bookingsCount}`
+          )
+        }
+      }
     }
 
     // Validate dates if provided
@@ -336,6 +357,9 @@ export class SessionsService {
 
       if (endDate <= startDate) {
         throw new BadRequestException('End date must be after start date')
+      }
+      if (this.sessionDurationDays(startDate, endDate) > 365) {
+        throw new BadRequestException('Session cannot be longer than 365 days')
       }
     }
 

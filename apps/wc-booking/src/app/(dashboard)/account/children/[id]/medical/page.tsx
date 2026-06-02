@@ -28,7 +28,7 @@ const DIETARY_OPTIONS = [
 
 // Swimming levels matching reference design
 const SWIMMING_LEVELS = [
-  { id: 'non_swimmer', label: 'Non-swimmer' },
+  { id: 'cannot_swim', label: 'Non-swimmer' },
   { id: 'beginner', label: 'Beginner' },
   { id: 'intermediate', label: 'Intermediate' },
   { id: 'advanced', label: 'Strong swimmer' },

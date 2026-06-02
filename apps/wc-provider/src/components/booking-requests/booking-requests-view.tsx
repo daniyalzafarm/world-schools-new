@@ -461,6 +461,11 @@ export function BookingRequestsView() {
                           <p className="font-medium text-foreground">{row.parent.displayName}</p>
                           <p className="text-xs text-default-500">
                             {row.children.length} {row.children.length === 1 ? 'child' : 'children'}
+                            {row.eligibilityAllMet === true ? (
+                              <span className="ml-1 text-success-600">· Eligible</span>
+                            ) : row.eligibilityAllMet === false ? (
+                              <span className="ml-1 text-warning-600">· Review eligibility</span>
+                            ) : null}
                           </p>
                         </TableCell>
                         <TableCell>
@@ -524,6 +529,11 @@ export function BookingRequestsView() {
                         </div>
                         {urgency ? (
                           <p className="mt-1 text-xs text-warning-700">{urgency}</p>
+                        ) : null}
+                        {row.eligibilityAllMet === true ? (
+                          <p className="mt-1 text-xs text-success-600">All children eligible</p>
+                        ) : row.eligibilityAllMet === false ? (
+                          <p className="mt-1 text-xs text-warning-700">Review eligibility</p>
                         ) : null}
                         <p className="mt-2 text-sm text-default-600">{row.session.name}</p>
                         <p className="mt-2 text-lg font-bold text-default-900 dark:text-default-100">

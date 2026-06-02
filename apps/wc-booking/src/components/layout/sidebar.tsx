@@ -545,6 +545,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onPress={handleArrowToggle}
                     variant="light"
                     isIconOnly
+                    aria-label={
+                      isCollapsed ? 'Expand' : !isManuallyExpanded ? 'Keep expanded' : 'Collapse'
+                    }
                     size="sm"
                     className="min-w-8 w-8 h-8 shrink-0"
                   >

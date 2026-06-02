@@ -1,8 +1,9 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { cn } from '@world-schools/ui-web'
+import { useChildrenStore } from '@/stores/children-store'
 import {
   Activity,
   ArrowLeft,
@@ -45,6 +46,24 @@ export const ChildrenSidebar: React.FC<ChildrenSidebarProps> = ({
   const params = useParams()
   const currentChildId = params.id as string
 
+  const children = useChildrenStore(state => state.children)
+  const isLoading = useChildrenStore(state => state.isLoading)
+  const fetchChildren = useChildrenStore(state => state.fetchChildren)
+
+  // Some child sub-routes (bookings, wishlists, …) don't load children on their
+  // own, so fetch here too to resolve the child's name on deep-links/reloads.
+  // `fetchChildren` flips `isLoading` synchronously, so this won't double-fetch
+  // alongside a page that also requests it.
+  useEffect(() => {
+    if (children.length === 0 && !isLoading) {
+      fetchChildren().catch(() => undefined)
+    }
+  }, [children.length, isLoading, fetchChildren])
+
+  const currentChild = children.find(child => child.id === currentChildId)
+  const childName = currentChild?.nickname || currentChild?.firstName
+  const overviewLabel = childName ? `${childName}'s Profile` : 'Profile'
+
   const handleNavigation = (href: string) => {
     router.push(href)
     setSidebarOpen(false)
@@ -64,7 +83,7 @@ export const ChildrenSidebar: React.FC<ChildrenSidebarProps> = ({
     {
       items: [
         {
-          name: 'Overview',
+          name: overviewLabel,
           href: `/account/children/${currentChildId}`,
           icon: <Home size={20} />,
         },
@@ -163,6 +182,7 @@ export const ChildrenSidebar: React.FC<ChildrenSidebarProps> = ({
             <div className="flex items-center gap-2">
               <Button
                 isIconOnly
+                aria-label="Back to children list"
                 variant="flat"
                 size="sm"
                 radius="full"

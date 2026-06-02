@@ -241,6 +241,7 @@ export default function ChildDetailsPage() {
           </span>
         </div>
         <Progress
+          aria-label="Profile completeness"
           value={profileCompletion}
           color={profileCompletion >= 75 ? 'success' : 'warning'}
           className="mb-3"

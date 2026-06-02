@@ -239,6 +239,12 @@ export function AddChildForm<T = unknown>({
         }}
       />
 
+      <p className="mt-3 rounded-lg bg-primary-50 px-3 py-2 text-xs leading-5 text-gray-600">
+        After adding, complete this child&apos;s{' '}
+        <span className="font-semibold">emergency contact</span> (and medical info for overnight
+        camps) in their profile — these are required to book.
+      </p>
+
       <div className="mt-4 flex items-center justify-end gap-2 border-t border-gray-100 pt-3">
         <Button
           variant="light"

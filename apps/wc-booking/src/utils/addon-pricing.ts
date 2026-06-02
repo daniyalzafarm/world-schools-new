@@ -49,6 +49,21 @@ export const getAddOnUnitNoun = (
   return DEFAULT_UNIT_NOUN[addOn.pricingUnit] ?? 'item'
 }
 
+/**
+ * Human-readable age restriction for an add-on — e.g. "ages 8–12",
+ * "ages 8 and up", "ages 12 and under". Returns null when the add-on has no
+ * age restriction. Uses an en dash to match the camp age-group formatting.
+ */
+export const formatAddOnAgeRange = (
+  addOn: Pick<CampBookingAddOn, 'minAge' | 'maxAge'>
+): string | null => {
+  const { minAge, maxAge } = addOn
+  if (minAge == null && maxAge == null) return null
+  if (minAge != null && maxAge != null) return `ages ${minAge}–${maxAge}`
+  if (minAge != null) return `ages ${minAge} and up`
+  return `ages ${maxAge} and under`
+}
+
 export const getAddOnTileLabel = (
   addOn: Pick<CampBookingAddOn, 'pricingUnit' | 'quantityUnit'>
 ): string => {

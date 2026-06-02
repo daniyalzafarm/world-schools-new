@@ -4,6 +4,11 @@ export * from './lib/currency'
 export * from './lib/cancellation-policy'
 export * from './lib/payment-plan'
 
+// Booking guardrails — shared rules (dates, eligibility, capacity)
+export * from './lib/date-validation'
+export * from './lib/booking-eligibility'
+export * from './lib/session-capacity'
+
 // KB HTML allowlists (shared between backend and frontend)
 export * from './lib/kb-allowed-html'
 

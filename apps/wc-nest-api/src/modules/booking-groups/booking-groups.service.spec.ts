@@ -1,4 +1,9 @@
-import { BadRequestException, PreconditionFailedException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  PreconditionFailedException,
+  UnprocessableEntityException,
+} from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Prisma } from '../../generated/client/client'
@@ -16,6 +21,7 @@ import { RefundsNotificationsService } from '../billing/refunds/notifications/re
 import { ProfilePhotoService } from '../user/auth/services/profile-photo.service'
 import { BookingDeclineReason } from '@world-schools/wc-types'
 import { BookingGroupsService } from './booking-groups.service'
+import { EligibilityService } from './eligibility.service'
 
 /**
  * Phase 2 wiring tests. Focuses on the new submit → authorize → capture →
@@ -30,19 +36,27 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
   let refunds: any
   let refundsNotifications: any
   let eventEmitter: any
+  let eligibilityService: any
 
   function makeBookingGroup(overrides: Partial<any> = {}) {
     return {
       id: 'bg-1',
       bookingGroupNumber: 'BG-0001',
       status: 'draft',
+      campId: 'camp-1',
       providerId: 'pr-1',
       parentId: 'p-1',
       sessionId: 'sess-1',
       totalAmount: new Prisma.Decimal('2000.00'),
       expiresAt: null,
+      // Guardrails audit: submit/accept now read the children (eligibility gate
+      // + per-age-group capacity tally), camp status/ageGroups, and session
+      // status/endDate. Defaults: one child, published camp/session.
+      bookings: [{ childId: 'child-1' }],
       camp: {
         name: 'Cool Camp',
+        status: 'published',
+        ageGroups: [{ min: 5, max: 18 }],
         // Phase 9: deposit lives on the camp now (snapshotted from provider
         // on creation, editable per camp). Default fixture: 30% deposit.
         depositRequired: true,
@@ -55,6 +69,8 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       // session — generous so existing fixtures aren't accidentally at-cap.
       session: {
         startDate: new Date(Date.now() + 200 * 24 * 60 * 60 * 1000),
+        endDate: new Date(Date.now() + 207 * 24 * 60 * 60 * 1000),
+        status: 'published',
         availabilityType: 'single',
         totalSpots: 20,
         ageGroupSpots: null,
@@ -88,18 +104,24 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       },
       booking: {
         updateMany: jest.fn(),
-        // C4 audit fix: capacity check at submit issues two `count` calls
-        // (current participants on this draft + other-booked spots for the
-        // session). Default: 1 participant on this draft, 0 elsewhere — so
-        // canonical fixtures don't trip the limit. Per-test mocks override.
-        count: jest
-          .fn()
-          .mockResolvedValueOnce(1) // currentParticipants
-          .mockResolvedValueOnce(0) // otherBooked
-          .mockResolvedValue(0),
+        count: jest.fn().mockResolvedValue(0),
+        // Guardrails audit: capacity is now evaluated via `findMany` (child
+        // DOBs for per-age-group tally). Default: no existing/incoming rows so
+        // canonical fixtures aren't at-cap. Per-test mocks override.
+        findMany: jest.fn().mockResolvedValue([]),
       },
-      payment: { findUniqueOrThrow: jest.fn() },
-      systemSettings: { upsert: jest.fn() },
+      children: { findMany: jest.fn().mockResolvedValue([]) },
+      payment: {
+        findUniqueOrThrow: jest.fn(),
+        // G2 accept guard: a live authorization must exist. Default: one
+        // requires_capture payment (the happy path).
+        findMany: jest.fn().mockResolvedValue([{ status: 'requires_capture' }]),
+      },
+      systemSettings: {
+        upsert: jest.fn().mockResolvedValue({ defaultAppFee: new Prisma.Decimal('10') }),
+      },
+      // Submit locks the session row FOR UPDATE before the capacity recount.
+      $queryRaw: jest.fn().mockResolvedValue([]),
       $transaction: jest.fn(async (fn: any) => fn(prisma)),
     }
     payments = {
@@ -124,6 +146,9 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       notifyParentCancelled: jest.fn().mockResolvedValue(undefined),
     }
     eventEmitter = { emit: jest.fn() }
+    // Guardrails audit: default to all-eligible so billing-wiring tests aren't
+    // blocked by the eligibility gate. Eligibility-specific tests override this.
+    eligibilityService = { evaluateChildren: jest.fn().mockResolvedValue([]) }
 
     // C5 audit fix: submit acquires a Redis SET-NX lock. Default mock: lock
     // is always available (`set` returns 'OK'). Tests that exercise the
@@ -146,6 +171,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         { provide: RefundsService, useValue: refunds },
         { provide: RefundsNotificationsService, useValue: refundsNotifications },
         { provide: RedisService, useValue: redis },
+        { provide: EligibilityService, useValue: eligibilityService },
       ],
     }).compile()
     service = module.get(BookingGroupsService)
@@ -206,9 +232,18 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
       prisma.bookingGroup.findFirst.mockResolvedValueOnce(
         makeBookingGroup({
-          session: { startDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+          session: {
+            startDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            endDate: new Date(Date.now() + 37 * 24 * 60 * 60 * 1000),
+            status: 'published',
+            availabilityType: 'single',
+            totalSpots: 20,
+            ageGroupSpots: null,
+          },
           camp: {
             name: 'Cool Camp',
+            status: 'published',
+            ageGroups: [{ min: 5, max: 18 }],
             depositRequired: false,
             depositType: null,
             depositPercentage: null,
@@ -246,9 +281,18 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
       prisma.bookingGroup.findFirst.mockResolvedValueOnce(
         makeBookingGroup({
-          session: { startDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000) },
+          session: {
+            startDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000),
+            endDate: new Date(Date.now() + 127 * 24 * 60 * 60 * 1000),
+            status: 'published',
+            availabilityType: 'single',
+            totalSpots: 20,
+            ageGroupSpots: null,
+          },
           camp: {
             name: 'Cool Camp',
+            status: 'published',
+            ageGroups: [{ min: 5, max: 18 }],
             depositRequired: false,
             depositType: null,
             depositPercentage: null,
@@ -450,12 +494,15 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
     // ─── C4 audit fix: session-capacity recheck at submit ───
 
     it('throws ConflictException when the session is at capacity by the time submit runs', async () => {
+      const dayMs = 24 * 60 * 60 * 1000
       prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
       prisma.bookingGroup.findFirst.mockResolvedValueOnce(
         // 5-spot session.
         makeBookingGroup({
           session: {
-            startDate: new Date(Date.now() + 200 * 24 * 60 * 60 * 1000),
+            startDate: new Date(Date.now() + 200 * dayMs),
+            endDate: new Date(Date.now() + 207 * dayMs),
+            status: 'published',
             availabilityType: 'single',
             totalSpots: 5,
             ageGroupSpots: null,
@@ -463,40 +510,60 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         })
       )
       // 1 participant on this draft; 5 already booked by other parents
-      // → 5+1 > 5 → conflict.
-      prisma.booking.count = jest
+      // → 5+1 > 5 → conflict. Capacity now counts child rows via findMany
+      // (incoming first, then existing).
+      prisma.booking.findMany = jest
         .fn()
-        .mockResolvedValueOnce(1) // currentParticipants
-        .mockResolvedValueOnce(5) // otherBooked
+        .mockResolvedValueOnce([{ child: { dateOfBirth: null } }]) // incoming: 1
+        .mockResolvedValueOnce(Array.from({ length: 5 }, () => ({ child: { dateOfBirth: null } }))) // existing: 5
 
       await expect(service.submitForParent('u-1', 'bg-1')).rejects.toThrow(/Session is now full/)
       // Stripe call MUST NOT fire — capacity check runs before authorize.
       // Likewise, the status flip (`updateMany`) must not happen.
       expect(payments.authorizeDeposit).not.toHaveBeenCalled()
       expect(prisma.bookingGroup.updateMany).not.toHaveBeenCalled()
-      expect(prisma.bookingGroup.update).not.toHaveBeenCalled()
     })
 
-    it('throws ConflictException when summed age-group capacity is exhausted', async () => {
+    it('throws ConflictException when an age-group is exhausted', async () => {
+      const dayMs = 24 * 60 * 60 * 1000
+      // Children born ~2014 → ~12 at session start (in the 10-13 group).
+      const olderDob = new Date('2014-01-01')
       prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
       prisma.bookingGroup.findFirst.mockResolvedValueOnce(
         makeBookingGroup({
+          camp: {
+            name: 'Cool Camp',
+            status: 'published',
+            ageGroups: [
+              { min: 6, max: 9 },
+              { min: 10, max: 13 },
+            ],
+            depositRequired: true,
+            depositType: 'percentage',
+            depositPercentage: 30,
+            depositFixedAmount: null,
+          },
           session: {
-            startDate: new Date(Date.now() + 200 * 24 * 60 * 60 * 1000),
+            startDate: new Date(Date.now() + 200 * dayMs),
+            endDate: new Date(Date.now() + 207 * dayMs),
+            status: 'published',
             availabilityType: 'age_group',
             totalSpots: null,
-            // Two age groups, 3 + 4 = 7 total. 1 on this draft + 7 elsewhere
-            // → 8 > 7 → conflict.
-            ageGroupSpots: [{ spots: 3 }, { spots: 4 }],
+            // 10-13 group has 1 spot; it is already taken → adding another
+            // 12-year-old overflows that group.
+            ageGroupSpots: [
+              { ageGroupId: '6-9', spots: 3 },
+              { ageGroupId: '10-13', spots: 1 },
+            ],
           },
         })
       )
-      prisma.booking.count = jest
+      prisma.booking.findMany = jest
         .fn()
-        .mockResolvedValueOnce(1) // currentParticipants
-        .mockResolvedValueOnce(7) // otherBooked
+        .mockResolvedValueOnce([{ child: { dateOfBirth: olderDob } }]) // incoming: 1 in 10-13
+        .mockResolvedValueOnce([{ child: { dateOfBirth: olderDob } }]) // existing: 1 in 10-13
 
-      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toThrow(/Session is now full/)
+      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toThrow(/10-13/)
     })
 
     it('skips capacity enforcement when the session has unlimited spots (totalSpots=null)', async () => {
@@ -638,9 +705,10 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       const result = await service.acceptForProvider('pr-1', 'bg-1')
 
       expect(payments.captureForBookingGroup).toHaveBeenCalledWith('bg-1')
-      expect(prisma.bookingGroup.update).toHaveBeenCalledWith(
+      // Status-guarded transition (only flips from `request`).
+      expect(prisma.bookingGroup.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'bg-1' },
+          where: { id: 'bg-1', status: 'request' },
           data: expect.objectContaining({
             status: 'accepted',
             respondedAt: expect.any(Date),
@@ -673,8 +741,8 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       await expect(service.acceptForProvider('pr-1', 'bg-1')).rejects.toBeInstanceOf(
         PreconditionFailedException
       )
-      // Status update should NOT have been issued — booking stays in request.
-      expect(prisma.bookingGroup.update).not.toHaveBeenCalled()
+      // Status transition should NOT have been issued — booking stays in request.
+      expect(prisma.bookingGroup.updateMany).not.toHaveBeenCalled()
     })
   })
 
@@ -722,9 +790,10 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       })
 
       expect(payments.cancelForBookingGroup).toHaveBeenCalledWith('bg-1', 'requested_by_customer')
-      expect(prisma.bookingGroup.update).toHaveBeenCalledWith(
+      // Status-guarded transition (only flips from `request`).
+      expect(prisma.bookingGroup.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'bg-1' },
+          where: { id: 'bg-1', status: 'request' },
           data: expect.objectContaining({
             status: 'declined',
             respondedAt: expect.any(Date),
@@ -762,7 +831,127 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
           declineReason: BookingDeclineReason.OperationalInability,
         })
       ).rejects.toThrow('Stripe down')
-      expect(prisma.bookingGroup.update).not.toHaveBeenCalled()
+      expect(prisma.bookingGroup.updateMany).not.toHaveBeenCalled()
+    })
+  })
+
+  // ─── Guardrails audit: eligibility, camp/session gates, accept guards ───
+  describe('booking guardrails', () => {
+    it('submit blocks an ineligible child with a 422 and never authorizes a card', async () => {
+      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce(makeBookingGroup())
+      eligibilityService.evaluateChildren.mockResolvedValueOnce([
+        {
+          childId: 'child-1',
+          eligible: false,
+          failures: [{ code: 'age_out_of_range', message: 'Too old' }],
+        },
+      ])
+
+      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toBeInstanceOf(
+        UnprocessableEntityException
+      )
+      expect(payments.authorizeDeposit).not.toHaveBeenCalled()
+      expect(prisma.bookingGroup.updateMany).not.toHaveBeenCalled()
+    })
+
+    it('submit blocks when the camp is not published', async () => {
+      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce(
+        makeBookingGroup({
+          camp: {
+            name: 'Cool Camp',
+            status: 'archived',
+            ageGroups: [{ min: 5, max: 18 }],
+            depositRequired: true,
+            depositType: 'percentage',
+            depositPercentage: 30,
+            depositFixedAmount: null,
+          },
+        })
+      )
+
+      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toBeInstanceOf(
+        BadRequestException
+      )
+      expect(payments.authorizeDeposit).not.toHaveBeenCalled()
+    })
+
+    it('submit blocks when the session has already started', async () => {
+      const dayMs = 24 * 60 * 60 * 1000
+      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce(
+        makeBookingGroup({
+          session: {
+            startDate: new Date(Date.now() - 2 * dayMs), // already started
+            endDate: new Date(Date.now() + 5 * dayMs),
+            status: 'published',
+            availabilityType: 'single',
+            totalSpots: 20,
+            ageGroupSpots: null,
+          },
+        })
+      )
+
+      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toBeInstanceOf(
+        BadRequestException
+      )
+      expect(payments.authorizeDeposit).not.toHaveBeenCalled()
+    })
+
+    it('accept rejects a request past its expiry deadline', async () => {
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce({
+        id: 'bg-1',
+        status: 'request',
+        bookingGroupNumber: 'BG-0001',
+        parentId: 'p-1',
+        sessionId: 'sess-1',
+        totalAmount: new Prisma.Decimal('600.00'),
+        expiresAt: new Date(Date.now() - 60 * 60 * 1000), // 1h ago
+        camp: { name: 'C', ageGroups: [{ min: 5, max: 18 }] },
+        parent: { userId: 'u-1' },
+        session: {
+          startDate: new Date('2026-08-01T00:00:00Z'),
+          endDate: new Date('2026-08-08T00:00:00Z'),
+          availabilityType: 'single',
+          totalSpots: 20,
+          ageGroupSpots: null,
+        },
+        provider: { settings: { currency: 'GBP' } },
+      })
+
+      await expect(service.acceptForProvider('pr-1', 'bg-1')).rejects.toBeInstanceOf(
+        ConflictException
+      )
+      expect(payments.captureForBookingGroup).not.toHaveBeenCalled()
+    })
+
+    it('accept rejects when there is no live payment authorization', async () => {
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce({
+        id: 'bg-1',
+        status: 'request',
+        bookingGroupNumber: 'BG-0001',
+        parentId: 'p-1',
+        sessionId: 'sess-1',
+        totalAmount: new Prisma.Decimal('600.00'),
+        expiresAt: null,
+        camp: { name: 'C', ageGroups: [{ min: 5, max: 18 }] },
+        parent: { userId: 'u-1' },
+        session: {
+          startDate: new Date('2026-08-01T00:00:00Z'),
+          endDate: new Date('2026-08-08T00:00:00Z'),
+          availabilityType: 'single',
+          totalSpots: 20,
+          ageGroupSpots: null,
+        },
+        provider: { settings: { currency: 'GBP' } },
+      })
+      prisma.payment.findMany.mockResolvedValueOnce([]) // no payment rows at all
+
+      await expect(service.acceptForProvider('pr-1', 'bg-1')).rejects.toBeInstanceOf(
+        PreconditionFailedException
+      )
+      expect(payments.captureForBookingGroup).not.toHaveBeenCalled()
     })
   })
 
