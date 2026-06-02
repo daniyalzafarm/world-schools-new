@@ -131,6 +131,13 @@ export const useCampBookingStore = create<CampBookingStore>()(
             'This provider isn’t fully set up for payments yet. Please contact support.'
           )
         }
+        // Settlement currency comes from the provider's onboarding settings and
+        // drives every price in the flow (and the Stripe charge currency). Refuse
+        // to start booking a provider that finished payment setup but has no
+        // currency configured, rather than guessing one downstream.
+        if (!camp.provider?.settings?.currency) {
+          throw new Error('This provider isn’t fully set up yet. Please contact support.')
+        }
         const [sessionsResponse, childrenResponse, addOnsResponse, campReviews] = await Promise.all(
           [
             campSessionsService.getByCampId(camp.id),
