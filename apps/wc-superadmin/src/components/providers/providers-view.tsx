@@ -20,7 +20,7 @@ import {
   Tooltip,
 } from '@heroui/react'
 import { Check, Eye, FilterX, LogIn, Search, Upload } from 'lucide-react'
-import { getInitials, Input, useDebounce } from '@world-schools/ui-web'
+import { getInitials, Input, useConfirmDialog, useDebounce } from '@world-schools/ui-web'
 import { OPERATIONAL_STATUS_LABELS, OperationalStatus } from '@world-schools/wc-types'
 import { PageSlot } from '@/components/layout/page-slot'
 import { useApplicationReviewStore } from '@/stores/application-review-store'
@@ -205,6 +205,8 @@ export function AllProvidersView() {
     clearFilters,
   } = useApplicationReviewStore()
 
+  const { confirm } = useConfirmDialog()
+
   const activeTab = getActiveTab(pathname)
   const [searchInput, setSearchInput] = useState('')
   const [approvingId, setApprovingId] = useState<string | null>(null)
@@ -263,6 +265,15 @@ export function AllProvidersView() {
   }
 
   const handleQuickApprove = async (app: ApplicationListItem) => {
+    const confirmed = await confirm({
+      title: 'Approve Provider?',
+      message: `Are you sure you want to approve "${app.businessName}"? They will gain full provider access.`,
+      confirmText: 'Approve',
+      cancelText: 'Cancel',
+      variant: 'warning',
+    })
+    if (!confirmed) return
+
     setApprovingId(app.id)
     try {
       await approveApplication(app.id, {})

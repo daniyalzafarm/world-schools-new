@@ -14,7 +14,8 @@ import { ProviderLogoSection } from '../../../components/account/provider-logo-s
 
 export default function OnboardingStep3Page() {
   const router = useRouter()
-  const { status, isLoading, saveCampInfo } = useOnboardingStore()
+  const { status, isLoading, saveCampInfo, googleBusinessProfile, fetchGoogleBusinessProfile } =
+    useOnboardingStore()
   const [description, setDescription] = useState('')
   const [campTypes, setCampTypes] = useState<string[]>([])
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
@@ -49,6 +50,7 @@ export default function OnboardingStep3Page() {
       }
     }
     void loadCampInfo()
+    void fetchGoogleBusinessProfile()
   }, [])
 
   const handleLogoChange = async (file: File) => {
@@ -218,6 +220,7 @@ export default function OnboardingStep3Page() {
           {/* Company Logo */}
           <ProviderLogoSection
             logoUrl={logoUrl}
+            providerName={googleBusinessProfile?.legalInfo?.legalCompanyName ?? 'Provider'}
             onLogoChange={isReadOnly ? undefined : handleLogoChange}
             onLogoRemove={isReadOnly ? undefined : handleLogoRemove}
           />
