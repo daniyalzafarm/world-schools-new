@@ -32,6 +32,11 @@ export class EmailService {
         html: options.html,
       }
 
+      // Plain-text alternative for multi-part MIME
+      if (options.text) {
+        mailOptions.text = options.text
+      }
+
       // Add unique Message-ID if provided
       if (options.messageId) {
         mailOptions.messageId = options.messageId

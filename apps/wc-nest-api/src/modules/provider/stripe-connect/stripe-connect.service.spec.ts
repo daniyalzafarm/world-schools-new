@@ -7,6 +7,7 @@ import {
 import { Test, TestingModule } from '@nestjs/testing'
 import Stripe from 'stripe'
 import { PrismaService } from '../../../prisma/prisma.service'
+import { ProfileCompletionService } from '../../common/profile-completion/profile-completion.service'
 import { StripeService } from '../../stripe/stripe.service'
 import { StripeConnectService } from './stripe-connect.service'
 
@@ -76,6 +77,13 @@ describe('StripeConnectService', () => {
         StripeConnectService,
         { provide: PrismaService, useValue: prisma },
         { provide: StripeService, useValue: stripe },
+        {
+          provide: ProfileCompletionService,
+          useValue: {
+            recomputeForProvider: jest.fn(),
+            enqueueRecomputeForProvider: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile()
 

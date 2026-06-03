@@ -31,6 +31,7 @@ import { UserModule } from '../modules/user/user.module'
 import { KbModule } from '../modules/kb/kb.module'
 import { CatalogueModule } from '../modules/catalogue/catalogue.module'
 import { NotificationsModule } from '../modules/notifications/notifications.module'
+import { ProfileCompletionModule } from '../modules/common/profile-completion/profile-completion.module'
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { NotificationsModule } from '../modules/notifications/notifications.modu
     KbModule,
     CatalogueModule,
     NotificationsModule,
+    ProfileCompletionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

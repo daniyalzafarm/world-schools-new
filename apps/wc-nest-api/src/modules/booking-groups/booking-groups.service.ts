@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { WsInternalEvent } from '../websocket/ws-internal-events'
+import { notify } from '../notifications/dispatcher/notify'
 import { AzureStorageService } from '@world-schools/wc-utils/backend'
 import {
   type AgeGroupSpot,
@@ -24,6 +25,7 @@ import {
   type BookingDeclineReason,
   type BookingGroupStatus as BookingGroupStatusType,
   type ChildBookingRange,
+  NotificationType,
   type SpecialCircumstanceType,
 } from '@world-schools/wc-types'
 import { EligibilityService } from './eligibility.service'
@@ -747,10 +749,23 @@ export class BookingGroupsService {
           totalAmount: newGroupSubtotal,
           discountTotal: 0,
           specialRequest: params.specialRequest ?? undefined,
+          // v28 abandon tracking: saveAddOns is the clearest "parent is
+          // actively progressing through checkout" signal — flip the flag
+          // so the abandon-detection cron treats this draft as eligible
+          // for nudges. Refresh `lastActivityAt` to reset the 3h window.
+          checkoutStarted: true,
+          lastActivityAt: new Date(),
         },
         select: { id: true, status: true },
       })
     })
+
+    // v28 catalog entry `parent.booking.modified` is intentionally NOT
+    // fired here — `saveAddOnsForParent` rejects non-draft bookings up
+    // top, and a parent editing their own draft doesn't need a "your
+    // booking was modified" email. The catalog entry sits ready for the
+    // day a modify-confirmed-booking endpoint lands (e.g. provider-side
+    // edits or admin-driven adjustments).
 
     return {
       bookingGroupId: bookingGroup.id,
@@ -873,6 +888,11 @@ export class BookingGroupsService {
           refundedAmount: 0,
           status: 'draft',
           requestedAt: now,
+          // v28 abandon tracking: record activity at draft creation so the
+          // abandon-detection cron can measure idle time. `checkoutStarted`
+          // stays false until the parent actually fills in participant or
+          // payment details (see `markCheckoutStarted` callers).
+          lastActivityAt: now,
           // Normalize empty/whitespace to null so reload hydration doesn't
           // incorrectly assume the user already reached the review step.
           specialRequest: params.specialRequest?.trim() ? params.specialRequest : null,
@@ -2447,6 +2467,77 @@ export class BookingGroupsService {
       requestExpiresAt: expiresAt.toISOString(),
     })
 
+    // v28 catalog dispatch — parent confirmation that their request has
+    // been sent (in_app + email), plus provider staff in-app with the
+    // requestExpiresAt countdown via metadata. The WS event above stays
+    // for the live UI nudge; catalog persists + handles future channels.
+    notify(this.eventEmitter, NotificationType.ParentBookingRequestSubmitted, {
+      bookingGroupId: bookingGroup.id,
+    })
+    notify(this.eventEmitter, NotificationType.ProviderBookingRequestReceived, {
+      bookingGroupId: bookingGroup.id,
+      providerId: bookingGroup.providerId,
+      extra: { requestExpiresAt: expiresAt.toISOString() },
+    })
+
+    // Phase 8 — one-shot ProviderFirstBooking on the provider's very first
+    // request. Detected by checking the BookingGroup count before this
+    // one was inserted; we re-query because the insert above already
+    // committed.
+    const totalBookingsForProvider = await this.prisma.bookingGroup.count({
+      where: { providerId: bookingGroup.providerId },
+    })
+    if (totalBookingsForProvider === 1) {
+      notify(this.eventEmitter, NotificationType.ProviderFirstBooking, {
+        bookingGroupId: bookingGroup.id,
+        providerId: bookingGroup.providerId,
+      })
+    }
+
+    // Phase 7 scheduled fan-out: fire a "still pending" nudge at the 48h
+    // mark and an "expired" notice at the 72h mark. Loaders return null
+    // when the request has already transitioned out of `request`, so a
+    // parent who accepted/withdrew in the interim doesn't get an obsolete
+    // reminder. Cancellation of the delayed jobs lives behind the catalog's
+    // cancel-by-jobId helper (`NotificationsCancelService`) — call sites
+    // wire that in alongside the cancel handlers.
+    const submitTs = Date.now()
+    notify(
+      this.eventEmitter,
+      NotificationType.ParentBookingRequestStillPending,
+      { bookingGroupId: bookingGroup.id },
+      new Date(submitTs + 48 * 60 * 60 * 1000)
+    )
+    notify(
+      this.eventEmitter,
+      NotificationType.ParentBookingExpired,
+      { bookingGroupId: bookingGroup.id },
+      new Date(submitTs + 72 * 60 * 60 * 1000)
+    )
+
+    // Phase 8 — provider-side scheduled mirrors for the same 48h/72h
+    // window. The 48h fires the response-window reminder; the final-12h
+    // fires at +60h; expiry notification at +72h. All three loaders
+    // short-circuit when the booking has transitioned out of `request`.
+    notify(
+      this.eventEmitter,
+      NotificationType.ProviderBookingRequest48hReminder,
+      { bookingGroupId: bookingGroup.id },
+      new Date(submitTs + 48 * 60 * 60 * 1000)
+    )
+    notify(
+      this.eventEmitter,
+      NotificationType.ProviderBookingRequestFinalReminder,
+      { bookingGroupId: bookingGroup.id },
+      new Date(submitTs + 60 * 60 * 60 * 1000)
+    )
+    notify(
+      this.eventEmitter,
+      NotificationType.ProviderBookingRequestExpired,
+      { bookingGroupId: bookingGroup.id },
+      new Date(submitTs + 72 * 60 * 60 * 1000)
+    )
+
     return {
       bookingGroupId: bookingGroup.id,
       status: 'request' as BookingGroupStatus,
@@ -2674,6 +2765,40 @@ export class BookingGroupsService {
     const refundedTotal = result.refunds
       .reduce((acc, r) => acc.plus(r.amount), new Prisma.Decimal(0))
       .toFixed(2)
+
+    // v28 catalog dispatch — split between "request withdrawn" (pre-accept)
+    // and "booking cancelled" (post-accept) so the parent sees honest copy.
+    // The pre-existing `refundsNotifications.notifyParentCancelled` covers
+    // the refund-mode detail email; the catalog entry persists the in-app
+    // row + sends the spec-mandated copy. Refund amount threaded via
+    // `extra` so the catalog uses the exact issued total instead of the
+    // denormalised `refundedAmount` cache.
+    if (owned.status === 'request') {
+      notify(this.eventEmitter, NotificationType.ParentBookingRequestWithdrawn, {
+        bookingGroupId: owned.id,
+      })
+      // v28 Phase 8 — provider-side mirror.
+      notify(this.eventEmitter, NotificationType.ProviderBookingRequestWithdrawn, {
+        bookingGroupId: owned.id,
+      })
+    } else {
+      notify(this.eventEmitter, NotificationType.ParentBookingCancelled, {
+        bookingGroupId: owned.id,
+        extra: {
+          refundAmount: Number(refundedTotal) > 0 ? `${ownedCurrency} ${refundedTotal}` : '',
+        },
+      })
+      // v28 Phase 8 — provider-side mirror with refund detail surfaced for context.
+      notify(this.eventEmitter, NotificationType.ProviderBookingCancelledByFamily, {
+        bookingGroupId: owned.id,
+        extra: {
+          detail:
+            Number(refundedTotal) > 0
+              ? `Refund of ${ownedCurrency} ${refundedTotal} issued.`
+              : null,
+        },
+      })
+    }
     const nonRefunded =
       result.mode === 'policy' ? await this.computeNonRefundedAmount(owned.id, refundedTotal) : null
     void this.refundsNotifications
@@ -2744,6 +2869,7 @@ export class BookingGroupsService {
         status: true,
         bookingGroupNumber: true,
         parentId: true,
+        campId: true,
         sessionId: true,
         totalAmount: true,
         expiresAt: true,
@@ -2906,6 +3032,90 @@ export class BookingGroupsService {
       sessionEndDate: bookingGroup.session.endDate.toISOString(),
     })
 
+    // v28 catalog dispatch — parent confirmation email + in-app, plus
+    // provider staff in-app. The legacy `BookingWebSocketHandler` still
+    // listens to the `BookingStatusChanged` event but only for the live
+    // WS UI nudge (notification + email creation moved here in Phase 5
+    // cutover).
+    notify(this.eventEmitter, NotificationType.ParentBookingAccepted, {
+      bookingGroupId: bookingGroup.id,
+    })
+    notify(this.eventEmitter, NotificationType.ProviderBookingAccepted, {
+      bookingGroupId: bookingGroup.id,
+      providerId,
+    })
+
+    // v28 Phase 8 — provider-owner finance notification confirming the
+    // payout schedule lives (post-`generateScheduleForBooking`). Fires
+    // once per booking-acceptance regardless of whether the generator
+    // succeeded — the schedule is recoverable by the payouts cron if
+    // it errored above.
+    notify(this.eventEmitter, NotificationType.ProviderPayoutScheduleConfirmed, {
+      bookingGroupId: bookingGroup.id,
+    })
+
+    // Phase 7.5 — pre-camp scheduled fan-out at startDate −14d / −7d / −1d.
+    // Loaders short-circuit if the booking has transitioned out of an
+    // active state, so cancellation between accept and fire is safe.
+    // Skipped when startDate has already passed (rare — booking accepted
+    // last-minute) or is closer than the tier window.
+    const startMs = bookingGroup.session.startDate.getTime()
+    const DAY_MS = 24 * 60 * 60 * 1000
+    const preCampTiers: { type: NotificationType; offsetDays: number }[] = [
+      { type: NotificationType.ParentPreCampChecklist14d, offsetDays: 14 },
+      { type: NotificationType.ParentPreCampPackingReminder7d, offsetDays: 7 },
+      { type: NotificationType.ParentPreCampDayBefore, offsetDays: 1 },
+    ]
+    for (const tier of preCampTiers) {
+      const runAt = new Date(startMs - tier.offsetDays * DAY_MS)
+      if (runAt.getTime() <= now.getTime()) continue
+      notify(this.eventEmitter, tier.type, { bookingGroupId: bookingGroup.id }, runAt)
+    }
+
+    // Phase 8 — provider pre-camp scheduled fan-out. Resolver
+    // (`allProviderUsersForCamp`) targets the camp's full staff; the
+    // loader runs `prisma.booking.count` for the participant count, so
+    // the roster + checklist + day-before emails always reflect current
+    // confirmed-booking volume rather than the snapshot at this commit.
+    const providerPreCampTiers: { type: NotificationType; offsetDays: number }[] = [
+      { type: NotificationType.ProviderPreCampRosterReady, offsetDays: 14 },
+      { type: NotificationType.ProviderPreCampChecklist, offsetDays: 7 },
+      { type: NotificationType.ProviderPreCampDayBefore, offsetDays: 1 },
+    ]
+    for (const tier of providerPreCampTiers) {
+      const runAt = new Date(startMs - tier.offsetDays * DAY_MS)
+      if (runAt.getTime() <= now.getTime()) continue
+      notify(
+        this.eventEmitter,
+        tier.type,
+        {
+          bookingGroupId: bookingGroup.id,
+          campId: bookingGroup.campId,
+          sessionId: bookingGroup.sessionId,
+        },
+        runAt
+      )
+    }
+    // Provider post-camp wrap fires `+1d` after session end.
+    const endMs = bookingGroup.session.endDate.getTime()
+    const wrapRunAt = new Date(endMs + DAY_MS)
+    if (wrapRunAt.getTime() > now.getTime()) {
+      notify(
+        this.eventEmitter,
+        NotificationType.ProviderPostCampWrap,
+        {
+          bookingGroupId: bookingGroup.id,
+          campId: bookingGroup.campId,
+          sessionId: bookingGroup.sessionId,
+        },
+        wrapRunAt
+      )
+    }
+
+    // Phase 7.5 — post-camp delegation lives in the daily post-camp-review
+    // cron (no scheduled emit here) so a session whose endDate is moved
+    // out doesn't strand obsolete BullMQ jobs in Redis.
+
     return { bookingGroupId: bookingGroup.id, status: 'accepted' }
   }
 
@@ -3010,6 +3220,31 @@ export class BookingGroupsService {
       sessionEndDate: bookingGroup.session.endDate.toISOString(),
       declineReason: args.declineReason,
     })
+
+    // v28 catalog dispatch — parent decline email + in-app, plus provider
+    // staff in-app confirmation. Decline reason is read from the booking row
+    // by the prop loader (just persisted above), so no need to thread it
+    // through `extra`.
+    notify(this.eventEmitter, NotificationType.ParentBookingDeclined, {
+      bookingGroupId: bookingGroup.id,
+    })
+    notify(this.eventEmitter, NotificationType.ProviderBookingDeclined, {
+      bookingGroupId: bookingGroup.id,
+      providerId,
+    })
+
+    // Phase 7.5 — 24h after a decline, surface similar programs to the
+    // parent so they have a path forward instead of an empty dead end.
+    // Resolver needs `parentUserId` to fan-out without a booking lookup.
+    notify(
+      this.eventEmitter,
+      NotificationType.ParentConversionPostDeclineAlternatives,
+      {
+        bookingGroupId: bookingGroup.id,
+        parentUserId: bookingGroup.parent.userId,
+      },
+      new Date(now.getTime() + 24 * 60 * 60 * 1000)
+    )
 
     return { bookingGroupId: bookingGroup.id, status: 'declined' }
   }

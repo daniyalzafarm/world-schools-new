@@ -4,9 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { JwtService } from '@nestjs/jwt'
+import { NotificationType } from '@world-schools/wc-types'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { ConfigService } from '../../../config/config.service'
+import { notify } from '../../notifications/dispatcher/notify'
 import { CreateCampDto, UpdateCampAudienceDto, UpdateCampProgramsDto } from './dto/create-camp.dto'
 import {
   UpdateAcademicsDto,
@@ -32,6 +35,7 @@ import {
 } from './dto/update-camp.dto'
 import { UpdateCampAddOnsDto } from './dto/update-camp-addons.dto'
 import { UpdateCampDepositSettingsDto } from './dto/update-camp-deposit-settings.dto'
+import { ProfileCompletionService } from '../../common/profile-completion/profile-completion.service'
 import { PhotoUploadService } from './services/photo-upload.service'
 import { GoogleBusinessService } from '../onboarding/services/google-business.service'
 import { GetCampsFiltersDto } from './dto/get-camps-filters.dto'
@@ -49,7 +53,9 @@ export class CampsService {
     private readonly photoUploadService: PhotoUploadService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly googleBusinessService: GoogleBusinessService
+    private readonly googleBusinessService: GoogleBusinessService,
+    private readonly profileCompletion: ProfileCompletionService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   /**
@@ -339,6 +345,13 @@ export class CampsService {
       throw new BadRequestException('At least 5 photos are required')
     }
 
+    // Detect "first publish" before flipping the row — drives the
+    // ProviderProfilePublished catalog entry which is a one-shot welcome
+    // notification (subsequent publishes are silent).
+    const priorPublishedCount = await this.prisma.camp.count({
+      where: { providerId, status: 'published' },
+    })
+
     const updatedCamp = await this.prisma.camp.update({
       where: { id: campId },
       data: {
@@ -346,6 +359,22 @@ export class CampsService {
         publishedAt: new Date(),
       },
     })
+
+    // Phase 7g (audit bug #2): publishing the provider's first camp shifts
+    // their profile-completion score by 30 points. Worth recomputing here
+    // so the "incomplete profile" reminder is gated against fresh state.
+    await this.profileCompletion.enqueueRecomputeForProvider(providerId)
+
+    // v28 catalog dispatch (Phase 8a) — one-shot "you're live" notification
+    // on the first publish only. Subsequent publishes are silent (the
+    // provider already knows the publish flow works at that point).
+    if (priorPublishedCount === 0) {
+      notify(this.eventEmitter, NotificationType.ProviderProfilePublished, { providerId })
+      // v28 Phase 9 — superadmin mirror surfaces the camp's first live
+      // listing in the admin feed so platform-health monitoring + spot-
+      // checks happen on day one.
+      notify(this.eventEmitter, NotificationType.SuperadminCampFirstListingLive, { providerId })
+    }
 
     return updatedCamp
   }

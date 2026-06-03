@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { NotificationType } from '@world-schools/wc-types'
 import Stripe from 'stripe'
 import { Prisma } from '../../../generated/client/client'
+import { notify } from '../../notifications/dispatcher/notify'
 import {
   PayoutMode,
   PayoutStatus,
@@ -59,7 +62,8 @@ export class PayoutsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly stripeService: StripeService
+    private readonly stripeService: StripeService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   /**
@@ -928,7 +932,13 @@ export class PayoutsService {
    */
   async recordPayoutPaid(payout: StripePayout, accountId: string): Promise<void> {
     const event = await this.upsertPayoutEvent(payout, accountId, PayoutStatus.paid)
-    if (event) await this.linkTranchesToPayoutEvent(payout.id, event.id, PayoutTrancheStatus.paid)
+    if (event) {
+      await this.linkTranchesToPayoutEvent(payout.id, event.id, PayoutTrancheStatus.paid)
+      // v28 Phase 8 — provider-owner notification on every released payout.
+      notify(this.eventEmitter, NotificationType.ProviderPayoutReleased, {
+        payoutEventId: event.id,
+      })
+    }
   }
 
   /**
@@ -940,7 +950,18 @@ export class PayoutsService {
    * generated for retry.
    */
   async recordPayoutFailed(payout: StripePayout, accountId: string): Promise<void> {
-    await this.upsertPayoutEvent(payout, accountId, PayoutStatus.failed)
+    const failedEvent = await this.upsertPayoutEvent(payout, accountId, PayoutStatus.failed)
+    if (failedEvent) {
+      notify(this.eventEmitter, NotificationType.ProviderPayoutFailed, {
+        payoutEventId: failedEvent.id,
+      })
+      // v28 Phase 9 — superadmin mirror so platform team can spot
+      // recurring payout failures (often bank-detail issues the camp
+      // needs help fixing).
+      notify(this.eventEmitter, NotificationType.SuperadminPayoutFailure, {
+        payoutEventId: failedEvent.id,
+      })
+    }
     const tranche = await this.prisma.bookingPayoutSchedule.findFirst({
       where: { stripePayoutId: payout.id, status: PayoutTrancheStatus.released },
     })

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { PrismaService } from '../../../../prisma/prisma.service'
+import { ProfileCompletionService } from '../../../common/profile-completion/profile-completion.service'
 import { SaveContactInfoDto } from '../dto/contact-info.dto'
 import { SaveCampInfoDto } from '../dto/camp-info.dto'
 import { OnboardingStatusDto } from '../dto/onboarding-status.dto'
@@ -12,7 +13,8 @@ import {
 } from '../constants/terms-versions'
 import { ApplicationNotificationService } from '../../../common/email-templates/application-notification.service'
 import { WsInternalEvent } from '../../../websocket/ws-internal-events'
-import type { WsApplicationSubmittedPayload } from '@world-schools/wc-types'
+import { NotificationType, type WsApplicationSubmittedPayload } from '@world-schools/wc-types'
+import { notify } from '../../../notifications/dispatcher/notify'
 
 @Injectable()
 export class OnboardingService {
@@ -22,7 +24,8 @@ export class OnboardingService {
     private readonly prisma: PrismaService,
     private readonly trustScoreService: TrustScoreService,
     private readonly applicationNotificationService: ApplicationNotificationService,
-    private readonly eventEmitter: EventEmitter2
+    private readonly eventEmitter: EventEmitter2,
+    private readonly profileCompletion: ProfileCompletionService
   ) {}
 
   /**
@@ -207,6 +210,10 @@ export class OnboardingService {
         },
       })
     })
+
+    // Phase 7.5 (audit bug #4): legalCompanyName is part of the 25% legal +
+    // contact slice of the provider profile-completion score.
+    await this.profileCompletion.enqueueRecomputeForProvider(providerId)
   }
 
   /**
@@ -259,6 +266,10 @@ export class OnboardingService {
 
     // Update trust score
     await this.trustScoreService.updateTrustScore(providerId)
+    // Phase 7.5 (audit bug #4): contact fields are 25% of the provider
+    // profile-completion score — recompute so the incomplete-profile
+    // cron (Phase 8) is gated against fresh state.
+    await this.profileCompletion.enqueueRecomputeForProvider(providerId)
 
     this.logger.log(`Saved contact info for provider ${providerId}`)
   }
@@ -304,6 +315,9 @@ export class OnboardingService {
 
     // Update trust score
     await this.trustScoreService.updateTrustScore(providerId)
+    // Phase 7.5 (audit bug #4): description is 15% of the provider
+    // profile-completion score.
+    await this.profileCompletion.enqueueRecomputeForProvider(providerId)
 
     this.logger.log(`Saved camp info for provider ${providerId}`)
   }
@@ -603,6 +617,12 @@ export class OnboardingService {
 
     // Send application submitted confirmation email
     await this.applicationNotificationService.sendApplicationSubmittedEmail(providerId)
+
+    // v28 catalog dispatch — Phase 8a.
+    notify(this.eventEmitter, NotificationType.ProviderApplicationReceived, { providerId })
+    // v28 Phase 9 — superadmin mirror so the review queue surfaces the
+    // new application immediately.
+    notify(this.eventEmitter, NotificationType.SuperadminCampApplicationNew, { providerId })
   }
 
   /**
@@ -633,5 +653,9 @@ export class OnboardingService {
       where: { id: providerId },
       data: { logoUrl },
     })
+
+    // Phase 7.5 (audit bug #4): logo is 10% of the provider profile-
+    // completion score (both upload and delete flow through here).
+    await this.profileCompletion.enqueueRecomputeForProvider(providerId)
   }
 }

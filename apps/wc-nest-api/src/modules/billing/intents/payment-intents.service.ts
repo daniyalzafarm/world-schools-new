@@ -1,6 +1,9 @@
 import { randomUUID } from 'crypto'
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { NotificationType } from '@world-schools/wc-types'
 import Stripe from 'stripe'
+import { notify } from '../../notifications/dispatcher/notify'
 import { ConfigService } from '../../../config/config.service'
 import { Prisma } from '../../../generated/client/client'
 import {
@@ -148,7 +151,8 @@ export class PaymentIntentsService {
     private readonly prisma: PrismaService,
     private readonly stripeService: StripeService,
     private readonly stripeConnectService: StripeConnectService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   /**
@@ -760,6 +764,21 @@ export class PaymentIntentsService {
           attempt,
           stripeCode: err.code ?? null,
         })
+        // v28 catalog dispatch — 1st / 2nd retry failure. The cron emits the
+        // `Final` variant after `runBatch` flips the BookingGroup status, so
+        // we only fire the per-attempt failures here.
+        if (attempt === 1 || attempt === 2) {
+          notify(
+            this.eventEmitter,
+            attempt === 1
+              ? NotificationType.ParentPaymentBalanceFailedFirst
+              : NotificationType.ParentPaymentBalanceFailedSecond,
+            {
+              paymentId: payment.id,
+              bookingGroupId: payment.bookingGroupId,
+            }
+          )
+        }
         return
       }
       // Any other Stripe error is a transient infra failure — let it bubble.
@@ -1373,6 +1392,41 @@ export class PaymentIntentsService {
       intentId: intent.id,
       amount: fromStripeMinorUnits(intent.amount, intent.currency),
       currency: intent.currency,
+    })
+
+    // v28 catalog dispatch — payment-success notifications. Different
+    // template per Payment.kind: deposit fires DepositConfirmed, balance/
+    // full/rebill fire BalanceCharged. Loader hydrates against fresh DB
+    // state at worker time. Skipped when the transaction's status-guarded
+    // claim was a no-op (above) — by then we returned early.
+    const dispatchType =
+      payment.kind === PaymentKind.deposit
+        ? NotificationType.ParentPaymentDepositConfirmed
+        : NotificationType.ParentPaymentBalanceCharged
+    notify(this.eventEmitter, dispatchType, {
+      paymentId: payment.id,
+      bookingGroupId: payment.bookingGroupId,
+    })
+
+    // v28 Phase 8 — provider-side mirror only for balance / full / rebill
+    // captures. Deposit capture already fires `ProviderBookingAccepted`
+    // (Phase 5) so emitting "balance collected" for the deposit would be
+    // duplicative. The catalog's `providerOwnerForBooking` resolver scopes
+    // this to the camp owner; this is finance content the whole staff
+    // doesn't need to see.
+    if (payment.kind !== PaymentKind.deposit) {
+      notify(this.eventEmitter, NotificationType.ProviderBalanceCollected, {
+        paymentId: payment.id,
+        bookingGroupId: payment.bookingGroupId,
+      })
+    }
+    // v28 Phase 9 — superadmin "funds pending transfer" mirror. Fires on
+    // every successful capture (deposit + balance + rebill) so admins
+    // have visibility on the inbound-funds queue before the payout cron
+    // releases them.
+    notify(this.eventEmitter, NotificationType.SuperadminFundsPendingTransfer, {
+      paymentId: payment.id,
+      bookingGroupId: payment.bookingGroupId,
     })
   }
 

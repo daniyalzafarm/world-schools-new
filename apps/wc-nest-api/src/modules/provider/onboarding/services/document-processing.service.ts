@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { NotificationType } from '@world-schools/wc-types'
 import { PrismaService } from '../../../../prisma/prisma.service'
 import { ConfigService } from '../../../../config/config.service'
+import { notify } from '../../../notifications/dispatcher/notify'
 import { TrustScoreService } from './trust-score.service'
 import { AzureStorageService } from '@world-schools/wc-utils/backend'
 
@@ -12,7 +15,8 @@ export class DocumentProcessingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-    private readonly trustScoreService: TrustScoreService
+    private readonly trustScoreService: TrustScoreService,
+    private readonly eventEmitter: EventEmitter2
   ) {
     // Azure Storage Service will be initialized lazily when needed
   }
@@ -142,6 +146,13 @@ export class DocumentProcessingService {
       this.logger.log(
         `${existingDocument ? 'Replaced' : 'Uploaded'} document ${document.id} for provider ${providerId}`
       )
+
+      // v28 Phase 9 — notify superadmins that verification docs are ready
+      // for review. Fires on every upload (including re-uploads after
+      // 'needs_reupload') so admins always see the latest submission.
+      notify(this.eventEmitter, NotificationType.SuperadminVerificationDocsUploaded, {
+        providerId,
+      })
 
       return document
     } catch (error) {

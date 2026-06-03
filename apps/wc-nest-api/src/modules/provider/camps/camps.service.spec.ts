@@ -14,6 +14,8 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { Prisma } from '../../../generated/client/client'
 import { ConfigService } from '../../../config/config.service'
 import { PrismaService } from '../../../prisma/prisma.service'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { ProfileCompletionService } from '../../common/profile-completion/profile-completion.service'
 import { GoogleBusinessService } from '../onboarding/services/google-business.service'
 import { CampsService } from './camps.service'
 import { PhotoUploadService } from './services/photo-upload.service'
@@ -62,6 +64,14 @@ describe('CampsService — Phase 9 deposit settings', () => {
         { provide: JwtService, useValue: {} },
         { provide: ConfigService, useValue: {} },
         { provide: GoogleBusinessService, useValue: { findOrCreateGbp: jest.fn() } },
+        {
+          provide: ProfileCompletionService,
+          useValue: {
+            recomputeForProvider: jest.fn(),
+            enqueueRecomputeForProvider: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
     service = module.get(CampsService)

@@ -50,6 +50,7 @@ import { PasswordResetService } from '../../core/auth/services/password-reset.se
 import { TwoFactorAuthService } from '../../core/auth/services/two-factor-auth.service'
 import { SessionManagementService } from '../../core/auth/services/session-management.service'
 import { ProfilePhotoService } from './services/profile-photo.service'
+import { ProfileCompletionService } from '../../common/profile-completion/profile-completion.service'
 import * as bcrypt from 'bcryptjs'
 
 @ApiTags('User Auth')
@@ -64,8 +65,23 @@ export class UserAuthController {
     private readonly passwordResetService: PasswordResetService,
     private readonly twoFactorAuthService: TwoFactorAuthService,
     private readonly sessionManagementService: SessionManagementService,
-    private readonly profilePhotoService: ProfilePhotoService
+    private readonly profilePhotoService: ProfilePhotoService,
+    private readonly profileCompletion: ProfileCompletionService
   ) {}
+
+  /**
+   * Phase 7.5 — refresh `Parent.profileCompletion` from the current
+   * User + Parent state. Called from every endpoint on this controller
+   * that mutates a profile-completion-scored field. Cheap: a single
+   * SELECT + conditional UPDATE inside `ProfileCompletionService`.
+   */
+  private async recomputeParentCompletionByUserId(userId: string): Promise<void> {
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+      select: { id: true },
+    })
+    if (parent) await this.profileCompletion.enqueueRecomputeForParent(parent.id)
+  }
 
   /**
    * Centralized helper method for creating authenticated sessions
@@ -812,6 +828,10 @@ export class UserAuthController {
       }
     })
 
+    // Phase 7.5 (audit bug #4): recompute profile-completion so the
+    // `Parent_Profile_Incomplete` reminder is gated against fresh state.
+    await this.recomputeParentCompletionByUserId(user.id)
+
     // Fetch and return updated user profile
     const updatedUser = await this.authService.validateUser(user.id)
 
@@ -842,6 +862,10 @@ export class UserAuthController {
       where: { id: user.id },
       data: { profilePhotoUrl: uploadResult.url },
     })
+
+    // Phase 7.5 (audit bug #4): photo upload moves the parent's score by
+    // 10 points — recompute so the incomplete-profile cron stays honest.
+    await this.recomputeParentCompletionByUserId(user.id)
 
     // Generate SAS URL for immediate display
     const sasUrl = await this.profilePhotoService.generatePhotoUrl(uploadResult.url)
@@ -879,6 +903,10 @@ export class UserAuthController {
       where: { id: user.id },
       data: { profilePhotoUrl: null },
     })
+
+    // Phase 7.5 (audit bug #4): photo delete drops the parent's score —
+    // recompute so the incomplete-profile cron picks it up next cycle.
+    await this.recomputeParentCompletionByUserId(user.id)
 
     // Fetch and return updated user profile
     const updatedUser = await this.authService.validateUser(user.id)
@@ -962,6 +990,11 @@ export class UserAuthController {
         phoneVerified: false,
       },
     })
+
+    // Phase 7.5 (audit bug #4): adding/changing phone tips the basic-
+    // contact 40-pt slice — recompute so the incomplete-profile cron
+    // stops nagging once all three of firstName/lastName/phone are set.
+    await this.recomputeParentCompletionByUserId(user.id)
 
     // TODO: Implement SMS service to send verification code
     // For now, return success message

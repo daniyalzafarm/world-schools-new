@@ -68,6 +68,12 @@
         "passWithNoTests": true
       }
     },
+    "qa-matrix": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsx --tsconfig tsconfig.base.json apps/wc-nest-api/scripts/notification-qa-matrix.ts"
+      }
+    },
     "prisma:generate": {
       "cache": true,
       "inputs": ["{projectRoot}/prisma/schema.prisma"],

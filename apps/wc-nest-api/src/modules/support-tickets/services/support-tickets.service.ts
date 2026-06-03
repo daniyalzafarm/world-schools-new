@@ -5,6 +5,9 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { NotificationType } from '@world-schools/wc-types'
+import { notify } from '../../notifications/dispatcher/notify'
 import {
   Prisma,
   SupportTicketAudience,
@@ -33,7 +36,8 @@ export class SupportTicketsService {
     private readonly prisma: PrismaService,
     private readonly slaService: SupportTicketSlaService,
     private readonly conversationService: SupportTicketConversationService,
-    private readonly redisPubSub: RedisPubSubService
+    private readonly redisPubSub: RedisPubSubService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   async createTicket(
@@ -175,6 +179,13 @@ export class SupportTicketsService {
       })
 
       return ticket
+    })
+
+    // v28 Phase 9 — notify all superadmins of the new ticket so it can
+    // be triaged. Single notify() outside the transaction matches the
+    // dispatcher's eventually-consistent contract.
+    notify(this.eventEmitter, NotificationType.SuperadminSupportTicketNew, {
+      supportTicketId: result.id,
     })
 
     return this.mapTicketToResponse(result)
@@ -547,6 +558,15 @@ export class SupportTicketsService {
       .catch(err => {
         this.logger.error('Failed to publish ticket status update event', err)
       })
+
+    // v28 catalog dispatch — both audiences get a status-change entry; the
+    // resolver scopes each to its own requester type (PARENT vs PROVIDER).
+    notify(this.eventEmitter, NotificationType.ParentSupportTicketStatusChanged, {
+      supportTicketId: updated.id,
+    })
+    notify(this.eventEmitter, NotificationType.ProviderSupportTicketStatusChanged, {
+      supportTicketId: updated.id,
+    })
 
     return response
   }

@@ -4,6 +4,7 @@ import React from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn, useConfirmDialog } from '@world-schools/ui-web'
 import {
+  Bell,
   Building2,
   CreditCard,
   FileText,
@@ -61,6 +62,11 @@ const navigationSections: NavigationSection[] = [
   {
     title: 'Settings',
     items: [
+      {
+        name: 'Notification Preferences',
+        href: '/account/settings/notifications',
+        icon: <Bell size={20} />,
+      },
       {
         name: 'Login & security',
         href: '/account/settings/security',

@@ -20,14 +20,172 @@ import { BookingDeclineReason } from './bookings.types'
 // Shared enums (no DB enum — extensible without Prisma migrations)
 // ---------------------------------------------------------------------------
 
+/**
+ * Notification type catalog key. v28 spec uses the dotted-namespace
+ * `<audience>.<domain>.<event>` convention. Entries are added incrementally
+ * as catalog phases land.
+ *
+ * Phase 5 cutover (complete): the 7 pre-v28 legacy values have been
+ * removed. The 3 that were in use (BookingAccepted/Declined/RequestReceived)
+ * are now `parent.booking.accepted` + `provider.booking.accepted` (etc.).
+ * The other 4 (BookingExpired, MessageNew, SupportTicketUpdated, SystemAlert)
+ * were never emitted by any code path and were dropped without replacement.
+ */
 export enum NotificationType {
-  BookingAccepted = 'booking_accepted',
-  BookingDeclined = 'booking_declined',
-  BookingExpired = 'booking_expired',
-  BookingRequestReceived = 'booking_request_received',
-  MessageNew = 'message_new',
-  SupportTicketUpdated = 'support_ticket_updated',
-  SystemAlert = 'system_alert',
+  // ---- v28 catalog — parent : booking lifecycle ----
+  ParentBookingRequestSubmitted = 'parent.booking.requestSubmitted',
+  ParentBookingRequestStillPending = 'parent.booking.requestStillPending',
+  ParentBookingAccepted = 'parent.booking.accepted',
+  ParentBookingDeclined = 'parent.booking.declined',
+  ParentBookingExpired = 'parent.booking.expired',
+  ParentBookingCancelled = 'parent.booking.cancelled',
+  ParentBookingModified = 'parent.booking.modified',
+  ParentBookingRequestWithdrawn = 'parent.booking.requestWithdrawn',
+
+  // ---- v28 catalog — provider : booking lifecycle ----
+  ProviderBookingAccepted = 'provider.booking.accepted',
+  ProviderBookingDeclined = 'provider.booking.declined',
+  ProviderBookingRequestReceived = 'provider.booking.requestReceived',
+
+  // ---- v28 catalog — parent : payment lifecycle ----
+  ParentPaymentDepositConfirmed = 'parent.payment.depositConfirmed',
+  ParentPaymentBalanceReminder14d = 'parent.payment.balanceReminder14d',
+  ParentPaymentBalanceReminder7d = 'parent.payment.balanceReminder7d',
+  ParentPaymentBalanceReminder3d = 'parent.payment.balanceReminder3d',
+  ParentPaymentBalanceCharged = 'parent.payment.balanceCharged',
+  ParentPaymentBalanceFailedFirst = 'parent.payment.balanceFailedFirst',
+  ParentPaymentBalanceFailedSecond = 'parent.payment.balanceFailedSecond',
+  ParentPaymentBalanceFailedFinal = 'parent.payment.balanceFailedFinal',
+  ParentPaymentCancelledNonPayment = 'parent.payment.cancelledNonPayment',
+
+  // ---- v28 catalog — parent : refund / dispute ----
+  ParentRefundIssued = 'parent.refund.issued',
+  ParentRefundFailed = 'parent.refund.failed',
+  ParentDisputeOpened = 'parent.dispute.opened',
+  ParentDisputeResolvedWon = 'parent.dispute.resolvedWon',
+  ParentDisputeResolvedLost = 'parent.dispute.resolvedLost',
+
+  // ---- v28 catalog — parent : messaging / support ----
+  ParentMessagingNewFromCamp = 'parent.messaging.newFromCamp',
+  ParentSupportTicketReply = 'parent.support.ticketReply',
+  ParentSupportTicketStatusChanged = 'parent.support.ticketStatusChanged',
+
+  // ---- v28 catalog — parent : wishlist / conversion ----
+  ParentWishlistEmpty = 'parent.wishlist.empty',
+  ParentWishlistItemsNoBooking7d = 'parent.wishlist.itemsNoBooking7d',
+  ParentWishlistItemsNoBooking21d = 'parent.wishlist.itemsNoBooking21d',
+  ParentWishlistPriceDrop = 'parent.wishlist.priceDrop',
+  ParentWishlistFillingUp = 'parent.wishlist.fillingUp',
+  ParentWishlistDeadlineApproaching = 'parent.wishlist.deadlineApproaching',
+  ParentWishlistEarlyBirdIncrease = 'parent.wishlist.earlyBirdIncrease',
+  ParentConversionPostDeclineAlternatives = 'parent.conversion.postDeclineAlternatives',
+  ParentCheckoutAbandoned3h = 'parent.checkout.abandoned3h',
+  ParentCheckoutAbandoned2d = 'parent.checkout.abandoned2d',
+  ParentCheckoutAbandoned4d = 'parent.checkout.abandoned4d',
+  ParentCheckoutAbandoned6d = 'parent.checkout.abandoned6d',
+
+  // ---- v28 catalog — parent : pre/post-camp + reviews + profile ----
+  ParentPreCampChecklist14d = 'parent.preCamp.checklist14d',
+  ParentPreCampPackingReminder7d = 'parent.preCamp.packingReminder7d',
+  ParentPreCampDayBefore = 'parent.preCamp.dayBefore',
+  ParentPostCampReviewRequest = 'parent.postCamp.reviewRequest',
+  ParentPostCampReviewReminder = 'parent.postCamp.reviewReminder',
+  ParentPostCampSurvey = 'parent.postCamp.survey',
+  ParentReviewResponsePublished = 'parent.review.responsePublished',
+  ParentReviewRemoved = 'parent.review.removed',
+  ParentProfileIncomplete = 'parent.profile.incomplete',
+
+  // ---- v28 catalog — provider : onboarding ----
+  ProviderApplicationReceived = 'provider.application.received',
+  ProviderApplicationApproved = 'provider.application.approved',
+  ProviderApplicationDeclined = 'provider.application.declined',
+  ProviderDocumentReuploadRequested = 'provider.application.documentReuploadRequested',
+  ProviderAdditionalInfoRequired = 'provider.application.additionalInfoRequired',
+  ProviderConnectStripeNudge = 'provider.onboarding.connectStripeNudge',
+  ProviderConnectStripeReminder = 'provider.onboarding.connectStripeReminder',
+  ProviderProfileIncomplete = 'provider.profile.incomplete',
+  ProviderProfilePublished = 'provider.profile.published',
+  ProviderFirstBooking = 'provider.booking.firstBooking',
+  ProviderStripeDisconnected = 'provider.onboarding.stripeDisconnected',
+
+  // ---- v28 catalog — provider : booking lifecycle ----
+  ProviderBookingRequest48hReminder = 'provider.booking.request48hReminder',
+  ProviderBookingRequestFinalReminder = 'provider.booking.requestFinalReminder',
+  ProviderBookingRequestExpired = 'provider.booking.requestExpired',
+  ProviderBookingCancelledByFamily = 'provider.booking.cancelledByFamily',
+  ProviderBookingCancelledNonPayment = 'provider.booking.cancelledNonPayment',
+  ProviderBookingRequestWithdrawn = 'provider.booking.requestWithdrawn',
+  ProviderBookingModified = 'provider.booking.modified',
+
+  // ---- v28 catalog — provider : payments / payouts ----
+  ProviderPayoutScheduleConfirmed = 'provider.payouts.scheduleConfirmed',
+  ProviderBalanceCollected = 'provider.payments.balanceCollected',
+  ProviderPayoutReminder = 'provider.payouts.reminder',
+  ProviderPayoutReleased = 'provider.payouts.released',
+  ProviderPayoutFailed = 'provider.payouts.failed',
+  ProviderPayoutDelayed = 'provider.payouts.delayed',
+
+  // ---- v28 catalog — provider : refunds / disputes ----
+  ProviderRefundIssued = 'provider.refund.issued',
+  ProviderRefundFailed = 'provider.refund.failed',
+  ProviderReimbursementOwed = 'provider.reimbursement.owed',
+  ProviderDisputeOpened = 'provider.dispute.opened',
+  ProviderDisputeEvidenceDue = 'provider.dispute.evidenceDue',
+  ProviderDisputeResolvedWon = 'provider.dispute.resolvedWon',
+  ProviderDisputeResolvedLost = 'provider.dispute.resolvedLost',
+
+  // ---- v28 catalog — provider : messaging / reviews / support ----
+  ProviderMessagingNewFromFamily = 'provider.messaging.newFromFamily',
+  ProviderMessagingUnanswered24h = 'provider.messaging.unanswered24h',
+  ProviderMessagingUnanswered48h = 'provider.messaging.unanswered48h',
+  ProviderReviewNew = 'provider.review.new',
+  ProviderReviewResponsePublished = 'provider.review.responsePublished',
+  ProviderReviewNotRespondedReminder = 'provider.review.notRespondedReminder',
+  ProviderReviewRemoved = 'provider.review.removed',
+  ProviderSupportTicketReply = 'provider.support.ticketReply',
+  ProviderSupportTicketStatusChanged = 'provider.support.ticketStatusChanged',
+
+  // ---- v28 catalog — provider : pre-camp + operations + seasonal ----
+  ProviderPreCampRosterReady = 'provider.preCamp.rosterReady',
+  ProviderPreCampChecklist = 'provider.preCamp.checklist',
+  ProviderPreCampDayBefore = 'provider.preCamp.dayBefore',
+  ProviderPostCampWrap = 'provider.postCamp.wrap',
+  ProviderSeasonEnded = 'provider.season.ended',
+  ProviderProgramsNotUpdated30d = 'provider.programs.notUpdated30d',
+  ProviderProgramsNotUpdated60d = 'provider.programs.notUpdated60d',
+
+  // ---- v28 catalog — superadmin : support tickets (2) ----
+  SuperadminSupportTicketNew = 'superadmin.support.ticketNew',
+  SuperadminSupportTicketReply = 'superadmin.support.ticketReply',
+
+  // ---- v28 catalog — superadmin : onboarding (5) ----
+  SuperadminCampApplicationNew = 'superadmin.camp.applicationNew',
+  SuperadminVerificationDocsUploaded = 'superadmin.camp.verificationDocsUploaded',
+  SuperadminVerificationDocsNotUploaded = 'superadmin.camp.verificationDocsNotUploaded',
+  SuperadminCampProfileIncomplete14d = 'superadmin.camp.profileIncomplete14d',
+  SuperadminCampFirstListingLive = 'superadmin.camp.firstListingLive',
+
+  // ---- v28 catalog — superadmin : booking lifecycle (2) ----
+  SuperadminBookingCancelledNonPayment = 'superadmin.booking.cancelledNonPayment',
+  SuperadminCampUnresponsiveExpiredRequests = 'superadmin.camp.unresponsiveExpiredRequests',
+
+  // ---- v28 catalog — superadmin : payments / disputes (5) ----
+  SuperadminDisputeFiled = 'superadmin.dispute.filed',
+  SuperadminDisputeResolved = 'superadmin.dispute.resolved',
+  SuperadminPayoutFailure = 'superadmin.payout.failure',
+  SuperadminPayoutRecoveryNeeded = 'superadmin.payout.recoveryNeeded',
+  SuperadminFundsPendingTransfer = 'superadmin.payout.fundsPendingTransfer',
+
+  // ---- v28 catalog — superadmin : platform health (2) ----
+  SuperadminCampStripeDisconnected = 'superadmin.camp.stripeDisconnected',
+  SuperadminCampDeletionRequested = 'superadmin.camp.deletionRequested',
+
+  // ---- v28 catalog — superadmin : reviews (1) ----
+  SuperadminReviewFlagged = 'superadmin.review.flagged',
+
+  // ---- v28 catalog — superadmin : seasonal / profile (2) ----
+  SuperadminCampProfileNeedsAttention60d = 'superadmin.camp.profileNeedsAttention60d',
+  SuperadminCampProfileDeactivated = 'superadmin.camp.profileDeactivated',
 }
 
 export enum NotificationEntityType {
@@ -35,6 +193,42 @@ export enum NotificationEntityType {
   Conversation = 'conversation',
   Message = 'message',
   SupportTicket = 'support_ticket',
+  Payment = 'payment',
+  Refund = 'refund',
+  Dispute = 'dispute',
+  Payout = 'payout',
+  PayoutTranche = 'payout_tranche',
+  Reimbursement = 'reimbursement',
+  Review = 'review',
+  WishlistItem = 'wishlist_item',
+  VerificationDocument = 'verification_document',
+  Camp = 'camp',
+  Session = 'session',
+}
+
+/**
+ * High-level grouping used by:
+ *  - the notifications filter UI (Bookings / Messages / etc.)
+ *  - the notification preferences UI (one settings section per category)
+ *  - the icon mapping on the notifications page
+ *
+ * Single source of truth — each `NotificationType` maps to exactly one
+ * `NotificationCategory` via `NOTIFICATION_CATEGORY` (notification-categories.ts).
+ */
+export enum NotificationCategory {
+  Booking = 'booking',
+  Payment = 'payment',
+  Refund = 'refund',
+  Dispute = 'dispute',
+  Payout = 'payout',
+  Message = 'message',
+  Review = 'review',
+  Wishlist = 'wishlist',
+  Profile = 'profile',
+  Onboarding = 'onboarding',
+  Support = 'support',
+  System = 'system',
+  Marketing = 'marketing',
 }
 
 export type WsPresenceStatus = 'online' | 'away' | 'offline'

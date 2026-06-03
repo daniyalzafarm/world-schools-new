@@ -1,5 +1,8 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { NotificationType } from '@world-schools/wc-types'
 import { PrismaService } from '../../../prisma/prisma.service'
+import { notify } from '../../notifications/dispatcher/notify'
 import { CreateReviewResponseDto } from './dto/create-review-response.dto'
 
 interface ListReviewsParams {
@@ -10,7 +13,10 @@ interface ListReviewsParams {
 
 @Injectable()
 export class ProviderReviewsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2
+  ) {}
 
   async listForProvider(providerId: string, params: ListReviewsParams = {}) {
     const status = params.status ?? 'published'
@@ -120,6 +126,10 @@ export class ProviderReviewsService {
       throw new ForbiddenException('Can only respond to published reviews')
     }
 
+    const existing = await this.prisma.campReviewResponse.findUnique({
+      where: { reviewId },
+      select: { id: true },
+    })
     const response = await this.prisma.campReviewResponse.upsert({
       where: { reviewId },
       create: {
@@ -134,6 +144,20 @@ export class ProviderReviewsService {
         responseText: dto.responseText,
       },
     })
+
+    // Phase 7.5 — notify only on the create path (first publish). Edits to
+    // an existing response stay silent to avoid spamming the parent every
+    // time the camp tweaks wording. Phase 8.5 — mirror the provider-side
+    // confirmation so other staff on the same provider see that the
+    // response went out (catalog uses `allProviderUsersForReview`).
+    if (!existing) {
+      notify(this.eventEmitter, NotificationType.ParentReviewResponsePublished, {
+        reviewId,
+      })
+      notify(this.eventEmitter, NotificationType.ProviderReviewResponsePublished, {
+        reviewId,
+      })
+    }
 
     return response
   }

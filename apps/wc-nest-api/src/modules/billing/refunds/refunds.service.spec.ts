@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Prisma } from '../../../generated/client/client'
 import {
@@ -174,6 +175,7 @@ describe('RefundsService', () => {
         { provide: RedisService, useValue: redis },
         { provide: ReimbursementsService, useValue: reimbursements },
         { provide: PayoutsService, useValue: payouts },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
     service = module.get(RefundsService)

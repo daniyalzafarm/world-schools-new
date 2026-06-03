@@ -12,6 +12,8 @@ import { BookingWebSocketHandler } from './booking-websocket.handler'
 import { EligibilityModule } from './eligibility.module'
 import { BookingResponseExpiryCron } from './crons/response-expiry.cron'
 import { BookingDraftCleanupCron } from './crons/draft-cleanup.cron'
+import { AbandonDetectionCron } from './crons/abandon-detection.cron'
+import { PostCampReviewCron } from './crons/post-camp-review.cron'
 
 /**
  * BookingGroupsModule depends on BillingModule for the
@@ -22,6 +24,12 @@ import { BookingDraftCleanupCron } from './crons/draft-cleanup.cron'
  *
  * RedisModule is needed for the C5 submit-lock that serializes concurrent
  * submit attempts against the same (user, bookingGroup) pair.
+ *
+ * Phase 5 cutover (v28 notifications): NotificationsModule + EmailTemplatesModule
+ * imports dropped. BookingGroupsService now dispatches notifications via the
+ * EventEmitter2-based `notify()` helper; the catalog dispatcher (booted by
+ * NotificationsModule from AppModule) picks them up. BookingWebSocketHandler
+ * keeps only the live WS fan-out — no notification or email creation.
  */
 @Module({
   imports: [
@@ -40,6 +48,8 @@ import { BookingDraftCleanupCron } from './crons/draft-cleanup.cron'
     BookingWebSocketHandler,
     BookingResponseExpiryCron,
     BookingDraftCleanupCron,
+    AbandonDetectionCron,
+    PostCampReviewCron,
   ],
   exports: [BookingGroupsService],
 })

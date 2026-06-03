@@ -1,8 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Cron, CronExpression } from '@nestjs/schedule'
+import { NotificationType } from '@world-schools/wc-types'
 import { ConfigService } from '../../../../config/config.service'
 import { BookingGroupStatus, PaymentKind, PaymentStatus } from '../../../../generated/client/enums'
 import { PrismaService } from '../../../../prisma/prisma.service'
+import { notify } from '../../../notifications/dispatcher/notify'
 import { RedisService } from '../../../redis/redis.service'
 import { BillingPaymentNotificationsService } from '../notifications/billing-payment-notifications.service'
 import { PaymentIntentsService } from '../payment-intents.service'
@@ -57,7 +60,8 @@ export class BalanceChargeCron {
     private readonly redis: RedisService,
     private readonly paymentIntents: PaymentIntentsService,
     private readonly notifications: BillingPaymentNotificationsService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   @Cron(CronExpression.EVERY_30_MINUTES)
@@ -225,6 +229,15 @@ export class BalanceChargeCron {
             data: { status: BookingGroupStatus.payment_failed },
           })
           await this.notifications.notifyPaymentFailedFinal(after.id)
+          // v28 catalog dispatch — final-attempt failure. Distinct from the
+          // legacy notifications.notifyPaymentFailedFinal email which the
+          // catalog cutover will retire in a future phase; both fire today
+          // since the legacy path still serves any consumer keyed off the
+          // template id.
+          notify(this.eventEmitter, NotificationType.ParentPaymentBalanceFailedFinal, {
+            paymentId: after.id,
+            bookingGroupId: after.bookingGroupId,
+          })
         }
       }
     }

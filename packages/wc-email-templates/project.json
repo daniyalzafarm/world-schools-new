@@ -1,0 +1,17 @@
+{
+  "name": "wc-email-templates",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/wc-email-templates/src",
+  "projectType": "library",
+  "tags": [],
+  "// targets": "Run preview server via `nx run wc-email-templates:email-dev` — opens http://localhost:3000",
+  "targets": {
+    "email-dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "email dev --dir emails --port 3000",
+        "cwd": "packages/wc-email-templates"
+      }
+    }
+  }
+}

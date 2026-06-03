@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { NotificationType } from '@world-schools/wc-types'
 import Stripe from 'stripe'
 import { Prisma } from '../../../generated/client/client'
 import { PrismaService } from '../../../prisma/prisma.service'
@@ -6,6 +8,7 @@ import { DisputesService } from '../../billing/disputes/disputes.service'
 import { PaymentIntentsService } from '../../billing/intents/payment-intents.service'
 import { PayoutsService } from '../../billing/payouts/payouts.service'
 import { RefundsService } from '../../billing/refunds/refunds.service'
+import { notify } from '../../notifications/dispatcher/notify'
 
 type StripeEvent = ReturnType<InstanceType<typeof Stripe>['webhooks']['constructEvent']>
 type StripeAccount = Awaited<ReturnType<InstanceType<typeof Stripe>['accounts']['retrieve']>>
@@ -75,7 +78,8 @@ export class StripeWebhookService {
     private readonly paymentIntentsService: PaymentIntentsService,
     private readonly refundsService: RefundsService,
     private readonly payoutsService: PayoutsService,
-    private readonly disputesService: DisputesService
+    private readonly disputesService: DisputesService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   /**
@@ -635,6 +639,12 @@ export class StripeWebhookService {
         stripePayoutsEnabled: false,
         stripeDetailsSubmitted: false,
         stripeAttentionRequired: false,
+        // v28 notification trigger fields. The catalog `Provider_Stripe_*`
+        // entries (Phase 8) read these to render the "your Stripe account
+        // was disconnected" notification with timing + reason. Cleared on
+        // re-connect via `StripeConnectService` (Phase 8 wiring).
+        stripeAccountDisconnectedAt: new Date(),
+        stripeAccountDisconnectedReason: 'stripe_webhook_deauthorized',
         // B2: `appFeePercentage` is deliberately NOT cleared. App-fee fields
         // are managed exclusively by the superadmin (Phase 5 audit) and a
         // Stripe disconnect is a payment-rails change, not a commercial-terms
@@ -646,5 +656,15 @@ export class StripeWebhookService {
     })
 
     this.logger.log(`Provider ${provider.id} disconnected their Stripe account ${accountId}`)
+
+    // v28 catalog dispatch — Phase 8a.
+    notify(this.eventEmitter, NotificationType.ProviderStripeDisconnected, {
+      providerId: provider.id,
+    })
+    // v28 Phase 9 — superadmin mirror. Platform team intervenes when a
+    // camp loses payouts (no new bookings can be accepted).
+    notify(this.eventEmitter, NotificationType.SuperadminCampStripeDisconnected, {
+      providerId: provider.id,
+    })
   }
 }

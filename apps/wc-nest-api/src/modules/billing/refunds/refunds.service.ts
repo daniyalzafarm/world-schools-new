@@ -6,7 +6,9 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import Stripe from 'stripe'
+import { notify } from '../../notifications/dispatcher/notify'
 import { Prisma } from '../../../generated/client/client'
 import {
   BookingGroupStatus,
@@ -23,7 +25,7 @@ import { StripeService } from '../../stripe/stripe.service'
 import { PayoutsService } from '../payouts/payouts.service'
 import { ReimbursementsService } from '../reimbursements/reimbursements.service'
 import { billingAudit } from '../shared/audit-log.util'
-import type { SpecialCircumstanceType } from '@world-schools/wc-types'
+import { NotificationType, type SpecialCircumstanceType } from '@world-schools/wc-types'
 import {
   evaluatePolicy as evaluatePolicySnapshot,
   PolicySnapshot,
@@ -143,7 +145,8 @@ export class RefundsService {
     private readonly stripeService: StripeService,
     private readonly redis: RedisService,
     private readonly reimbursementsService: ReimbursementsService,
-    private readonly payoutsService: PayoutsService
+    private readonly payoutsService: PayoutsService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   /**
@@ -745,6 +748,43 @@ export class RefundsService {
         )
       }
     })
+
+    // v28 catalog dispatch — refund success / failure. Fires only on the
+    // transition into a terminal state so duplicate webhook deliveries (or
+    // status churn before the final outcome) don't spam the parent.
+    // Phase 8 adds the provider-side mirrors plus a reimbursement-owed
+    // notification when the platform absorbed the refund (transferDate
+    // already passed).
+    if (isSucceeded && !wasSucceeded) {
+      notify(this.eventEmitter, NotificationType.ParentRefundIssued, {
+        refundId: row.id,
+        bookingGroupId: row.bookingGroupId,
+        paymentId: row.paymentId,
+      })
+      notify(this.eventEmitter, NotificationType.ProviderRefundIssued, {
+        refundId: row.id,
+        bookingGroupId: row.bookingGroupId,
+        paymentId: row.paymentId,
+      })
+      if (row.requiresReimbursement) {
+        notify(this.eventEmitter, NotificationType.ProviderReimbursementOwed, {
+          refundId: row.id,
+          bookingGroupId: row.bookingGroupId,
+          paymentId: row.paymentId,
+        })
+      }
+    } else if (newStatus === RefundStatus.failed && row.status !== RefundStatus.failed) {
+      notify(this.eventEmitter, NotificationType.ParentRefundFailed, {
+        refundId: row.id,
+        bookingGroupId: row.bookingGroupId,
+        paymentId: row.paymentId,
+      })
+      notify(this.eventEmitter, NotificationType.ProviderRefundFailed, {
+        refundId: row.id,
+        bookingGroupId: row.bookingGroupId,
+        paymentId: row.paymentId,
+      })
+    }
   }
 
   // -------- Internal helpers ---------------------------------------------
@@ -1303,6 +1343,31 @@ export class RefundsService {
     // tranches on a cancelled booking. The payouts service is idempotent —
     // calling this on a booking with no pending tranches is a no-op.
     await this.payoutsService.cancelPendingTranches(bookingGroupId, `refund:${reason}`)
+
+    // Phase 7.5 — when the cancellation was driven by a balance payment
+    // failure (the balance-charge cron flips BookingGroup to `payment_failed`
+    // first, then this path runs with reason `policy_balance`), the parent
+    // gets a distinct "cancelled because we couldn't collect" email rather
+    // than the generic cancellation copy. The catalog's `cancelledNonPayment`
+    // entry uses the formal "Dear" salutation and points the parent at the
+    // browse page (no refund line — the deposit was non-refundable). Other
+    // cancellation reasons stay silent here because the active path emits
+    // `ParentBookingCancelled` from `BookingGroupsService.cancelForParent`.
+    if (reason === 'policy_balance') {
+      notify(this.eventEmitter, NotificationType.ParentPaymentCancelledNonPayment, {
+        bookingGroupId,
+      })
+      // v28 Phase 8 — provider-side mirror.
+      notify(this.eventEmitter, NotificationType.ProviderBookingCancelledNonPayment, {
+        bookingGroupId,
+      })
+      // v28 Phase 9 — superadmin mirror. Deposit payout has already settled
+      // per cancellation policy; this is purely informational so admins can
+      // spot patterns (e.g. card-failure clusters at one camp).
+      notify(this.eventEmitter, NotificationType.SuperadminBookingCancelledNonPayment, {
+        bookingGroupId,
+      })
+    }
   }
 
   /**

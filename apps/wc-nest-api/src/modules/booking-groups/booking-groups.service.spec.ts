@@ -101,6 +101,11 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         // happy path — we won the race). Tests for the lost-race path
         // override this to return `{ count: 0 }`.
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        // Phase 8: submitForParent does a `count(where: providerId)` to
+        // detect a provider's very first booking and dispatch the
+        // `ProviderFirstBooking` notification. Default `2` so the
+        // existing tests don't accidentally tip the count to 1.
+        count: jest.fn().mockResolvedValue(2),
       },
       booking: {
         updateMany: jest.fn(),

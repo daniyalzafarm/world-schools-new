@@ -20,7 +20,7 @@ export function useUnreadNotificationsCount(): number {
 
   const fetchCount = useCallback(async () => {
     if (!user?.id) return
-    const result = await apiClient.get<{ count: number }>('/notifications/unread-count')
+    const result = await apiClient.get<{ count: number }>('/user/notifications/unread-count')
     if (result.success) {
       setCount(result.data.count)
     }

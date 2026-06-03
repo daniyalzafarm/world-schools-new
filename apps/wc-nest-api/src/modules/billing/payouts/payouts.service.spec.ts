@@ -1,3 +1,4 @@
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Test, TestingModule } from '@nestjs/testing'
 import Stripe from 'stripe'
 import { Prisma } from '../../../generated/client/client'
@@ -22,6 +23,7 @@ describe('PayoutsService.computeDefaultTransferDate', () => {
         PayoutsService,
         { provide: PrismaService, useValue: prisma },
         { provide: StripeService, useValue: stripeService },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
     service = module.get(PayoutsService)
@@ -116,6 +118,7 @@ describe('PayoutsService.computeOffsetReleaseDate', () => {
         PayoutsService,
         { provide: PrismaService, useValue: {} },
         { provide: StripeService, useValue: { client: {} } },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
     service = module.get(PayoutsService)
@@ -157,6 +160,7 @@ describe('PayoutsService.buildTranches', () => {
         PayoutsService,
         { provide: PrismaService, useValue: {} },
         { provide: StripeService, useValue: { client: {} } },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
     service = module.get(PayoutsService)
@@ -345,6 +349,7 @@ describe('PayoutsService.releasePendingTranche', () => {
         PayoutsService,
         { provide: PrismaService, useValue: prisma },
         { provide: StripeService, useValue: stripe },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
     service = module.get(PayoutsService)
@@ -592,6 +597,7 @@ describe('PayoutsService.cancelPendingTranches', () => {
         PayoutsService,
         { provide: PrismaService, useValue: prisma },
         { provide: StripeService, useValue: { client: {} } },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
     service = module.get(PayoutsService)
@@ -653,6 +659,7 @@ describe('PayoutsService.recordPayoutPaid / recordPayoutFailed', () => {
         PayoutsService,
         { provide: PrismaService, useValue: prisma },
         { provide: StripeService, useValue: stripe },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
     service = module.get(PayoutsService)

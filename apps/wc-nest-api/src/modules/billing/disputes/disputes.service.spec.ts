@@ -1,4 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Test, TestingModule } from '@nestjs/testing'
 import { DisputeOutcome } from '../../../generated/client/enums'
 import { PrismaService } from '../../../prisma/prisma.service'
@@ -35,6 +36,7 @@ describe('DisputesService', () => {
         DisputesService,
         { provide: PrismaService, useValue: prisma },
         { provide: StripeService, useValue: stripe },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
     service = module.get(DisputesService)

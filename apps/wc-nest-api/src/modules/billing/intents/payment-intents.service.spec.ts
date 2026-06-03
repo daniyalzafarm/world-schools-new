@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Test, TestingModule } from '@nestjs/testing'
 import Stripe from 'stripe'
 import { ConfigService } from '../../../config/config.service'
@@ -109,6 +110,7 @@ describe('PaymentIntentsService', () => {
         { provide: StripeService, useValue: stripe },
         { provide: StripeConnectService, useValue: stripeConnect },
         { provide: ConfigService, useValue: config },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
     service = module.get(PaymentIntentsService)

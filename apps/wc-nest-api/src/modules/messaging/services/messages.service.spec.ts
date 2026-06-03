@@ -1,3 +1,4 @@
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Test, TestingModule } from '@nestjs/testing'
 import { MessagesService } from './messages.service'
 import { PrismaService } from '../../../prisma/prisma.service'
@@ -126,6 +127,7 @@ describe('MessagesService', () => {
         MessagesService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: RedisService, useValue: mockRedisService },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
 

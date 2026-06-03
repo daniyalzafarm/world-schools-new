@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { PrismaService } from '../../../prisma/prisma.service'
+import { ProfileCompletionService } from '../../common/profile-completion/profile-completion.service'
 import { CreateChildDto } from './dto/create-child.dto'
 import { UpdateChildDto } from './dto/update-child.dto'
 import {
@@ -16,7 +17,10 @@ import {
 
 @Injectable()
 export class UserChildrenService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly profileCompletion: ProfileCompletionService
+  ) {}
 
   async create(userId: string, createChildDto: CreateChildDto) {
     // Get parent profile
@@ -45,6 +49,11 @@ export class UserChildrenService {
         profileCompletion: 30,
       },
     })
+
+    // Phase 7g (audit bug #2): keep parent's profile-completion score in
+    // sync. "At least one child" is worth 15 points in the parent formula
+    // and many parents create their first child here.
+    await this.profileCompletion.enqueueRecomputeForParent(parent.id)
 
     return this.formatChildResponse(child)
   }
@@ -182,6 +191,9 @@ export class UserChildrenService {
       where: { id },
       data: { archived: true },
     })
+
+    // Archiving may drop the parent below the "≥1 child" threshold.
+    await this.profileCompletion.enqueueRecomputeForParent(child.parentId)
 
     return this.formatChildResponse(child)
   }

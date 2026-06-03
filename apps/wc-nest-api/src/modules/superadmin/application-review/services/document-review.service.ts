@@ -1,8 +1,11 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { NotificationType } from '@world-schools/wc-types'
 import { PrismaService } from '../../../../prisma/prisma.service'
 import { ConfigService } from '../../../../config/config.service'
 import { TrustScoreService } from '../../../provider/onboarding/services/trust-score.service'
 import { AzureStorageService } from '@world-schools/wc-utils/backend'
+import { notify } from '../../../notifications/dispatcher/notify'
 import { ReviewDocumentDto } from '../dto/application-review.dto'
 
 @Injectable()
@@ -13,7 +16,8 @@ export class DocumentReviewService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-    private readonly trustScoreService: TrustScoreService
+    private readonly trustScoreService: TrustScoreService,
+    private readonly eventEmitter: EventEmitter2
   ) {
     // Azure Storage Service will be initialized lazily when needed
   }
@@ -159,6 +163,18 @@ export class DocumentReviewService {
     this.logger.log(
       `Reviewed document ${documentId} with status ${dto.reviewStatus} by reviewer ${reviewerId}`
     )
+
+    // v28 catalog dispatch — only fires for `needs_reupload` (the parent
+    // application status change for approve/reject is owned by
+    // `ApplicationReviewService.approve/rejectApplication`).
+    if (dto.reviewStatus === 'needs_reupload') {
+      const detail = [document.documentType, dto.reviewNotes].filter(Boolean).join(': ')
+      notify(this.eventEmitter, NotificationType.ProviderDocumentReuploadRequested, {
+        providerId: document.providerId,
+        verificationDocumentId: documentId,
+        extra: detail ? { detail } : undefined,
+      })
+    }
   }
 
   /**

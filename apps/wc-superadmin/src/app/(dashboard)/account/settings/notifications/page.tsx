@@ -1,21 +1,31 @@
 'use client'
 
-import React from 'react'
-import { ComingSoon } from '@/components/ui/coming-soon'
+import {
+  type BulkPreferenceItem,
+  NotificationPreferencesPage,
+  type PreferenceRow,
+  useNotificationPreferences,
+} from '@world-schools/wc-frontend-utils'
+import apiClient from '@/utils/api-client'
 
-export default function NotificationsPage() {
+// Phase 12 — superadmin notification preferences page. Backend filters
+// preferences to the superadmin audience based on the authenticated user.
+export default function NotificationPreferencesSuperadminPage() {
+  const prefs = useNotificationPreferences({
+    fetchPreferences: async () => {
+      const res = await apiClient.get<{ items: PreferenceRow[] }>(
+        '/superadmin/notification-preferences'
+      )
+      return res.success ? res.data.items : []
+    },
+    bulkUpdate: async (items: BulkPreferenceItem[]) => {
+      await apiClient.patch('/superadmin/notification-preferences', { items })
+    },
+  })
+
   return (
-    <div className="space-y-6">
-      <div className="mb-10">
-        <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">
-          Notification Preferences
-        </h1>
-        <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
-          Manage how you receive notifications
-        </p>
-      </div>
-
-      <ComingSoon />
+    <div className="max-w-3xl mx-auto px-8 py-12">
+      <NotificationPreferencesPage {...prefs} />
     </div>
   )
 }

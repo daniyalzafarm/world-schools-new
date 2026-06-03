@@ -15,7 +15,8 @@ import {
 } from '../dto/application-review.dto'
 import { ApplicationNotificationService } from '../../../common/email-templates/application-notification.service'
 import { WsInternalEvent } from '../../../websocket/ws-internal-events'
-import { OperationalStatus } from '@world-schools/wc-types'
+import { NotificationType, OperationalStatus } from '@world-schools/wc-types'
+import { notify } from '../../../notifications/dispatcher/notify'
 
 @Injectable()
 export class ApplicationReviewService {
@@ -428,6 +429,19 @@ export class ApplicationReviewService {
 
     // Send application approved email
     await this.applicationNotificationService.sendApplicationApprovedEmail(providerId)
+
+    // v28 catalog dispatch — also fires the in-app notification + the
+    // catalog-managed email. Phase 8 cutover keeps the legacy email path
+    // running so any consumer keyed off the old template id still
+    // works; the legacy path can retire in a future cleanup.
+    notify(this.eventEmitter, NotificationType.ProviderApplicationApproved, { providerId })
+
+    // Phase 8.5 — initial Stripe-connect nudge. Provider can't accept
+    // bookings until Stripe is connected, so we prompt them the moment
+    // they're approved. The weekly `dispatchConnectStripeReminder` cron
+    // (provider-engagement.cron) picks up any provider still without
+    // `stripeAccountId` after 7+ days for the escalation reminder.
+    notify(this.eventEmitter, NotificationType.ProviderConnectStripeNudge, { providerId })
   }
 
   /**
@@ -469,12 +483,20 @@ export class ApplicationReviewService {
 
     // Send application rejected email
     await this.applicationNotificationService.sendApplicationRejectedEmail(providerId)
+
+    // v28 catalog dispatch — decline notification includes the controlled
+    // reason from `dto.category` (passed via `extra.detail` so the email
+    // template renders it inline).
+    notify(this.eventEmitter, NotificationType.ProviderApplicationDeclined, {
+      providerId,
+      extra: { detail: dto.reason ?? dto.category ?? null },
+    })
   }
 
   /**
    * Request additional information from provider
    */
-  async requestInfo(providerId: string, reviewerId: string, _dto: RequestInfoDto): Promise<void> {
+  async requestInfo(providerId: string, reviewerId: string, dto: RequestInfoDto): Promise<void> {
     const provider = await this.prisma.provider.findUnique({
       where: { id: providerId },
     })
@@ -492,14 +514,20 @@ export class ApplicationReviewService {
       },
     })
 
-    // TODO: Send email notification to provider with the info request message
-
     this.logger.log(`Requested info from provider ${providerId} by reviewer ${reviewerId}`)
 
     this.eventEmitter.emit(WsInternalEvent.OnboardingStatusChanged, {
       providerId,
       newStatus: 'info_requested',
       previousStatus: provider.approvalStatus,
+    })
+
+    // v28 catalog dispatch — the dto's `message` (plus optional
+    // `fieldsNeeded`) renders into the email's `detail` line.
+    const detail = [dto.message, dto.fieldsNeeded].filter(Boolean).join(' — ')
+    notify(this.eventEmitter, NotificationType.ProviderAdditionalInfoRequired, {
+      providerId,
+      extra: detail ? { detail } : undefined,
     })
   }
 

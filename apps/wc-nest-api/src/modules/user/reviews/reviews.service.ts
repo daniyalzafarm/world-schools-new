@@ -4,9 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { NotificationType } from '@world-schools/wc-types'
 import { AzureStorageService } from '@world-schools/wc-utils/backend'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { ConfigService } from '../../../config/config.service'
+import { notify } from '../../notifications/dispatcher/notify'
 import { CreateReviewDto } from './dto/create-review.dto'
 import { UpdateReviewDto } from './dto/update-review.dto'
 
@@ -34,7 +37,8 @@ export class UserReviewsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   /** Same SAS URL rules as {@link UserCampsService.getCampBySlug} / get camp API. */
@@ -315,6 +319,19 @@ export class UserReviewsService {
         include: REVIEW_INCLUDE,
       })
     })
+
+    // v28 Phase 8 — provider-side notification on every new published
+    // review. Resolver targets the full provider staff.
+    if (review) {
+      notify(this.eventEmitter, NotificationType.ProviderReviewNew, { reviewId: review.id })
+      // v28 Phase 9 — superadmin "review flagged" mirror. The spec lacks
+      // a dedicated "flag" workflow today, so we fire on every verified
+      // review submission and let the admin spot-check. When a moderation
+      // flag feature ships, narrow this to flagged-only.
+      notify(this.eventEmitter, NotificationType.SuperadminReviewFlagged, {
+        reviewId: review.id,
+      })
+    }
 
     return this.withSasUrlsOnReviewCamp(review)
   }

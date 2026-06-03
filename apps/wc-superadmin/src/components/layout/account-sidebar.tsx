@@ -51,7 +51,7 @@ const navigationSections: NavigationSection[] = [
     title: 'Settings',
     items: [
       {
-        name: 'Notifications',
+        name: 'Notification Preferences',
         href: '/account/settings/notifications',
         icon: <Bell size={20} />,
       },

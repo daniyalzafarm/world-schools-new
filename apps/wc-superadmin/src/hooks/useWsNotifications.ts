@@ -8,7 +8,7 @@ export function useWsNotifications() {
     wsService: globalWsService,
     getUnreadCount: () =>
       apiClient
-        .get<{ count: number }>('/notifications/unread-count')
+        .get<{ count: number }>('/superadmin/notifications/unread-count')
         .then(r => (r.success ? r.data.count : 0)),
   })
 }

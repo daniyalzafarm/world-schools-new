@@ -91,7 +91,9 @@ model User {
   wishlistShares WishlistShare[]
 
   // Notification Relations
-  notifications Notification[]
+  notifications           Notification[]
+  notificationDeliveries  NotificationDelivery[]
+  notificationPreferences NotificationPreference[]
 
   // System Settings Relations
   systemSettingsUpdates SystemSettings[]
@@ -252,17 +254,23 @@ model Provider {
   providerAgreementVersion    String?   @map("provider_agreement_version")
 
   // Stripe Connect
-  stripeAccountId             String?   @unique @map("stripe_account_id")
-  stripeOnboardingCompleted   Boolean   @default(false) @map("stripe_onboarding_completed")
-  stripeOnboardingCompletedAt DateTime? @map("stripe_onboarding_completed_at")
-  stripeOnboardingSkippedAt   DateTime? @map("stripe_onboarding_skipped_at")
-  stripeChargesEnabled        Boolean   @default(false) @map("stripe_charges_enabled")
-  stripePayoutsEnabled        Boolean   @default(false) @map("stripe_payouts_enabled")
-  stripeDetailsSubmitted      Boolean   @default(false) @map("stripe_details_submitted")
+  stripeAccountId                 String?   @unique @map("stripe_account_id")
+  stripeOnboardingCompleted       Boolean   @default(false) @map("stripe_onboarding_completed")
+  stripeOnboardingCompletedAt     DateTime? @map("stripe_onboarding_completed_at")
+  stripeOnboardingSkippedAt       DateTime? @map("stripe_onboarding_skipped_at")
+  stripeChargesEnabled            Boolean   @default(false) @map("stripe_charges_enabled")
+  stripePayoutsEnabled            Boolean   @default(false) @map("stripe_payouts_enabled")
+  stripeDetailsSubmitted          Boolean   @default(false) @map("stripe_details_submitted")
   // True when Stripe has open `requirements.currently_due` or `past_due` items.
   // Synced by the `account.updated` webhook so dashboard surfaces (lists, header
   // pills) can highlight providers needing action without a live Stripe fetch.
-  stripeAttentionRequired     Boolean   @default(false) @map("stripe_attention_required")
+  stripeAttentionRequired         Boolean   @default(false) @map("stripe_attention_required")
+  /// Stamped by the Stripe `account.application.deauthorized` webhook. Cleared
+  /// (set null) on reconnect. Drives the `Provider_Stripe_Disconnected` and
+  /// `Superadmin_Provider_StripeDisconnected` notifications and gates new
+  /// bookings for the provider's listings.
+  stripeAccountDisconnectedAt     DateTime? @map("stripe_account_disconnected_at")
+  stripeAccountDisconnectedReason String?   @map("stripe_account_disconnected_reason")
 
   // App fee — when `appFeeCustom` is false the system uses `SystemSettings.defaultAppFee`
   // and `appFeePercentage` is ignored. When true, `appFeePercentage` is the negotiated
@@ -271,6 +279,11 @@ model Provider {
   appFeePercentage       Decimal?  @map("app_fee_percentage") @db.Decimal(5, 2)
   appFeeUpdatedAt        DateTime? @map("app_fee_updated_at")
   appFeeUpdatedByAdminId String?   @map("app_fee_updated_by_admin_id")
+
+  /// 0–100 score recomputed by `ProfileCompletionService` on Provider/Camp
+  /// updates. Drives `Provider_Profile_Incomplete` reminders. Thresholds
+  /// (e.g. `<50` = incomplete) live in the catalog entries, not here.
+  profileCompletion Int @default(0) @map("profile_completion")
 
   // Relations
   owner                 User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
@@ -312,6 +325,10 @@ model Parent {
   primaryNationality   String?  @map("primary_nationality")
   secondaryNationality String?  @map("secondary_nationality")
   languages            String[] @default([])
+
+  /// 0–100 score recomputed by `ProfileCompletionService` on Parent/Children
+  /// updates. Drives `Parent_Profile_Incomplete` reminders.
+  profileCompletion Int @default(0) @map("profile_completion")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -1205,6 +1222,24 @@ model BookingGroup {
   declineReason      BookingDeclineReason? @map("decline_reason")
   declineReasonOther String?               @map("decline_reason_other") @db.Text
 
+  // ============================================
+  // Abandoned-checkout tracking (drives Parent_Checkout_Abandoned* notifications)
+  // ============================================
+
+  /// True once the parent has filled at least one participant detail OR
+  /// opened the payment step on a `status=draft` group. The abandon
+  /// detection cron only nudges drafts where this is true — pure
+  /// "added to cart and bounced" sessions are excluded per the spec
+  /// (#38, #39, #40, #41 on the Parent sheet).
+  checkoutStarted     Boolean   @default(false) @map("checkout_started")
+  /// Latest activity timestamp on a draft (any meaningful field update).
+  /// Read by `AbandonDetectionCron`: a draft is "abandoned" once
+  /// `lastActivityAt < now - 3h && checkoutStarted && !abandonedNotifiedAt`.
+  lastActivityAt      DateTime? @map("last_activity_at")
+  /// Stamped when the 3h abandoned-checkout notification is enqueued so the
+  /// cron is idempotent even without consulting BullMQ state.
+  abandonedNotifiedAt DateTime? @map("abandoned_notified_at")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -1230,6 +1265,12 @@ model BookingGroup {
   @@index([status])
   @@index([transferDate])
   @@index([balanceDueAt])
+  // Phase 14d composite indexes — back the notifications reconciliation cron.
+  // `reconcileBookingRequestTiers` filters by (status='request', createdAt: range);
+  // `reconcilePostDeclineAlternatives` filters by (status='declined', updatedAt: range).
+  // Without these, the cron seq-scans booking_groups once the table is large.
+  @@index([status, createdAt])
+  @@index([status, updatedAt])
   @@map("booking_groups")
 }
 
@@ -1278,6 +1319,11 @@ model Session {
   @@index([campId])
   @@index([status])
   @@index([sortOrder])
+  // Phase 14d — pre-camp + post-camp reconciliation cron filters sessions
+  // by startDate / endDate range. Single-column indexes here so the cron
+  // can probe a 25h window without scanning the full table.
+  @@index([startDate])
+  @@index([endDate])
   @@map("sessions")
 }
 
@@ -3086,4 +3132,76 @@ model Reimbursement {
   @@index([status])
   @@index([dueDate])
   @@map("reimbursements")
+}
+
+// ============================================
+// Notification delivery audit + preferences
+// ============================================
+
+enum NotificationDeliveryStatus {
+  pending
+  sent
+  failed
+  /// Skipped at dispatch time due to user preference filter or a dedupe-hit on
+  /// an already-sent row. Distinct from `failed` — no retry, no error.
+  skipped
+}
+
+/// One row per (template × channel × recipient × dedupe key). The
+/// `(template_key, channel, dedupe_key)` unique index is the load-bearing
+/// idempotency guard for the BullMQ worker: even if a job retries days later
+/// or a reconciliation cron re-enqueues, exactly one row is ever written.
+/// Also serves as the audit trail surfaced in Bull Board / ops tooling.
+model NotificationDelivery {
+  id              String                     @id @default(uuid())
+  /// Stable, human-readable template key from the catalog (e.g.
+  /// `parent.booking.accepted`). Mirrors `Notification.type` but kept
+  /// separate so the audit log survives type-string evolution.
+  templateKey     String                     @map("template_key")
+  /// The `NotificationType` string at the time the delivery was attempted.
+  type            String
+  recipientUserId String                     @map("recipient_user_id")
+  /// `in_app` or `email`. Kept as a plain string for easy extension (push,
+  /// sms) without a migration.
+  channel         String
+  /// Deterministic key produced by the catalog entry's `dedupeKey` builder.
+  /// Default form: `${type}:${recipientUserId}:${entityId}`.
+  dedupeKey       String                     @map("dedupe_key")
+  status          NotificationDeliveryStatus @default(pending)
+  attempt         Int                        @default(0)
+  /// Mirrored from the in-app Notification for support tooling.
+  entityType      String?                    @map("entity_type")
+  entityId        String?                    @map("entity_id")
+  /// BullMQ job id — lets ops cross-reference this row with Bull Board.
+  jobId           String?                    @map("job_id")
+  errorMessage    String?                    @map("error_message") @db.Text
+  enqueuedAt      DateTime                   @default(now()) @map("enqueued_at")
+  sentAt          DateTime?                  @map("sent_at")
+
+  recipient User @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@unique([templateKey, channel, dedupeKey])
+  @@index([recipientUserId])
+  @@index([status])
+  @@index([entityType, entityId])
+  @@map("notification_deliveries")
+}
+
+/// Per-user opt-out for non-transactional notifications. Row absence ==
+/// enabled by default. Transactional templates (booking lifecycle, payments,
+/// refunds, disputes, security) bypass this table entirely — the catalog
+/// entry's `transactional: true` flag short-circuits the preference check.
+model NotificationPreference {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  templateKey String   @map("template_key")
+  channel     String
+  enabled     Boolean  @default(true)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, templateKey, channel])
+  @@index([userId])
+  @@map("notification_preferences")
 }

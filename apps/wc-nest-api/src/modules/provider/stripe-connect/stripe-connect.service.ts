@@ -10,6 +10,7 @@ import { createHash } from 'crypto'
 import Stripe from 'stripe'
 import { ProviderGetPayload } from '../../../generated/client/models/Provider'
 import { PrismaService } from '../../../prisma/prisma.service'
+import { ProfileCompletionService } from '../../common/profile-completion/profile-completion.service'
 import { PROVIDER_MCC, SUPPORTED_CONNECT_CURRENCIES } from '../../stripe/stripe.constants'
 import { mapStripeError } from '../../stripe/stripe-error.util'
 import { StripeService } from '../../stripe/stripe.service'
@@ -180,7 +181,8 @@ export class StripeConnectService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly stripeService: StripeService
+    private readonly stripeService: StripeService,
+    private readonly profileCompletion: ProfileCompletionService
   ) {}
 
   /**
@@ -392,6 +394,12 @@ export class StripeConnectService {
         stripeChargesEnabled: account.charges_enabled,
         stripePayoutsEnabled: account.payouts_enabled,
         stripeDetailsSubmitted: account.details_submitted,
+        // Clear the disconnect markers on a successful reconnect so the
+        // catalog reads a clean state. If this row was never disconnected
+        // (i.e. first connect), these are already null — the write is a
+        // safe no-op.
+        stripeAccountDisconnectedAt: null,
+        stripeAccountDisconnectedReason: null,
       },
     })
 
@@ -595,6 +603,12 @@ export class StripeConnectService {
       detailsSubmitted,
     })
 
+    // Phase 7g (audit bug #2): Stripe charges-enabled is worth 20 pts in
+    // the provider's profile-completion formula. Recompute on every
+    // onboarding finalize so the "incomplete profile" reminder is gated
+    // against current state.
+    await this.profileCompletion.enqueueRecomputeForProvider(providerId)
+
     return this.buildStatusDto(updated, account)
   }
 
@@ -641,6 +655,12 @@ export class StripeConnectService {
         stripePayoutsEnabled: false,
         stripeDetailsSubmitted: false,
         stripeAttentionRequired: false,
+        // Mirrored from the deauth-webhook path so the v28 notification
+        // catalog reads the same fields whether the disconnect arrived as
+        // an explicit deauth event or was discovered via a `resource_missing`
+        // probe.
+        stripeAccountDisconnectedAt: new Date(),
+        stripeAccountDisconnectedReason: 'stripe_resource_missing',
       },
       include: { settings: true, owner: true },
     })

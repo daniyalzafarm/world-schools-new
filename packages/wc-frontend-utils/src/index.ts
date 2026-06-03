@@ -85,12 +85,32 @@ export * from './lib/support-tickets'
 // Notifications page (shared hook + UI across all wc-* apps)
 export {
   useNotificationsPage,
+  DEFAULT_NOTIFICATION_FILTERS,
   type NotificationFilter,
+  type NotificationFilterConfig,
   type UseNotificationsPageOptions,
   type UseNotificationsPageResult,
   type NotificationsPageResponse,
 } from './lib/notifications/use-notifications-page'
 export {
   NotificationsPageContent,
+  validateRedirectUrl,
   type NotificationsPageContentProps,
 } from './lib/notifications/notifications-page-content'
+export {
+  PARENT_FILTERS,
+  PROVIDER_FILTERS,
+  SUPERADMIN_FILTERS,
+  getFiltersFor,
+  type NotificationAudience,
+} from './lib/notifications/notification-filters'
+export {
+  NotificationPreferencesPage,
+  useNotificationPreferences,
+  type PreferenceRow,
+  type PreferenceChannel,
+  type BulkPreferenceItem,
+  type UseNotificationPreferencesOptions,
+  type UseNotificationPreferencesResult,
+  type NotificationPreferencesPageProps,
+} from './lib/notifications/notification-preferences-page'

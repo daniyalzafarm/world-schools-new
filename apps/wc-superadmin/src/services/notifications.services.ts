@@ -4,18 +4,26 @@ import { eventBus } from '@world-schools/wc-utils'
 
 export const notificationsService = {
   async getAll(cursor?: string): Promise<ApiResult<NotificationsPageResponse>> {
-    const url = cursor ? `/notifications?cursor=${encodeURIComponent(cursor)}` : '/notifications'
+    const url = cursor
+      ? `/superadmin/notifications?cursor=${encodeURIComponent(cursor)}`
+      : '/superadmin/notifications'
     return apiClient.get<NotificationsPageResponse>(url)
   },
 
   async markAsRead(id: string): Promise<ApiResult<{ success: true }>> {
-    const result = await apiClient.patch<{ success: true }>(`/notifications/${id}/read`, {})
+    const result = await apiClient.patch<{ success: true }>(
+      `/superadmin/notifications/${id}/read`,
+      {}
+    )
     if (result.success) eventBus.$emit('notifications:read', { id })
     return result
   },
 
   async markAllAsRead(): Promise<ApiResult<{ success: true }>> {
-    const result = await apiClient.patch<{ success: true }>('/notifications/read-all', {})
+    const result = await apiClient.patch<{ success: true }>(
+      '/superadmin/notifications/read-all',
+      {}
+    )
     if (result.success) eventBus.$emit('notifications:read', { all: true })
     return result
   },

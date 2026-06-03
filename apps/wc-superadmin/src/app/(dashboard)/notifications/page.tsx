@@ -1,9 +1,16 @@
 'use client'
 
-import { NotificationsPageContent, useNotificationsPage } from '@world-schools/wc-frontend-utils'
+import {
+  getFiltersFor,
+  NotificationsPageContent,
+  useNotificationsPage,
+} from '@world-schools/wc-frontend-utils'
 import { useRouter } from 'next/navigation'
 import { notificationsService } from '@/services/notifications.services'
 import { useWsNotifications } from '@/hooks/useWsNotifications'
+
+// Phase 14d — filter set extracted to wc-frontend-utils (`getFiltersFor`).
+const SUPERADMIN_FILTERS = getFiltersFor('superadmin')
 
 export default function NotificationsPage() {
   const router = useRouter()
@@ -20,6 +27,7 @@ export default function NotificationsPage() {
     markAllAsRead: () => notificationsService.markAllAsRead().then(() => undefined),
 
     latestNotification,
+    filters: SUPERADMIN_FILTERS,
   })
 
   return (

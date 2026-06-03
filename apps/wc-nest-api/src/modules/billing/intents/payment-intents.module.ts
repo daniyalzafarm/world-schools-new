@@ -6,6 +6,7 @@ import { RedisModule } from '../../redis/redis.module'
 import { StripeConnectModule } from '../../provider/stripe-connect/stripe-connect.module'
 import { AuthExpiryMonitorCron } from './crons/auth-expiry-monitor.cron'
 import { BalanceChargeCron } from './crons/balance-charge.cron'
+import { BalanceReminderCron } from './crons/balance-reminder.cron'
 import { BillingPaymentNotificationsService } from './notifications/billing-payment-notifications.service'
 import { PaymentIntentsService } from './payment-intents.service'
 
@@ -14,6 +15,7 @@ import { PaymentIntentsService } from './payment-intents.service'
   providers: [
     PaymentIntentsService,
     BalanceChargeCron,
+    BalanceReminderCron,
     AuthExpiryMonitorCron,
     BillingPaymentNotificationsService,
   ],

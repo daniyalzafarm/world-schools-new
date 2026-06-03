@@ -7,7 +7,10 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { NotificationType } from '@world-schools/wc-types'
 import { PrismaService } from '../../../prisma/prisma.service'
+import { notify } from '../../notifications/dispatcher/notify'
 import { RedisService } from '../../redis/redis.service'
 import { RedisPubSubService } from './redis-pub-sub.service'
 import { ConversationsService } from './conversations.service'
@@ -66,7 +69,8 @@ export class MessagesService {
     private redis: RedisService,
     private redisPubSub: RedisPubSubService,
     private conversationsService: ConversationsService,
-    private attachmentsService: AttachmentsService
+    private attachmentsService: AttachmentsService,
+    private eventEmitter: EventEmitter2
   ) {}
 
   /**
@@ -309,6 +313,79 @@ export class MessagesService {
 
       if (!conversation) {
         throw new NotFoundException('Conversation not found')
+      }
+
+      // v28 catalog dispatch — outbound parent-facing notification when the
+      // sender is the provider side of a camp DM or the support side of a
+      // support ticket. Resolver filters out provider participants + the
+      // sender, so a parent-authored message never re-notifies the sender.
+      if (senderType === SenderType.PROVIDER) {
+        if (conversation.contextType === ContextType.SUPPORT_TICKET) {
+          const ticket = conversation.contextId
+            ? await this.prisma.supportTicket.findFirst({
+                where: { conversationId },
+                select: { id: true },
+              })
+            : null
+          if (ticket) {
+            notify(this.eventEmitter, NotificationType.ParentSupportTicketReply, {
+              supportTicketId: ticket.id,
+              conversationId,
+              messageId: message.id,
+            })
+            // v28 Phase 9 — superadmin mirror so the assigned support
+            // agent sees the requester reply alongside parent/provider.
+            notify(this.eventEmitter, NotificationType.SuperadminSupportTicketReply, {
+              supportTicketId: ticket.id,
+              conversationId,
+              messageId: message.id,
+            })
+          }
+        } else {
+          notify(this.eventEmitter, NotificationType.ParentMessagingNewFromCamp, {
+            conversationId,
+            messageId: message.id,
+          })
+        }
+      } else if (senderType === SenderType.USER) {
+        // v28 Phase 8 — provider mirror for parent → camp DMs, plus the
+        // provider-as-requester support-reply path. Resolver filters out
+        // the sender + parent participants so a provider doesn't get
+        // notified about their own message.
+        if (conversation.contextType === ContextType.SUPPORT_TICKET) {
+          const ticket = conversation.contextId
+            ? await this.prisma.supportTicket.findFirst({
+                where: { conversationId },
+                select: { id: true, requesterType: true },
+              })
+            : null
+          if (ticket?.requesterType === 'PROVIDER') {
+            notify(this.eventEmitter, NotificationType.ProviderSupportTicketReply, {
+              supportTicketId: ticket.id,
+              conversationId,
+              messageId: message.id,
+            })
+          }
+          if (ticket) {
+            // v28 Phase 9 — superadmin mirror for any USER reply in a
+            // support-ticket conversation (parent requester or provider
+            // requester). Fires alongside the audience-specific notify.
+            notify(this.eventEmitter, NotificationType.SuperadminSupportTicketReply, {
+              supportTicketId: ticket.id,
+              conversationId,
+              messageId: message.id,
+            })
+          }
+        } else {
+          // Use conversation.metadata.providerId when available — the
+          // `metadata` JSON column carries it for USER_PROVIDER convos.
+          const meta = conversation.metadata as { providerId?: string } | null
+          notify(this.eventEmitter, NotificationType.ProviderMessagingNewFromFamily, {
+            conversationId,
+            messageId: message.id,
+            providerId: meta?.providerId,
+          })
+        }
       }
 
       // Invalidate conversation cache for all direct participants in parallel

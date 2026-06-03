@@ -1,3 +1,4 @@
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Test, TestingModule } from '@nestjs/testing'
 import { ConfigService } from '../../../../config/config.service'
 import { PaymentStatus } from '../../../../generated/client/enums'
@@ -57,6 +58,7 @@ describe('BalanceChargeCron', () => {
         { provide: PaymentIntentsService, useValue: paymentIntents },
         { provide: BillingPaymentNotificationsService, useValue: notifications },
         { provide: ConfigService, useValue: config },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
     cron = module.get(BalanceChargeCron)

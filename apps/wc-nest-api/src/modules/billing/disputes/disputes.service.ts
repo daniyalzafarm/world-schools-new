@@ -1,8 +1,11 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { NotificationType } from '@world-schools/wc-types'
 import Stripe from 'stripe'
 import { Prisma } from '../../../generated/client/client'
 import { DisputeOutcome } from '../../../generated/client/enums'
 import { PrismaService } from '../../../prisma/prisma.service'
+import { notify } from '../../notifications/dispatcher/notify'
 import { StripeService } from '../../stripe/stripe.service'
 import { billingAudit } from '../shared/audit-log.util'
 
@@ -104,7 +107,8 @@ export class DisputesService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly stripeService: StripeService
+    private readonly stripeService: StripeService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   /**
@@ -123,7 +127,13 @@ export class DisputesService {
     }
 
     const status = dispute.status ?? 'needs_response'
+    // Track whether the upsert actually created a row so we only notify once.
+    let createdNewRow = false
     await this.prisma.$transaction(async tx => {
+      const existing = await tx.dispute.findUnique({
+        where: { stripeDisputeId: dispute.id },
+        select: { id: true },
+      })
       await tx.dispute.upsert({
         where: { stripeDisputeId: dispute.id },
         create: {
@@ -145,6 +155,7 @@ export class DisputesService {
           outcome: classifyOutcome(status),
         },
       })
+      createdNewRow = !existing
       await tx.bookingGroup.update({
         where: { id: payment.bookingGroupId },
         data: { status: 'disputed' },
@@ -158,6 +169,40 @@ export class DisputesService {
       currency: dispute.currency,
       reason: dispute.reason,
     })
+
+    if (createdNewRow) {
+      // v28 catalog dispatch — parent notification when a chargeback first
+      // appears. Skip on the update path so a stream of stripe status churn
+      // (`needs_response` → `under_review`) doesn't re-notify.
+      const row = await this.prisma.dispute.findUnique({
+        where: { stripeDisputeId: dispute.id },
+        select: { id: true },
+      })
+      if (row) {
+        notify(this.eventEmitter, NotificationType.ParentDisputeOpened, {
+          disputeId: row.id,
+          bookingGroupId: payment.bookingGroupId,
+          paymentId: payment.id,
+        })
+        // v28 Phase 8 — provider-side mirror. The catalog entry uses the
+        // `providerOwnerForBooking` resolver so only the camp owner sees
+        // it; chargebacks are commercially sensitive and the spec puts
+        // them on a single accountable person.
+        notify(this.eventEmitter, NotificationType.ProviderDisputeOpened, {
+          disputeId: row.id,
+          bookingGroupId: payment.bookingGroupId,
+          paymentId: payment.id,
+        })
+        // v28 Phase 9 — superadmin mirror. Stripe imposes hard response
+        // deadlines on chargebacks; the admin team gets a parallel alert
+        // so platform-level response coordination starts immediately.
+        notify(this.eventEmitter, NotificationType.SuperadminDisputeFiled, {
+          disputeId: row.id,
+          bookingGroupId: payment.bookingGroupId,
+          paymentId: payment.id,
+        })
+      }
+    }
   }
 
   /**
@@ -184,6 +229,7 @@ export class DisputesService {
       return
     }
     const outcome = classifyOutcome(dispute.status ?? '')
+    const prevOutcome = row.outcome
     await this.prisma.dispute.update({
       where: { id: row.id },
       data: { status: dispute.status ?? row.status, outcome },
@@ -194,6 +240,40 @@ export class DisputesService {
       stripeDisputeId: dispute.id,
       outcome,
     })
+
+    // v28 catalog dispatch — only fire on the transition into a terminal
+    // outcome (won / lost) and only once per outcome change. Phase 8
+    // adds the provider-side mirrors (single recipient = camp owner).
+    if (outcome !== prevOutcome) {
+      const parentType =
+        outcome === DisputeOutcome.won
+          ? NotificationType.ParentDisputeResolvedWon
+          : outcome === DisputeOutcome.lost
+            ? NotificationType.ParentDisputeResolvedLost
+            : null
+      const providerType =
+        outcome === DisputeOutcome.won
+          ? NotificationType.ProviderDisputeResolvedWon
+          : outcome === DisputeOutcome.lost
+            ? NotificationType.ProviderDisputeResolvedLost
+            : null
+      const ctx = {
+        disputeId: row.id,
+        bookingGroupId: row.bookingGroupId,
+        paymentId: row.paymentId,
+      }
+      if (parentType) notify(this.eventEmitter, parentType, ctx)
+      if (providerType) notify(this.eventEmitter, providerType, ctx)
+      // v28 Phase 9 — single superadmin "resolved" notification regardless
+      // of outcome; the loader includes `outcome` in props for the
+      // template to render the "in favour of …" sentence.
+      if (outcome === DisputeOutcome.won || outcome === DisputeOutcome.lost) {
+        notify(this.eventEmitter, NotificationType.SuperadminDisputeResolved, {
+          ...ctx,
+          extra: { outcome: outcome === DisputeOutcome.won ? 'won' : 'lost' },
+        })
+      }
+    }
   }
 
   /**
