@@ -1,5 +1,4 @@
 {
-  "defaultMode": "acceptEdits",
   "permissions": {
     "allow": [
       "Read(*)",
@@ -30,7 +29,6 @@
       "Bash(node:*)",
       "WebSearch(*)"
     ],
-    "ask": ["Bash(git push:*)", "Bash(git pull:*)", "Bash(docker:*)"],
     "deny": [
       "Read(./.env)",
       "Read(./secrets/**)",
@@ -42,7 +40,16 @@
       "Bash(wget:*)",
       "Bash(chmod:*)",
       "Bash(chown:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(docker:*)"
     ]
+  },
+  "enabledPlugins": {
+    "nx@nx-claude-plugins": true,
+    "notion-workspace-plugin@notion-plugin-marketplace": true
   },
   "extraKnownMarketplaces": {
     "nx-claude-plugins": {
@@ -52,7 +59,5 @@
       }
     }
   },
-  "enabledPlugins": {
-    "nx@nx-claude-plugins": true
-  }
+  "defaultMode": "acceptEdits"
 }
