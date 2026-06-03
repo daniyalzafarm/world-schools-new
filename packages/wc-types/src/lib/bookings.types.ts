@@ -58,6 +58,9 @@ export type EligibilityFailureCode =
   | 'dob_missing'
   | 'no_emergency_contact'
   | 'medical_required'
+  // The child already holds a capacity-consuming booking whose dates overlap
+  // the selected session (a child can't be in two camps at once).
+  | 'existing_booking_same_dates'
 
 export interface EligibilityFailure {
   code: EligibilityFailureCode
@@ -78,6 +81,18 @@ export interface EligibilityResult {
   childId: string
   eligible: boolean
   failures: EligibilityFailure[]
+}
+
+/**
+ * A child's existing booking date window, returned by
+ * `GET /user/booking-groups/child-booking-ranges`. The booking flow uses these
+ * to grey out a child whose dates overlap the selected session (mirrors the
+ * authoritative `existing_booking_same_dates` eligibility gate client-side).
+ */
+export interface ChildBookingRange {
+  childId: string
+  startDate: string
+  endDate: string
 }
 
 export interface CreateDraftBookingGroupDto {

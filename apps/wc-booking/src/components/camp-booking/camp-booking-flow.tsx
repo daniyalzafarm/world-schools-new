@@ -535,6 +535,7 @@ function ChildrenStep() {
   const [showWaitlist, setShowWaitlist] = useState(false)
 
   const children = useCampBookingStore(state => state.children)
+  const childBookingRanges = useCampBookingStore(state => state.childBookingRanges)
   const selectedChildIds = useCampBookingStore(state => state.selectedChildIds)
   const toggleChild = useCampBookingStore(state => state.toggleChild)
   const createDraftBookingGroup = useCampBookingStore(state => state.createDraftBookingGroup)
@@ -544,8 +545,8 @@ function ChildrenStep() {
   const [isAddingChild, setIsAddingChild] = useState(false)
 
   const eligibleChildren = useMemo(
-    () => getChildrenEligibility(camp, session, children),
-    [children, camp, session]
+    () => getChildrenEligibility(camp, session, children, childBookingRanges),
+    [children, camp, session, childBookingRanges]
   )
 
   // Continue is only valid when at least one *eligible* child is selected.

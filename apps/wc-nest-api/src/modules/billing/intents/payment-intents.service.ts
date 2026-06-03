@@ -249,7 +249,14 @@ export class PaymentIntentsService {
 
     const params: SetupIntentCreateParams = {
       customer: connectCustomer.stripeCustomerId,
-      payment_method_types: ['card'],
+      // Mirror the PaymentIntent path (see authorizeIntent): the booking page
+      // collects via PaymentElement (automatic payment methods) and confirms
+      // with `stripe.confirmSetup`, so the SetupIntent must also be created
+      // with automatic_payment_methods — explicit payment_method_types is the
+      // manual integration and Stripe rejects it as a mismatch at confirm time.
+      // `allow_redirects: 'never'` locks down to non-redirect PMs to match the
+      // booking page's `redirect: 'if_required'` deferred-confirm flow.
+      automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
       usage: 'off_session',
       metadata: {
         bookingGroupId: group.id,

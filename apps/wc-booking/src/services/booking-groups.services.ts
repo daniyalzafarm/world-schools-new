@@ -1,5 +1,6 @@
 import apiClient, { type ApiResult } from '@/utils/api-client'
 import type {
+  ChildBookingRange,
   EligibilityResult,
   ParentBookingGroupsQuery,
   SpecialCircumstanceType,
@@ -57,6 +58,15 @@ export const bookingGroupsService = {
       '/user/booking-groups/eligibility-check',
       payload
     )
+  },
+
+  /**
+   * Date windows of the parent's children's capacity-consuming bookings. Used to
+   * grey out a child whose dates overlap the selected session up front — the
+   * client mirror of the authoritative `existing_booking_same_dates` gate.
+   */
+  async getChildBookingRanges(): Promise<ApiResult<ChildBookingRange[]>> {
+    return apiClient.get<ChildBookingRange[]>('/user/booking-groups/child-booking-ranges')
   },
 
   async getLatestDraftPreviews(campId: string): Promise<ApiResult<DraftBookingPreview[]>> {

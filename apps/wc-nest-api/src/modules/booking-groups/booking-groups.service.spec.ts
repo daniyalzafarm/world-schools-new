@@ -855,6 +855,29 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       expect(prisma.bookingGroup.updateMany).not.toHaveBeenCalled()
     })
 
+    it('submit blocks a child who already has an overlapping booking with a 422', async () => {
+      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce(makeBookingGroup())
+      eligibilityService.evaluateChildren.mockResolvedValueOnce([
+        {
+          childId: 'child-1',
+          eligible: false,
+          failures: [
+            {
+              code: 'existing_booking_same_dates',
+              message: 'This child already has a booking that overlaps these dates.',
+            },
+          ],
+        },
+      ])
+
+      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toBeInstanceOf(
+        UnprocessableEntityException
+      )
+      expect(payments.authorizeDeposit).not.toHaveBeenCalled()
+      expect(prisma.bookingGroup.updateMany).not.toHaveBeenCalled()
+    })
+
     it('submit blocks when the camp is not published', async () => {
       prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
       prisma.bookingGroup.findFirst.mockResolvedValueOnce(

@@ -5,6 +5,7 @@ import { getCampBySlug, getCampReviews } from '@/services/camps.services'
 import { campSessionsService } from '@/services/camp-sessions.services'
 import { campAddOnsService } from '@/services/camp-addons.services'
 import { bookingGroupsService } from '@/services/booking-groups.services'
+import type { ChildBookingRange } from '@world-schools/wc-types'
 import type { Camp } from '@/types/camps'
 import type { Child } from '@/types/child'
 import type { CampReviewsData } from '@/types/reviews'
@@ -27,6 +28,10 @@ interface CampBookingState {
   campReviews: CampReviewsData | null
   sessions: Session[]
   children: Child[]
+  /// The parent's children's capacity-consuming booking windows, used to grey
+  /// out a child whose dates overlap the selected session (mirrors the backend
+  /// `existing_booking_same_dates` gate). Best-effort: empty on fetch failure.
+  childBookingRanges: ChildBookingRange[]
   addOns: CampBookingAddOn[]
   selectedSessionId: string | null
   selectedChildIds: string[]
@@ -99,6 +104,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
     campReviews: null,
     sessions: [],
     children: [],
+    childBookingRanges: [],
     addOns: [],
     selectedSessionId: null,
     selectedChildIds: [],
@@ -139,8 +145,8 @@ export const useCampBookingStore = create<CampBookingStore>()(
         if (!camp.provider?.settings?.currency) {
           throw new Error('This provider isn’t fully set up yet. Please contact support.')
         }
-        const [sessionsResponse, childrenResponse, addOnsResponse, campReviews] = await Promise.all(
-          [
+        const [sessionsResponse, childrenResponse, addOnsResponse, campReviews, bookingRanges] =
+          await Promise.all([
             campSessionsService.getByCampId(camp.id),
             childrenService.getAll(),
             campAddOnsService.getByCampId(camp.id),
@@ -148,8 +154,14 @@ export const useCampBookingStore = create<CampBookingStore>()(
             // failure); a 404/500 here must not break booking. Fall back to null
             // and the sidebar shows the "0 reviews" empty state.
             getCampReviews(camp.id).catch(() => null),
-          ]
-        )
+            // Existing-booking date windows for the overlap guardrail. Non-critical:
+            // on failure we degrade to backend-only enforcement (submit still gates),
+            // so swallow errors and fall back to an empty list.
+            bookingGroupsService
+              .getChildBookingRanges()
+              .then(res => (res.success ? res.data : []))
+              .catch(() => []),
+          ])
 
         if (!sessionsResponse.success) throw new Error((sessionsResponse.data as any)?.message)
         if (!childrenResponse.success) throw new Error((childrenResponse.data as any)?.message)
@@ -160,6 +172,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
           state.campReviews = campReviews
           state.sessions = sessionsResponse.data
           state.children = childrenResponse.data
+          state.childBookingRanges = bookingRanges
           state.addOns = addOnsResponse.data
           state.currentStep = START_STEP
           state.bookingGroupId = null
@@ -343,7 +356,12 @@ export const useCampBookingStore = create<CampBookingStore>()(
         // Only auto-select children that actually pass the eligibility gate
         // (camp age groups + gender + readiness) — the same check the step-2 UI
         // shows. A simple age range would pre-select children the camp rejects.
-        const eligibleIds = getEligibleChildIds(state.camp, session, state.children)
+        const eligibleIds = getEligibleChildIds(
+          state.camp,
+          session,
+          state.children,
+          state.childBookingRanges
+        )
         state.selectedChildIds = maxSpots !== null ? eligibleIds.slice(0, maxSpots) : eligibleIds
       })
     },

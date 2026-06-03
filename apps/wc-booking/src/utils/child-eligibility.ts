@@ -1,5 +1,9 @@
-import { type AgeRange, validateChildAgainstCamp } from '@world-schools/wc-utils'
-import type { EligibilityFailureCode } from '@world-schools/wc-types'
+import {
+  type AgeRange,
+  type ExistingBookingRange,
+  validateChildAgainstCamp,
+} from '@world-schools/wc-utils'
+import type { ChildBookingRange, EligibilityFailureCode } from '@world-schools/wc-types'
 import type { Camp } from '@/types/camps'
 import { type Child, getChildAge } from '@/types/child'
 import type { Session } from '@/types/sessions'
@@ -37,11 +41,24 @@ const REASON_LINKS: Partial<Record<EligibilityFailureCode, { text: string; secti
   dob_missing: { text: 'date of birth', section: 'profile' },
 }
 
+/** Group the parent's existing booking windows by child id. */
+function groupRangesByChild(ranges: ChildBookingRange[]): Map<string, ExistingBookingRange[]> {
+  const byChild = new Map<string, ExistingBookingRange[]>()
+  for (const r of ranges) {
+    const list = byChild.get(r.childId) ?? []
+    list.push({ startDate: r.startDate, endDate: r.endDate })
+    byChild.set(r.childId, list)
+  }
+  return byChild
+}
+
 /**
  * Mirror the backend eligibility gate client-side for instant feedback:
  * real camp age groups + gender + readiness (DOB / emergency contact /
- * residential medical). Skill GATEs are evaluated authoritatively by the
- * backend (the FE lacks the child's skill levels), so they're omitted here.
+ * residential medical) + the existing-booking date-overlap check (when
+ * `childBookingRanges` is supplied). Skill GATEs are evaluated authoritatively
+ * by the backend (the FE lacks the child's skill levels), so they're omitted
+ * here.
  *
  * Single source of truth shared by the step-2 ChildrenStep UI, the mobile
  * footer's Continue gate, and the store's auto-select, so all three agree on
@@ -50,7 +67,8 @@ const REASON_LINKS: Partial<Record<EligibilityFailureCode, { text: string; secti
 export function getChildrenEligibility(
   camp: Camp | null,
   session: Session | null | undefined,
-  children: Child[]
+  children: Child[],
+  childBookingRanges: ChildBookingRange[] = []
 ): ChildEligibility[] {
   const ageGroups: AgeRange[] = ((camp?.ageGroups ?? []) as { min?: number; max?: number }[])
     .filter(g => typeof g?.min === 'number' && typeof g?.max === 'number')
@@ -62,6 +80,7 @@ export function getChildrenEligibility(
     skillGates: [],
   }
   const sessionStart = session?.startDate ?? new Date()
+  const rangesByChild = groupRangesByChild(childBookingRanges)
   return children.map(child => {
     const age = getChildAge(child)
     const result = validateChildAgainstCamp(
@@ -74,7 +93,8 @@ export function getChildrenEligibility(
         skills: [],
       },
       campInput,
-      sessionStart
+      sessionStart,
+      { sessionEnd: session?.endDate, existingBookings: rangesByChild.get(child.id) ?? [] }
     )
     return {
       child,
@@ -97,9 +117,10 @@ export function getChildrenEligibility(
 export function getEligibleChildIds(
   camp: Camp | null,
   session: Session | null | undefined,
-  children: Child[]
+  children: Child[],
+  childBookingRanges: ChildBookingRange[] = []
 ): string[] {
-  return getChildrenEligibility(camp, session, children)
+  return getChildrenEligibility(camp, session, children, childBookingRanges)
     .filter(e => e.isEligible)
     .map(e => e.child.id)
 }
@@ -109,10 +130,11 @@ export function hasEligibleSelection(
   camp: Camp | null,
   session: Session | null | undefined,
   children: Child[],
-  selectedChildIds: string[]
+  selectedChildIds: string[],
+  childBookingRanges: ChildBookingRange[] = []
 ): boolean {
   const selected = new Set(selectedChildIds)
-  return getChildrenEligibility(camp, session, children).some(
+  return getChildrenEligibility(camp, session, children, childBookingRanges).some(
     e => e.isEligible && selected.has(e.child.id)
   )
 }

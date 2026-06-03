@@ -4,6 +4,7 @@ import {
   isSessionBookable,
   isSessionInFuture,
   sessionBookabilityIssue,
+  startOfUtcDay,
   wholeDaysBetween,
 } from './date-validation'
 
@@ -86,5 +87,20 @@ describe('wholeDaysBetween', () => {
     expect(wholeDaysBetween('2026-06-01', '2026-06-08')).toBe(7)
     expect(wholeDaysBetween('2026-06-08', '2026-06-01')).toBe(-7)
     expect(wholeDaysBetween(null, '2026-06-01')).toBeNull()
+  })
+})
+
+describe('startOfUtcDay', () => {
+  it('drops the time-of-day to UTC midnight', () => {
+    expect(startOfUtcDay('2026-08-01T08:30:00Z')?.toISOString()).toBe('2026-08-01T00:00:00.000Z')
+  })
+
+  it('is a no-op for a date-only (already UTC-midnight) input', () => {
+    expect(startOfUtcDay('2026-08-01')?.toISOString()).toBe('2026-08-01T00:00:00.000Z')
+  })
+
+  it('returns null for missing/invalid input', () => {
+    expect(startOfUtcDay(null)).toBeNull()
+    expect(startOfUtcDay('not-a-date')).toBeNull()
   })
 })

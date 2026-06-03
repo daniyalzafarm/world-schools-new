@@ -52,6 +52,17 @@ export class UserBookingGroupsController {
     return ResponseUtil.success(result)
   }
 
+  // Declared before `@Get(':id')` so the static path isn't swallowed by the
+  // id param route.
+  @Get('child-booking-ranges')
+  @ApiOperation({
+    summary: "Date windows of the parent's children's capacity-consuming bookings",
+  })
+  async getChildBookingRanges(@CurrentUser() user: any) {
+    const result = await this.bookingGroupsService.getChildBookingRangesForParent(user.id)
+    return ResponseUtil.success(result)
+  }
+
   @Get()
   @ApiOperation({ summary: 'List booking groups for the current parent' })
   async list(@CurrentUser() user: any, @Query() query: QueryParentBookingGroupsDto) {

@@ -15,7 +15,7 @@
  *     only) medical info present.
  */
 import type { EligibilityFailure, EligibilityResult } from '@world-schools/wc-types'
-import { calculateAgeAtDate, toDate } from './date-validation'
+import { calculateAgeAtDate, startOfUtcDay, toDate } from './date-validation'
 
 export type CampGenderRequirement = 'coed' | 'boys' | 'girls'
 export type NormalizedGender = 'male' | 'female' | 'other'
@@ -30,6 +30,25 @@ export interface ChildSkillInput {
   activityId: string
   /** Matches an ActivityScaleLevel.value for the activity's scale. */
   levelValue: string
+}
+
+/** A date window of an existing booking the child already holds. */
+export interface ExistingBookingRange {
+  startDate: string | Date
+  endDate: string | Date
+}
+
+/**
+ * Session/cross-booking context that the overlap rule needs but that is not an
+ * intrinsic property of the child. Optional so existing callers (and the
+ * frontend, when it lacks the data) skip the rule — mirroring how `skills`
+ * defaults to empty for skill GATEs.
+ */
+export interface EligibilityExtras {
+  /** Session end — paired with `sessionStart` to form the booking window. */
+  sessionEnd?: string | Date | null
+  /** The child's other capacity-consuming bookings, for the overlap check. */
+  existingBookings?: ExistingBookingRange[]
 }
 
 export interface EligibilityChildInput {
@@ -179,13 +198,50 @@ export function checkReadiness(
 }
 
 /**
+ * Reject when the child already holds a booking whose dates overlap the session
+ * window [sessionStart, sessionEnd). Compared at UTC-date granularity and using
+ * a half-open interval, so back-to-back sessions (one ends the day the next
+ * starts) do NOT conflict. No-op (returns null) when there are no existing
+ * bookings or the window can't be resolved, so callers that lack the data skip
+ * the rule cleanly.
+ */
+export function checkExistingBookingOverlap(
+  existingBookings: ExistingBookingRange[] | undefined,
+  sessionStart: string | Date,
+  sessionEnd: string | Date | null | undefined
+): EligibilityFailure | null {
+  if (!existingBookings?.length) return null
+  const start = startOfUtcDay(sessionStart)
+  const end = startOfUtcDay(sessionEnd)
+  if (!start || !end) return null
+
+  const overlaps = existingBookings.some(b => {
+    const bStart = startOfUtcDay(b.startDate)
+    const bEnd = startOfUtcDay(b.endDate)
+    if (!bStart || !bEnd) return false
+    return bStart.getTime() < end.getTime() && bEnd.getTime() > start.getTime()
+  })
+  if (!overlaps) return null
+
+  return {
+    code: 'existing_booking_same_dates',
+    message: 'This child already has a booking that overlaps these dates.',
+  }
+}
+
+/**
  * Full eligibility evaluation for one child against one camp/session. Returns
  * every failure (not just the first) so the UI can list all blockers at once.
+ *
+ * `extras` carries session/cross-booking context (session end + the child's
+ * existing bookings) for the overlap rule; it's optional, so callers without
+ * that data simply skip the rule.
  */
 export function validateChildAgainstCamp(
   child: EligibilityChildInput,
   camp: EligibilityCampInput,
-  sessionStart: string | Date
+  sessionStart: string | Date,
+  extras?: EligibilityExtras
 ): EligibilityResult {
   const failures: EligibilityFailure[] = [...checkReadiness(child, camp)]
 
@@ -203,6 +259,13 @@ export function validateChildAgainstCamp(
     const skill = checkSkillGate(child.skills, gate)
     if (skill) failures.push(skill)
   }
+
+  const overlap = checkExistingBookingOverlap(
+    extras?.existingBookings,
+    sessionStart,
+    extras?.sessionEnd
+  )
+  if (overlap) failures.push(overlap)
 
   return { childId: child.id, eligible: failures.length === 0, failures }
 }

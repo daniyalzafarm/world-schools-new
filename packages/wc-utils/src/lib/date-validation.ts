@@ -16,6 +16,18 @@ export function toDate(value: string | Date | null | undefined): Date | null {
 }
 
 /**
+ * Normalize a date(-time) to its UTC midnight, dropping the time-of-day. Returns
+ * null for missing/invalid input. Used to compare session windows at calendar-day
+ * granularity so a stored `DateTime` of "08:00" never reads as overlapping or
+ * not-overlapping a "00:00" boundary by a sliver of time.
+ */
+export function startOfUtcDay(value: string | Date | null | undefined): Date | null {
+  const d = toDate(value)
+  if (!d) return null
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+}
+
+/**
  * Whole-years age a child will be on `atDate` (typically the session start).
  * Returns null when either date is missing/invalid.
  */

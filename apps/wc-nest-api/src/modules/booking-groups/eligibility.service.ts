@@ -3,11 +3,13 @@ import {
   type EligibilityCampInput,
   type EligibilityChildInput,
   type EligibilitySkillGate,
+  type ExistingBookingRange,
   validateChildAgainstCamp,
 } from '@world-schools/wc-utils'
 import type { EligibilityResult } from '@world-schools/wc-types'
 import { EligibilityMode } from '../../generated/client/enums'
 import { PrismaService } from '../../prisma/prisma.service'
+import { CAPACITY_CONSUMING_STATUSES } from './capacity-statuses'
 
 /**
  * Loads the data needed to evaluate the shared `validateChildAgainstCamp`
@@ -35,7 +37,7 @@ export class EligibilityService {
   }): Promise<EligibilityResult[]> {
     if (params.childIds.length === 0) return []
 
-    const [camp, session, children] = await Promise.all([
+    const [camp, session, children, existingBookings] = await Promise.all([
       this.prisma.camp.findUnique({
         where: { id: params.campId },
         select: {
@@ -59,7 +61,7 @@ export class EligibilityService {
       }),
       this.prisma.session.findUnique({
         where: { id: params.sessionId },
-        select: { startDate: true },
+        select: { startDate: true, endDate: true },
       }),
       this.prisma.children.findMany({
         where: { id: { in: params.childIds } },
@@ -71,6 +73,19 @@ export class EligibilityService {
           medicalInfo: true,
           childSkills: { select: { activityId: true, levelValue: true } },
         },
+      }),
+      // Each child's other capacity-consuming bookings (across all sessions). The
+      // pure engine filters these down to the ones whose dates actually overlap
+      // the target session window. A child can't self-conflict with the booking
+      // being evaluated: this method only ever runs while that booking group is a
+      // `draft` (the re-submit path returns before the gate), and `draft` is not
+      // in CAPACITY_CONSUMING_STATUSES, so its own rows are excluded here.
+      this.prisma.booking.findMany({
+        where: {
+          childId: { in: params.childIds },
+          bookingGroup: { status: { in: CAPACITY_CONSUMING_STATUSES } },
+        },
+        select: { childId: true, startDate: true, endDate: true },
       }),
     ])
 
@@ -87,8 +102,18 @@ export class EligibilityService {
     const campInput = this.toCampInput(camp)
     const sessionStart = session.startDate
 
+    const bookingsByChild = new Map<string, ExistingBookingRange[]>()
+    for (const booking of existingBookings) {
+      const list = bookingsByChild.get(booking.childId) ?? []
+      list.push({ startDate: booking.startDate, endDate: booking.endDate })
+      bookingsByChild.set(booking.childId, list)
+    }
+
     return children.map(child =>
-      validateChildAgainstCamp(this.toChildInput(child), campInput, sessionStart)
+      validateChildAgainstCamp(this.toChildInput(child), campInput, sessionStart, {
+        sessionEnd: session.endDate,
+        existingBookings: bookingsByChild.get(child.id) ?? [],
+      })
     )
   }
 

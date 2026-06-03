@@ -23,20 +23,18 @@ import {
   assertValidTransition,
   type BookingDeclineReason,
   type BookingGroupStatus as BookingGroupStatusType,
+  type ChildBookingRange,
   type SpecialCircumstanceType,
 } from '@world-schools/wc-types'
 import { EligibilityService } from './eligibility.service'
+import { CAPACITY_CONSUMING_STATUSES } from './capacity-statuses'
 import { ConfigService } from '../../config/config.service'
 import {
   bookingGroupWhereByRef,
   generateBookingGroupNumber,
   generateNextBookingLineNumber,
 } from '../../common/utils/wc-reference.util'
-import {
-  BookingGroupStatus,
-  PaymentMode,
-  PaymentStatus,
-} from '../../generated/client/enums'
+import { BookingGroupStatus, PaymentMode, PaymentStatus } from '../../generated/client/enums'
 import { Prisma } from '../../generated/client/client'
 import { PrismaService } from '../../prisma/prisma.service'
 import { ProfilePhotoService } from '../user/auth/services/profile-photo.service'
@@ -88,16 +86,12 @@ export class BookingGroupsService {
    * Statuses that count toward a session's used capacity (a child holding a
    * spot). Drafts and terminal-negative statuses (declined/expired/cancelled/
    * refunded) do NOT consume a spot. Shared by the submit-time capacity guard
-   * and the duplicate-booking guard.
+   * and the duplicate-booking guard. Backed by the module-level
+   * {@link CAPACITY_CONSUMING_STATUSES} so the eligibility overlap check and the
+   * existing-booking-ranges lookup use the exact same list.
    */
-  private static readonly CAPACITY_CONSUMING_STATUSES: BookingGroupStatus[] = [
-    BookingGroupStatus.request,
-    BookingGroupStatus.accepted,
-    BookingGroupStatus.deposit_paid,
-    BookingGroupStatus.fully_paid,
-    BookingGroupStatus.at_camp,
-    BookingGroupStatus.completed,
-  ]
+  private static readonly CAPACITY_CONSUMING_STATUSES: BookingGroupStatus[] =
+    CAPACITY_CONSUMING_STATUSES
 
   /**
    * Assert a booking-group status transition is legal per the shared state
@@ -950,6 +944,33 @@ export class BookingGroupsService {
       childIds: params.childIds,
     })
     return { results }
+  }
+
+  /**
+   * Date windows of the parent's children's capacity-consuming bookings. The
+   * booking UI uses these to grey out a child whose dates overlap the selected
+   * session up front — the client-side mirror of the authoritative
+   * `existing_booking_same_dates` eligibility gate run at pre-flight and submit.
+   */
+  async getChildBookingRangesForParent(userId: string): Promise<ChildBookingRange[]> {
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+      select: { id: true },
+    })
+    if (!parent) throw new ForbiddenException('Only parents can access bookings')
+
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        child: { parentId: parent.id },
+        bookingGroup: { status: { in: CAPACITY_CONSUMING_STATUSES } },
+      },
+      select: { childId: true, startDate: true, endDate: true },
+    })
+    return bookings.map(b => ({
+      childId: b.childId,
+      startDate: b.startDate.toISOString(),
+      endDate: b.endDate.toISOString(),
+    }))
   }
 
   async getForParent(userId: string, bookingGroupId: string) {
