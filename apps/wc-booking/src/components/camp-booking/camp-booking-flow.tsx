@@ -1732,15 +1732,15 @@ function ReviewStep({
     return computePaymentPlan({
       total,
       sessionStartDate: sessionStartDateForPlan,
-      // Phase 9: deposit lives on the camp now (snapshotted from provider on
-      // create, editable per camp). The backend re-validates at submit so
-      // this is preview-only; we just need the same shape.
-      depositSettings: camp
+      // Deposit settings are the provider's (single source of truth). The
+      // backend re-validates at submit so this is preview-only; we just need
+      // the same shape.
+      depositSettings: camp?.provider?.settings
         ? {
-            depositRequired: camp.depositRequired,
-            depositType: camp.depositType,
-            depositPercentage: camp.depositPercentage,
-            depositFixedAmount: camp.depositFixedAmount,
+            depositRequired: camp.provider.settings.depositRequired,
+            depositType: camp.provider.settings.depositType,
+            depositPercentage: camp.provider.settings.depositPercentage,
+            depositFixedAmount: camp.provider.settings.depositFixedAmount,
           }
         : null,
     })

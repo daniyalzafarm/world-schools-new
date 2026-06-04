@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { SessionsList } from './SessionsList'
 import { SessionDetailPanel } from './SessionDetailPanel'
 import { ManageDiscountsPanel } from './ManageDiscountsPanel'
-import { CampDepositSettingsPanel } from './CampDepositSettingsPanel'
 import { useCampsStore } from '@/stores/camps-store'
 import { useSessionsStore } from '@/stores/sessions-store'
 import { useCampEditorLayoutOptional } from '@/components/camps/CampEditorLayoutContext'
@@ -28,7 +27,6 @@ export function SessionsPage({ campId }: SessionsPageProps) {
   const router = useRouter()
   const [selectedSession, setSelectedSession] = useState<Session | null>(null)
   const [showManageDiscounts, setShowManageDiscounts] = useState(false)
-  const [showManageSettings, setShowManageSettings] = useState(false)
   const [sortBy, setSortBy] = useState<string | undefined>(undefined)
   const [globalDiscounts, setGlobalDiscounts] = useState<GlobalDiscount[]>([])
   const currentCamp = useCampsStore(state => state.currentCamp)
@@ -106,20 +104,12 @@ export function SessionsPage({ campId }: SessionsPageProps) {
   // Handler for opening manage discounts panel
   const handleManageDiscounts = () => {
     setSelectedSession(null) // Close session detail if open
-    setShowManageSettings(false) // Close settings panel if open
     setShowManageDiscounts(!showManageDiscounts)
   }
 
   // Handler for closing manage discounts panel
   const handleCloseManageDiscounts = () => {
     setShowManageDiscounts(false)
-  }
-
-  // Handler for opening deposit settings panel
-  const handleManageSettings = () => {
-    setSelectedSession(null)
-    setShowManageDiscounts(false)
-    setShowManageSettings(prev => !prev)
   }
 
   // Reload discounts after changes in ManageDiscountsPanel
@@ -137,11 +127,7 @@ export function SessionsPage({ campId }: SessionsPageProps) {
     // Skip sidebar management if not in camp editor context (e.g., in wizard)
     if (!setRightSidebar || !currentCamp) return
 
-    if (showManageSettings) {
-      setRightSidebar(
-        <CampDepositSettingsPanel campId={campId} onClose={() => setShowManageSettings(false)} />
-      )
-    } else if (showManageDiscounts) {
+    if (showManageDiscounts) {
       setRightSidebar(
         <ManageDiscountsPanel
           campId={campId}
@@ -174,7 +160,6 @@ export function SessionsPage({ campId }: SessionsPageProps) {
   }, [
     selectedSession,
     showManageDiscounts,
-    showManageSettings,
     currentCamp,
     globalDiscounts,
     setRightSidebar,
@@ -190,7 +175,6 @@ export function SessionsPage({ campId }: SessionsPageProps) {
       onSelectSession={setSelectedSession}
       onCreateSession={handleCreate}
       onManageDiscounts={handleManageDiscounts}
-      onManageSettings={handleManageSettings}
       sortBy={sortBy}
       onSortChange={setSortBy}
     />

@@ -5,6 +5,7 @@ import {
   computeDepositAmountNumber,
   INVALID_DEPOSIT_CONFIG,
 } from '@world-schools/wc-utils'
+import type { DepositType } from '@world-schools/wc-types'
 import { Prisma } from '../../generated/client/client'
 import { PaymentMode } from '../../generated/client/enums'
 
@@ -26,20 +27,57 @@ export {
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 /**
- * Deposit settings shape consumed by the snapshot util. Phase 9: these now
- * live on `Camp` (snapshotted from `ProviderSettings.deposit*` at camp
- * creation, editable per camp). Provider-level settings remain the default
- * for new camps but the booking submit path reads off the camp directly.
+ * Deposit settings shape consumed by the snapshot util. Deposit settings are
+ * the provider's (`ProviderSettings.deposit*`) — the single source of truth.
+ * The booking submit path reads them off the provider and snapshots the
+ * resulting amount onto the BookingGroup.
  *
  * The interface is intentionally narrow — accepts ANY object with these four
- * fields so both `Camp` rows and the provider-level row (used at camp create
- * time as the seed) satisfy it.
+ * fields so the provider-settings row satisfies it.
  */
 export interface DepositSettingsForSnapshot {
   depositRequired?: boolean | null
   depositType?: string | null
   depositPercentage?: number | null
   depositFixedAmount?: Prisma.Decimal | null
+}
+
+/**
+ * Current shape version for `BookingDepositSnapshot`. Bump when the persisted
+ * shape changes so readers can branch instead of mis-parsing older rows.
+ */
+export const BOOKING_DEPOSIT_SNAPSHOT_VERSION = 1
+
+/**
+ * Frozen deposit *terms* persisted on `BookingGroup.depositSnapshot` at submit.
+ * Preserves what the parent agreed to (type + percentage/fixed + the resolved
+ * amount) so provider edits to their deposit settings can't rewrite an
+ * in-flight booking's terms — symmetric with `BookingPolicySnapshot`.
+ *
+ * AUDIT/receipt/dispute data only: all payment/refund/payout math reads the
+ * scalar `BookingGroup.depositAmount` (== `resolvedAmount` here). Decimals are
+ * serialized as strings to preserve precision in stored JSON.
+ */
+export interface BookingDepositSnapshot {
+  depositRequired: boolean
+  depositType: DepositType | null
+  depositPercentage: number | null
+  /** Configured fixed amount in major units, as a string. Null for percentage / no-deposit. */
+  depositFixedAmount: string | null
+  /** Resolved deposit captured at submit (== the scalar `depositAmount`), as a string. */
+  resolvedAmount: string | null
+  capturedAt: string
+  schemaVersion: number
+}
+
+/**
+ * Normalizes a raw `depositType` string (from the loosely-typed settings row)
+ * to the canonical snapshot union.
+ */
+function normalizeDepositType(t: string | null | undefined): DepositType | null {
+  if (t === 'percentage') return 'percentage'
+  if (t === 'fixed') return 'fixed'
+  return null
 }
 
 export interface SnapshotInput {
@@ -64,6 +102,9 @@ export interface BookingFinancialSnapshot {
   balanceDueAt: Date | null
   appFeePercentageSnapshot: Prisma.Decimal
   serviceFeeAmount: Prisma.Decimal
+  /// Frozen deposit terms for audit/receipts (null when no deposit). Math uses
+  /// `depositAmount`; this preserves the agreed type + percentage/fixed.
+  depositSnapshot: BookingDepositSnapshot | null
 }
 
 /**
@@ -92,6 +133,7 @@ export function computeBookingFinancialSnapshot(input: SnapshotInput): BookingFi
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
 
   const depositAmount = computeDepositAmount(totalAmount, depositSettings)
+  const depositSnapshot = buildDepositSnapshot(depositSettings, depositAmount, now)
   const daysUntilStart = Math.floor((sessionStartDate.getTime() - now.getTime()) / MS_PER_DAY)
 
   let paymentMode: PaymentMode
@@ -122,6 +164,7 @@ export function computeBookingFinancialSnapshot(input: SnapshotInput): BookingFi
     balanceDueAt,
     appFeePercentageSnapshot,
     serviceFeeAmount,
+    depositSnapshot,
   }
 }
 
@@ -163,8 +206,59 @@ export function computeDepositAmount(
   return new Prisma.Decimal(amount).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
 }
 
+/**
+ * Builds the frozen deposit snapshot from the settings used at submit and the
+ * resolved amount. Returns null when no deposit was resolved — mirroring how
+ * the no-deposit path leaves `cancellationPolicySnapshot` null (nothing to
+ * preserve for audit).
+ */
+function buildDepositSnapshot(
+  settings: DepositSettingsForSnapshot | null,
+  resolvedAmount: Prisma.Decimal | null,
+  now: Date
+): BookingDepositSnapshot | null {
+  if (resolvedAmount == null) return null
+  return {
+    depositRequired: settings?.depositRequired ?? false,
+    depositType: normalizeDepositType(settings?.depositType),
+    depositPercentage: settings?.depositPercentage ?? null,
+    depositFixedAmount:
+      settings?.depositFixedAmount != null ? settings.depositFixedAmount.toString() : null,
+    resolvedAmount: resolvedAmount.toString(),
+    capturedAt: now.toISOString(),
+    schemaVersion: BOOKING_DEPOSIT_SNAPSHOT_VERSION,
+  }
+}
+
 function subtractDays(date: Date, days: number): Date {
   const result = new Date(date.getTime())
   result.setUTCDate(result.getUTCDate() - days)
   return result
+}
+
+/**
+ * Coerces the JSON column `BookingGroup.depositSnapshot` (written by
+ * `buildDepositSnapshot`) back into a typed object. Returns null when missing
+ * or malformed. For audit/receipt/dispute surfaces only — payment, refund, and
+ * payout math read the scalar `BookingGroup.depositAmount`.
+ */
+export function readBookingDepositSnapshot(
+  raw: Prisma.JsonValue | null | undefined
+): BookingDepositSnapshot | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const obj = raw as Record<string, unknown>
+  if (typeof obj.capturedAt !== 'string') return null
+  const numOrNull = (v: unknown): number | null =>
+    typeof v === 'number' && Number.isFinite(v) ? v : null
+  const strOrNull = (v: unknown): string | null => (typeof v === 'string' ? v : null)
+  return {
+    depositRequired: obj.depositRequired === true,
+    depositType: normalizeDepositType(typeof obj.depositType === 'string' ? obj.depositType : null),
+    depositPercentage: numOrNull(obj.depositPercentage),
+    depositFixedAmount: strOrNull(obj.depositFixedAmount),
+    resolvedAmount: strOrNull(obj.resolvedAmount),
+    capturedAt: obj.capturedAt,
+    // Rows persisted before the version field existed are treated as v1.
+    schemaVersion: typeof obj.schemaVersion === 'number' ? obj.schemaVersion : 1,
+  }
 }

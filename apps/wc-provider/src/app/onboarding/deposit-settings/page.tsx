@@ -69,9 +69,9 @@ export default function OnboardingStep5DepositSettingsPage() {
       if (response.success && response.data) {
         const savedSettings = response.data
 
-        // Convert backend depositType to frontend format
-        const frontendDepositType =
-          savedSettings.depositType === 'fixed' ? 'fixed_amount' : 'percentage'
+        // Backend and form share the same discriminator; default to
+        // 'percentage' when unset.
+        const frontendDepositType = savedSettings.depositType === 'fixed' ? 'fixed' : 'percentage'
 
         const loadedDepositPercentage =
           savedSettings.depositPercentage !== null && savedSettings.depositPercentage !== undefined
@@ -122,7 +122,7 @@ export default function OnboardingStep5DepositSettingsPage() {
       setTimeout(() => {
         percentageInputRef.current?.focus()
       }, 100)
-    } else if (depositType === 'fixed_amount' && fixedAmountInputRef.current) {
+    } else if (depositType === 'fixed' && fixedAmountInputRef.current) {
       // Small delay to ensure the input is rendered
       setTimeout(() => {
         fixedAmountInputRef.current?.focus()
@@ -224,17 +224,14 @@ export default function OnboardingStep5DepositSettingsPage() {
       return
     }
 
-    // Convert frontend depositType to backend format
-    const backendDepositType = depositType === 'fixed_amount' ? 'fixed' : 'percentage'
-
-    // Save deposit settings
+    // Save deposit settings (form and backend share the same discriminator).
     const settings: SaveDepositSettingsRequest = {
       depositRequired,
-      depositType: depositRequired ? backendDepositType : null,
+      depositType: depositRequired ? depositType : null,
       depositPercentage:
         depositRequired && depositType === 'percentage' ? parseFloat(depositPercentage) : null,
       depositFixedAmount:
-        depositRequired && depositType === 'fixed_amount' ? parseFloat(depositFixedAmount) : null,
+        depositRequired && depositType === 'fixed' ? parseFloat(depositFixedAmount) : null,
     }
 
     // C3 audit fix: `saveDepositSettings` returns a boolean (no longer
@@ -630,11 +627,11 @@ export default function OnboardingStep5DepositSettingsPage() {
                 type="radio"
                 id="deposit_fixed"
                 name="depositType"
-                value="fixed_amount"
-                checked={depositRequired && depositType === 'fixed_amount'}
+                value="fixed"
+                checked={depositRequired && depositType === 'fixed'}
                 onChange={() => {
                   setDepositRequired(true)
-                  setDepositType('fixed_amount')
+                  setDepositType('fixed')
                 }}
                 disabled={isReadOnly}
                 className="peer absolute opacity-0"
@@ -649,7 +646,7 @@ export default function OnboardingStep5DepositSettingsPage() {
                 </div>
 
                 {/* Inline Input for Fixed Amount */}
-                {depositRequired && depositType === 'fixed_amount' && (
+                {depositRequired && depositType === 'fixed' && (
                   <div
                     className="mt-3 flex items-center gap-3 border-t border-dashed border-default-300 pt-3"
                     onClick={e => e.stopPropagation()}

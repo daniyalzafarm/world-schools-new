@@ -2185,19 +2185,11 @@ export class BookingGroupsService {
         // Children on this draft — needed for the eligibility gate and the
         // per-age-group capacity tally.
         bookings: { select: { childId: true } },
-        // Per-camp deposit settings — snapshotted onto Camp at create time
-        // (with provider-level defaults), editable per-camp on the
-        // edit/sessions page. Read directly off the camp; provider-level
-        // settings are NOT consulted here.
         camp: {
           select: {
             name: true,
             status: true,
             ageGroups: true,
-            depositRequired: true,
-            depositType: true,
-            depositPercentage: true,
-            depositFixedAmount: true,
           },
         },
         // C4 audit fix: select the capacity fields so submit can re-check
@@ -2226,6 +2218,13 @@ export class BookingGroupsService {
                 cancellationPolicy: true,
                 cancellationPolicyCustom: true,
                 cancellationPolicySpecialCircumstances: true,
+                // Deposit settings — the single source of truth. Read off the
+                // provider here and snapshotted onto the BookingGroup at submit
+                // so later provider edits don't move in-flight bookings.
+                depositRequired: true,
+                depositType: true,
+                depositPercentage: true,
+                depositFixedAmount: true,
               },
             },
           },
@@ -2324,11 +2323,10 @@ export class BookingGroupsService {
       providerAppFeeCustom: bookingGroup.provider.appFeeCustom,
       providerAppFeePercentage: bookingGroup.provider.appFeePercentage,
       systemDefaultAppFee: systemSettings.defaultAppFee,
-      // Phase 9: deposit settings now live on the camp (snapshotted from the
-      // provider on camp creation, editable per-camp). Provider-level
-      // ProviderSettings.deposit* is the default for new camps only — the
-      // booking submit path reads off the camp directly.
-      depositSettings: bookingGroup.camp,
+      // Deposit settings are the provider's — the single source of truth.
+      // `provider.settings` may be null (incomplete onboarding); the snapshot
+      // util treats null as "no deposit configured."
+      depositSettings: bookingGroup.provider.settings,
       now,
     })
 
@@ -2389,6 +2387,10 @@ export class BookingGroupsService {
           appFeePercentageSnapshot: snapshot.appFeePercentageSnapshot,
           serviceFeeAmount: snapshot.serviceFeeAmount,
           depositAmount: snapshot.depositAmount,
+          // Frozen deposit terms for audit/receipts (null when no deposit).
+          depositSnapshot: snapshot.depositSnapshot
+            ? (snapshot.depositSnapshot as unknown as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
           paymentMode: snapshot.paymentMode,
           balanceDueAt: snapshot.balanceDueAt,
           payoutMode,
@@ -2449,6 +2451,7 @@ export class BookingGroupsService {
           appFeePercentageSnapshot: null,
           serviceFeeAmount: null,
           depositAmount: null,
+          depositSnapshot: Prisma.JsonNull,
           paymentMode: null,
           balanceDueAt: null,
           transferDate: null,

@@ -11,7 +11,7 @@ import {
   DropdownTrigger,
   Spinner,
 } from '@heroui/react'
-import { MoreVertical, Percent, Plus, Settings } from 'lucide-react'
+import { MoreVertical, Percent, Plus } from 'lucide-react'
 import type { Session } from '@/types/sessions'
 import { SessionsEmptyState } from './SessionsEmptyState'
 import { formatDateRange } from '@/utils/sessionFormatters'
@@ -25,7 +25,6 @@ interface SessionsListProps {
   onSelectSession: (session: Session | null) => void
   onCreateSession: () => void
   onManageDiscounts: () => void
-  onManageSettings: () => void
   sortBy?: string
   onSortChange: (sortBy: string | undefined) => void
 }
@@ -42,7 +41,6 @@ export function SessionsList({
   onSelectSession,
   onCreateSession,
   onManageDiscounts,
-  onManageSettings,
   sortBy,
   onSortChange,
 }: SessionsListProps) {
@@ -153,18 +151,6 @@ export function SessionsList({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Deposit Settings Button */}
-          <Button
-            radius="full"
-            isIconOnly
-            variant="bordered"
-            onPress={onManageSettings}
-            className="w-10 h-10 border-1"
-            aria-label="Deposit settings"
-          >
-            <Settings className="w-5 h-5 text-gray-500" />
-          </Button>
-
           {/* Manage Discounts Button */}
           <Button
             radius="full"

@@ -24,6 +24,14 @@ export const CANCELLATION_POLICY_LABELS: Record<CancellationPolicy, string> = {
   custom: 'Custom',
 }
 
+/**
+ * Deposit type a provider can configure: a percentage of the booking total or
+ * a fixed amount. Canonical union shared across wc-provider, wc-nest-api, and
+ * wc-booking (mirrors `CANCELLATION_POLICY_VALUES`).
+ */
+export const DEPOSIT_TYPE_VALUES = ['percentage', 'fixed'] as const
+export type DepositType = (typeof DEPOSIT_TYPE_VALUES)[number]
+
 /** Allowed refund percentages for standard policy tiers */
 export type RefundPercentage = 0 | 25 | 50 | 75 | 100
 

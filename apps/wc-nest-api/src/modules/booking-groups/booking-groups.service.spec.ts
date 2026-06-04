@@ -57,12 +57,6 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         name: 'Cool Camp',
         status: 'published',
         ageGroups: [{ min: 5, max: 18 }],
-        // Phase 9: deposit lives on the camp now (snapshotted from provider
-        // on creation, editable per camp). Default fixture: 30% deposit.
-        depositRequired: true,
-        depositType: 'percentage',
-        depositPercentage: 30,
-        depositFixedAmount: null,
       },
       // C4 audit fix: session capacity fields are now selected by submit
       // so it can re-check availability. Default: 20-spot single-cohort
@@ -82,6 +76,12 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
           payoutMode: 'default_after_start',
           earlyPayoutOffsetDays: null,
           timezone: 'America/New_York',
+          // Deposit settings are the provider's (single source of truth).
+          // Default fixture: 30% deposit.
+          depositRequired: true,
+          depositType: 'percentage',
+          depositPercentage: 30,
+          depositFixedAmount: null,
         },
       },
       parent: { userId: 'u-1' },
@@ -213,6 +213,13 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
             appFeePercentageSnapshot: expect.anything(),
             serviceFeeAmount: expect.anything(),
             depositAmount: expect.anything(),
+            // Frozen deposit terms snapshot (provider's 30% default fixture).
+            depositSnapshot: expect.objectContaining({
+              depositType: 'percentage',
+              depositPercentage: 30,
+              resolvedAmount: '600',
+              schemaVersion: 1,
+            }),
             paymentMode: PaymentMode.deposit_then_balance,
             balanceDueAt: expect.any(Date),
             payoutMode: 'default_after_start',
@@ -249,10 +256,6 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
             name: 'Cool Camp',
             status: 'published',
             ageGroups: [{ min: 5, max: 18 }],
-            depositRequired: false,
-            depositType: null,
-            depositPercentage: null,
-            depositFixedAmount: null,
           },
           provider: {
             appFeePercentage: new Prisma.Decimal('10'),
@@ -260,6 +263,10 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
               payoutMode: 'default_after_start',
               earlyPayoutOffsetDays: null,
               timezone: null,
+              depositRequired: false,
+              depositType: null,
+              depositPercentage: null,
+              depositFixedAmount: null,
             },
           },
         })
@@ -298,10 +305,6 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
             name: 'Cool Camp',
             status: 'published',
             ageGroups: [{ min: 5, max: 18 }],
-            depositRequired: false,
-            depositType: null,
-            depositPercentage: null,
-            depositFixedAmount: null,
           },
           provider: {
             appFeePercentage: new Prisma.Decimal('10'),
@@ -309,6 +312,10 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
               payoutMode: 'default_after_start',
               earlyPayoutOffsetDays: null,
               timezone: null,
+              depositRequired: false,
+              depositType: null,
+              depositPercentage: null,
+              depositFixedAmount: null,
             },
           },
         })
@@ -543,10 +550,6 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
               { min: 6, max: 9 },
               { min: 10, max: 13 },
             ],
-            depositRequired: true,
-            depositType: 'percentage',
-            depositPercentage: 30,
-            depositFixedAmount: null,
           },
           session: {
             startDate: new Date(Date.now() + 200 * dayMs),
@@ -891,10 +894,6 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
             name: 'Cool Camp',
             status: 'archived',
             ageGroups: [{ min: 5, max: 18 }],
-            depositRequired: true,
-            depositType: 'percentage',
-            depositPercentage: 30,
-            depositFixedAmount: null,
           },
         })
       )

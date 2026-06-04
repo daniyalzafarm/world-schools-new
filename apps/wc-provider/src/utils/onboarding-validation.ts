@@ -126,7 +126,7 @@ export function validateOnboardingCompletion(
  * Validates deposit settings
  */
 export function validateDepositSettings(
-  depositType: 'percentage' | 'fixed_amount',
+  depositType: 'percentage' | 'fixed',
   depositPercentage: string,
   depositFixedAmount: string
 ): { isValid: boolean; error?: string } {

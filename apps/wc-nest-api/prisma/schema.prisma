@@ -632,9 +632,9 @@ model ProviderSettings {
   depositFixedAmount Decimal? @map("deposit_fixed_amount") @db.Decimal(10, 2)
 
   // Cancellation Policy
-  cancellationPolicy                     String    @default("moderate") @map("cancellation_policy") // 'flexible' | 'moderate' | 'custom'
-  cancellationPolicyCustom               Json?     @map("cancellation_policy_custom")
-  cancellationPolicySpecialCircumstances Json?     @map("cancellation_policy_special_circumstances")
+  cancellationPolicy                     String    @default("moderate") @map("cancellation_policy") // 'flexible' | 'moderate' | 'custom' (DB CHECK-constrained)
+  cancellationPolicyCustom               Json?     @map("cancellation_policy_custom") @db.JsonB
+  cancellationPolicySpecialCircumstances Json?     @map("cancellation_policy_special_circumstances") @db.JsonB
   cancellationPolicyAgreedAt             DateTime? @map("cancellation_policy_agreed_at")
 
   /// Provider-level payout mode. Each booking accepted while this is set
@@ -753,20 +753,6 @@ model Camp {
   // Publishing
   status      CampStatus @default(draft)
   publishedAt DateTime?  @map("published_at")
-
-  /// Per-camp deposit settings. Snapshotted from `ProviderSettings.deposit*`
-  /// at camp creation, then editable per camp via the camp edit page. Provider-
-  /// level settings remain the **default for new camps** — editing them does
-  /// NOT update existing camps. The booking submission flow reads these
-  /// values directly off the camp (no fallback to provider settings) so a
-  /// camp's payment behavior is fully determined by its own row.
-  ///
-  /// `depositRequired` defaults to `false` so newly seeded camps without
-  /// a snapshot still behave correctly (no deposit → full at booking).
-  depositRequired    Boolean  @default(false) @map("deposit_required")
-  depositType        String?  @map("deposit_type") // 'percentage' | 'fixed'
-  depositPercentage  Int?     @map("deposit_percentage")
-  depositFixedAmount Decimal? @map("deposit_fixed_amount") @db.Decimal(10, 2)
 
   // Metadata
   createdAt DateTime @default(now()) @map("created_at")
@@ -1124,8 +1110,16 @@ model BookingGroup {
   /// Final amount due for the group (after discounts); intended PaymentIntent amount.
   totalAmount     Decimal @map("total_amount") @db.Decimal(12, 2)
 
-  /// Deposit required (from provider settings); balance = totalAmount - depositAmount.
-  depositAmount Decimal? @map("deposit_amount") @db.Decimal(10, 2)
+  /// Resolved deposit captured at submit (frozen); balance = totalAmount - depositAmount.
+  /// Hot-path scalar for payment/refund/payout math. See `depositSnapshot` for
+  /// the frozen deposit *terms* (type + percentage/fixed) used for audit/receipts.
+  depositAmount Decimal? @map("deposit_amount") @db.Decimal(12, 2)
+
+  /// Frozen deposit settings at submission — preserves the terms the parent
+  /// agreed to (type + percentage/fixed + resolved amount) even if the provider
+  /// edits their deposit settings later. Shape: `BookingDepositSnapshot` in
+  /// `booking-snapshot.util.ts`. Audit/receipts only; math uses `depositAmount`.
+  depositSnapshot Json? @map("deposit_snapshot") @db.JsonB
 
   /// Aggregated payment tracking for the group.
   paidAmount     Decimal @default(0) @map("paid_amount") @db.Decimal(12, 2)

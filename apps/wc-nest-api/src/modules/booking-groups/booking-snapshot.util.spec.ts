@@ -5,6 +5,7 @@ import {
   computeBookingFinancialSnapshot,
   computeGracePeriodDeadline,
   computeProviderResponseDeadline,
+  readBookingDepositSnapshot,
 } from './booking-snapshot.util'
 
 const NOW = new Date('2026-04-28T12:00:00.000Z')
@@ -190,6 +191,119 @@ describe('computeBookingFinancialSnapshot', () => {
       })
       expect(result.paymentMode).toBe(PaymentMode.full_at_booking)
       expect(result.depositAmount).toBeNull()
+    })
+  })
+
+  describe('depositSnapshot (frozen deposit terms)', () => {
+    const base = {
+      providerAppFeeCustom: false,
+      providerAppFeePercentage: null,
+      systemDefaultAppFee: new Prisma.Decimal('10'),
+      now: NOW,
+    }
+
+    it('captures percentage terms + resolved amount with schemaVersion 1', () => {
+      const result = computeBookingFinancialSnapshot({
+        ...base,
+        totalAmount: new Prisma.Decimal('2000.00'),
+        sessionStartDate: dayOffset(200),
+        depositSettings: {
+          depositRequired: true,
+          depositType: 'percentage',
+          depositPercentage: 30,
+        },
+      })
+      expect(result.depositSnapshot).toEqual({
+        depositRequired: true,
+        depositType: 'percentage',
+        depositPercentage: 30,
+        depositFixedAmount: null,
+        resolvedAmount: '600',
+        capturedAt: NOW.toISOString(),
+        schemaVersion: 1,
+      })
+    })
+
+    it('captures fixed terms (raw fixed amount preserved, resolved == fixed)', () => {
+      const result = computeBookingFinancialSnapshot({
+        ...base,
+        totalAmount: new Prisma.Decimal('2000.00'),
+        sessionStartDate: dayOffset(120),
+        depositSettings: {
+          depositRequired: true,
+          depositType: 'fixed',
+          depositFixedAmount: new Prisma.Decimal('500.00'),
+        },
+      })
+      expect(result.depositSnapshot).toMatchObject({
+        depositType: 'fixed',
+        depositFixedAmount: '500',
+        resolvedAmount: '500',
+        schemaVersion: 1,
+      })
+    })
+
+    it('keeps the raw fixed amount while resolvedAmount is capped at total', () => {
+      const result = computeBookingFinancialSnapshot({
+        ...base,
+        totalAmount: new Prisma.Decimal('300.00'),
+        sessionStartDate: dayOffset(100),
+        depositSettings: {
+          depositRequired: true,
+          depositType: 'fixed',
+          depositFixedAmount: new Prisma.Decimal('500.00'),
+        },
+      })
+      expect(result.depositSnapshot?.depositFixedAmount).toBe('500')
+      expect(result.depositSnapshot?.resolvedAmount).toBe('300')
+    })
+
+    it('is null when no deposit is configured', () => {
+      const result = computeBookingFinancialSnapshot({
+        ...base,
+        totalAmount: new Prisma.Decimal('1000.00'),
+        sessionStartDate: dayOffset(120),
+        depositSettings: { depositRequired: false },
+      })
+      expect(result.depositSnapshot).toBeNull()
+    })
+  })
+
+  describe('readBookingDepositSnapshot', () => {
+    it('round-trips a built snapshot', () => {
+      const built = computeBookingFinancialSnapshot({
+        totalAmount: new Prisma.Decimal('2000.00'),
+        sessionStartDate: dayOffset(200),
+        providerAppFeeCustom: false,
+        providerAppFeePercentage: null,
+        systemDefaultAppFee: new Prisma.Decimal('10'),
+        depositSettings: {
+          depositRequired: true,
+          depositType: 'percentage',
+          depositPercentage: 30,
+        },
+        now: NOW,
+      }).depositSnapshot
+      expect(readBookingDepositSnapshot(built as unknown as Prisma.JsonValue)).toEqual(built)
+    })
+
+    it('defaults a missing schemaVersion to 1 (legacy rows)', () => {
+      const legacy = {
+        depositRequired: true,
+        depositType: 'percentage',
+        depositPercentage: 20,
+        depositFixedAmount: null,
+        resolvedAmount: '400',
+        capturedAt: NOW.toISOString(),
+      }
+      expect(readBookingDepositSnapshot(legacy as unknown as Prisma.JsonValue)?.schemaVersion).toBe(
+        1
+      )
+    })
+
+    it('returns null for missing/malformed input', () => {
+      expect(readBookingDepositSnapshot(null)).toBeNull()
+      expect(readBookingDepositSnapshot({ foo: 'bar' } as unknown as Prisma.JsonValue)).toBeNull()
     })
   })
 })

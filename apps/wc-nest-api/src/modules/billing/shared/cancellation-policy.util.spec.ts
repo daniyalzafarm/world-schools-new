@@ -116,10 +116,21 @@ describe('buildBookingPolicySnapshot / readBookingPolicySnapshot', () => {
     ])
     expect(snap.specialCircumstances).toEqual([])
     expect(snap.capturedAt).toBe('2026-05-01T00:00:00.000Z')
+    expect(snap.schemaVersion).toBe(1)
 
     // Persist as JSON and read back — the round trip must produce the same shape.
     const persisted = JSON.parse(JSON.stringify(snap))
     expect(readBookingPolicySnapshot(persisted)).toEqual(snap)
+  })
+
+  it('defaults a missing schemaVersion to 1 (rows persisted before versioning)', () => {
+    const legacy = {
+      policyName: 'moderate',
+      tiers: [{ daysBeforeStart: 0, refundPercentage: 0 }],
+      specialCircumstances: [],
+      capturedAt: '2026-05-01T00:00:00.000Z',
+    }
+    expect(readBookingPolicySnapshot(legacy as unknown as null)?.schemaVersion).toBe(1)
   })
 
   it('returns null for malformed snapshot JSON', () => {

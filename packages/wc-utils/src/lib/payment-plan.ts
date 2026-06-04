@@ -119,7 +119,7 @@ export function computeDepositAmountNumber(
     return amount > 0 ? amount : null
   }
 
-  if (type === 'fixed' || type === 'fixed_amount') {
+  if (type === 'fixed') {
     const fixed = settings.depositFixedAmount
     if (fixed == null || !Number.isFinite(fixed) || fixed <= 0) {
       throw new Error(`${INVALID_DEPOSIT_CONFIG}: depositFixedAmount must be positive`)

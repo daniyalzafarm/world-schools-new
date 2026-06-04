@@ -53,16 +53,6 @@ describe('computeDepositAmountNumber', () => {
     ).toBe(500)
   })
 
-  it('accepts the legacy fixed_amount discriminator', () => {
-    expect(
-      computeDepositAmountNumber(2000, {
-        depositRequired: true,
-        depositType: 'fixed_amount',
-        depositFixedAmount: 500,
-      })
-    ).toBe(500)
-  })
-
   it('caps a fixed deposit at the total amount (consumer-protection)', () => {
     expect(
       computeDepositAmountNumber(300, {

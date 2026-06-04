@@ -10,6 +10,7 @@ import {
   Min,
 } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
+import { DEPOSIT_TYPE_VALUES, type DepositType } from '@world-schools/wc-types'
 
 export class SaveDepositSettingsDto {
   @ApiProperty({
@@ -24,12 +25,12 @@ export class SaveDepositSettingsDto {
     description: 'Deposit type (percentage or fixed)',
     example: 'percentage',
     required: false,
-    enum: ['percentage', 'fixed'],
+    enum: DEPOSIT_TYPE_VALUES,
   })
   @IsOptional()
   @IsString()
-  @IsIn(['percentage', 'fixed'])
-  depositType?: string
+  @IsIn(DEPOSIT_TYPE_VALUES)
+  depositType?: DepositType
 
   @ApiProperty({
     description: 'Deposit percentage (1-100)',

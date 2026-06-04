@@ -35,7 +35,7 @@ import type {
 
 export type { CancellationPolicy, CancellationPolicySpecialCircumstance }
 
-export type DepositType = 'percentage' | 'fixed_amount'
+export type DepositType = 'percentage' | 'fixed'
 
 export interface TrustScoreBreakdown {
   // Step 1: Google Business Profile (max 30 pts)
@@ -198,7 +198,7 @@ export interface ProviderSettings {
   currency: string
   timezone: string
   depositRequired: boolean
-  depositType?: 'percentage' | 'fixed' | null // Backend uses 'fixed', not 'fixed_amount'
+  depositType?: 'percentage' | 'fixed' | null
   depositPercentage?: number | null
   depositFixedAmount?: number | null
   cancellationPolicy: CancellationPolicy
@@ -238,7 +238,7 @@ export interface UploadDocumentRequest {
 
 export interface SaveDepositSettingsRequest {
   depositRequired: boolean
-  depositType?: 'percentage' | 'fixed' | null // Backend expects 'fixed', not 'fixed_amount'
+  depositType?: 'percentage' | 'fixed' | null
   depositPercentage?: number | null
   depositFixedAmount?: number | null
 }

@@ -650,12 +650,10 @@ export default function CampPage() {
               <CancellationPolicySection
                 policy={camp.provider.settings.cancellationPolicy as any}
                 customPolicy={camp.provider.settings.cancellationPolicyCustom}
-                // Phase 9: deposit settings now live on the camp (provider-
-                // level remains the default for new camps only).
-                depositRequired={camp.depositRequired}
-                depositType={camp.depositType ?? undefined}
-                depositPercentage={camp.depositPercentage ?? undefined}
-                depositFixedAmount={camp.depositFixedAmount ?? undefined}
+                depositRequired={camp.provider?.settings?.depositRequired}
+                depositType={camp.provider?.settings?.depositType ?? undefined}
+                depositPercentage={camp.provider?.settings?.depositPercentage ?? undefined}
+                depositFixedAmount={camp.provider?.settings?.depositFixedAmount ?? undefined}
                 currency={currency}
                 selectedSession={selectedSession}
               />

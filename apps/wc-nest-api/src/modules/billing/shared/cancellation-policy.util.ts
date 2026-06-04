@@ -59,6 +59,12 @@ export interface PolicySnapshot {
 }
 
 /**
+ * Current shape version for `BookingPolicySnapshot`. Bump when the persisted
+ * shape changes so readers can branch instead of mis-parsing older rows.
+ */
+export const BOOKING_POLICY_SNAPSHOT_VERSION = 1
+
+/**
  * Booking-time policy snapshot persisted on `BookingGroup.cancellationPolicySnapshot`.
  * Frozen at submit so a provider editing their policy after the parent books
  * does NOT rewrite the parent's refund schedule (consumer-protection invariant).
@@ -73,6 +79,11 @@ export interface BookingPolicySnapshot {
   specialCircumstances: CancellationPolicySpecialCircumstance[]
   /** Wall-clock time of capture for audit. */
   capturedAt: string
+  /**
+   * Snapshot shape version. Lets readers branch when the shape evolves without
+   * backfilling history. Rows written before this field default to `1`.
+   */
+  schemaVersion: number
 }
 
 /**
@@ -184,6 +195,7 @@ export function buildBookingPolicySnapshot(args: {
     tiers: sortTiersDescending(resolveTiers(args.policyName, args.cancellationPolicyCustom)),
     specialCircumstances: resolveSpecialCircumstances(args.cancellationPolicySpecialCircumstances),
     capturedAt: now.toISOString(),
+    schemaVersion: BOOKING_POLICY_SNAPSHOT_VERSION,
   }
 }
 
@@ -224,6 +236,8 @@ export function readBookingPolicySnapshot(
         : null
     ),
     capturedAt,
+    // Rows persisted before the version field existed are treated as v1.
+    schemaVersion: typeof obj.schemaVersion === 'number' ? obj.schemaVersion : 1,
   }
 }
 

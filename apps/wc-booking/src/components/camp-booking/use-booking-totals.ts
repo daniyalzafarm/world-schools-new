@@ -55,10 +55,10 @@ export function useBookingTotals(): BookingTotals {
   const depositAmount = useMemo(
     () =>
       computeDepositAmount(total, {
-        depositRequired: camp?.depositRequired,
-        depositType: camp?.depositType,
-        depositPercentage: camp?.depositPercentage,
-        depositFixedAmount: camp?.depositFixedAmount,
+        depositRequired: camp?.provider?.settings?.depositRequired,
+        depositType: camp?.provider?.settings?.depositType,
+        depositPercentage: camp?.provider?.settings?.depositPercentage,
+        depositFixedAmount: camp?.provider?.settings?.depositFixedAmount,
       }),
     [total, camp]
   )
