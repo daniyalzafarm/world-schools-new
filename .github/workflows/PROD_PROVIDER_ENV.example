@@ -1,0 +1,19 @@
+# =============================================================================
+# PROD_PROVIDER_ENV — example reference
+# =============================================================================
+#
+# Paste into GitHub Variable `PROD_PROVIDER_ENV`. Injected as runtime env on
+# `ca-provider-wc-prod`. None of these values are secret — see Phase 2 of the
+# deployment plan.
+# =============================================================================
+
+APP_URL=https://provider.world-camps.org
+API_BASE_URL=https://api.world-camps.org
+WS_URL=https://api.world-camps.org
+BOOKING_APP_URL=https://booking.world-camps.org
+SUPERADMIN_APP_URL=https://superadmin.world-camps.org
+AUTH_USING_REQUEST=false
+GOOGLE_MAPS_API_KEY=<prod-google-maps-browser-key>
+STRIPE_PUBLISHABLE_KEY=pk_live_xxx
+ENABLE_WEBSOCKET_MESSAGES=true
+WEBSOCKET_FALLBACK_HTTP=true

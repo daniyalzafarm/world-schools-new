@@ -11,6 +11,7 @@ import {
   BasicInfoForm,
   type BasicInfoFormData,
 } from '../../../../../components/camp-forms/BasicInfoForm'
+import { getRuntimeConfig } from '../../../../../config/runtime-config'
 
 export default function BasicInfoEditorPage() {
   const router = useRouter()
@@ -21,7 +22,7 @@ export default function BasicInfoEditorPage() {
 
   const { googleBusinessProfile, fetchGoogleBusinessProfile } = useOnboardingStore()
 
-  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
+  const googleMapsApiKey = getRuntimeConfig().googleMapsApiKey ?? ''
 
   const [formData, setFormData] = useState<BasicInfoFormData>({
     name: '',

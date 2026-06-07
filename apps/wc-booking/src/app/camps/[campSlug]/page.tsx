@@ -197,14 +197,8 @@ export default function CampPage() {
     )
   }
 
-  const getImageUrl = (url: string) => {
-    if (!url) return ''
-    if (url.startsWith('http://') || url.startsWith('https://')) return url
-    const storageUrl = config.app.storageUrl.endsWith('/')
-      ? config.app.storageUrl
-      : `${config.app.storageUrl}/`
-    return `${storageUrl}${url}`
-  }
+  // The backend returns absolute SAS URLs for photos, so no storage-prefixing is needed.
+  const getImageUrl = (url: string) => url || ''
 
   const primaryPhoto = camp.photos?.find(p => p.isPrimary)?.url || camp.photos?.[0]?.url
   const primaryPhotoUrl = primaryPhoto ? getImageUrl(primaryPhoto) : null

@@ -10,6 +10,7 @@ import {
   BasicInfoForm,
   type BasicInfoFormData,
 } from '../../../../components/camp-forms/BasicInfoForm'
+import { getRuntimeConfig } from '../../../../config/runtime-config'
 
 // Helper function to generate slug from camp name
 const generateSlug = (name: string): string => {
@@ -55,7 +56,7 @@ export default function BasicInfoPage() {
   const [slugError, setSlugError] = useState<string>('')
   const [isCheckingSlug, setIsCheckingSlug] = useState(false)
 
-  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
+  const googleMapsApiKey = getRuntimeConfig().googleMapsApiKey ?? ''
 
   useEffect(() => {
     setWizardStep(1)

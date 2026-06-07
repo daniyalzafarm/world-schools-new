@@ -22,35 +22,10 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Accept space-separated environment variables as a single build arg
-# Format: "KEY1=value1 KEY2=value2 KEY3=value3"
-# Example: "NEXT_PUBLIC_API_BASE_URL=https://api.com NEXT_PUBLIC_AUTH_USING_REQUEST=false NEXT_PUBLIC_APP_VERSION=1.0.0"
-ARG BUILD_ENV=""
-
-# Parse BUILD_ENV and set environment variables for Next.js build
-# This approach uses a shell script to export variables before running the build
-RUN set -e; \
-    if [ -n "$BUILD_ENV" ]; then \
-      echo "Parsing build environment variables..."; \
-      # Create a temporary script to export variables
-      echo '#!/bin/sh' > /tmp/set-env.sh; \
-      echo 'set -e' >> /tmp/set-env.sh; \
-      # Parse each KEY=value pair and add export statements
-      for pair in $BUILD_ENV; do \
-        key=$(echo "$pair" | cut -d'=' -f1); \
-        value=$(echo "$pair" | cut -d'=' -f2-); \
-        echo "export $key=\"$value\"" >> /tmp/set-env.sh; \
-        echo "Set $key=$value"; \
-      done; \
-      # Add the build command to the script
-      echo 'npx nx build wc-superadmin' >> /tmp/set-env.sh; \
-      chmod +x /tmp/set-env.sh; \
-      # Execute the script (this ensures exports are available during build)
-      /tmp/set-env.sh; \
-    else \
-      # No BUILD_ENV provided, run build with defaults
-      npx nx build wc-superadmin; \
-    fi
+# No build-time env vars: all configuration is injected at runtime via the
+# Container App's env vars and read by the layout's inline <script> + the
+# /config.json route handler. The same image runs in any environment.
+RUN npx nx build wc-superadmin
 
 # Production image
 FROM base AS runner

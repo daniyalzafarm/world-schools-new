@@ -1,0 +1,501 @@
+name: WC Production Deployment
+
+# Manually dispatched. Deploys the SAME images that staging built — no rebuild.
+# A GitHub Environment `production` with a required-reviewer rule gates every
+# job that mutates prod state (migrations, deploys), so the reviewer covers
+# everything that follows once they approve.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to deploy (e.g. wc-v1.2.3) — must already be deployed to staging"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wc-prod-deploy
+  cancel-in-progress: false
+
+env:
+  AZURE_RESOURCE_GROUP: rg-wc-prod-ch-north
+  AZURE_LOCATION: switzerlandnorth
+  ACR_NAME: acrwc
+  CONTAINER_APP_ENV: cae-wc-prod
+
+  # Container App names
+  API_CONTAINER_APP_NAME: ca-api-wc-prod
+
+  # Prisma migrate Container Apps Job — created out-of-band per AZURE_SETUP_WC_PROD.md
+  MIGRATION_JOB_NAME: caj-migrate-wc-prod
+
+jobs:
+  # ----------------------------------------------------------
+  # Validate input, extract version, verify all four images exist
+  # ----------------------------------------------------------
+  validate:
+    name: Validate Tag & Resolve Digests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+      api_digest: ${{ steps.digests.outputs.api_digest }}
+      booking_digest: ${{ steps.digests.outputs.booking_digest }}
+      provider_digest: ${{ steps.digests.outputs.provider_digest }}
+      superadmin_digest: ${{ steps.digests.outputs.superadmin_digest }}
+
+    steps:
+      - name: Extract version from input
+        id: extract
+        run: |
+          TAG="${{ inputs.tag }}"
+          if [[ ! "$TAG" =~ ^wc-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid tag format: '$TAG' — expected wc-vMAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          VERSION=${TAG#wc-v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "🏷️  Deploying $TAG (version $VERSION)"
+
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
+
+      - name: Verify images exist & resolve digests
+        id: digests
+        run: |
+          VERSION="${{ steps.extract.outputs.version }}"
+          MISSING=()
+
+          for repo in wc-nest-api wc-booking wc-provider wc-superadmin; do
+            DIGEST=$(az acr repository show \
+              --name ${{ env.ACR_NAME }} \
+              --image ${repo}:${VERSION} \
+              --query 'digest' -o tsv 2>/dev/null || echo "")
+
+            if [ -z "$DIGEST" ]; then
+              MISSING+=("${repo}:${VERSION}")
+            else
+              echo "✅ ${repo}:${VERSION} → $DIGEST"
+            fi
+
+            case "$repo" in
+              wc-nest-api)    echo "api_digest=$DIGEST"        >> $GITHUB_OUTPUT ;;
+              wc-booking)     echo "booking_digest=$DIGEST"    >> $GITHUB_OUTPUT ;;
+              wc-provider)    echo "provider_digest=$DIGEST"   >> $GITHUB_OUTPUT ;;
+              wc-superadmin)  echo "superadmin_digest=$DIGEST" >> $GITHUB_OUTPUT ;;
+            esac
+          done
+
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo ""
+            echo "❌ The following images are missing from ACR:"
+            printf '   - %s\n' "${MISSING[@]}"
+            echo ""
+            echo "Tag '${{ inputs.tag }}' must be built by the staging workflow first."
+            exit 1
+          fi
+
+  # ----------------------------------------------------------
+  # Prod migrations — runs the new API image as a one-shot
+  # Container Apps Job inside the prod VNet.
+  # FIRST GATED JOB — `environment: production` triggers the required reviewer.
+  # ----------------------------------------------------------
+  run-prod-migrations:
+    name: Run Prisma Migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: validate
+    environment: production
+
+    steps:
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
+
+      - name: Update migration job image
+        run: |
+          az containerapp job update \
+            --name ${{ env.MIGRATION_JOB_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/wc-nest-api@${{ needs.validate.outputs.api_digest }}
+
+      - name: Start migration job
+        id: start
+        run: |
+          EXEC_NAME=$(az containerapp job start \
+            --name ${{ env.MIGRATION_JOB_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query name -o tsv)
+          echo "exec_name=$EXEC_NAME" >> $GITHUB_OUTPUT
+          echo "🚀 Started migration execution: $EXEC_NAME"
+
+      - name: Wait for migration to complete
+        run: |
+          EXEC_NAME="${{ steps.start.outputs.exec_name }}"
+          MAX_WAIT=900
+          ELAPSED=0
+          SLEEP=10
+
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            STATUS=$(az containerapp job execution show \
+              --name ${{ env.MIGRATION_JOB_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --job-execution-name "$EXEC_NAME" \
+              --query properties.status -o tsv)
+            echo "[$ELAPSED s] status: $STATUS"
+
+            case "$STATUS" in
+              Succeeded) echo "✅ Migration completed"; exit 0 ;;
+              Failed|Stopped) echo "❌ Migration $STATUS"; exit 1 ;;
+            esac
+
+            sleep $SLEEP
+            ELAPSED=$((ELAPSED + SLEEP))
+          done
+
+          echo "❌ Timed out after ${MAX_WAIT}s waiting for migration"
+          exit 1
+
+  # ----------------------------------------------------------
+  # Deploy API by digest
+  # ----------------------------------------------------------
+  deploy-api:
+    name: Deploy API
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [validate, run-prod-migrations]
+    environment: production
+
+    steps:
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
+
+      - name: Parse API secrets
+        id: api-secrets
+        run: |
+          SECRETS_RAW="${{ secrets.WC_PROD_API_SECRETS }}"
+
+          if [ -n "$SECRETS_RAW" ]; then
+            echo "Processing API secrets..."
+
+            SECRET_PAIRS=()
+            while IFS= read -r line; do
+              trimmed=$(echo "$line" | xargs)
+              [ -n "$trimmed" ] && SECRET_PAIRS+=("$trimmed")
+            done <<< "$SECRETS_RAW"
+
+            SECRET_REFS=""
+            for pair in "${SECRET_PAIRS[@]}"; do
+              KEY=$(echo "$pair" | cut -d'=' -f1 | xargs)
+              VALUE=$(echo "$pair" | cut -d'=' -f2- | xargs)
+              SECRET_NAME=$(echo "$KEY" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
+
+              az containerapp secret set \
+                --name ${{ env.API_CONTAINER_APP_NAME }} \
+                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+                --secrets "$SECRET_NAME=$VALUE" \
+                --output none
+
+              if [ -z "$SECRET_REFS" ]; then
+                SECRET_REFS="${KEY}=secretref:${SECRET_NAME}"
+              else
+                SECRET_REFS="$SECRET_REFS ${KEY}=secretref:${SECRET_NAME}"
+              fi
+            done
+
+            echo "secret_refs=$SECRET_REFS" >> $GITHUB_OUTPUT
+            echo "✅ Secrets configured"
+          else
+            echo "secret_refs=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Parse API runtime env
+        id: api-env
+        run: |
+          RAW="$(echo "${{ vars.WC_PROD_API_ENV }}" | tr -d '\r' | tr '\n' ' ')"
+          ENV="APP_VERSION=${{ needs.validate.outputs.version }} $RAW"
+
+          SECRET_REFS="${{ steps.api-secrets.outputs.secret_refs }}"
+          if [ -n "$SECRET_REFS" ]; then
+            ENV="$ENV $SECRET_REFS"
+          fi
+
+          echo "env=$ENV" >> $GITHUB_OUTPUT
+
+      - name: Deploy API
+        run: |
+          az containerapp update \
+            --name ${{ env.API_CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/wc-nest-api@${{ needs.validate.outputs.api_digest }} \
+            --set-env-vars ${{ steps.api-env.outputs.env }}
+
+  # ----------------------------------------------------------
+  # Verify API health
+  # ----------------------------------------------------------
+  verify-api-health:
+    name: Verify API Health
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [validate, deploy-api]
+    environment: production
+
+    steps:
+      - name: Wait for API to be ready
+        run: sleep 30
+
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
+
+      - name: Get API URL
+        id: api-url
+        run: |
+          API_FQDN=$(az containerapp show \
+            --name ${{ env.API_CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "api_url=https://${API_FQDN}" >> $GITHUB_OUTPUT
+
+      - name: Health check with retry
+        run: |
+          API_URL="${{ steps.api-url.outputs.api_url }}"
+          EXPECTED_VERSION="${{ needs.validate.outputs.version }}"
+          MAX_RETRIES=10
+          RETRY_DELAY=15
+
+          echo "🏥 Checking ${API_URL}/health for v${EXPECTED_VERSION}"
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i/$MAX_RETRIES..."
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}/health" || echo "000")
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              RESPONSE=$(curl -s "${API_URL}/health")
+              echo "Response: $RESPONSE"
+              if echo "$RESPONSE" | grep -q '"status":"ok"'; then
+                DEPLOYED_VERSION=$(echo "$RESPONSE" | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+                if [ "$DEPLOYED_VERSION" = "$EXPECTED_VERSION" ]; then
+                  echo "✅ API is running v${EXPECTED_VERSION}"
+                  exit 0
+                fi
+              fi
+            fi
+
+            [ $i -lt $MAX_RETRIES ] && sleep $RETRY_DELAY
+          done
+
+          echo "❌ API health check failed after $MAX_RETRIES attempts"
+          exit 1
+
+  # ----------------------------------------------------------
+  # Deploy frontends by digest (matrix)
+  # ----------------------------------------------------------
+  deploy-frontends:
+    name: Deploy Frontend (${{ matrix.app.id }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [validate, verify-api-health]
+    environment: production
+
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - id: superadmin
+            container: ca-admin-wc-prod
+            env_var: PROD_SUPERADMIN_ENV
+          - id: provider
+            container: ca-provider-wc-prod
+            env_var: PROD_PROVIDER_ENV
+          - id: booking
+            container: ca-booking-wc-prod
+            env_var: PROD_BOOKING_ENV
+
+    steps:
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
+
+      - name: Resolve digest for this app
+        id: resolve
+        run: |
+          case "${{ matrix.app.id }}" in
+            booking)    DIGEST="${{ needs.validate.outputs.booking_digest }}" ;;
+            provider)   DIGEST="${{ needs.validate.outputs.provider_digest }}" ;;
+            superadmin) DIGEST="${{ needs.validate.outputs.superadmin_digest }}" ;;
+          esac
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+
+      - name: Prepare runtime env
+        id: runtime-env
+        run: |
+          RAW="$(echo "${{ vars[matrix.app.env_var] }}" | tr -d '\r' | tr '\n' ' ')"
+          ENV="APP_VERSION=${{ needs.validate.outputs.version }} $RAW"
+          echo "env=$ENV" >> $GITHUB_OUTPUT
+
+      - name: Deploy Container App
+        run: |
+          az containerapp update \
+            --name ${{ matrix.app.container }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/wc-${{ matrix.app.id }}@${{ steps.resolve.outputs.digest }} \
+            --set-env-vars ${{ steps.runtime-env.outputs.env }}
+
+  # ----------------------------------------------------------
+  # Smoke tests
+  # ----------------------------------------------------------
+  prod-smoke-tests:
+    name: Smoke Test Frontend (${{ matrix.app.id }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [validate, deploy-frontends]
+    environment: production
+
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - id: superadmin
+            container: ca-admin-wc-prod
+          - id: provider
+            container: ca-provider-wc-prod
+          - id: booking
+            container: ca-booking-wc-prod
+
+    steps:
+      - name: Wait for rollout
+        run: sleep 20
+
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
+
+      - name: Get frontend URL
+        id: url
+        run: |
+          FQDN=$(az containerapp show \
+            --name ${{ matrix.app.container }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "url=https://${FQDN}" >> $GITHUB_OUTPUT
+
+      - name: Smoke test (HTML + __APP_CONFIG__ + version + /config.json)
+        run: |
+          URL="${{ steps.url.outputs.url }}"
+          EXPECTED_VERSION="${{ needs.validate.outputs.version }}"
+          MAX_RETRIES=8
+          RETRY_DELAY=15
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i/$MAX_RETRIES — $URL"
+            HTML=$(curl -fsSL "$URL" || echo "")
+
+            if echo "$HTML" | grep -q "window.__APP_CONFIG__"; then
+              if echo "$HTML" | grep -q "\"appVersion\":\"${EXPECTED_VERSION}\""; then
+                CFG=$(curl -fsSL "$URL/config.json" || echo "")
+                if echo "$CFG" | grep -q "\"appVersion\":\"${EXPECTED_VERSION}\""; then
+                  echo "✅ ${{ matrix.app.id }}: HTML config + /config.json both v${EXPECTED_VERSION}"
+                  exit 0
+                fi
+              fi
+            fi
+
+            [ $i -lt $MAX_RETRIES ] && sleep $RETRY_DELAY
+          done
+
+          echo "❌ Smoke test failed for ${{ matrix.app.id }}"
+          exit 1
+
+  # ----------------------------------------------------------
+  # Deployment summary + optional Slack notification
+  # ----------------------------------------------------------
+  deployment-summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - validate
+      - run-prod-migrations
+      - deploy-api
+      - verify-api-health
+      - deploy-frontends
+      - prod-smoke-tests
+
+    steps:
+      - name: Write summary
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          TAG="${{ inputs.tag }}"
+          STATUS_OVERALL="✅ success"
+          for r in \
+            "${{ needs.run-prod-migrations.result }}" \
+            "${{ needs.deploy-api.result }}" \
+            "${{ needs.verify-api-health.result }}" \
+            "${{ needs.deploy-frontends.result }}" \
+            "${{ needs.prod-smoke-tests.result }}"; do
+            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
+              STATUS_OVERALL="❌ failed"
+            fi
+          done
+
+          {
+            echo "## 🚀 WC Production Deployment — v${VERSION}"
+            echo ""
+            echo "**Tag:** \`${TAG}\` &nbsp;&nbsp; **Triggered by:** @${{ github.actor }}"
+            echo "**Environment:** production (rg-wc-prod-ch-north)"
+            echo "**Status:** ${STATUS_OVERALL}"
+            echo ""
+            echo "### Images (by digest — identical to staging)"
+            echo "| Image | Digest |"
+            echo "|---|---|"
+            echo "| wc-nest-api:${VERSION} | \`${{ needs.validate.outputs.api_digest }}\` |"
+            echo "| wc-booking:${VERSION} | \`${{ needs.validate.outputs.booking_digest }}\` |"
+            echo "| wc-provider:${VERSION} | \`${{ needs.validate.outputs.provider_digest }}\` |"
+            echo "| wc-superadmin:${VERSION} | \`${{ needs.validate.outputs.superadmin_digest }}\` |"
+            echo ""
+            echo "### Pipeline results"
+            echo "| Step | Result |"
+            echo "|---|---|"
+            echo "| Migrations | ${{ needs.run-prod-migrations.result }} |"
+            echo "| Deploy API | ${{ needs.deploy-api.result }} |"
+            echo "| API health | ${{ needs.verify-api-health.result }} |"
+            echo "| Deploy frontends | ${{ needs.deploy-frontends.result }} |"
+            echo "| Smoke tests | ${{ needs.prod-smoke-tests.result }} |"
+            echo ""
+            echo "### Rollback"
+            echo "Re-dispatch this workflow with the previous known-good tag:"
+            echo '```bash'
+            echo "gh workflow run wc-prod-deploy.yml -f tag=wc-vX.Y.Z"
+            echo '```'
+            echo "Schema is **not** rolled back automatically — only image rollback. Backward-compatible migrations make this safe."
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Slack notification (optional)
+        if: vars.SLACK_DEPLOY_WEBHOOK_URL != ''
+        env:
+          WEBHOOK_URL: ${{ vars.SLACK_DEPLOY_WEBHOOK_URL }}
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          STATUS="success"
+          for r in \
+            "${{ needs.run-prod-migrations.result }}" \
+            "${{ needs.deploy-api.result }}" \
+            "${{ needs.verify-api-health.result }}" \
+            "${{ needs.deploy-frontends.result }}" \
+            "${{ needs.prod-smoke-tests.result }}"; do
+            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
+              STATUS="failed"
+            fi
+          done
+
+          ICON=":rocket:"
+          [ "$STATUS" = "failed" ] && ICON=":fire:"
+
+          curl -fsS -X POST -H 'Content-Type: application/json' \
+            --data "{\"text\":\"${ICON} *WC prod deploy ${STATUS}* — \`wc-v${VERSION}\` by @${{ github.actor }}. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Run>\"}" \
+            "$WEBHOOK_URL"

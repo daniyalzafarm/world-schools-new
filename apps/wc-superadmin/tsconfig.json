@@ -8,7 +8,10 @@
       "@world-schools/ui-web": ["../../packages/ui-web/src/index.ts"],
       "@world-schools/wc-types": ["../../packages/wc-types/src/index.ts"],
       "@world-schools/wc-utils": ["../../packages/wc-utils/src/index.ts"],
-      "@world-schools/wc-frontend-utils": ["../../packages/wc-frontend-utils/src/index.ts"]
+      "@world-schools/wc-frontend-utils": ["../../packages/wc-frontend-utils/src/index.ts"],
+      "@world-schools/wc-frontend-utils/runtime-config": [
+        "../../packages/wc-frontend-utils/src/lib/runtime-config/index.ts"
+      ]
     }
   },
   "include": [

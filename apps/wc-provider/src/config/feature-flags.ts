@@ -1,15 +1,19 @@
 /**
  * Feature Flags Configuration for WC Provider
  *
- * This file configures feature flags for the provider app.
- * All logic is in @world-schools/wc-frontend-utils.
+ * All logic is in @world-schools/wc-frontend-utils; values resolve from the
+ * runtime config injected by the root layout (no NEXT_PUBLIC_* baked in).
  */
 
 import { createFeatureFlags } from '@world-schools/wc-frontend-utils'
 
+import { getRuntimeConfig } from './runtime-config'
+
+const runtime = getRuntimeConfig()
+
 export const FEATURE_FLAGS = createFeatureFlags({
-  WEBSOCKET_MESSAGES: process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET_MESSAGES === 'true',
-  WEBSOCKET_FALLBACK_TO_HTTP: process.env.NEXT_PUBLIC_WEBSOCKET_FALLBACK_HTTP !== 'false',
+  WEBSOCKET_MESSAGES: runtime.enableWebsocketMessages,
+  WEBSOCKET_FALLBACK_TO_HTTP: runtime.websocketFallbackHttp,
 })
 
 // Expose to window for shared package to access

@@ -27,7 +27,10 @@
       "@world-schools/wc-utils": ["packages/wc-utils/src/index.ts"],
       "@world-schools/wc-utils/backend": ["packages/wc-utils/src/backend.ts"],
       "@world-schools/wc-frontend-utils": ["packages/wc-frontend-utils/src/index.ts"],
-      "@world-schools/wc-email-templates": ["packages/wc-email-templates/src/index.ts"]
+      "@world-schools/wc-email-templates": ["packages/wc-email-templates/src/index.ts"],
+      "@world-schools/wc-frontend-utils/runtime-config": [
+        "packages/wc-frontend-utils/src/lib/runtime-config/index.ts"
+      ]
     }
   },
   "exclude": ["node_modules", "tmp"]

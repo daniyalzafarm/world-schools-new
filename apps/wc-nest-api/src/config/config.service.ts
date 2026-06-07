@@ -48,6 +48,10 @@ export class ConfigService {
     return this.getNumber('PORT', 3000)
   }
 
+  get azureFdId(): string {
+    return this.getString('AZURE_FDID', '')
+  }
+
   get databaseUrl(): string {
     const { host, port, username, password, database } = this.postgresConfig
     return `postgresql://${username}:${password}@${host}:${port}/${database}`

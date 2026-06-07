@@ -55,6 +55,11 @@ export {
 // Feature flags (shared across apps)
 export * from './lib/config/feature-flags'
 
+// Note: runtime-config helpers are intentionally NOT re-exported here.
+// Consumers must import from '@world-schools/wc-frontend-utils/runtime-config'
+// to avoid pulling the entire barrel (which includes client-only hooks) into
+// server-side import chains (root layout, route handlers).
+
 // Discount types configuration (static metadata for all discount categories)
 export * from './lib/discount-types'
 

@@ -22,6 +22,7 @@ import { GoogleMapWithSearch } from '../../../components/onboarding/GoogleMapWit
 import { TrustScoreBadge } from '../../../components/onboarding/TrustScoreBadge'
 import type { GoogleBusinessSearchResult, LegalBusinessInfo } from '../../../types/onboarding'
 import { Search } from 'lucide-react'
+import { getRuntimeConfig } from '../../../config/runtime-config'
 
 /* eslint-disable no-undef */
 // Google Maps API types are loaded via script tag
@@ -78,7 +79,7 @@ export default function OnboardingStep1Page() {
   const mobileSearchInputRef = useRef<HTMLInputElement>(null)
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
   const mobileAutocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
-  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
+  const googleMapsApiKey = getRuntimeConfig().googleMapsApiKey ?? ''
 
   // React Hook Form for legal business information
   const {

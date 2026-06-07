@@ -31,6 +31,8 @@
 #
 # Sensitive keys (passwords, signing secrets, server-side API keys) live in
 # WC_STAGING_API_SECRETS instead. See WC_STAGING_API_SECRETS.example.
+#   • BULL_BOARD_USER is the (non-secret) basic-auth username for /admin/queues;
+#     its password BULL_BOARD_PASSWORD lives in WC_STAGING_API_SECRETS.
 # =============================================================================
 # ================ REMOVE EMPTY LINES BEFORE PASTING IN GITHUB ================
 # =============================================================================
@@ -58,6 +60,8 @@ HELMET_ENABLED=true
 TRUST_PROXY=1
 
 RATE_LIMIT_FAIL_MODE=open
+
+BULL_BOARD_USER=ops
 
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587

@@ -11,6 +11,7 @@ import cookieParser from 'cookie-parser'
 import crypto from 'crypto'
 import type { NextFunction, Request, Response } from 'express'
 import { AuthTokenMiddleware } from './common/middleware/auth-token.middleware'
+import { FrontDoorMiddleware } from './common/middleware/front-door.middleware'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -56,6 +57,13 @@ async function bootstrap() {
   // Register AuthTokenMiddleware globally (after cookieParser)
   const authTokenMiddleware = app.get(AuthTokenMiddleware)
   app.use(authTokenMiddleware.use.bind(authTokenMiddleware))
+
+  // Reject any request that didn't come through our Front Door instance.
+  // Active only when AZURE_FDID is set (production); /health is exempt so the
+  // Container Apps Liveness/Readiness/Startup probes (which hit the pod IP
+  // directly, not via FD) still succeed.
+  const frontDoorMiddleware = app.get(FrontDoorMiddleware)
+  app.use(frontDoorMiddleware.use.bind(frontDoorMiddleware))
 
   // CSRF protection using the stateless double-submit cookie pattern.
   // - A random token is set in a non-httpOnly cookie on every safe (GET/HEAD/OPTIONS) request.

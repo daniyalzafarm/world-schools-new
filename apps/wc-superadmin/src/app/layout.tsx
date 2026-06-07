@@ -1,9 +1,12 @@
 import type { Metadata, Viewport } from 'next'
 
 import config from '@/config/config'
+import { getServerConfig, serializeConfigForScript } from '@/config/runtime-config'
 
 import { Providers } from './providers'
 import './globals.css'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   metadataBase: new URL(config.app.metadataBase),
@@ -51,8 +54,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const runtimeConfigScript = `window.__APP_CONFIG__=${serializeConfigForScript(getServerConfig())};`
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: runtimeConfigScript }} />
+      </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>

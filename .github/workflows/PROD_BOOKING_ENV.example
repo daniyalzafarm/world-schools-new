@@ -1,0 +1,25 @@
+# =============================================================================
+# PROD_BOOKING_ENV — example reference
+# =============================================================================
+#
+# Paste into GitHub Variable `PROD_BOOKING_ENV` (Settings → Secrets and
+# variables → Actions → Variables → New repository variable).
+#
+# The prod workflow reads this and injects each pair as a Container App env
+# var on `ca-booking-wc-prod`. The frontend reads the values at runtime via
+# the inline <script>window.__APP_CONFIG__=…</script> in the root layout
+# and the /config.json route handler — they are NOT baked into the image.
+#
+# All values listed here are browser-exposed and are NOT secret. The Stripe
+# publishable key (pk_live_…) is public by Stripe design. The Google Maps
+# browser key should be protected via HTTP-referrer restrictions in GCP.
+# =============================================================================
+
+APP_URL=https://booking.world-camps.org
+API_BASE_URL=https://api.world-camps.org
+WS_URL=https://api.world-camps.org
+AUTH_USING_REQUEST=false
+GOOGLE_MAPS_API_KEY=<prod-google-maps-browser-key>
+STRIPE_PUBLISHABLE_KEY=pk_live_xxx
+ENABLE_WEBSOCKET_MESSAGES=true
+WEBSOCKET_FALLBACK_HTTP=true

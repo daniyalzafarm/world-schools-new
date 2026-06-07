@@ -1,27 +1,30 @@
-const isProd = process.env.NODE_ENV === 'production'
-const required = (value: string | undefined, key: string): string => {
-  if (isProd && !value) {
-    throw new Error(`Config error - missing ${key}`)
-  }
-  return value ?? ''
-}
+import { getRuntimeConfig } from './runtime-config'
 
 const config = {
   app: {
-    apiUrl:
-      required(process.env.NEXT_PUBLIC_API_BASE_URL, 'NEXT_PUBLIC_API_BASE_URL') ||
-      'http://localhost:3000/',
-    wsUrl:
-      required(process.env.NEXT_PUBLIC_WS_URL, 'NEXT_PUBLIC_WS_URL') || 'http://localhost:3000',
-    version: process.env.NEXT_PUBLIC_APP_VERSION ?? 'dev',
-    providerAppUrl: process.env.NEXT_PUBLIC_PROVIDER_APP_URL ?? 'http://localhost:4302',
-    bookingAppUrl: process.env.NEXT_PUBLIC_BOOKING_APP_URL ?? 'http://localhost:4303',
-    metadataBase:
-      required(process.env.NEXT_PUBLIC_APP_URL, 'NEXT_PUBLIC_APP_URL') ||
-      'https://superadmin.world-camps.org',
+    get apiUrl(): string {
+      return getRuntimeConfig().apiBaseUrl
+    },
+    get wsUrl(): string {
+      return getRuntimeConfig().wsUrl ?? ''
+    },
+    get version(): string {
+      return getRuntimeConfig().appVersion
+    },
+    get providerAppUrl(): string {
+      return getRuntimeConfig().providerAppUrl ?? 'http://localhost:4302'
+    },
+    get bookingAppUrl(): string {
+      return getRuntimeConfig().bookingAppUrl ?? 'http://localhost:4303'
+    },
+    get metadataBase(): string {
+      return getRuntimeConfig().appUrl
+    },
   },
   auth: {
-    usingRequest: process.env.NEXT_PUBLIC_AUTH_USING_REQUEST === 'true',
+    get usingRequest(): boolean {
+      return getRuntimeConfig().authUsingRequest
+    },
   },
 }
 

@@ -1,0 +1,81 @@
+# =============================================================================
+# WC_PROD_API_ENV — example reference
+# =============================================================================
+#
+# This file documents the value that should be pasted into the GitHub variable
+# named `WC_PROD_API_ENV` (Settings → Secrets and variables → Actions →
+# Variables → New repository variable).
+#
+# The deploy workflow at .github/workflows/wc-prod-deploy.yml reads this value,
+# converts newlines to spaces, and passes the result to
+# `az containerapp update --set-env-vars` so each KEY=VALUE pair becomes a
+# plain (unencrypted) environment variable on the running container.
+#
+# Format rules:
+#   • One KEY=VALUE per line. Blank lines between sections are tolerated.
+#   • Values cannot contain spaces or newlines.
+#   • The body below must contain NO `#`-prefixed comments — `tr '\n' ' '`
+#     would turn them into bogus env entries and the `az` call would fail.
+#   • What to paste: copy everything from `NODE_ENV=` down to the last
+#     `BILLING_AUTH_EXPIRY_CANCEL_DAYS=` line below.
+#
+# Not included here (handled elsewhere):
+#   • PORT             — Azure Container Apps sets this at runtime.
+#   • APP_VERSION      — injected by the deploy workflow from the dispatch tag.
+#   • DATABASE_URL     — composed by ConfigService from the POSTGRES_* vars.
+#
+# Sensitive keys live in WC_PROD_API_SECRETS. See WC_PROD_API_SECRETS.example.
+#   • BULL_BOARD_USER is the (non-secret) basic-auth username for /admin/queues;
+#     its password BULL_BOARD_PASSWORD lives in WC_PROD_API_SECRETS.
+# =============================================================================
+# ================ REMOVE EMPTY LINES BEFORE PASTING IN GITHUB ================
+# =============================================================================
+
+NODE_ENV=production
+
+APP_URL=https://api.world-camps.org
+SUPERADMIN_PORTAL_URL=https://superadmin.world-camps.org
+PROVIDER_PORTAL_URL=https://provider.world-camps.org
+BOOKING_PORTAL_URL=https://booking.world-camps.org
+CORS_ORIGINS=https://booking.world-camps.org,https://provider.world-camps.org,https://superadmin.world-camps.org
+
+POSTGRES_HOST=pg-wc-prod.postgres.database.azure.com
+POSTGRES_PORT=5432
+POSTGRES_USER=wcadmin
+POSTGRES_DB=world-camps
+POSTGRES_REQUIRE_SSL=true
+
+AUTH_USING_REQUEST=false
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+BCRYPT_SALT_ROUNDS=12
+
+HELMET_ENABLED=true
+TRUST_PROXY=1
+
+RATE_LIMIT_FAIL_MODE=open
+
+BULL_BOARD_USER=ops
+
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=noreply@world-camps.org
+EMAIL_FROM=noreply@world-camps.org
+
+AZURE_STORAGE_ACCOUNT_URL=https://sawcprod.blob.core.windows.net
+AZURE_STORAGE_ACCOUNT_NAME=sawcprod
+AZURE_STORAGE_CONTAINER_NAME=wc-prod-files
+AZURE_STORAGE_SAS_EXPIRY_HOURS=24
+
+ENABLE_WEBSOCKET_MESSAGES=true
+
+STRIPE_PUBLISHABLE_KEY=pk_live_xxx
+STRIPE_WEBHOOK_TOLERANCE_SECONDS=300
+STRIPE_WEBHOOK_EVENT_RETENTION_DAYS=90
+
+BILLING_OFF_SESSION_MAX_ATTEMPTS=2
+BILLING_OFF_SESSION_RETRY_HOURS=24
+BILLING_OFF_SESSION_STEP_UP_WINDOW_HOURS=48
+BILLING_BALANCE_CHARGE_CRON_MINUTES=30
+BILLING_AUTH_EXPIRY_WARN_DAYS=5
+BILLING_AUTH_EXPIRY_CANCEL_DAYS=6

@@ -1,29 +1,29 @@
-const isProd = process.env.NODE_ENV === 'production'
-const required = (value: string | undefined, key: string): string => {
-  if (isProd && !value) {
-    throw new Error(`Config error - missing ${key}`)
-  }
-  return value ?? ''
-}
+import { getRuntimeConfig } from './runtime-config'
 
 const config = {
   app: {
-    apiUrl:
-      required(process.env.NEXT_PUBLIC_API_BASE_URL, 'NEXT_PUBLIC_API_BASE_URL') ||
-      'http://localhost:3000/',
-    wsUrl:
-      required(process.env.NEXT_PUBLIC_WS_URL, 'NEXT_PUBLIC_WS_URL') || 'http://localhost:3000',
-    storageUrl: process.env.NEXT_PUBLIC_STORAGE_URL ?? 'http://localhost:3000/',
-    version: process.env.NEXT_PUBLIC_APP_VERSION ?? 'dev',
-    metadataBase:
-      required(process.env.NEXT_PUBLIC_APP_URL, 'NEXT_PUBLIC_APP_URL') ||
-      'https://booking.world-camps.org',
+    get apiUrl(): string {
+      return getRuntimeConfig().apiBaseUrl
+    },
+    get wsUrl(): string {
+      return getRuntimeConfig().wsUrl ?? ''
+    },
+    get version(): string {
+      return getRuntimeConfig().appVersion
+    },
+    get metadataBase(): string {
+      return getRuntimeConfig().appUrl
+    },
   },
   auth: {
-    usingRequest: process.env.NEXT_PUBLIC_AUTH_USING_REQUEST === 'true',
+    get usingRequest(): boolean {
+      return getRuntimeConfig().authUsingRequest
+    },
   },
   maps: {
-    googleApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
+    get googleApiKey(): string {
+      return getRuntimeConfig().googleMapsApiKey ?? ''
+    },
   },
   stripe: {
     /// Platform Stripe publishable key (`pk_test_…` or `pk_live_…`). Used by
@@ -31,7 +31,9 @@ const config = {
     /// connected (provider) account is passed via
     /// `loadStripe(pk, { stripeAccount })` per booking — see
     /// `getStripeForAccount` in [lib/stripe.ts].
-    publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '',
+    get publishableKey(): string {
+      return getRuntimeConfig().stripePublishableKey ?? ''
+    },
   },
 }
 

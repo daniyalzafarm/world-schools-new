@@ -162,6 +162,54 @@ az containerapp secret set \
     jwt-refresh-secret="<GENERATE_STRONG_SECRET>"
 ```
 
+## 9.1 Prisma migration Container Apps Job (`caj-migrate-wc-stg`)
+
+A one-shot Container Apps Job that the staging workflow ([`wc-staging-deploy.yml`](.github/workflows/wc-staging-deploy.yml)) updates and triggers before each API deploy: its `run-staging-migrations` job sets the Job's image to the new digest (`az containerapp job update --image …@<digest>`), starts it, and waits for `Succeeded` before `deploy-api` runs. The Job runs `npx prisma migrate deploy` and exits. **Without this Job the staging deploy fails** at `run-staging-migrations` with `ResourceNotFound`.
+
+Prisma 7's [`prisma.config.ts`](apps/wc-nest-api/prisma.config.ts) reads `env('DATABASE_URL')`, which isn't set in the container — a bare `npx prisma migrate deploy` therefore fails with `PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL`. The API container works around this in [`start.sh`](apps/wc-nest-api/start.sh) by composing `DATABASE_URL` from the `POSTGRES_*` parts via a `/bin/sh -c` wrapper, but that approach can't be used here: `az containerapp job create --command` parses any value starting with `-` (e.g. sh's `-c`) as a flag and rejects it. So the Job is given `DATABASE_URL` directly as a secret and keeps the dash-free `--command "npx" "prisma" "migrate" "deploy"`.
+
+This mirrors prod's `caj-migrate-wc-prod` (prod runbook § 11.6), with staging differences: `NODE_ENV=staging`, staging Postgres (`pg-db-wc-stg`, user `worldschools`), and — because staging has no Key Vault — the connection string is supplied as a literal `database-url` secret instead of a `keyvaultref`.
+
+```bash
+# Put the exact password in a var first (single quotes = no shell mangling). It's the same value
+# held by the postgres-password secret on ca-api-wc-stg (and the WC_STAGING_API_SECRETS GitHub
+# secret); read the live value with:
+#   az containerapp secret show -g rg-wc-staging-ch-north -n ca-api-wc-stg --secret-name postgres-password --query value -o tsv
+PW='<STAGING_POSTGRES_PASSWORD>'
+
+az containerapp job create \
+  -g rg-wc-staging-ch-north \
+  -n caj-migrate-wc-stg \
+  --environment cae-wc-stg \
+  --trigger-type Manual \
+  --replica-timeout 600 \
+  --replica-retry-limit 0 \
+  --parallelism 1 \
+  --replica-completion-count 1 \
+  --image acrwc.azurecr.io/wc-nest-api:0.20.0-rc1 \
+  --registry-server acrwc.azurecr.io \
+  --registry-identity system-environment \
+  --command "npx" "prisma" "migrate" "deploy" \
+  --cpu 0.5 --memory 1Gi \
+  --secrets "database-url=postgresql://worldschools:${PW}@pg-db-wc-stg.postgres.database.azure.com:5432/world-camps?sslmode=require" \
+  --env-vars NODE_ENV=staging DATABASE_URL=secretref:database-url \
+  --tags env=staging app=wc managed-by=manual
+```
+
+> If the password contains URL-reserved characters (`@ / : ? # %`), percent-encode them in the
+> connection string. (`start.sh` interpolates the password raw and the API works, so the current
+> staging password is already URL-safe.)
+
+The `--image` tag here is only a placeholder for creation; the workflow overwrites it with the per-deploy digest before every run. Verify the Job runs cleanly once:
+
+```bash
+az containerapp job start -g $RG -n caj-migrate-wc-stg --query name -o tsv
+az containerapp job execution list -g $RG -n caj-migrate-wc-stg \
+  --query "[0].{status:properties.status,start:properties.startTime}" -o table   # expect Succeeded
+```
+
+> Note: the API image also runs `prisma migrate deploy` + `prisma db seed` at startup (`apps/wc-nest-api/start.sh`), so this Job's `migrate deploy` is redundant-but-idempotent. It exists so migrations are applied (and can fail the pipeline) **before** the new API image is rolled out, matching prod.
+
 ## 10. Get Static Web App Deployment Tokens
 
 ```bash
@@ -215,23 +263,28 @@ az containerapp show \
   --query properties.configuration.ingress.fqdn -o tsv
 ```
 
-## 13. Configure CORS in Container App
+## 13. CORS (application-level, not Container Apps ingress)
 
-Update the Container App environment variables to allow CORS from Static Web Apps:
+CORS is enforced **by the NestJS app**, not by the Container App ingress. [`main.ts`](apps/wc-nest-api/src/main.ts) calls `app.enableCors({ origin: configService.corsOrigins, credentials: true, exposedHeaders: [...] })`, reading the comma-separated `CORS_ORIGINS` env var ([config.service.ts](apps/wc-nest-api/src/config/config.service.ts)). `CORS_ORIGINS` is part of `WC_STAGING_API_ENV` and is applied to `ca-api-wc-stg` on every deploy:
+
+```text
+CORS_ORIGINS=https://booking.staging.world-camps.org,https://provider.staging.world-camps.org,https://superadmin.staging.world-camps.org
+```
+
+**Do NOT also enable the Container Apps ingress CORS policy.** Running both layers makes the ingress (Envoy) and the app each emit `Access-Control-Allow-Origin`, and a response with two ACAO values is rejected by browsers. Keep CORS in one place — the app. If the ingress policy was ever enabled on the API app, disable it so the app is the single source of truth:
 
 ```bash
-# Get Static Web App URLs
-ADMIN_URL=$(az staticwebapp show --resource-group rg-wc-staging-ch-north --name swa-admin-wc-stg --query defaultHostname -o tsv)
-PROVIDER_URL=$(az staticwebapp show --resource-group rg-wc-staging-ch-north --name swa-provider-wc-stg --query defaultHostname -o tsv)
-BOOKING_URL=$(az staticwebapp show --resource-group rg-wc-staging-ch-north --name swa-booking-wc-stg --query defaultHostname -o tsv)
-
-# Update Container App with CORS origins
-az containerapp update \
-  --resource-group rg-wc-staging-ch-north \
-  --name ca-api-wc-stg \
-  --set-env-vars \
-    CORS_ORIGIN="https://${ADMIN_URL},https://${PROVIDER_URL},https://${BOOKING_URL}"
+az containerapp ingress cors disable -g rg-wc-staging-ch-north -n ca-api-wc-stg
+# verify it's cleared:
+az containerapp show -g rg-wc-staging-ch-north -n ca-api-wc-stg \
+  --query "properties.configuration.ingress.corsPolicy" -o json   # expect null
 ```
+
+> Why app-level, not ingress CORS: the app needs credentialed CORS plus exposed headers
+> (`x-access-token`, `x-refresh-token`, `x-csrf-token`) which the NestJS config expresses precisely;
+> the ingress policy is coarser, Azure-only (wouldn't apply to local dev), and duplicates the ACAO
+> header. Prod (`ca-api-wc-prod`) already runs app-level only. (Note: the env var is `CORS_ORIGINS`,
+> plural — not `CORS_ORIGIN`.)
 
 ## Verification
 

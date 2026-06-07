@@ -18,7 +18,6 @@ import {
   transformSportsActivities,
   transformWaterActivities,
 } from '../../utils/activity-transformers'
-import config from '../../config/config'
 import { Button } from '@heroui/react'
 
 const ACTIVITY_CONFIG: Record<
@@ -120,13 +119,9 @@ function getAcademicsMetaCards(academics: any): MetaCard[] {
   return cards
 }
 
+// The backend returns absolute SAS URLs for photos, so no storage-prefixing is needed.
 function getImageUrl(url: string): string {
-  if (!url) return ''
-  if (url.startsWith('http://') || url.startsWith('https://')) return url
-  const storageUrl = config.app.storageUrl.endsWith('/')
-    ? config.app.storageUrl
-    : `${config.app.storageUrl}/`
-  return `${storageUrl}${url}`
+  return url || ''
 }
 
 function buildSections(camp: Camp): ActivitySectionData[] {
