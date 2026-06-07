@@ -336,11 +336,20 @@ az postgres flexible-server db create \
 Matches the staging Redis product (`Microsoft.Cache/redisEnterprise`, kind `v2`). Note: this is **not** the same product as the legacy "Azure Cache for Redis" — different CLI (`az redisenterprise`), different port (10000, not 6380), different host pattern (`*.<region>.redis.azure.net`), different private-link group-id (`redisEnterprise`), different private DNS zone (`privatelink.redis.azure.net`).
 
 ```bash
-# Cluster.
-# `--public-network-access` is required by API 2025-07-01; setting it here means
-# we don't need a separate "lock down public access" call later.
-# `--access-keys-auth` default flips to Disabled in az CLI 2.86 (May 2026 breaking change);
-# we use the access key in the connection string, so keep keys on — explicit on the database below.
+# Cluster + default database in one call. All the database-level settings below are set HERE
+# (not via a later `database update`) because **clustering policy can only be set at creation** —
+# `az redisenterprise database update` rejects changing it afterwards.
+#
+# `--clustering-policy NoCluster`: REQUIRED. The default is `OSSCluster`, on which BullMQ's multi-key
+#   Lua scripts fail with `CROSSSLOT Keys in request don't hash to the same slot` (the app uses
+#   standalone ioredis with no hash-tag prefixes). NoCluster matches staging; on Balanced_B0 it's a
+#   single shard anyway, so there's no perf loss (OSSCluster only helps multi-shard scale-out, which
+#   this app can't use). If you ever need sharding, that's an app rework (cluster client + hash tags).
+# `--access-keys-authentication Enabled`: the default flips to Disabled in az CLI 2.86 (May 2026
+#   breaking change); we use the access key in the connection string, so keep keys on. (If you ever
+#   recreate the DB without this, `list-keys` and the app's key auth break — re-enable via update.)
+# `--eviction-policy AllKeysLRU`: staging defaults to NoEviction, wrong for a session cache.
+# `--public-network-access Disabled` (cluster-level): avoids a separate lock-down call later.
 az redisenterprise create \
   -g rg-wc-prod-ch-north \
   --cluster-name redis-wc-prod \
@@ -348,15 +357,11 @@ az redisenterprise create \
   --sku Balanced_B0 \
   --minimum-tls-version 1.2 \
   --public-network-access Disabled \
-  --tags env=prod app=wc managed-by=manual
-
-# Database — eviction + explicit access-keys auth.
-# (Staging defaults to NoEviction, which is wrong for a session cache. Correcting that here.)
-az redisenterprise database update \
-  -g rg-wc-prod-ch-north \
-  --cluster-name redis-wc-prod \
+  --clustering-policy NoCluster \
   --eviction-policy AllKeysLRU \
-  --access-keys-authentication Enabled
+  --access-keys-authentication Enabled \
+  --client-protocol Encrypted \
+  --tags env=prod app=wc managed-by=manual
 
 # Private endpoint into snet-pe — note group-id is "redisEnterprise" (not "redisCache")
 REDIS_ID=$(az redisenterprise show -g rg-wc-prod-ch-north --cluster-name redis-wc-prod --query id -o tsv)
@@ -596,20 +601,24 @@ az containerapp create \
 
 # Add HTTP probes. `az containerapp create` doesn't accept a probe spec, so we patch
 # the existing definition via YAML. Requires `yq` (https://github.com/mikefarah/yq;
-# `brew install yq` on macOS). Reuse this pattern for the three frontends in § 11.2-11.4.
+# `brew install yq` on macOS). Reuse this pattern for the three frontends in § 11.2-11.4
+# — but pass the probe PATH as the 3rd arg: only the NestJS API serves `/health`; the
+# Next.js frontends 404 it, which would fail every probe and restart-loop the replica
+# (Degraded revision). The frontends serve `/` (and `/config.json`) — probe `/` for those.
 add_probes () {
   local APP="$1"
   local PORT="$2"
+  local PROBE_PATH="${3:-/health}"   # default /health (API); pass "/" for the frontends
   az containerapp show -g rg-wc-prod-ch-north -n "$APP" -o yaml > "/tmp/${APP}.yaml"
   yq -i '.properties.template.containers[0].probes = [
-    {"type":"Liveness",  "httpGet":{"path":"/health","port":'"$PORT"'}, "periodSeconds":30},
-    {"type":"Readiness", "httpGet":{"path":"/health","port":'"$PORT"'}, "periodSeconds":10, "failureThreshold":6},
-    {"type":"Startup",   "httpGet":{"path":"/health","port":'"$PORT"'}, "periodSeconds":5,  "failureThreshold":30}
+    {"type":"Liveness",  "httpGet":{"path":"'"$PROBE_PATH"'","port":'"$PORT"'}, "periodSeconds":30},
+    {"type":"Readiness", "httpGet":{"path":"'"$PROBE_PATH"'","port":'"$PORT"'}, "periodSeconds":10, "failureThreshold":6},
+    {"type":"Startup",   "httpGet":{"path":"'"$PROBE_PATH"'","port":'"$PORT"'}, "periodSeconds":5,  "failureThreshold":30}
   ]' "/tmp/${APP}.yaml"
   az containerapp update -g rg-wc-prod-ch-north -n "$APP" --yaml "/tmp/${APP}.yaml"
   rm "/tmp/${APP}.yaml"
 }
-add_probes ca-api-wc-prod 3000
+add_probes ca-api-wc-prod 3000          # API serves /health
 ```
 
 > **`AZURE_STORAGE_ACCOUNT_KEY` is intentionally absent.** Staging uses a shared-key secret for blob writes, but § 9 provisions prod with `--allow-shared-key-access false` (no shared keys) and the CAE env MI has `Storage Blob Data Contributor`. The API should use MI-based blob access in prod. If the app code can't do that yet, fix the app — don't re-enable shared keys.
@@ -641,7 +650,7 @@ az containerapp create \
       APP_VERSION=0.0.0 \
   --tags env=prod app=wc managed-by=manual
 
-add_probes ca-booking-wc-prod 3000
+add_probes ca-booking-wc-prod 3000 /   # Next.js frontend has no /health — probe /
 ```
 
 ### 11.3 Provider frontend (`ca-provider-wc-prod`)
@@ -669,7 +678,7 @@ az containerapp create \
       APP_VERSION=0.0.0 \
   --tags env=prod app=wc managed-by=manual
 
-add_probes ca-provider-wc-prod 3000
+add_probes ca-provider-wc-prod 3000 /   # Next.js frontend has no /health — probe /
 ```
 
 ### 11.4 Superadmin frontend (`ca-admin-wc-prod`)
@@ -699,7 +708,7 @@ az containerapp create \
       APP_VERSION=0.0.0 \
   --tags env=prod app=wc managed-by=manual
 
-add_probes ca-admin-wc-prod 3000
+add_probes ca-admin-wc-prod 3000 /   # Next.js frontend has no /health — probe /
 ```
 
 ### 11.6 Prisma migration Container Apps Job (`caj-migrate-wc-prod`)

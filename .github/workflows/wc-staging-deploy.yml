@@ -536,12 +536,27 @@ jobs:
             echo "| API health | ${{ needs.verify-api-health.result }} |"
             echo "| Deploy frontends | ${{ needs.deploy-frontends.result }} |"
             echo "| Smoke tests | ${{ needs.smoke-tests.result }} |"
-            echo ""
-            echo "### Promote to production"
-            echo '```bash'
-            echo "gh workflow run wc-prod-deploy.yml -f tag=wc-v${VERSION}"
-            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+          # Promote-to-prod hint only for FINAL tags — prod refuses -rc and is
+          # dispatched against the tag ref (the production env's wc-v* policy
+          # blocks deploying from a branch).
+          if [[ "$VERSION" != *-* ]]; then
+            {
+              echo ""
+              echo "### Promote to production"
+              echo "Verified on staging? Promote the same images to prod by dispatching this final tag's ref:"
+              echo '```bash'
+              echo "gh workflow run wc-prod-deploy.yml --ref wc-v${VERSION}"
+              echo '```'
+            } >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "_Pre-release (\`-rc\`) build — staging only. Cut a final \`wc-vX.Y.Z\` tag to promote to production._" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          {
             echo ""
             echo "### Rollback (if needed)"
-            echo "Promote a previous known-good tag to staging by re-pushing it, or to prod via the same dispatch command with the older tag."
+            echo "Re-push a previous known-good tag for staging; for prod, dispatch \`wc-prod-deploy.yml --ref\` the older final tag."
           } >> $GITHUB_STEP_SUMMARY

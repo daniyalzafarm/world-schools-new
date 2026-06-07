@@ -1,16 +1,14 @@
 name: WC Production Deployment
 
-# Manually dispatched. Deploys the SAME images that staging built — no rebuild.
-# A GitHub Environment `production` with a required-reviewer rule gates every
-# job that mutates prod state (migrations, deploys), so the reviewer covers
-# everything that follows once they approve.
+# Manual promotion of a FINAL release tag to production. Deploys the SAME images
+# staging already built — no rebuild. Dispatch AGAINST THE TAG REF; the version is
+# read from github.ref_name:
+#   gh workflow run wc-prod-deploy.yml --ref wc-v1.2.3
+# (or GitHub UI → Actions → Run workflow → pick the tag in "Use workflow from").
+# Dispatching from a branch is intentionally blocked by the `production` environment's
+# `wc-v*` deployment-tag policy, so prod can only ever deploy from a tag.
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag to deploy (e.g. wc-v1.2.3) — must already be deployed to staging"
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -47,12 +45,13 @@ jobs:
       superadmin_digest: ${{ steps.digests.outputs.superadmin_digest }}
 
     steps:
-      - name: Extract version from input
+      - name: Extract version from tag ref
         id: extract
         run: |
-          TAG="${{ inputs.tag }}"
+          TAG="${{ github.ref_name }}"
           if [[ ! "$TAG" =~ ^wc-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "❌ Invalid tag format: '$TAG' — expected wc-vMAJOR.MINOR.PATCH"
+            echo "❌ Invalid tag '$TAG' — prod accepts FINAL tags only (wc-vMAJOR.MINOR.PATCH, no -rc)."
+            echo "   Dispatch against a final tag ref, e.g.: gh workflow run wc-prod-deploy.yml --ref wc-v1.2.3"
             exit 1
           fi
           VERSION=${TAG#wc-v}
@@ -94,7 +93,7 @@ jobs:
             echo "❌ The following images are missing from ACR:"
             printf '   - %s\n' "${MISSING[@]}"
             echo ""
-            echo "Tag '${{ inputs.tag }}' must be built by the staging workflow first."
+            echo "Tag '${{ github.ref_name }}' must be built by the staging workflow first."
             exit 1
           fi
 
@@ -430,7 +429,7 @@ jobs:
       - name: Write summary
         run: |
           VERSION="${{ needs.validate.outputs.version }}"
-          TAG="${{ inputs.tag }}"
+          TAG="${{ github.ref_name }}"
           STATUS_OVERALL="✅ success"
           for r in \
             "${{ needs.run-prod-migrations.result }}" \
@@ -468,9 +467,9 @@ jobs:
             echo "| Smoke tests | ${{ needs.prod-smoke-tests.result }} |"
             echo ""
             echo "### Rollback"
-            echo "Re-dispatch this workflow with the previous known-good tag:"
+            echo "Re-dispatch this workflow against the previous known-good tag ref:"
             echo '```bash'
-            echo "gh workflow run wc-prod-deploy.yml -f tag=wc-vX.Y.Z"
+            echo "gh workflow run wc-prod-deploy.yml --ref wc-vX.Y.Z"
             echo '```'
             echo "Schema is **not** rolled back automatically — only image rollback. Backward-compatible migrations make this safe."
           } >> $GITHUB_STEP_SUMMARY

@@ -152,13 +152,25 @@ build (×4) → run-staging-migrations → deploy-api → verify-api-health → 
 
 ## Step 4 — Deploy to prod (per release, after staging is green)
 
+Prod is a **manual dispatch of a FINAL `wc-vX.Y.Z` tag** (no `-rc`), run **against the tag ref** — the
+`production` environment's `wc-v*` policy blocks dispatching from a branch, and the workflow reads the
+version from the ref:
+
 ```bash
-gh workflow run wc-prod-deploy.yml -f tag=wc-v0.21.0     # same tag staging built
+gh workflow run wc-prod-deploy.yml --ref wc-v0.22.0          # the final tag staging already built
 ```
 
-- [ ] Approve the `production` environment prompt when it pauses
-- [ ] Prod workflow succeeded (validate images → migrations → deploy-api → health → frontends → smoke)
+(Or GitHub UI → Actions → WC Production Deployment → Run workflow → in "Use workflow from" pick the tag.)
+
+- [ ] Dispatched against the **tag ref** (`--ref`), not a branch — otherwise it's rejected with
+  "Branch main is not allowed to deploy to production".
+- [ ] Prod workflow succeeded (validate → migrations → deploy-api → health → frontends → smoke)
 - [ ] `https://api.world-camps.org/health` returns the deployed `version`
+
+> **Model:** staging auto-runs on **every** `wc-v*` tag (including `-rc`); prod is **manual + final-only**.
+> Pre-release `-rc` tags are refused by prod's validation by design — cut a final `wc-vX.Y.Z` to promote.
+> Note the prod workflow runs as it exists **at the tag's commit**, so merge any workflow changes to
+> `main` *before* cutting the tag you'll promote.
 
 ---
 
