@@ -11,6 +11,24 @@
 -- path is unvalidated, so this scrub is defensive.
 UPDATE "provider_settings" SET "deposit_type" = 'fixed' WHERE "deposit_type" = 'fixed_amount';
 
+-- Defensively normalize any other non-canonical deposit_type to NULL ("not set")
+-- so the tightened CHECK below can't reject unvalidated CSV-imported rows.
+UPDATE "provider_settings"
+SET "deposit_type" = NULL
+WHERE "deposit_type" IS NOT NULL
+  AND "deposit_type" NOT IN ('percentage', 'fixed');
+
+-- Normalize legacy / non-canonical cancellation policies (e.g. 'strict',
+-- 'super_strict') to 'moderate' before constraining. resolveTiers() already
+-- treats every unknown policy name as MODERATE (cancellation-policy.util.ts),
+-- so this preserves existing behavior, and — like the deposit_type scrub above —
+-- keeps the tightened CHECK from rejecting rows written via the unvalidated
+-- superadmin CSV import path.
+UPDATE "provider_settings"
+SET "cancellation_policy" = 'moderate'
+WHERE "cancellation_policy" IS NOT NULL
+  AND "cancellation_policy" NOT IN ('flexible', 'moderate', 'custom');
+
 ALTER TABLE "provider_settings"
   ADD CONSTRAINT "provider_settings_cancellation_policy_check"
   CHECK ("cancellation_policy" IN ('flexible', 'moderate', 'custom'));
