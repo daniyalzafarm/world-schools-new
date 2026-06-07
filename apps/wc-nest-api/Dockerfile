@@ -99,9 +99,10 @@ COPY --from=builder /app/apps/wc-nest-api/prisma/migrations ./apps/wc-nest-api/p
 # Copy the bundled seed file (auto-generated from seed.ts during build)
 COPY --from=builder /app/dist/apps/wc-nest-api/prisma/seed.js ./dist/prisma/seed.js
 
-# Copy the startup script
+# Copy the startup script (API entrypoint) and the migration-Job entrypoint (migrate + seed).
 COPY apps/wc-nest-api/start.sh ./start.sh
-RUN chmod +x ./start.sh
+COPY apps/wc-nest-api/db-deploy.sh ./db-deploy.sh
+RUN chmod +x ./start.sh ./db-deploy.sh
 
 # Expose the application port
 EXPOSE 3000

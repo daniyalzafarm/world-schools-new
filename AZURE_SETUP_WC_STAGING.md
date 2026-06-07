@@ -164,9 +164,11 @@ az containerapp secret set \
 
 ## 9.1 Prisma migration Container Apps Job (`caj-migrate-wc-stg`)
 
-A one-shot Container Apps Job that the staging workflow ([`wc-staging-deploy.yml`](.github/workflows/wc-staging-deploy.yml)) updates and triggers before each API deploy: its `run-staging-migrations` job sets the Job's image to the new digest (`az containerapp job update --image …@<digest>`), starts it, and waits for `Succeeded` before `deploy-api` runs. The Job runs `npx prisma migrate deploy` and exits. **Without this Job the staging deploy fails** at `run-staging-migrations` with `ResourceNotFound`.
+A one-shot Container Apps Job that the staging workflow ([`wc-staging-deploy.yml`](.github/workflows/wc-staging-deploy.yml)) updates and triggers before each API deploy: its `run-staging-migrations` job sets the Job's image to the new digest (`az containerapp job update --image …@<digest>`), starts it, and waits for `Succeeded` before `deploy-api` runs. Its entrypoint is [`db-deploy.sh`](apps/wc-nest-api/db-deploy.sh) (baked into the image), which runs **`prisma migrate deploy` then the seed** (`node dist/prisma/seed.js`) and exits. **Without this Job the staging deploy fails** at `run-staging-migrations` with `ResourceNotFound`.
 
-Prisma 7's [`prisma.config.ts`](apps/wc-nest-api/prisma.config.ts) reads `env('DATABASE_URL')`, which isn't set in the container — a bare `npx prisma migrate deploy` therefore fails with `PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL`. The API container works around this in [`start.sh`](apps/wc-nest-api/start.sh) by composing `DATABASE_URL` from the `POSTGRES_*` parts via a `/bin/sh -c` wrapper, but that approach can't be used here: `az containerapp job create --command` parses any value starting with `-` (e.g. sh's `-c`) as a flag and rejects it. So the Job is given `DATABASE_URL` directly as a secret and keeps the dash-free `--command "npx" "prisma" "migrate" "deploy"`.
+**Why the seed runs here, not on API startup:** the RBAC seeder prunes permissions not in its image's set, so running it on every API replica lets lingering old-version replicas clobber newer permissions. Running it once per deploy in this Job (single image version) avoids that — `start.sh` no longer seeds.
+
+Prisma 7's [`prisma.config.ts`](apps/wc-nest-api/prisma.config.ts) reads `env('DATABASE_URL')`, so the Job is given `DATABASE_URL` directly as a secret. The entrypoint is a single dash-free token (`./db-deploy.sh`), which avoids the `az containerapp job create --command` quirk where a value starting with `-` (e.g. sh's `-c`) is parsed as a flag.
 
 This mirrors prod's `caj-migrate-wc-prod` (prod runbook § 11.6), with staging differences: `NODE_ENV=staging`, staging Postgres (`pg-db-wc-stg`, user `worldschools`), and — because staging has no Key Vault — the connection string is supplied as a literal `database-url` secret instead of a `keyvaultref`.
 
@@ -189,7 +191,7 @@ az containerapp job create \
   --image acrwc.azurecr.io/wc-nest-api:0.20.0-rc1 \
   --registry-server acrwc.azurecr.io \
   --registry-identity system-environment \
-  --command "npx" "prisma" "migrate" "deploy" \
+  --command "./db-deploy.sh" \
   --cpu 0.5 --memory 1Gi \
   --secrets "database-url=postgresql://worldschools:${PW}@pg-db-wc-stg.postgres.database.azure.com:5432/world-camps?sslmode=require" \
   --env-vars NODE_ENV=staging DATABASE_URL=secretref:database-url \
@@ -208,7 +210,7 @@ az containerapp job execution list -g $RG -n caj-migrate-wc-stg \
   --query "[0].{status:properties.status,start:properties.startTime}" -o table   # expect Succeeded
 ```
 
-> Note: the API image also runs `prisma migrate deploy` + `prisma db seed` at startup (`apps/wc-nest-api/start.sh`), so this Job's `migrate deploy` is redundant-but-idempotent. It exists so migrations are applied (and can fail the pipeline) **before** the new API image is rolled out, matching prod.
+> Note: the API image's [`start.sh`](apps/wc-nest-api/start.sh) still runs `prisma migrate deploy` at startup (idempotent safety net) but **no longer seeds** — the seed runs only here, once per deploy, so old/lingering API replicas can't clobber the permission set.
 
 ## 10. Get Static Web App Deployment Tokens
 

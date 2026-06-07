@@ -103,7 +103,7 @@ jobs:
   # FIRST GATED JOB — `environment: production` triggers the required reviewer.
   # ----------------------------------------------------------
   run-prod-migrations:
-    name: Run Prisma Migrations
+    name: Run migrations + seed
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: validate

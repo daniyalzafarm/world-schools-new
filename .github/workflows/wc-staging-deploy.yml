@@ -167,7 +167,7 @@ jobs:
   # so migration runs inside the VNet against the private Postgres endpoint.
   # ----------------------------------------------------------
   run-staging-migrations:
-    name: Run Prisma Migrations
+    name: Run migrations + seed
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [extract-version, build-api]

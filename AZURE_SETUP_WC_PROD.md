@@ -713,9 +713,11 @@ add_probes ca-admin-wc-prod 3000 /   # Next.js frontend has no /health — probe
 
 ### 11.6 Prisma migration Container Apps Job (`caj-migrate-wc-prod`)
 
-A one-shot Container Apps Job that the prod workflow updates and triggers before each API deploy. Lives inside the VNet so it can reach the private Postgres endpoint, runs `npx prisma migrate deploy` as its entrypoint override, then exits. Workflow waits for the execution to finish; on failure, the deploy halts before the new API image is rolled out.
+A one-shot Container Apps Job that the prod workflow updates and triggers before each API deploy. Lives inside the VNet so it can reach the private Postgres endpoint. Its entrypoint is [`db-deploy.sh`](apps/wc-nest-api/db-deploy.sh) (baked into the image), which runs **`prisma migrate deploy` then the seed** (`node dist/prisma/seed.js`) and exits. Workflow waits for the execution to finish; on failure, the deploy halts before the new API image is rolled out.
 
-Prisma 7's [`prisma.config.ts`](apps/wc-nest-api/prisma.config.ts) reads `env('DATABASE_URL')`, so the Job must be given `DATABASE_URL` directly (a bare `npx prisma migrate deploy` fails with `PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL`). [`start.sh`](apps/wc-nest-api/start.sh) composes the URL from the `POSTGRES_*` parts via a `/bin/sh -c` wrapper, but `az containerapp job create --command` rejects any value starting with `-` (sh's `-c`), so instead the full connection string is stored in Key Vault as `database-url` and referenced via `keyvaultref`, keeping the dash-free `--command "npx" "prisma" "migrate" "deploy"`.
+**Why the seed runs here, not on API startup:** the RBAC seeder prunes permissions not in its image's set, so running it on every API replica lets lingering old-version replicas clobber newer permissions. Running it once per deploy in this Job (single image version) avoids that — `start.sh` no longer seeds.
+
+Prisma 7's [`prisma.config.ts`](apps/wc-nest-api/prisma.config.ts) reads `env('DATABASE_URL')`, so the Job is given `DATABASE_URL` directly — the full connection string is stored in Key Vault as `database-url` and referenced via `keyvaultref`. The entrypoint is a single dash-free token (`./db-deploy.sh`), which avoids the `az containerapp job create --command` quirk where a value starting with `-` (e.g. sh's `-c`) is parsed as a flag.
 
 ```bash
 # Store the full connection string as a KV secret first (one-time):
@@ -739,7 +741,7 @@ az containerapp job create \
   --registry-server acrwc.azurecr.io \
   --registry-identity system-environment \
   --mi-user-assigned $CA_KV_MI_ID \
-  --command "npx" "prisma" "migrate" "deploy" \
+  --command "./db-deploy.sh" \
   --cpu 0.5 --memory 1Gi \
   --secrets \
       database-url=keyvaultref:https://kv-wc-prod.vault.azure.net/secrets/database-url,identityref:$CA_KV_MI_ID \
