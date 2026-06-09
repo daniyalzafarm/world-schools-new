@@ -356,15 +356,15 @@ model Children {
   id String @id @default(uuid())
 
   // Basic Information (30% weight)
-  firstName     String    @map("first_name")
-  lastName      String?   @map("last_name")
+  firstName     String       @map("first_name")
+  lastName      String?      @map("last_name")
   nickname      String?
-  dateOfBirth   DateTime? @map("date_of_birth")
-  gender        String?
-  photoUrl      String?   @map("photo_url")
-  schoolYear    String?   @map("school_year")
-  schoolCountry String?   @map("school_country")
-  languages     String[]  @default([])
+  dateOfBirth   DateTime?    @map("date_of_birth")
+  gender        ChildGender?
+  photoUrl      String?      @map("photo_url")
+  schoolYear    String?      @map("school_year")
+  schoolCountry String?      @map("school_country")
+  languages     String[]     @default([])
 
   // Medical Information (20% weight) - JSONB
   medicalInfo Json? @map("medical_info")
@@ -1035,6 +1035,11 @@ enum Gender {
   coed
   boys
   girls
+}
+
+enum ChildGender {
+  boy
+  girl
 }
 
 enum CampStatus {

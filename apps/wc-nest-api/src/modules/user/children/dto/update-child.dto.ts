@@ -3,12 +3,13 @@ import { Type } from 'class-transformer'
 import {
   IsArray,
   IsDateString,
-  IsIn,
+  IsEnum,
   IsOptional,
   IsString,
   Length,
   ValidateNested,
 } from 'class-validator'
+import { ChildGender } from '../../../../generated/client/client'
 import { CampPreferencesDto } from './camp-preferences.dto'
 import { EmergencyContactDto } from './emergency-contact.dto'
 import { MedicalInfoDto } from './medical-info.dto'
@@ -41,13 +42,12 @@ export class UpdateChildDto {
   @ApiProperty({
     description: 'Gender',
     example: 'girl',
-    enum: ['boy', 'girl', 'non_binary', 'prefer_not_to_say'],
+    enum: ChildGender,
     required: false,
   })
-  @IsString()
   @IsOptional()
-  @IsIn(['boy', 'girl', 'non_binary', 'prefer_not_to_say'])
-  gender?: string
+  @IsEnum(ChildGender)
+  gender?: ChildGender
 
   @ApiProperty({ description: 'Photo URL', example: 'https://...', required: false })
   @IsString()

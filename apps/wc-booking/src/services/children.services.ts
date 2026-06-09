@@ -27,7 +27,7 @@ export const childrenService = {
     firstName: string
     lastName?: string
     dateOfBirth: string
-    gender: 'boy' | 'girl' | 'non_binary' | 'prefer_not_to_say'
+    gender: 'boy' | 'girl'
   }): Promise<ApiResult<Child>> {
     return apiClient.post<Child>('/user/children', child)
   },

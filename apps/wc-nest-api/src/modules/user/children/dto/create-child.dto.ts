@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsDateString, IsIn, IsNotEmpty, IsOptional, IsString, Length } from 'class-validator'
+import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, Length } from 'class-validator'
+import { ChildGender } from '../../../../generated/client/client'
 
 export class CreateChildDto {
   @ApiProperty({ description: 'First name', example: 'Emma' })
@@ -22,12 +23,11 @@ export class CreateChildDto {
   @ApiProperty({
     description: 'Gender',
     example: 'girl',
-    enum: ['boy', 'girl', 'non_binary', 'prefer_not_to_say'],
+    enum: ChildGender,
   })
-  @IsString()
   @IsNotEmpty()
-  @IsIn(['boy', 'girl', 'non_binary', 'prefer_not_to_say'])
-  gender: string
+  @IsEnum(ChildGender)
+  gender: ChildGender
 
   // All other fields are optional and added later via update
 }

@@ -66,7 +66,7 @@ export interface Child {
   lastName?: string
   nickname?: string
   dateOfBirth: Date | string
-  gender: 'boy' | 'girl' | 'non_binary' | 'prefer_not_to_say'
+  gender: 'boy' | 'girl'
   photoUrl?: string
   schoolYear?: string // Normalized year number (1-13)
   schoolCountry?: string // Country code (UK, US, etc.)
@@ -100,7 +100,7 @@ export interface ChildFormSection {
 // Constants and Enums
 // ============================================
 
-export const GENDER_OPTIONS = ['boy', 'girl', 'non_binary', 'prefer_not_to_say'] as const
+export const GENDER_OPTIONS = ['boy', 'girl'] as const
 
 export const ALLERGY_OPTIONS = [
   'Peanuts',

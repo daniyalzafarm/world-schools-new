@@ -24,7 +24,7 @@ interface FormData {
   lastName: string
   nickname: string
   dateOfBirth: DateValue | null
-  gender: 'boy' | 'girl' | 'non_binary' | 'prefer_not_to_say'
+  gender: 'boy' | 'girl'
   photoUrl: string
   schoolCountry: string
   schoolYear: string
@@ -806,8 +806,6 @@ export default function ChildProfilePage() {
             >
               <Radio value="girl">Girl</Radio>
               <Radio value="boy">Boy</Radio>
-              <Radio value="non_binary">Non-binary</Radio>
-              <Radio value="prefer_not_to_say">Prefer not to say</Radio>
             </RadioGroup>
             {errors.gender && <p className="text-xs text-danger mt-1">{errors.gender}</p>}
           </div>
