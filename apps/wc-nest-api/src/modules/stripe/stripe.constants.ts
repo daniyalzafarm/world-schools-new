@@ -1,3 +1,5 @@
+import { SUPPORTED_CURRENCIES } from '@world-schools/global-utils/currency'
+
 /**
  * The Stripe API version this service is built and tested against.
  *
@@ -46,17 +48,27 @@ export const STRIPE_SERVICE_AGREEMENT = 'full' as const
 /**
  * Allow-list of currencies the platform officially supports for provider payouts.
  *
- * Restricted to USD / GBP / CHF / EUR per Payments and Payouts Spec v1.0 §3.3:
- * the platform holds bank accounts in exactly these four currencies, wired to
- * the Stripe platform account as external accounts in matching currencies so
- * payouts incur no Stripe FX margin. Any currency outside this set would land
- * in a Stripe balance with no matching WC external account.
+ * Single source of truth: {@link SUPPORTED_CURRENCIES} in `@world-schools/global-utils`
+ * (shared across backend, frontends, and `ui-web`). Lower-cased here to match
+ * Stripe's API contract.
  *
- * Currencies are in lower-case to match Stripe's API contract.
+ * FX model (Payments and Payouts Spec v1.0 §3.3):
+ *  - A provider's currency is locked at onboarding; they price and charge only
+ *    in it via Direct Charges on their connected account — no provider-side FX.
+ *  - The customer pays in the provider's currency; any conversion is applied by
+ *    the cardholder's own bank.
+ *  - The platform holds external bank accounts in CHF/EUR/GBP/USD only. The
+ *    `application_fee_amount` lands in the platform balance in the provider's
+ *    currency. For the four bank-account currencies this needs no conversion;
+ *    for every other supported currency the balance has no matching external
+ *    account and is converted to the platform's default (CHF) account on
+ *    platform payout, with the platform absorbing that FX. This is intentional —
+ *    do NOT re-restrict the set to the original four on the old "no matching
+ *    external account" reasoning.
+ *
+ * Enabling a new currency therefore requires the platform Stripe account to have
+ * `default_currency = chf` and balance currency-conversion-to-default enabled.
  */
-export const SUPPORTED_CONNECT_CURRENCIES: ReadonlySet<string> = new Set([
-  'usd',
-  'gbp',
-  'chf',
-  'eur',
-])
+export const SUPPORTED_CONNECT_CURRENCIES: ReadonlySet<string> = new Set(
+  SUPPORTED_CURRENCIES.map(code => code.toLowerCase())
+)

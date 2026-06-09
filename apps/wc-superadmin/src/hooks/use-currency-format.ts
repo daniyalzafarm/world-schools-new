@@ -33,12 +33,13 @@ export function formatAmount(
     }).format(value)
   }
   try {
+    // No explicit fraction-digit overrides: let Intl use each currency's
+    // correct minor-unit default (USD→2, JPY→0, etc.). Callers can still
+    // override via `options`.
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency.toUpperCase(),
       currencyDisplay: 'symbol',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
       ...options,
     }).format(value)
   } catch {

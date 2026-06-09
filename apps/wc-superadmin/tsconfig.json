@@ -5,6 +5,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@world-schools/global-utils/currency": ["../../packages/global-utils/src/lib/currency.ts"],
       "@world-schools/ui-web": ["../../packages/ui-web/src/index.ts"],
       "@world-schools/wc-types": ["../../packages/wc-types/src/index.ts"],
       "@world-schools/wc-utils": ["../../packages/wc-utils/src/index.ts"],

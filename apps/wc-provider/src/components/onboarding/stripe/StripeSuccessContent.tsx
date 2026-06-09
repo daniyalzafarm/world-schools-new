@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@heroui/react'
 import Confetti from 'react-confetti'
+import { getCurrencySymbol } from '@world-schools/wc-utils'
 import type {
   StripeAccountStatus,
   StripePayoutSchedule,
@@ -11,22 +12,6 @@ import type {
 
 interface StripeSuccessContentProps {
   status: StripeAccountStatus
-}
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: '$',
-  EUR: '€',
-  GBP: '£',
-  CAD: 'C$',
-  AUD: 'A$',
-  NZD: 'NZ$',
-  CHF: 'CHF',
-  SEK: 'kr',
-  NOK: 'kr',
-  DKK: 'kr',
-  SGD: 'S$',
-  HKD: 'HK$',
-  JPY: '¥',
 }
 
 function maskAccountId(id: string | null): string | null {
@@ -62,8 +47,8 @@ function formatPayoutSchedule(schedule: StripePayoutSchedule | null): string {
 
 function formatCurrency(currency: string): string {
   const code = currency.toUpperCase()
-  const symbol = CURRENCY_SYMBOLS[code]
-  return symbol ? `${code} (${symbol})` : code
+  const symbol = getCurrencySymbol(code)
+  return symbol && symbol !== code ? `${code} (${symbol})` : code
 }
 
 export function StripeSuccessContent({ status }: StripeSuccessContentProps) {

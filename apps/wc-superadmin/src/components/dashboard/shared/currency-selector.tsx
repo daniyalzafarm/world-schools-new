@@ -1,6 +1,7 @@
 'use client'
 
 import { Select, SelectItem, SelectSection } from '@heroui/react'
+import { getCurrencySymbol } from '@world-schools/global-utils/currency'
 import { Globe } from 'lucide-react'
 
 interface CurrencySelectorProps {
@@ -13,20 +14,15 @@ interface CurrencySelectorProps {
 
 const ALL_KEY = '__all__'
 
-const CURRENCY_LABELS: Record<string, string> = {
-  usd: '$ USD',
-  eur: '€ EUR',
-  gbp: '£ GBP',
-  cad: 'CA$ CAD',
-  aud: 'A$ AUD',
-  nzd: 'NZ$ NZD',
-  chf: 'CHF',
-  sek: 'kr SEK',
-  nok: 'kr NOK',
-  dkk: 'kr DKK',
-  sgd: 'S$ SGD',
-  hkd: 'HK$ HKD',
-  jpy: '¥ JPY',
+/**
+ * Builds a "<symbol> <CODE>" label (e.g. "$ USD", "kr SEK"). When the symbol
+ * resolves to the code itself (e.g. CHF), the code alone is shown to avoid
+ * "CHF CHF". Currency codes may arrive in any case from the API.
+ */
+function currencyLabel(code: string): string {
+  const upper = code.toUpperCase()
+  const symbol = getCurrencySymbol(upper)
+  return symbol && symbol !== upper ? `${symbol} ${upper}` : upper
 }
 
 export function CurrencySelector({
@@ -70,7 +66,7 @@ export function CurrencySelector({
             )
           }
           const code = String(item.key)
-          return <span key={item.key}>{CURRENCY_LABELS[code] ?? code.toUpperCase()}</span>
+          return <span key={item.key}>{currencyLabel(code)}</span>
         })
       }
     >
@@ -85,8 +81,8 @@ export function CurrencySelector({
       </SelectSection>
       <SelectSection>
         {currencies.map(code => (
-          <SelectItem key={code} textValue={CURRENCY_LABELS[code] ?? code.toUpperCase()}>
-            {CURRENCY_LABELS[code] ?? code.toUpperCase()}
+          <SelectItem key={code} textValue={currencyLabel(code)}>
+            {currencyLabel(code)}
           </SelectItem>
         ))}
       </SelectSection>

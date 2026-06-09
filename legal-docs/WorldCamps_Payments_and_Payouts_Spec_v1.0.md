@@ -79,16 +79,31 @@ This cannot be left to Stripe's default. Funds must remain in the Provider's Str
 
 Currency is determined at onboarding from the Provider's country of registration. Each Listing is denominated in a single settlement currency. Each Booking is processed end-to-end (checkout, capture, refund, payout) in that currency. (PT v1.6 §6.8.)
 
-**Launch scope — four currencies only:**
+**Supported settlement currencies:**
 
-| Country                                                                               | Settlement currency |
-| ------------------------------------------------------------------------------------- | ------------------- |
-| United States                                                                         | USD                 |
-| Switzerland                                                                           | CHF                 |
-| United Kingdom                                                                        | GBP                 |
-| Eurozone (AT, BE, DE, ES, FI, FR, GR, IE, IT, LU, NL, PT, and other Eurozone members) | EUR                 |
+| Settlement currency | Notes                                                          |
+| ------------------- | -------------------------------------------------------------- |
+| USD                 | Platform external bank account — no platform FX                |
+| CHF                 | Platform external bank account (also platform default) — no FX |
+| GBP                 | Platform external bank account — no platform FX                |
+| EUR                 | Platform external bank account — no platform FX                |
+| CAD                 | Settles to platform default (CHF) — platform absorbs FX        |
+| AED                 | Settles to platform default (CHF) — platform absorbs FX        |
+| AUD                 | Settles to platform default (CHF) — platform absorbs FX        |
+| SGD                 | Settles to platform default (CHF) — platform absorbs FX        |
+| JPY                 | Settles to platform default (CHF) — platform absorbs FX        |
+| CNY                 | Settles to platform default (CHF) — platform absorbs FX        |
+| HKD                 | Settles to platform default (CHF) — platform absorbs FX        |
+| DKK                 | Settles to platform default (CHF) — platform absorbs FX        |
+| SEK                 | Settles to platform default (CHF) — platform absorbs FX        |
+| THB                 | Settles to platform default (CHF) — platform absorbs FX        |
+| NZD                 | Settles to platform default (CHF) — platform absorbs FX        |
 
-Providers outside this scope cannot complete onboarding at launch. The country picker on Step 5 of Provider onboarding must restrict to the four-currency country set. Any expansion of this scope requires a Provider Terms amendment before code change.
+The provider's currency is locked at onboarding and they price/charge only in it (no provider-side FX); the customer pays in that currency, with any conversion applied by their own bank.
+
+The platform holds external bank accounts in CHF/EUR/GBP/USD only. The `application_fee_amount` lands in the platform balance in the provider's currency. For the four bank-account currencies no conversion occurs; for every other supported currency the balance has no matching external account and is converted to the platform's **default (CHF)** account on platform payout, with the platform absorbing that FX. This requires the platform Stripe account to have `default_currency = CHF` and balance currency-conversion-to-default enabled.
+
+The single source of truth for this list in code is `SUPPORTED_CURRENCIES` in `@world-schools/global-utils`. Any expansion of this scope requires a Provider Terms amendment before code change.
 
 ### 3.4 Webhooks
 

@@ -1,10 +1,21 @@
 import { Prisma } from '../../../generated/client/client'
-import { computeApplicationFee, fromStripeMinorUnits, toStripeMinorUnits } from './money.util'
+import {
+  computeApplicationFee,
+  fromStripeMinorUnits,
+  getStripeMinimumChargeAmount,
+  toStripeMinorUnits,
+} from './money.util'
 
 describe('toStripeMinorUnits', () => {
   it('multiplies EUR by 100 (two-decimal currency)', () => {
     expect(toStripeMinorUnits('19.99', 'eur')).toBe(1999)
     expect(toStripeMinorUnits(new Prisma.Decimal('600.00'), 'EUR')).toBe(60000)
+  })
+
+  it('multiplies the new two-decimal currencies by 100', () => {
+    expect(toStripeMinorUnits('10.00', 'cad')).toBe(1000)
+    expect(toStripeMinorUnits('10.00', 'cny')).toBe(1000)
+    expect(toStripeMinorUnits('10.00', 'sek')).toBe(1000)
   })
 
   it('does NOT multiply JPY (zero-decimal currency)', () => {
@@ -66,5 +77,23 @@ describe('computeApplicationFee', () => {
 
   it('returns "0.00" when the app fee is zero', () => {
     expect(computeApplicationFee('500.00', '0')).toBe('0.00')
+  })
+})
+
+describe('getStripeMinimumChargeAmount', () => {
+  it('returns the explicit minimum for newly supported currencies', () => {
+    expect(getStripeMinimumChargeAmount('cny')).toBe(4.0)
+    expect(getStripeMinimumChargeAmount('aed')).toBe(2.0)
+    expect(getStripeMinimumChargeAmount('hkd')).toBe(4.0)
+    expect(getStripeMinimumChargeAmount('thb')).toBe(10.0)
+    expect(getStripeMinimumChargeAmount('jpy')).toBe(50)
+  })
+
+  it('is case-insensitive', () => {
+    expect(getStripeMinimumChargeAmount('CNY')).toBe(4.0)
+  })
+
+  it('falls back to 0.5 for unlisted currencies', () => {
+    expect(getStripeMinimumChargeAmount('xxx')).toBe(0.5)
   })
 })

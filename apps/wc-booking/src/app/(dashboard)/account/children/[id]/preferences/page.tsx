@@ -12,6 +12,7 @@ import {
   selectFieldPortalStyles,
 } from '@world-schools/ui-web'
 import Select, { type MultiValue } from 'react-select'
+import { getCurrencySymbol, SUPPORTED_CURRENCIES } from '@world-schools/wc-utils'
 import { useChildrenStore } from '@/stores/children-store'
 import { useBeforeUnload } from '@/hooks/use-before-unload'
 import { useChildDetailContext } from '@/components/children/ChildDetailContext'
@@ -55,7 +56,7 @@ interface FormErrors {
   previousCampExperience?: string
 }
 
-const CURRENCY_OPTIONS = ['USD', 'EUR', 'GBP', 'AED']
+const CURRENCY_OPTIONS = [...SUPPORTED_CURRENCIES]
 
 type RegionOption = { value: string; label: string }
 
@@ -69,14 +70,6 @@ const REGION_OPTIONS: RegionOption[] = [
   { value: 'Italy', label: 'Italy' },
   { value: 'Austria', label: 'Austria' },
 ]
-
-// Currency symbols mapping
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: '$',
-  EUR: '€',
-  GBP: '£',
-  AED: 'د.إ',
-}
 
 export default function ChildPreferencesPage() {
   const params = useParams()
@@ -195,7 +188,7 @@ export default function ChildPreferencesPage() {
 
   // Format currency value
   const formatCurrency = (value: number): string => {
-    const symbol = CURRENCY_SYMBOLS[formData.currency] || '$'
+    const symbol = getCurrencySymbol(formData.currency || 'USD')
     return `${symbol}${value.toLocaleString()}`
   }
 

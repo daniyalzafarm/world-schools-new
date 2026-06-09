@@ -132,6 +132,27 @@ describe('StripeConnectService', () => {
       expect(stripe.client.accounts.create).not.toHaveBeenCalled()
     })
 
+    it('accepts a newly supported settlement currency and passes it to Stripe', async () => {
+      prisma.provider.findUnique.mockResolvedValue({
+        ...baseProvider,
+        settings: { currency: 'CAD' },
+      })
+      prisma.systemSettings.upsert.mockResolvedValue({ id: 'singleton', defaultAppFee: 10 })
+      stripe.client.accounts.create.mockResolvedValue(stripeAccount)
+      prisma.provider.updateMany.mockResolvedValue({ count: 1 })
+      prisma.provider.findUniqueOrThrow.mockResolvedValue({
+        ...baseProvider,
+        stripeAccountId: stripeAccount.id,
+        appFeePercentage: 10,
+      })
+
+      await service.createOrGetAccount(providerId)
+
+      expect(stripe.client.accounts.create).toHaveBeenCalledTimes(1)
+      const [params] = stripe.client.accounts.create.mock.calls[0]
+      expect(params.default_currency).toBe('cad')
+    })
+
     it('creates a Stripe account with a content-hashed idempotency key', async () => {
       prisma.provider.findUnique.mockResolvedValue(baseProvider)
       prisma.systemSettings.upsert.mockResolvedValue({ id: 'singleton', defaultAppFee: 10 })

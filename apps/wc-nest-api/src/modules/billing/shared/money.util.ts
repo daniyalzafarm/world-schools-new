@@ -148,6 +148,7 @@ const STRIPE_MIN_CHARGE_MAJOR: Record<string, number> = {
   brl: 0.5,
   cad: 0.5,
   chf: 0.5,
+  cny: 4.0,
   czk: 15.0,
   dkk: 2.5,
   eur: 0.5,

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { getCurrencySymbol } from '@world-schools/global-utils/currency'
 import { Input } from './input'
 import type { CustomInputProps } from './input'
 
@@ -66,16 +67,6 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
     }
 
     onValueChange?.(numValue)
-  }
-
-  const getCurrencySymbol = (curr: string): string => {
-    const symbols: Record<string, string> = {
-      USD: '$',
-      EUR: '€',
-      GBP: '£',
-      CHF: 'CHF',
-    }
-    return symbols[curr] || curr
   }
 
   return (
