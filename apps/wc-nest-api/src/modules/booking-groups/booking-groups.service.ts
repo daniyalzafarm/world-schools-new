@@ -2756,8 +2756,11 @@ export class BookingGroupsService {
         status: true,
         bookingGroupNumber: true,
         providerId: true,
+        totalAmount: true,
         camp: { select: { name: true } },
         provider: { select: { settings: { select: { currency: true } } } },
+        // BUG-189: child name for the provider cancellation notice.
+        bookings: { select: { child: { select: { firstName: true } } }, take: 1 },
       },
     })
     if (!owned) throw new NotFoundException('Booking group not found')
@@ -2820,15 +2823,20 @@ export class BookingGroupsService {
           refundAmount: Number(refundedTotal) > 0 ? `${ownedCurrency} ${refundedTotal}` : '',
         },
       })
-      // v28 Phase 8 — provider-side mirror with refund detail surfaced for context.
+      // v28 Phase 8 — provider-side mirror. BUG-189: surface the full financial
+      // picture (child, refund issued, what the camp retains, payout impact) so
+      // the camp isn't left guessing — the spec calls this out explicitly to
+      // prevent payout disputes.
+      const cancelledChildName = owned.bookings[0]?.child?.firstName ?? 'The child'
+      const refundedNum = Number(refundedTotal)
+      const retained = Math.max(0, Number(owned.totalAmount) - refundedNum).toFixed(2)
+      const cancelledByFamilyDetail =
+        refundedNum > 0
+          ? `${cancelledChildName}'s place was cancelled. Refund of ${ownedCurrency} ${refundedTotal} issued to the family; ${owned.camp.name} retains ${ownedCurrency} ${retained} under the cancellation policy. Pending payout tranches for this booking have been cancelled and the schedule recalculated.`
+          : `${cancelledChildName}'s place was cancelled. No refund is due under the cancellation policy; ${owned.camp.name} retains the full ${ownedCurrency} ${retained}. Pending payout tranches for this booking have been cancelled.`
       notify(this.eventEmitter, NotificationType.ProviderBookingCancelledByFamily, {
         bookingGroupId: owned.id,
-        extra: {
-          detail:
-            Number(refundedTotal) > 0
-              ? `Refund of ${ownedCurrency} ${refundedTotal} issued.`
-              : null,
-        },
+        extra: { detail: cancelledByFamilyDetail, childName: cancelledChildName },
       })
     }
     const nonRefunded =
@@ -2846,6 +2854,78 @@ export class BookingGroupsService {
         // the cancel response is unaffected by an SMTP hiccup.
         void err
       })
+
+    return {
+      bookingGroupId: owned.id,
+      mode: result.mode,
+      refundCount: result.refunds.length,
+    }
+  }
+
+  /**
+   * Provider-initiated cancellation of a booking (BUG-188).
+   *
+   * Mirrors the admin "camp cancel" path: a camp-initiated cancellation issues a
+   * 100% refund to the family (and a Reimbursement row if the payout already
+   * disbursed — handled inside `RefundsService.cancelByCamp`), voids any open
+   * auth pre-capture, unwinds pending payout tranches, and flips the group to
+   * `cancelled`. The family is notified with the standard cancellation +
+   * refund copy; provider staff get the live status broadcast for their boards.
+   *
+   * Ownership is enforced via the `providerId` filter so a camp can only cancel
+   * its own bookings. Non-cancelable statuses (already cancelled / completed /
+   * at_camp / etc.) are rejected inside `cancelByCamp`.
+   */
+  async cancelForProvider(providerId: string, userId: string, bookingGroupId: string) {
+    const owned = await this.prisma.bookingGroup.findFirst({
+      where: { providerId, ...bookingGroupWhereByRef(bookingGroupId) },
+      select: {
+        id: true,
+        status: true,
+        bookingGroupNumber: true,
+        parent: { select: { userId: true } },
+        camp: { select: { name: true } },
+        provider: { select: { settings: { select: { currency: true } } } },
+      },
+    })
+    if (!owned) throw new NotFoundException('Booking group not found')
+    const ownedCurrency = this.requireCurrency(owned)
+
+    const result = await this.refundsService.cancelByCamp({
+      bookingGroupId: owned.id,
+      adminUserId: userId,
+      voidAuthFn: id =>
+        this.paymentIntentsService.cancelForBookingGroup(id, 'requested_by_customer').then(() => {
+          /* discard */
+        }),
+    })
+
+    this.eventEmitter.emit(WsInternalEvent.BookingStatusChanged, {
+      bookingGroupId: owned.id,
+      bookingGroupNumber: owned.bookingGroupNumber,
+      newStatus: 'cancelled',
+      previousStatus: owned.status,
+      parentUserId: owned.parent.userId,
+      providerId,
+      campName: owned.camp.name,
+      respondedAt: new Date().toISOString(),
+      currency: ownedCurrency,
+    })
+
+    // Sum the refunds actually issued so the family's confirmation shows the
+    // exact amount (a camp cancel is a 100% refund, but reuse the real rows).
+    const refundedTotal = result.refunds
+      .reduce((acc, r) => acc.plus(r.amount), new Prisma.Decimal(0))
+      .toFixed(2)
+
+    // Family-facing cancellation + refund notice. Reuses the generic
+    // `ParentBookingCancelled` entry (refund amount threaded via `extra`).
+    notify(this.eventEmitter, NotificationType.ParentBookingCancelled, {
+      bookingGroupId: owned.id,
+      extra: {
+        refundAmount: Number(refundedTotal) > 0 ? `${ownedCurrency} ${refundedTotal}` : '',
+      },
+    })
 
     return {
       bookingGroupId: owned.id,

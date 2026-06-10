@@ -14,7 +14,7 @@ import { Type } from 'class-transformer'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 import { RedisService } from '../../redis/redis.service'
 import { listCatalogEntries } from '../catalog/notification-catalog'
-import { NotificationPreferencesService } from './notification-preferences.service'
+import { type Audience, NotificationPreferencesService } from './notification-preferences.service'
 
 /**
  * Class-validator decorator that asserts a string is a registered
@@ -99,6 +99,15 @@ export function _resetTemplateKeyCacheForTests(): void {
 export abstract class BaseNotificationPreferencesController {
   private readonly logger = new Logger(BaseNotificationPreferencesController.name)
 
+  /**
+   * Catalog audience for this controller's app. Sourced from the route prefix
+   * (`/user` → parent, `/provider` → provider, `/superadmin` → superadmin) —
+   * the JWT strategy already enforces the matching `payload.app` claim, so the
+   * prefix is the authoritative, access-controlled audience. No role-based
+   * re-derivation.
+   */
+  protected abstract readonly audience: Audience
+
   constructor(
     protected readonly service: NotificationPreferencesService,
     protected readonly redis: RedisService
@@ -107,7 +116,7 @@ export abstract class BaseNotificationPreferencesController {
   @Get()
   @ApiOperation({ summary: 'List notification preferences for current user' })
   async list(@CurrentUser('id') userId: string) {
-    const items = await this.service.listForUser(userId)
+    const items = await this.service.listForUser(userId, this.audience)
     return { items }
   }
 
@@ -115,7 +124,7 @@ export abstract class BaseNotificationPreferencesController {
   @ApiOperation({ summary: 'Bulk-upsert notification preferences for current user' })
   async update(@CurrentUser('id') userId: string, @Body() dto: BulkUpdatePreferencesDto) {
     await this.assertRateLimit(userId)
-    const updated = await this.service.bulkSetPreferences(userId, dto.items)
+    const updated = await this.service.bulkSetPreferences(userId, this.audience, dto.items)
     return { success: true, updated }
   }
 
@@ -153,6 +162,7 @@ export abstract class BaseNotificationPreferencesController {
 @ApiTags('User Notification Preferences')
 @Controller('user/notification-preferences')
 export class UserNotificationPreferencesController extends BaseNotificationPreferencesController {
+  protected readonly audience: Audience = 'parent'
   constructor(service: NotificationPreferencesService, redis: RedisService) {
     super(service, redis)
   }
@@ -161,6 +171,7 @@ export class UserNotificationPreferencesController extends BaseNotificationPrefe
 @ApiTags('Provider Notification Preferences')
 @Controller('provider/notification-preferences')
 export class ProviderNotificationPreferencesController extends BaseNotificationPreferencesController {
+  protected readonly audience: Audience = 'provider'
   constructor(service: NotificationPreferencesService, redis: RedisService) {
     super(service, redis)
   }
@@ -169,6 +180,7 @@ export class ProviderNotificationPreferencesController extends BaseNotificationP
 @ApiTags('Superadmin Notification Preferences')
 @Controller('superadmin/notification-preferences')
 export class SuperadminNotificationPreferencesController extends BaseNotificationPreferencesController {
+  protected readonly audience: Audience = 'superadmin'
   constructor(service: NotificationPreferencesService, redis: RedisService) {
     super(service, redis)
   }

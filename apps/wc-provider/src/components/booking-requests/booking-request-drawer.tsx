@@ -148,6 +148,8 @@ export function BookingRequestDrawer({
   const [extensionLoading, setExtensionLoading] = React.useState(false)
   const [acceptConfirmOpen, setAcceptConfirmOpen] = React.useState(false)
   const [declineModalOpen, setDeclineModalOpen] = React.useState(false)
+  const [cancelModalOpen, setCancelModalOpen] = React.useState(false)
+  const [cancelLoading, setCancelLoading] = React.useState(false)
 
   React.useEffect(() => {
     if (isOpen) {
@@ -217,6 +219,21 @@ export function BookingRequestDrawer({
     }
     setExtensionConfirmOpen(true)
     onDetailRefresh?.()
+  }
+
+  const cancelBookingFlow = async () => {
+    if (!detail) return
+    setCancelLoading(true)
+    const res = await providerBookingGroupsService.cancel(detail.id)
+    setCancelLoading(false)
+    setCancelModalOpen(false)
+    if (!res.success) {
+      addToast({ title: 'Could not cancel booking', color: 'danger' })
+      return
+    }
+    addToast({ title: 'Booking cancelled · the family has been refunded', color: 'success' })
+    onDetailRefresh?.()
+    onOpenChange(false)
   }
 
   const renderStatusBanner = () => {
@@ -1074,6 +1091,7 @@ export function BookingRequestDrawer({
                       radius="none"
                       className="flex h-auto min-h-0 justify-between border-b border-gray-100 px-6 py-4 hover:bg-gray-50"
                       endContent={<span className="text-lg text-gray-400">›</span>}
+                      onPress={() => setCancelModalOpen(true)}
                     >
                       <span className="text-sm font-medium text-danger">Cancel booking</span>
                     </Button>
@@ -1111,6 +1129,35 @@ export function BookingRequestDrawer({
           </DrawerBody>
 
           {renderFooter()}
+
+          <Modal isOpen={cancelModalOpen} onOpenChange={setCancelModalOpen} placement="center">
+            <ModalContent className="text-secondary-500">
+              <ModalHeader className="flex flex-col gap-1 border-b border-gray-200 px-7 pb-5 pt-7">
+                <span className="text-3xl">⚠️</span>
+                <span className="text-lg font-bold text-secondary-500">Cancel this booking?</span>
+              </ModalHeader>
+              <ModalBody>
+                <p className="text-sm leading-normal text-gray-500">
+                  Cancelling on behalf of your camp issues a{' '}
+                  <strong className="text-secondary-500">100% refund</strong> to the family and
+                  releases the place. Any payout already scheduled for this booking will be
+                  reversed. This can&apos;t be undone.
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={() => setCancelModalOpen(false)}>
+                  Keep booking
+                </Button>
+                <Button
+                  color="danger"
+                  isLoading={cancelLoading}
+                  onPress={() => void cancelBookingFlow()}
+                >
+                  Cancel booking
+                </Button>
+              </ModalFooter>
+            </ModalContent>
+          </Modal>
 
           <Modal isOpen={moreTimeOpen} onOpenChange={setMoreTimeOpen} placement="center">
             <ModalContent className="text-secondary-500">

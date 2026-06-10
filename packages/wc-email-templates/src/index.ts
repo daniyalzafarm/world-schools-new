@@ -118,6 +118,8 @@ export type {
   ProviderBookingEventProps,
   BookingEventKind,
 } from '../emails/provider/booking/provider-booking-event'
+export { default as ProviderBookingRequestReceived } from '../emails/provider/booking/provider-booking-request-received'
+export type { ProviderBookingRequestReceivedProps } from '../emails/provider/booking/provider-booking-request-received'
 
 // ---- Provider — Payouts / Refunds / Disputes ----
 export { default as ProviderPayoutEvent } from '../emails/provider/payouts/provider-payout-event'

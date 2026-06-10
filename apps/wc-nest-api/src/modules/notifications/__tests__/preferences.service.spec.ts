@@ -33,8 +33,6 @@ function makeEntry(opts: {
 }
 
 interface MockPrisma {
-  parent: { findUnique: jest.Mock }
-  userRole: { findMany: jest.Mock }
   notificationPreference: { findMany: jest.Mock; upsert: jest.Mock }
   $transaction: jest.Mock
 }
@@ -42,12 +40,9 @@ interface MockPrisma {
 describe('NotificationPreferencesService', () => {
   let service: NotificationPreferencesService
   let prisma: MockPrisma
-  let redis: { isReady: jest.Mock; get: jest.Mock; set: jest.Mock; del: jest.Mock }
 
   beforeEach(async () => {
     prisma = {
-      parent: { findUnique: jest.fn().mockResolvedValue(null) },
-      userRole: { findMany: jest.fn().mockResolvedValue([]) },
       notificationPreference: {
         findMany: jest.fn().mockResolvedValue([]),
         upsert: jest.fn().mockResolvedValue(undefined),
@@ -58,81 +53,20 @@ describe('NotificationPreferencesService', () => {
         return undefined
       }),
     }
-    // Default: Redis is not ready, so the cache short-circuits and every
-    // test exercises the compute path. Per-test overrides flip isReady on
-    // for cache-specific assertions.
-    redis = {
-      isReady: jest.fn().mockReturnValue(false),
-      get: jest.fn().mockResolvedValue(null),
-      set: jest.fn().mockResolvedValue(true),
-      del: jest.fn().mockResolvedValue(true),
-    }
 
-    // Import RedisService lazily so the test file doesn't compile-break
-    // when the service moves between modules. The DI token is the class.
-    const { RedisService } = await import('../../redis/redis.service')
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        NotificationPreferencesService,
-        { provide: PrismaService, useValue: prisma },
-        { provide: RedisService, useValue: redis },
-      ],
+      providers: [NotificationPreferencesService, { provide: PrismaService, useValue: prisma }],
     }).compile()
 
     service = module.get(NotificationPreferencesService)
     mockedListCatalogEntries.mockReset()
   })
 
-  describe('deriveAudience', () => {
-    it('returns "parent" when a Parent row exists for the user', async () => {
-      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
-
-      await expect(service.deriveAudience('u-1')).resolves.toBe('parent')
-    })
-
-    it('returns "superadmin" when the user has a system role other than Parent', async () => {
-      prisma.parent.findUnique.mockResolvedValueOnce(null)
-      prisma.userRole.findMany.mockResolvedValueOnce([
-        { role: { name: 'Customer Support', providerId: null } },
-      ])
-
-      await expect(service.deriveAudience('u-2')).resolves.toBe('superadmin')
-    })
-
-    it('returns "provider" when the user has a provider-scoped role', async () => {
-      prisma.parent.findUnique.mockResolvedValueOnce(null)
-      prisma.userRole.findMany.mockResolvedValueOnce([
-        { role: { name: 'Provider Admin', providerId: 'prov-1' } },
-      ])
-
-      await expect(service.deriveAudience('u-3')).resolves.toBe('provider')
-    })
-
-    it('returns null for a user with no Parent row and no roles', async () => {
-      await expect(service.deriveAudience('u-4')).resolves.toBeNull()
-    })
-
-    it('prefers parent over superadmin when both signals are present', async () => {
-      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-5' })
-      prisma.userRole.findMany.mockResolvedValueOnce([
-        { role: { name: 'Customer Support', providerId: null } },
-      ])
-
-      await expect(service.deriveAudience('u-5')).resolves.toBe('parent')
-    })
-  })
-
+  // The audience is supplied by the app-prefixed controller (and enforced by
+  // the JWT `payload.app` claim), so the service takes it as a parameter — no
+  // role-based derivation here.
   describe('listForUser', () => {
-    it('returns an empty list when the user has no audience', async () => {
-      mockedListCatalogEntries.mockReturnValue([])
-
-      await expect(service.listForUser('u-1')).resolves.toEqual([])
-      // No catalog filtering happens when audience is null.
-      expect(prisma.notificationPreference.findMany).not.toHaveBeenCalled()
-    })
-
-    it('fans out one row per (templateKey × channel) for the user audience', async () => {
-      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
+    it('fans out one row per (templateKey × channel) for the given audience', async () => {
       mockedListCatalogEntries.mockReturnValue([
         makeEntry({
           templateKey: 'parent.booking.accepted',
@@ -152,7 +86,7 @@ describe('NotificationPreferencesService', () => {
         }),
       ])
 
-      const rows = await service.listForUser('u-1')
+      const rows = await service.listForUser('u-1', 'parent')
 
       // 2 channels for booking.accepted + 1 for wishlist.priceDrop = 3
       expect(rows).toHaveLength(3)
@@ -160,8 +94,22 @@ describe('NotificationPreferencesService', () => {
       expect(templateKeys).not.toContain('provider.booking.requestReceived')
     })
 
+    it('filters entries to the requested audience (provider sees only provider rows)', async () => {
+      mockedListCatalogEntries.mockReturnValue([
+        makeEntry({ templateKey: 'parent.wishlist.priceDrop', audience: 'parent' }),
+        makeEntry({
+          templateKey: 'provider.booking.requestReceived',
+          audience: 'provider',
+          channels: ['in_app'],
+        }),
+      ])
+
+      const rows = await service.listForUser('u-1', 'provider')
+
+      expect(rows.map(r => r.templateKey)).toEqual(['provider.booking.requestReceived'])
+    })
+
     it('marks transactional entries as enabled=true even with an opt-out row present', async () => {
-      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
       mockedListCatalogEntries.mockReturnValue([
         makeEntry({
           templateKey: 'parent.booking.accepted',
@@ -175,14 +123,13 @@ describe('NotificationPreferencesService', () => {
         { templateKey: 'parent.booking.accepted', channel: 'email' },
       ])
 
-      const rows = await service.listForUser('u-1')
+      const rows = await service.listForUser('u-1', 'parent')
 
       expect(rows).toHaveLength(1)
       expect(rows[0]).toMatchObject({ enabled: true, transactional: true })
     })
 
     it('respects opt-out rows for non-transactional entries', async () => {
-      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
       mockedListCatalogEntries.mockReturnValue([
         makeEntry({
           templateKey: 'parent.wishlist.priceDrop',
@@ -195,7 +142,7 @@ describe('NotificationPreferencesService', () => {
         { templateKey: 'parent.wishlist.priceDrop', channel: 'email' }, // opted out of email
       ])
 
-      const rows = await service.listForUser('u-1')
+      const rows = await service.listForUser('u-1', 'parent')
 
       const emailRow = rows.find(r => r.channel === 'email')
       const inAppRow = rows.find(r => r.channel === 'in_app')
@@ -205,22 +152,12 @@ describe('NotificationPreferencesService', () => {
   })
 
   describe('bulkSetPreferences', () => {
-    it('returns 0 and does nothing when the user has no audience', async () => {
-      mockedListCatalogEntries.mockReturnValue([])
-      const count = await service.bulkSetPreferences('u-1', [
-        { templateKey: 'x', channel: 'in_app', enabled: false },
-      ])
-      expect(count).toBe(0)
-      expect(prisma.$transaction).not.toHaveBeenCalled()
-    })
-
     it('silently drops items whose templateKey is not in the audience', async () => {
-      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
       mockedListCatalogEntries.mockReturnValue([
         makeEntry({ templateKey: 'parent.wishlist.priceDrop', audience: 'parent' }),
       ])
 
-      const count = await service.bulkSetPreferences('u-1', [
+      const count = await service.bulkSetPreferences('u-1', 'parent', [
         { templateKey: 'provider.something', channel: 'in_app', enabled: false },
       ])
 
@@ -228,8 +165,22 @@ describe('NotificationPreferencesService', () => {
       expect(prisma.$transaction).not.toHaveBeenCalled()
     })
 
+    it('silently drops items that belong to a different audience', async () => {
+      mockedListCatalogEntries.mockReturnValue([
+        makeEntry({ templateKey: 'parent.wishlist.priceDrop', audience: 'parent' }),
+        makeEntry({ templateKey: 'provider.messaging.newFromFamily', audience: 'provider' }),
+      ])
+
+      // Provider audience + a parent templateKey → dropped.
+      const count = await service.bulkSetPreferences('u-1', 'provider', [
+        { templateKey: 'parent.wishlist.priceDrop', channel: 'in_app', enabled: false },
+      ])
+
+      expect(count).toBe(0)
+      expect(prisma.$transaction).not.toHaveBeenCalled()
+    })
+
     it('silently drops transactional items', async () => {
-      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
       mockedListCatalogEntries.mockReturnValue([
         makeEntry({
           templateKey: 'parent.booking.accepted',
@@ -238,7 +189,7 @@ describe('NotificationPreferencesService', () => {
         }),
       ])
 
-      const count = await service.bulkSetPreferences('u-1', [
+      const count = await service.bulkSetPreferences('u-1', 'parent', [
         { templateKey: 'parent.booking.accepted', channel: 'email', enabled: false },
       ])
 
@@ -247,13 +198,12 @@ describe('NotificationPreferencesService', () => {
     })
 
     it('upserts each valid item in a single transaction', async () => {
-      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
       mockedListCatalogEntries.mockReturnValue([
         makeEntry({ templateKey: 'parent.wishlist.priceDrop', audience: 'parent' }),
         makeEntry({ templateKey: 'parent.review.responsePublished', audience: 'parent' }),
       ])
 
-      const count = await service.bulkSetPreferences('u-1', [
+      const count = await service.bulkSetPreferences('u-1', 'parent', [
         { templateKey: 'parent.wishlist.priceDrop', channel: 'email', enabled: false },
         { templateKey: 'parent.review.responsePublished', channel: 'in_app', enabled: false },
       ])
@@ -311,67 +261,6 @@ describe('NotificationPreferencesService', () => {
           update: { enabled: false },
         })
       )
-    })
-  })
-
-  describe('deriveAudience cache (Phase 14d)', () => {
-    beforeEach(() => {
-      redis.isReady.mockReturnValue(true)
-    })
-
-    it('returns the cached audience without hitting Prisma on a cache hit', async () => {
-      redis.get.mockResolvedValueOnce('provider')
-
-      const result = await service.deriveAudience('u-cache-1')
-
-      expect(result).toBe('provider')
-      expect(prisma.parent.findUnique).not.toHaveBeenCalled()
-      expect(prisma.userRole.findMany).not.toHaveBeenCalled()
-      expect(redis.get).toHaveBeenCalledWith('notif:audience:u-cache-1')
-    })
-
-    it('writes the computed audience back to the cache with a 5min TTL on miss', async () => {
-      redis.get.mockResolvedValueOnce(null)
-      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
-
-      const result = await service.deriveAudience('u-cache-2')
-
-      expect(result).toBe('parent')
-      expect(redis.set).toHaveBeenCalledWith('notif:audience:u-cache-2', 'parent', 300)
-    })
-
-    it('persists the null-audience sentinel so a "no audience" miss doesn\'t recompute every request', async () => {
-      redis.get.mockResolvedValueOnce(null)
-      // parent + userRoles both return empty → audience is null.
-      prisma.parent.findUnique.mockResolvedValueOnce(null)
-      prisma.userRole.findMany.mockResolvedValueOnce([])
-
-      const result = await service.deriveAudience('u-cache-3')
-
-      expect(result).toBeNull()
-      expect(redis.set).toHaveBeenCalledWith('notif:audience:u-cache-3', '__none__', 300)
-    })
-
-    it('returns null when the cached value is the null-audience sentinel', async () => {
-      redis.get.mockResolvedValueOnce('__none__')
-
-      const result = await service.deriveAudience('u-cache-4')
-
-      expect(result).toBeNull()
-      expect(prisma.parent.findUnique).not.toHaveBeenCalled()
-    })
-
-    it('soft-fails to compute fresh when Redis GET throws', async () => {
-      redis.get.mockRejectedValueOnce(new Error('Redis down'))
-      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
-
-      await expect(service.deriveAudience('u-cache-5')).resolves.toBe('parent')
-      expect(prisma.parent.findUnique).toHaveBeenCalled()
-    })
-
-    it('invalidateAudienceCache deletes the per-user key', async () => {
-      await service.invalidateAudienceCache('u-cache-6')
-      expect(redis.del).toHaveBeenCalledWith('notif:audience:u-cache-6')
     })
   })
 })

@@ -8,6 +8,13 @@ import { theme } from '../_shared/theme'
 export interface ParentBookingDeclinedProps {
   salutation: SalutationStyle
   firstName?: string | null
+  /**
+   * Child the declined request was for. Carried for the in-app notification
+   * (BUG-190 — disambiguates multi-child households) but deliberately NOT
+   * rendered in this email: the v28 spec keeps the child's name out of the
+   * decline email for GDPR data-minimisation (email is a forwardable channel).
+   */
+  childName: string
   campName: string
   programName: string
   /** Pre-rendered session window, e.g. "10–17 Aug 2026". */
@@ -116,6 +123,7 @@ const signOffStyle = {
 export const PreviewProps: ParentBookingDeclinedProps = {
   salutation: 'hi',
   firstName: 'Sarah',
+  childName: 'Emma',
   campName: 'Alpine Adventure Camp',
   programName: 'Two-Week Mountain Discovery — Session 3',
   sessionRange: '12–26 Jul 2026',

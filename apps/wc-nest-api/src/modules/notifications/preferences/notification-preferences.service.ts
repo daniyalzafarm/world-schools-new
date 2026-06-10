@@ -1,19 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common'
 import type { NotificationCategory } from '@world-schools/wc-types'
 import { PrismaService } from '../../../prisma/prisma.service'
-import { RedisService } from '../../redis/redis.service'
 import { listCatalogEntries } from '../catalog/notification-catalog'
 import type { CatalogEntry } from '../catalog/types'
 import type { NotificationChannel } from '../queue/queue.types'
-
-/** Cache key for `deriveAudience`. 5-minute TTL — short enough that a role
- *  flip propagates in under 5 minutes, long enough to absorb the bursts
- *  that come from a notifications-page poll loop. */
-const AUDIENCE_CACHE_PREFIX = 'notif:audience:'
-const AUDIENCE_CACHE_TTL_SECONDS = 5 * 60
-/** Sentinel value persisted when `deriveAudience` returns null so the cache
- *  distinguishes "no audience" from "miss". */
-const NULL_AUDIENCE_SENTINEL = '__none__'
+import { NOTIFICATION_SETTINGS_COPY } from './notification-settings-copy'
 
 export type Audience = 'parent' | 'provider' | 'superadmin'
 
@@ -51,105 +42,22 @@ export interface BulkSetItem {
 export class NotificationPreferencesService {
   private readonly logger = new Logger(NotificationPreferencesService.name)
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly redis: RedisService
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Detects which catalog audience the user belongs to. Priority:
-   *  1. Parent (Parent row exists) — every Parent is a parent, period.
-   *  2. Superadmin (system-role membership, not 'Parent').
-   *  3. Provider (any provider-scoped role).
-   *
-   * Returns `null` for users with none of the above (rare — e.g. a stale
-   * account row); the controller treats null as "no preferences UI".
-   *
-   * Phase 14d — Redis-cached for 5 minutes. The preferences page polls on
-   * every render, and `deriveAudience` is the hot path: two indexed Prisma
-   * queries per request. Cache miss → DB hits → cache write; cache hit →
-   * single Redis GET. Soft-fails to "compute fresh" if Redis is unreachable
-   * so a flaky cache never breaks the settings page.
-   */
-  async deriveAudience(userId: string): Promise<Audience | null> {
-    const cacheKey = `${AUDIENCE_CACHE_PREFIX}${userId}`
-
-    // Cache lookup — soft-fail to fresh compute on any Redis hiccup.
-    if (this.redis.isReady()) {
-      try {
-        const cached = await this.redis.get(cacheKey)
-        if (cached === NULL_AUDIENCE_SENTINEL) return null
-        if (cached === 'parent' || cached === 'provider' || cached === 'superadmin') {
-          return cached
-        }
-      } catch (err) {
-        this.logger.warn(
-          `deriveAudience cache read failed for ${userId}: ${err instanceof Error ? err.message : String(err)}`
-        )
-      }
-    }
-
-    const audience = await this.computeAudience(userId)
-
-    if (this.redis.isReady()) {
-      try {
-        await this.redis.set(
-          cacheKey,
-          audience ?? NULL_AUDIENCE_SENTINEL,
-          AUDIENCE_CACHE_TTL_SECONDS
-        )
-      } catch (err) {
-        this.logger.warn(
-          `deriveAudience cache write failed for ${userId}: ${err instanceof Error ? err.message : String(err)}`
-        )
-      }
-    }
-
-    return audience
-  }
-
-  /** Cache invalidation hook for callers that mutate Parent / UserRole rows.
-   *  Currently unused (audience changes propagate within 5min naturally);
-   *  exposed so the auth / role-mutation paths can wire it later. */
-  async invalidateAudienceCache(userId: string): Promise<void> {
-    if (!this.redis.isReady()) return
-    try {
-      await this.redis.del(`${AUDIENCE_CACHE_PREFIX}${userId}`)
-    } catch (err) {
-      this.logger.warn(
-        `deriveAudience cache invalidate failed for ${userId}: ${err instanceof Error ? err.message : String(err)}`
-      )
-    }
-  }
-
-  private async computeAudience(userId: string): Promise<Audience | null> {
-    const [parent, userRoles] = await Promise.all([
-      this.prisma.parent.findUnique({ where: { userId }, select: { id: true } }),
-      this.prisma.userRole.findMany({
-        where: { userId },
-        select: { role: { select: { name: true, providerId: true } } },
-      }),
-    ])
-    if (parent) return 'parent'
-    const isSuperadmin = userRoles.some(r => r.role.providerId == null && r.role.name !== 'Parent')
-    if (isSuperadmin) return 'superadmin'
-    const isProvider = userRoles.some(r => r.role.providerId != null)
-    if (isProvider) return 'provider'
-    return null
-  }
-
-  /**
-   * Phase 12 — returns the full preference list for the user's audience,
-   * merged with any opt-out rows. Transactional entries are returned with
+   * Phase 12 — returns the full preference list for the given audience, merged
+   * with any opt-out rows. Transactional entries are returned with
    * `enabled: true, transactional: true` so the UI can render them locked.
+   *
+   * The `audience` is supplied by the caller (the app-prefixed controller —
+   * `/user` → parent, `/provider` → provider, `/superadmin` → superadmin),
+   * which the JWT strategy already enforces via the `payload.app` claim. There
+   * is no role-based re-derivation here.
    *
    * Entries are flattened: one row per (templateKey × channel). The UI
    * groups by category to render the sectioned settings page.
    */
-  async listForUser(userId: string): Promise<PreferenceRow[]> {
-    const audience = await this.deriveAudience(userId)
-    if (!audience) return []
-
+  async listForUser(userId: string, audience: Audience): Promise<PreferenceRow[]> {
     const entries = listCatalogEntries().filter(e => e.audience === audience)
     const optOuts = await this.prisma.notificationPreference.findMany({
       where: { userId, templateKey: { in: entries.map(e => e.templateKey) }, enabled: false },
@@ -178,12 +86,15 @@ export class NotificationPreferencesService {
 
   /**
    * Phase 12 — bulk-upsert preferences. Validates each item's templateKey
-   * belongs to the user's audience (silent skip otherwise). Single
-   * transaction so the whole save either lands or nothing does.
+   * belongs to the given audience (silent skip otherwise). Single transaction
+   * so the whole save either lands or nothing does. `audience` comes from the
+   * app-prefixed controller (see `listForUser`).
    */
-  async bulkSetPreferences(userId: string, items: BulkSetItem[]): Promise<number> {
-    const audience = await this.deriveAudience(userId)
-    if (!audience) return 0
+  async bulkSetPreferences(
+    userId: string,
+    audience: Audience,
+    items: BulkSetItem[]
+  ): Promise<number> {
     const allowed = new Set(
       listCatalogEntries()
         .filter(e => e.audience === audience && !e.transactional)
@@ -263,12 +174,15 @@ export class NotificationPreferencesService {
 }
 
 /**
- * Derive a user-friendly label + description from a catalog entry. The
- * catalog stores per-channel `title`/`subject` functions that take the
- * loaded props at fire time — for the settings UI we need a static
- * description, so we derive from the templateKey's dotted segments.
+ * Resolve a user-friendly label + description for a catalog entry. Prefers the
+ * curated `NOTIFICATION_SETTINGS_COPY` map (single source of truth, drift-
+ * guarded by `notification-settings-copy.spec.ts`); falls back to a humanised
+ * heuristic for any not-yet-curated key so a new notification still renders.
  */
 function deriveLabel(entry: CatalogEntry<unknown>): { label: string; description: string } {
+  const curated = NOTIFICATION_SETTINGS_COPY[entry.templateKey]
+  if (curated) return curated
+
   const segments = entry.templateKey.split('.')
   const leaf = segments[segments.length - 1] ?? entry.templateKey
   // Humanise: "balanceReminder14d" → "Balance reminder 14d"

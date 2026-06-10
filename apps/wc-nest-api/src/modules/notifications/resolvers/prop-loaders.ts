@@ -71,6 +71,7 @@ const logger = new Logger('PropLoaders')
  */
 
 const PARENT_APP_BASE_URL = process.env.BOOKING_PORTAL_URL ?? 'http://localhost:4303'
+const PROVIDER_APP_BASE_URL = process.env.PROVIDER_PORTAL_URL ?? 'http://localhost:4302'
 
 /** Pre-formatted helpers. Templates render strings only — no Date /
  *  number coercion inside JSX. */
@@ -168,6 +169,7 @@ const parentBookingDeclined: PropLoader<ParentBookingDeclinedProps | null> = asy
       parent: { select: { user: { select: { firstName: true } } } },
       camp: { select: { name: true } },
       session: { select: { name: true, startDate: true, endDate: true } },
+      bookings: { select: { child: { select: { firstName: true } } }, take: 1 },
     },
   })
   if (!bg) {
@@ -185,6 +187,9 @@ const parentBookingDeclined: PropLoader<ParentBookingDeclinedProps | null> = asy
   return {
     salutation: 'hi',
     firstName: bg.parent.user.firstName,
+    // BUG-190: name the child so multi-child households know which request was
+    // declined.
+    childName: bg.bookings[0]?.child?.firstName ?? 'your child',
     campName: bg.camp.name,
     programName: bg.session.name,
     sessionRange: formatSessionRange(bg.session.startDate, bg.session.endDate),
@@ -205,6 +210,8 @@ export interface ProviderBookingInAppProps {
   campName: string
   /** ISO timestamp when the request expires — only set for RequestReceived. */
   requestExpiresAt?: string
+  /** Deep link to the booking in the provider portal (used by the email CTA). */
+  bookingUrl: string
 }
 
 const providerBookingInApp: PropLoader<ProviderBookingInAppProps | null> = async (
@@ -228,6 +235,7 @@ const providerBookingInApp: PropLoader<ProviderBookingInAppProps | null> = async
     bookingGroupNumber: bg.bookingGroupNumber,
     campName: bg.camp.name,
     requestExpiresAt: extra?.['requestExpiresAt'] as string | undefined,
+    bookingUrl: `${PROVIDER_APP_BASE_URL}/bookings/${bookingGroupId}`,
   }
 }
 
@@ -1121,11 +1129,40 @@ const parentBookingRequestPendingState: PropLoader<
   return parentBookingRequestSubmitted(prisma, ctx)
 }
 
+/**
+ * Loader for the scheduled auto-expiry trigger (`ParentBookingExpired`).
+ *
+ * BUG-166: the expiry notification is scheduled for submit+72h, but the
+ * `BookingResponseExpiryCron` flips `request → expired` at that same mark.
+ * Reusing `parentBookingRequestPendingState` (which requires `status ===
+ * 'request'`) made this notification render nothing — by the time it fired the
+ * status was already `expired`, so the loader returned null and the delivery
+ * was silently skipped. This loader instead fires when the request genuinely
+ * lapsed: status is already `expired`, OR still `request` but its `expiresAt`
+ * deadline has passed (the cron simply hasn't ticked yet). A request that was
+ * accepted/declined/withdrawn — or extended into the future — is correctly
+ * skipped so no obsolete "expired" notice goes out.
+ */
+const parentBookingExpiredState: PropLoader<ParentBookingRequestSubmittedProps | null> = async (
+  prisma: PrismaService,
+  ctx: NotificationContext
+) => {
+  if (!ctx.bookingGroupId) return null
+  const bg = await prisma.bookingGroup.findUnique({
+    where: { id: ctx.bookingGroupId },
+    select: { status: true, expiresAt: true },
+  })
+  if (!bg) return null
+  const lapsed =
+    bg.status === 'expired' ||
+    (bg.status === 'request' && bg.expiresAt != null && bg.expiresAt.getTime() <= Date.now())
+  if (!lapsed) return null
+  return parentBookingRequestSubmitted(prisma, ctx)
+}
+
 // ============================================================================
 // Phase 8 — provider loaders
 // ============================================================================
-
-const PROVIDER_APP_BASE_URL = process.env.PROVIDER_PORTAL_URL ?? 'http://localhost:4302'
 
 /** Common provider context: company name + dashboard root. */
 async function loadProviderHeader(
@@ -1943,7 +1980,7 @@ export const propLoaders = {
   [NotificationType.ParentBookingDeclined]: parentBookingDeclined,
   [NotificationType.ParentBookingRequestSubmitted]: parentBookingRequestSubmitted,
   [NotificationType.ParentBookingRequestStillPending]: parentBookingRequestPendingState,
-  [NotificationType.ParentBookingExpired]: parentBookingRequestPendingState,
+  [NotificationType.ParentBookingExpired]: parentBookingExpiredState,
   [NotificationType.ParentBookingCancelled]: parentBookingCancelled,
   [NotificationType.ParentBookingModified]: parentBookingModified,
   [NotificationType.ParentBookingRequestWithdrawn]: parentBookingRequestWithdrawn,

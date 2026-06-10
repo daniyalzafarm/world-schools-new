@@ -138,7 +138,8 @@ export class ProviderAuthController {
     await this.emailVerificationService.createAndSendVerificationCode(
       result.user.id,
       result.user.email,
-      this.configService.providerPortalUrl
+      this.configService.providerPortalUrl,
+      'provider'
     )
 
     return ResponseUtil.success({
@@ -236,7 +237,8 @@ export class ProviderAuthController {
   async resendVerificationCode(@Body() resendDto: ProviderResendVerificationCodeDto) {
     await this.emailVerificationService.resendVerificationCode(
       resendDto.email,
-      this.configService.providerPortalUrl
+      this.configService.providerPortalUrl,
+      'provider'
     )
 
     return ResponseUtil.success({
@@ -372,7 +374,8 @@ export class ProviderAuthController {
       await this.emailVerificationService.createAndSendVerificationCode(
         user.id,
         user.email,
-        this.configService.providerPortalUrl
+        this.configService.providerPortalUrl,
+        'provider'
       )
 
       // Return a specific error response so frontend can redirect to verification page

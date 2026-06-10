@@ -27,11 +27,13 @@ export class EmailVerificationService {
   /**
    * Create and send verification code to user's email.
    * @param portalUrl - The base URL of the app portal (e.g. bookingPortalUrl or providerPortalUrl)
+   * @param audience - Whether the recipient is a parent or a provider; selects the email copy
    */
   async createAndSendVerificationCode(
     userId: string,
     email: string,
-    portalUrl: string
+    portalUrl: string,
+    audience: 'parent' | 'provider'
   ): Promise<void> {
     // Fetch user data to get name for email template
     const user = await this.prisma.user.findUnique({
@@ -86,7 +88,8 @@ export class EmailVerificationService {
         code,
         this.CODE_EXPIRY_MINUTES,
         userName,
-        verificationUrl
+        verificationUrl,
+        audience
       ),
     })
 
@@ -156,8 +159,13 @@ export class EmailVerificationService {
   /**
    * Resend verification code.
    * @param portalUrl - The base URL of the app portal to build the verification link
+   * @param audience - Whether the recipient is a parent or a provider; selects the email copy
    */
-  async resendVerificationCode(email: string, portalUrl: string): Promise<void> {
+  async resendVerificationCode(
+    email: string,
+    portalUrl: string,
+    audience: 'parent' | 'provider'
+  ): Promise<void> {
     // Find user by email
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -209,6 +217,6 @@ export class EmailVerificationService {
     }
 
     // Create and send new code
-    await this.createAndSendVerificationCode(user.id, user.email, portalUrl)
+    await this.createAndSendVerificationCode(user.id, user.email, portalUrl, audience)
   }
 }

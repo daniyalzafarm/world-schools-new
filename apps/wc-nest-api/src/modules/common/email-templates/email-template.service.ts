@@ -194,9 +194,22 @@ export class EmailTemplateService {
     code: string,
     expiryMinutes: number,
     userName: string,
-    verificationUrl: string
+    verificationUrl: string,
+    audience: 'parent' | 'provider'
   ): string {
     const safeUserName = this.escapeHtml(userName)
+    const intro =
+      audience === 'provider'
+        ? "Thank you for joining World Camps as a camp provider. We're excited to help you connect with families from around the world looking for amazing camp experiences."
+        : "Thank you for joining World Camps. We're excited to help you discover and book amazing camp experiences for your family."
+    const verifyLine =
+      audience === 'provider'
+        ? 'Please verify your email address to complete your registration and start setting up your camp profile.'
+        : 'Please verify your email address to complete your registration and start exploring camps.'
+    const supportEmail =
+      audience === 'provider' ? 'providers@world-camps.com' : 'support@world-camps.com'
+    const supportLabel =
+      audience === 'provider' ? 'Contact our provider support team' : 'Contact our support team'
     return `<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -233,11 +246,11 @@ export class EmailTemplateService {
     </p>
 
     <p style="margin:0 0 16px 0;font-size:16px;color:${this.colors.textSecondary};line-height:1.7;">
-    Thank you for joining World Camps as a camp provider. We're excited to help you connect with families from around the world looking for amazing camp experiences.
+    ${intro}
     </p>
 
     <p style="margin:0 0 32px 0;font-size:16px;color:${this.colors.textSecondary};line-height:1.7;">
-    Please verify your email address to complete your registration and start setting up your camp profile.
+    ${verifyLine}
     </p>
 
     <!-- Button -->
@@ -287,7 +300,7 @@ export class EmailTemplateService {
     If you didn't create an account, you can safely ignore this email.
     </p>
     <p style="margin:12px 0 0 0;font-size:14px;color:${this.colors.textSecondary};line-height:1.6;">
-    Have questions? <a href="mailto:providers@world-camps.com" style="color:${this.colors.primary};text-decoration:none;font-weight:500;">Contact our provider support team</a>
+    Have questions? <a href="mailto:${supportEmail}" style="color:${this.colors.primary};text-decoration:none;font-weight:500;">${supportLabel}</a>
     </p>
     </td>
     </tr>

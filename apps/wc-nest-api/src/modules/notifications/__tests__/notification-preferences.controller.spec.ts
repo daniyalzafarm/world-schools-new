@@ -6,6 +6,8 @@ import { listCatalogEntries } from '../catalog/notification-catalog'
 import {
   BulkPreferenceItemDto,
   BulkUpdatePreferencesDto,
+  ProviderNotificationPreferencesController,
+  SuperadminNotificationPreferencesController,
   UserNotificationPreferencesController,
   _resetTemplateKeyCacheForTests,
 } from '../preferences/notification-preferences.controller'
@@ -153,5 +155,46 @@ describe('UserNotificationPreferencesController — Phase 14c hardening', () => 
       const errors = await validate(dto)
       expect(errors.some(e => e.property === 'enabled')).toBe(true)
     })
+  })
+})
+
+describe('Notification preferences audience forwarding (prefix → audience)', () => {
+  it('each app controller forwards its prefix audience to the service', async () => {
+    const service = {
+      listForUser: jest.fn().mockResolvedValue([]),
+      bulkSetPreferences: jest.fn().mockResolvedValue(0),
+    }
+    // Redis not ready → the PATCH rate-limiter is skipped, isolating the
+    // audience-forwarding assertion.
+    const redis = { isReady: jest.fn().mockReturnValue(false), getClient: jest.fn() }
+
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [
+        UserNotificationPreferencesController,
+        ProviderNotificationPreferencesController,
+        SuperadminNotificationPreferencesController,
+      ],
+      providers: [
+        { provide: NotificationPreferencesService, useValue: service },
+        { provide: RedisService, useValue: redis },
+      ],
+    }).compile()
+
+    const cases = [
+      { ctrl: module.get(UserNotificationPreferencesController), audience: 'parent' },
+      { ctrl: module.get(ProviderNotificationPreferencesController), audience: 'provider' },
+      { ctrl: module.get(SuperadminNotificationPreferencesController), audience: 'superadmin' },
+    ] as const
+
+    for (const { ctrl, audience } of cases) {
+      service.listForUser.mockClear()
+      service.bulkSetPreferences.mockClear()
+
+      await ctrl.list('u-1')
+      expect(service.listForUser).toHaveBeenCalledWith('u-1', audience)
+
+      await ctrl.update('u-1', { items: [] } as unknown as BulkUpdatePreferencesDto)
+      expect(service.bulkSetPreferences).toHaveBeenCalledWith('u-1', audience, [])
+    }
   })
 })

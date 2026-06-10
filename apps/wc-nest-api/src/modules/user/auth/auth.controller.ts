@@ -214,7 +214,8 @@ export class UserAuthController {
     await this.emailVerificationService.createAndSendVerificationCode(
       result.user.id,
       result.user.email,
-      this.configService.bookingPortalUrl
+      this.configService.bookingPortalUrl,
+      'parent'
     )
 
     return ResponseUtil.success({
@@ -288,7 +289,8 @@ export class UserAuthController {
   async resendVerificationCode(@Body() resendDto: UserResendVerificationCodeDto) {
     await this.emailVerificationService.resendVerificationCode(
       resendDto.email,
-      this.configService.bookingPortalUrl
+      this.configService.bookingPortalUrl,
+      'parent'
     )
 
     return ResponseUtil.success({
@@ -332,7 +334,8 @@ export class UserAuthController {
       await this.emailVerificationService.createAndSendVerificationCode(
         user.id,
         user.email,
-        this.configService.bookingPortalUrl
+        this.configService.bookingPortalUrl,
+        'parent'
       )
 
       // Return a specific error response so frontend can redirect to verification page

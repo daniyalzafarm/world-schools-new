@@ -84,4 +84,13 @@ export const providerBookingGroupsService = {
       {}
     )
   },
+
+  async cancel(
+    id: string
+  ): Promise<ApiResult<{ bookingGroupId: string; mode: string; refundCount: number }>> {
+    return apiClient.post<{ bookingGroupId: string; mode: string; refundCount: number }>(
+      `/provider/booking-groups/${encodeURIComponent(id)}/cancel`,
+      {}
+    )
+  },
 }

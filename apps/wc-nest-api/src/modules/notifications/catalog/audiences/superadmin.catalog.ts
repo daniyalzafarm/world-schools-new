@@ -171,7 +171,10 @@ function makeOnboardingEntry(
       body: props => (props ? (props.country ?? '') : ''),
       entityType: NotificationEntityType.Camp,
       entityId: props => props?.companyName ?? '',
-      redirectUrl: props => (props ? props.reviewUrl.replace(/^https?:\/\/[^/]+/, '') : '/'),
+      // BUG-171-175 hardening: a loader that ever returns props without a
+      // `reviewUrl` would otherwise crash here on `undefined.replace`.
+      redirectUrl: props =>
+        props?.reviewUrl ? props.reviewUrl.replace(/^https?:\/\/[^/]+/, '') : '/',
       metadata: props =>
         props
           ? {
@@ -276,7 +279,10 @@ function makeCampHealthEntry(
       body: props => (props?.reason ? props.reason : ''),
       entityType: NotificationEntityType.Camp,
       entityId: props => props?.companyName ?? '',
-      redirectUrl: props => (props ? props.reviewUrl.replace(/^https?:\/\/[^/]+/, '') : '/'),
+      // BUG-171-175 hardening: a loader that ever returns props without a
+      // `reviewUrl` would otherwise crash here on `undefined.replace`.
+      redirectUrl: props =>
+        props?.reviewUrl ? props.reviewUrl.replace(/^https?:\/\/[^/]+/, '') : '/',
       metadata: props =>
         props
           ? {
@@ -371,7 +377,10 @@ function makeFinanceEntry(
               ? NotificationEntityType.Reimbursement
               : NotificationEntityType.BookingGroup,
       entityId: props => props?.bookingRef ?? '',
-      redirectUrl: props => (props ? props.reviewUrl.replace(/^https?:\/\/[^/]+/, '') : '/'),
+      // BUG-171-175 hardening: a loader that ever returns props without a
+      // `reviewUrl` would otherwise crash here on `undefined.replace`.
+      redirectUrl: props =>
+        props?.reviewUrl ? props.reviewUrl.replace(/^https?:\/\/[^/]+/, '') : '/',
       metadata: props =>
         props
           ? {

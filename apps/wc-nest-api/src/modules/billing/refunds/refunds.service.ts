@@ -1327,6 +1327,12 @@ export class RefundsService {
     reason: string,
     cancelledByUserId?: string
   ): Promise<void> {
+    // Capture the pre-cancellation status before we flip it to `cancelled` —
+    // BUG-178 gates the non-payment notification set on it (see below).
+    const prior = await this.prisma.bookingGroup.findUnique({
+      where: { id: bookingGroupId },
+      select: { status: true },
+    })
     await this.prisma.bookingGroup.update({
       where: { id: bookingGroupId },
       data: {
@@ -1353,7 +1359,16 @@ export class RefundsService {
     // browse page (no refund line — the deposit was non-refundable). Other
     // cancellation reasons stay silent here because the active path emits
     // `ParentBookingCancelled` from `BookingGroupsService.cancelForParent`.
-    if (reason === 'policy_balance') {
+    //
+    // BUG-178: `policy_balance` is also the reason used when a family cancels a
+    // fully-paid booking post-grace (`cancelForParent` → `processPolicyRefund`).
+    // Firing the non-payment set there wrongly tells the parent/camp/superadmin
+    // "we couldn't collect your balance" on a booking that was already paid. The
+    // genuine non-payment path is the ONLY one that runs on a booking already in
+    // `payment_failed` (the balance cron flips it first; `cancelForParent`/
+    // `cancelByCamp` reject `payment_failed` outright), so gate on the prior
+    // status to fire these only for a real collection failure.
+    if (reason === 'policy_balance' && prior?.status === BookingGroupStatus.payment_failed) {
       notify(this.eventEmitter, NotificationType.ParentPaymentCancelledNonPayment, {
         bookingGroupId,
       })

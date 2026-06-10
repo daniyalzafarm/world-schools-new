@@ -32,10 +32,11 @@ describe('ParentBookingDeclined', () => {
     expect(html).toContain('Dear Sarah,')
   })
 
-  it('does NOT include child name (spec: child name not permitted in decline context)', async () => {
-    // ParentBookingDeclinedProps has no `childName` field — this test enforces
-    // that the type stays this way. If a future change adds it, GDPR data-min
-    // review per the v28 spec is required.
+  it('does NOT render child name in the email (GDPR data-minimisation, even though props carry it)', async () => {
+    // BUG-190 added `childName` to the props so the in-app notification can
+    // disambiguate multi-child households. The EMAIL must still NOT surface it
+    // (email is a forwardable channel) — this test enforces that boundary even
+    // though PreviewProps now includes a child name.
     const { html } = await renderEmail(ParentBookingDeclined, PreviewProps)
     expect(html).not.toMatch(/\bEmma\b/) // 'Emma' is the standard PreviewProps child name
   })

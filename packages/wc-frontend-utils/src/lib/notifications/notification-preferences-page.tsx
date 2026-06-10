@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Info, X } from 'lucide-react'
 import { NotificationCategory } from '@world-schools/wc-types'
 
 // Phase 12 — shared notification preferences UI used by wc-booking,
@@ -173,6 +174,69 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   [NotificationCategory.Marketing]: 'Promotional emails and special offers',
 }
 
+type Audience = 'parent' | 'provider' | 'superadmin'
+
+/**
+ * Audience-specific category descriptions. The same category means different
+ * things to a parent vs. a provider vs. a superadmin (e.g. "Bookings" for a
+ * superadmin is platform alerts, not their own bookings), so the generic
+ * `CATEGORY_DESCRIPTIONS` above is only a fallback. The audience is derived
+ * from the row `templateKey` prefix — the page is always single-audience.
+ */
+const CATEGORY_DESCRIPTIONS_BY_AUDIENCE: Record<Audience, Partial<Record<string, string>>> = {
+  parent: {
+    [NotificationCategory.Booking]: 'Your booking requests, confirmations, and pre-camp reminders.',
+    [NotificationCategory.Payment]: 'Deposits, balance reminders, receipts, and payment issues.',
+    [NotificationCategory.Refund]: 'Refunds issued to your payment method.',
+    [NotificationCategory.Dispute]: 'Payment disputes (chargebacks) on your bookings.',
+    [NotificationCategory.Message]: 'Messages camps send you.',
+    [NotificationCategory.Support]: 'Replies and status changes on your support tickets.',
+    [NotificationCategory.Review]: 'Review invitations and camp responses to your reviews.',
+    [NotificationCategory.Wishlist]:
+      'Price drops, availability, and reminders for camps you saved.',
+    [NotificationCategory.Profile]: 'Reminders to complete your profile.',
+    [NotificationCategory.Marketing]: 'Suggested camps and occasional offers.',
+  },
+  provider: {
+    [NotificationCategory.Booking]:
+      'New requests, your responses, cancellations, and pre/post-camp reminders.',
+    [NotificationCategory.Payment]: "When a family's balance is collected.",
+    [NotificationCategory.Payout]: 'Your payouts — schedules, releases, reminders, and failures.',
+    [NotificationCategory.Refund]: 'Refunds to families and reimbursements you owe.',
+    [NotificationCategory.Dispute]: 'Chargebacks on your bookings and their outcomes.',
+    [NotificationCategory.Message]: 'Messages from families and unanswered-message nudges.',
+    [NotificationCategory.Support]: 'Replies and status changes on your support tickets.',
+    [NotificationCategory.Review]: 'New reviews and reminders to respond.',
+    [NotificationCategory.Onboarding]: 'Application status and Stripe setup.',
+    [NotificationCategory.Profile]: 'Profile publishing and completeness reminders.',
+    [NotificationCategory.System]: 'Season and program-freshness reminders.',
+  },
+  superadmin: {
+    [NotificationCategory.Booking]:
+      'Platform alerts when a booking is cancelled for non-payment or a camp is unresponsive.',
+    [NotificationCategory.Payout]:
+      'Payout failures, clawback recovery, and funds pending transfer.',
+    [NotificationCategory.Dispute]: 'Chargebacks filed and dispute resolutions.',
+    [NotificationCategory.Support]: 'New support tickets and replies.',
+    [NotificationCategory.Review]: 'Reviews flagged for moderation.',
+    [NotificationCategory.Onboarding]: 'New applications, verification docs, and first listings.',
+    [NotificationCategory.Profile]: 'Camps needing attention or deactivated.',
+    [NotificationCategory.System]: 'Camp Stripe disconnects and deletion requests.',
+  },
+}
+
+/** The page is single-audience; infer it from the first row's templateKey prefix. */
+export function audienceFromRows(rows: PreferenceRow[]): Audience | null {
+  const prefix = rows[0]?.templateKey.split('.')[0]
+  return prefix === 'parent' || prefix === 'provider' || prefix === 'superadmin' ? prefix : null
+}
+
+/** Audience-specific category description, falling back to the generic copy. */
+export function categoryDescription(category: string, audience: Audience | null): string {
+  const specific = audience ? CATEGORY_DESCRIPTIONS_BY_AUDIENCE[audience][category] : undefined
+  return specific ?? CATEGORY_DESCRIPTIONS[category] ?? ''
+}
+
 interface Section {
   category: string
   label: string
@@ -180,7 +244,42 @@ interface Section {
   templates: Map<string, PreferenceRow[]>
 }
 
+// ---------------------------------------------------------------------------
+// Category-level toggle derivation
+//
+// The page shows ONE toggle per category per channel (not one per event).
+// A category+channel is "locked" (always-on, can't be disabled) only when
+// EVERY notification in it is transactional — otherwise the toggle governs
+// the non-transactional members and cascades to all of them. This keeps a
+// mixed category like Booking (lifecycle confirmations = transactional, but
+// abandoned-checkout + pre-camp nudges = optional) user-controllable for the
+// optional pieces while the required confirmations always send.
+// ---------------------------------------------------------------------------
+
+/** Derive a category+channel toggle's lock + checked state from its rows. */
+export function deriveCategoryToggleState(rows: PreferenceRow[]): {
+  locked: boolean
+  checked: boolean
+} {
+  if (rows.length === 0) return { locked: false, checked: false }
+  const toggleable = rows.filter(r => !r.transactional)
+  if (toggleable.length === 0) return { locked: true, checked: true }
+  // "On" while the user still receives at least one of the optional members.
+  return { locked: false, checked: toggleable.some(r => r.enabled) }
+}
+
+/** Cascade a category+channel toggle to every non-transactional member. */
+export function categoryCascadeItems(
+  rows: PreferenceRow[],
+  enabled: boolean
+): BulkPreferenceItem[] {
+  return rows
+    .filter(r => !r.transactional)
+    .map(r => ({ templateKey: r.templateKey, channel: r.channel, enabled }))
+}
+
 function groupBySection(rows: PreferenceRow[]): Section[] {
+  const audience = audienceFromRows(rows)
   const map = new Map<string, Map<string, PreferenceRow[]>>()
   for (const row of rows) {
     const cat = String(row.category)
@@ -203,7 +302,7 @@ function groupBySection(rows: PreferenceRow[]): Section[] {
   return seenCategories.map(cat => ({
     category: cat,
     label: CATEGORY_LABELS[cat] ?? cat,
-    description: CATEGORY_DESCRIPTIONS[cat] ?? '',
+    description: categoryDescription(cat, audience),
     templates: map.get(cat)!,
   }))
 }
@@ -228,6 +327,10 @@ export function NotificationPreferencesPage({
   onToggle,
 }: NotificationPreferencesPageProps) {
   const sections = useMemo(() => groupBySection(rows), [rows])
+  const [openCategory, setOpenCategory] = useState<string | null>(null)
+  const activeSection = openCategory
+    ? (sections.find(s => s.category === openCategory) ?? null)
+    : null
 
   return (
     <div>
@@ -268,80 +371,214 @@ export function NotificationPreferencesPage({
         <p className="text-sm text-zinc-500 py-10 text-center">No preferences available.</p>
       )}
 
-      {/* ── Sections ── */}
+      {/* ── Sections ── one cascading toggle per category per channel ── */}
       {!isLoading &&
-        sections.map(section => (
-          <section key={section.category} className="mb-6 border border-gray-100 rounded-xl p-5">
-            <div className="mb-4">
-              <h2 className="text-base font-semibold text-gray-900">{section.label}</h2>
-              {section.description && (
-                <p className="text-xs text-zinc-500 mt-1">{section.description}</p>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end gap-12 pb-2 mb-2 border-b border-gray-100 pr-2">
-              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wide w-16 text-center">
-                Email
-              </span>
-              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wide w-16 text-center">
-                In-app
-              </span>
-            </div>
-
-            <div className="divide-y divide-gray-100">
-              {Array.from(section.templates.entries()).map(([templateKey, channels]) => {
-                const first = channels[0]
-                if (!first) return null
-                const emailRow = channels.find(c => c.channel === 'email')
-                const inAppRow = channels.find(c => c.channel === 'in_app')
-                return (
-                  <div key={templateKey} className="flex items-start gap-4 py-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{first.label}</p>
-                      <p className="text-xs text-zinc-500 mt-1">{first.description}</p>
-                    </div>
-                    <div className="flex items-center gap-12 pr-2">
-                      <ToggleCell row={emailRow} channel="email" onToggle={onToggle} />
-                      <ToggleCell row={inAppRow} channel="in_app" onToggle={onToggle} />
-                    </div>
+        sections.map(section => {
+          const allRows = Array.from(section.templates.values()).flat()
+          const emailRows = allRows.filter(r => r.channel === 'email')
+          const inAppRows = allRows.filter(r => r.channel === 'in_app')
+          return (
+            <section key={section.category} className="mb-6 border border-gray-100 rounded-xl p-5">
+              <div className="flex items-start justify-between gap-6">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="text-base font-semibold text-gray-900">{section.label}</h2>
+                    <button
+                      type="button"
+                      onClick={() => setOpenCategory(section.category)}
+                      aria-label={`What's included in ${section.label}`}
+                      title={`What's included in ${section.label}`}
+                      className="cursor-pointer text-zinc-400 hover:text-zinc-700 transition-colors"
+                    >
+                      <Info size={16} aria-hidden="true" />
+                    </button>
                   </div>
-                )
-              })}
-            </div>
-          </section>
-        ))}
+                  {section.description && (
+                    <p className="text-xs text-zinc-500 mt-1">{section.description}</p>
+                  )}
+                </div>
+                <div className="flex items-start gap-8 pr-1">
+                  <CategoryToggleCell
+                    rows={emailRows}
+                    channel="email"
+                    columnLabel="Email"
+                    categoryLabel={section.label}
+                    onToggle={onToggle}
+                  />
+                  <CategoryToggleCell
+                    rows={inAppRows}
+                    channel="in_app"
+                    columnLabel="In-app"
+                    categoryLabel={section.label}
+                    onToggle={onToggle}
+                  />
+                </div>
+              </div>
+            </section>
+          )
+        })}
+
+      {activeSection && (
+        <CategoryInfoModal section={activeSection} onClose={() => setOpenCategory(null)} />
+      )}
     </div>
   )
 }
 
-function ToggleCell({
-  row,
+/**
+ * Plain-Tailwind modal (no UI-library dependency, so it stays shareable across
+ * all three apps) listing exactly which notifications a category contains —
+ * each with its curated name + description, a Required/Optional badge, and the
+ * channels it can use. Closes on Escape or overlay click; focus is moved to the
+ * close button on open and restored on close.
+ */
+function CategoryInfoModal({ section, onClose }: { section: Section; onClose: () => void }) {
+  const closeRef = useRef<HTMLButtonElement>(null)
+  const titleId = `notif-cat-${section.category}`
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    closeRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      previouslyFocused?.focus?.()
+    }
+  }, [onClose])
+
+  const items = Array.from(section.templates.entries()).map(([templateKey, channels]) => {
+    const first = channels[0]
+    return {
+      templateKey,
+      label: first?.label ?? templateKey,
+      description: first?.description ?? '',
+      required: !!first?.transactional,
+      channels: channels.map(c => c.channel),
+    }
+  })
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden rounded-xl bg-white shadow-xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4">
+          <div>
+            <h3 id={titleId} className="text-base font-semibold text-gray-900">
+              {section.label}
+            </h3>
+            <p className="text-xs text-zinc-500 mt-0.5">Notifications included in this category</p>
+          </div>
+          <button
+            ref={closeRef}
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="-mr-1 cursor-pointer rounded-md p-1 text-zinc-400 hover:bg-gray-100 hover:text-zinc-700"
+          >
+            <X size={20} aria-hidden="true" />
+          </button>
+        </div>
+
+        <ul className="divide-y divide-gray-100 overflow-y-auto px-5">
+          {items.map(item => (
+            <li key={item.templateKey} className="py-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-gray-900">{item.label}</span>
+                <span
+                  className={[
+                    'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                    item.required ? 'bg-zinc-100 text-zinc-600' : 'bg-emerald-50 text-emerald-700',
+                  ].join(' ')}
+                >
+                  {item.required ? 'Required' : 'Optional'}
+                </span>
+              </div>
+              {item.description && <p className="mt-1 text-xs text-zinc-500">{item.description}</p>}
+              <div className="mt-1.5 flex gap-1.5">
+                {item.channels.includes('email') && <ChannelChip label="Email" />}
+                {item.channels.includes('in_app') && <ChannelChip label="In-app" />}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+function ChannelChip({ label }: { label: string }) {
+  return (
+    <span className="rounded border border-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
+      {label}
+    </span>
+  )
+}
+
+/**
+ * One category-level switch for a single channel. Drives + cascades all of the
+ * category's non-transactional members; renders locked when every member is
+ * transactional (always-on). The small column label sits above the switch so a
+ * single category row reads clearly without a shared header.
+ */
+function CategoryToggleCell({
+  rows,
   channel,
+  columnLabel,
+  categoryLabel,
   onToggle,
 }: {
-  row: PreferenceRow | undefined
+  rows: PreferenceRow[]
   channel: PreferenceChannel
+  columnLabel: string
+  categoryLabel: string
   onToggle: (templateKey: string, channel: PreferenceChannel, enabled: boolean) => void
 }) {
-  if (!row) {
+  const { locked, checked } = deriveCategoryToggleState(rows)
+
+  const labelEl = (
+    <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">
+      {columnLabel}
+    </span>
+  )
+
+  // No notifications use this channel in the category → placeholder.
+  if (rows.length === 0) {
     return (
-      <span className="w-16 text-center text-xs text-zinc-300" aria-hidden="true">
-        —
-      </span>
+      <div className="w-16 flex flex-col items-center gap-2">
+        {labelEl}
+        <span className="text-xs text-zinc-300" aria-hidden="true">
+          —
+        </span>
+      </div>
     )
   }
-  const locked = row.transactional
-  const checked = row.enabled
-  // Phase 14d a11y — every switch gets a unique aria-label keyed by the
-  // human label + channel + state, plus an explicit aria-disabled when
-  // locked. The lock icon is paired with the green colour so colour-blind
-  // users see the lock signal even without distinguishing the colour.
+
   const channelLabel = channel === 'in_app' ? 'in-app' : 'email'
   const ariaLabel = locked
-    ? `${row.label} — ${channelLabel} notifications are required and cannot be disabled`
-    : `${row.label} — ${channelLabel} notifications ${checked ? 'enabled' : 'disabled'} (toggle)`
+    ? `${categoryLabel} — ${channelLabel} notifications are required and cannot be disabled`
+    : `${categoryLabel} — ${channelLabel} notifications ${checked ? 'enabled' : 'disabled'} (toggle)`
+
+  const handleClick = () => {
+    if (locked) return
+    for (const item of categoryCascadeItems(rows, !checked)) {
+      onToggle(item.templateKey, item.channel, item.enabled)
+    }
+  }
+
   return (
-    <div className="w-16 flex justify-center">
+    <div className="w-16 flex flex-col items-center gap-2">
+      {labelEl}
       <button
         type="button"
         role="switch"
@@ -356,7 +593,7 @@ function ToggleCell({
               ? 'On — click to disable'
               : 'Off — click to enable'
         }
-        onClick={() => !locked && onToggle(row.templateKey, channel, !checked)}
+        onClick={handleClick}
         className={[
           'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
           locked

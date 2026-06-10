@@ -8,6 +8,7 @@ import {
   type ProviderApplicationStatusProps,
   ProviderBookingEvent,
   type ProviderBookingEventProps,
+  ProviderBookingRequestReceived,
   ProviderDisputeEvent,
   type ProviderDisputeEventProps,
   ProviderMessagingEvent,
@@ -113,12 +114,19 @@ const providerBookingRequestReceived: CatalogEntry<ProviderBookingInAppProps | n
   templateKey: 'provider.booking.requestReceived',
   audience: 'provider',
   category: NotificationCategory.Booking,
-  channels: ['in_app'],
+  // BUG-179: spec requires in_app + email — a camp that isn't logged in must
+  // still hear about a request that auto-expires in 72h.
+  channels: ['in_app', 'email'],
   salutation: 'none',
   resolver: 'allProviderUsers',
   transactional: true,
   trigger: 'live',
   loadProps: propLoaders[NotificationType.ProviderBookingRequestReceived],
+  email: {
+    component: ProviderBookingRequestReceived as never,
+    subject: props => (props ? `New booking request — ${props.campName}` : 'New booking request'),
+    includePlainText: true,
+  },
   inApp: {
     title: props => (props ? `New booking request — ${props.campName}` : 'New booking request'),
     body: props =>
@@ -365,7 +373,10 @@ function makeBookingEventEntry(
     | 'requestFinalReminder'
     | 'requestExpired',
   channels: ('in_app' | 'email')[],
-  trigger: 'live' | 'scheduled'
+  trigger: 'live' | 'scheduled',
+  /** Optional in-app body override — used when a kind needs more than the
+   *  generic "Program: …" line (e.g. cancelledByFamily's financial summary). */
+  inAppBody?: (props: ProviderBookingEventProps) => string
 ): CatalogEntry<ProviderBookingEventProps | null> {
   return {
     type,
@@ -386,7 +397,8 @@ function makeBookingEventEntry(
     inApp: {
       title: props =>
         props ? `Booking ${props.bookingRef} — ${humanizeKind(kind)}` : 'Booking update',
-      body: props => (props ? `Program: ${props.programName}` : ''),
+      body: props =>
+        props ? (inAppBody ? inAppBody(props) : `Program: ${props.programName}`) : '',
       entityType: NotificationEntityType.BookingGroup,
       entityId: props => props?.bookingRef ?? '',
       redirectUrl: () => '/bookings',
@@ -450,7 +462,10 @@ const providerBookingCancelledByFamily = makeBookingEventEntry(
   'provider.booking.cancelledByFamily',
   'cancelledByFamily',
   ['in_app', 'email'],
-  'live'
+  'live',
+  // BUG-189: render the full child + refund + retained + payout summary the
+  // cancel handler threads via `extra.detail`, not just the program name.
+  props => props.detail ?? `Program: ${props.programName}`
 )
 const providerBookingCancelledNonPayment = makeBookingEventEntry(
   NotificationType.ProviderBookingCancelledNonPayment,
@@ -463,7 +478,8 @@ const providerBookingRequestWithdrawn = makeBookingEventEntry(
   NotificationType.ProviderBookingRequestWithdrawn,
   'provider.booking.requestWithdrawn',
   'requestWithdrawn',
-  ['in_app'],
+  // BUG-187: a camp that isn't logged in would otherwise miss a withdrawal.
+  ['in_app', 'email'],
   'live'
 )
 const providerBookingModified = makeBookingEventEntry(

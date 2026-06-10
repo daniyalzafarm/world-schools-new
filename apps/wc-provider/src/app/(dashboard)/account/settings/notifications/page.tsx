@@ -24,7 +24,7 @@ export default function NotificationPreferencesProviderPage() {
   })
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-12">
+    <div>
       <NotificationPreferencesPage {...prefs} />
     </div>
   )

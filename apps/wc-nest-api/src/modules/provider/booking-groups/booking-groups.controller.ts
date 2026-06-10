@@ -96,4 +96,14 @@ export class ProviderBookingGroupsController {
     const result = await this.bookingGroupsService.requestExtensionForProvider(user.providerId, id)
     return ResponseUtil.success(result)
   }
+
+  @Post(':id/cancel')
+  @Permissions('bookings.write')
+  @ApiOperation({
+    summary: 'Cancel a confirmed booking (camp-initiated). Issues a 100% refund to the family.',
+  })
+  async cancel(@CurrentUser() user: any, @Param('id') id: string) {
+    const result = await this.bookingGroupsService.cancelForProvider(user.providerId, user.id, id)
+    return ResponseUtil.success(result)
+  }
 }

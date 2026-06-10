@@ -234,7 +234,8 @@ describe('EmailTemplateService — payment templates (Phase 3)', () => {
         '123456',
         10,
         '<script>alert(1)</script>',
-        'https://example.test/verify?token=abc'
+        'https://example.test/verify?token=abc',
+        'provider'
       )
       expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
       expect(html).not.toContain('<script>alert(1)</script>')
@@ -245,7 +246,8 @@ describe('EmailTemplateService — payment templates (Phase 3)', () => {
         '123456',
         10,
         `Ada & "the" Lovelace's <kid>`,
-        'https://example.test/verify'
+        'https://example.test/verify',
+        'provider'
       )
       expect(html).toContain('Ada &amp; &quot;the&quot; Lovelace&#39;s &lt;kid&gt;')
     })
@@ -255,9 +257,41 @@ describe('EmailTemplateService — payment templates (Phase 3)', () => {
         '123456',
         10,
         'Ada',
-        'https://example.test/verify?token=abc&next=/x'
+        'https://example.test/verify?token=abc&next=/x',
+        'provider'
       )
       expect(html).toContain('href="https://example.test/verify?token=abc&next=/x"')
+    })
+
+    // BUG-176: a parent's verification email must NOT carry provider-targeted copy.
+    it('renders parent-targeted copy + support contact for the parent audience', () => {
+      const html = service.getVerificationEmailTemplate(
+        '123456',
+        10,
+        'Sarah',
+        'https://example.test/verify',
+        'parent'
+      )
+      expect(html).not.toContain('joining World Camps as a camp provider')
+      expect(html).not.toContain('setting up your camp profile')
+      expect(html).not.toContain('providers@world-camps.com')
+      expect(html).not.toContain('Contact our provider support team')
+      expect(html).toContain('discover and book amazing camp experiences for your family')
+      expect(html).toContain('mailto:support@world-camps.com')
+    })
+
+    it('keeps provider-targeted copy + support contact for the provider audience', () => {
+      const html = service.getVerificationEmailTemplate(
+        '123456',
+        10,
+        'Acme Camps',
+        'https://example.test/verify',
+        'provider'
+      )
+      expect(html).toContain('joining World Camps as a camp provider')
+      expect(html).toContain('setting up your camp profile')
+      expect(html).toContain('mailto:providers@world-camps.com')
+      expect(html).toContain('Contact our provider support team')
     })
   })
 

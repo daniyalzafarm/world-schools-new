@@ -154,7 +154,8 @@ const parentBookingDeclined: CatalogEntry<ParentBookingDeclinedProps | null> = {
       if (!props) return 'Your booking request was declined.'
       const range = props.sessionRange ? ` on ${props.sessionRange}` : ''
       const reason = props.declineReason ? ` Reason: ${props.declineReason}.` : ''
-      return `Your booking request for ${props.campName}${range} was declined. No charge has been made.${reason}`
+      // BUG-190: name the child + add a re-engagement nudge toward similar camps.
+      return `${props.childName}'s booking request for ${props.campName}${range} was declined. No charge has been made.${reason} Browse similar programs to find another great fit.`
     },
     entityType: NotificationEntityType.BookingGroup,
     entityId: props => (props ? props.bookingRef : ''),
@@ -342,15 +343,18 @@ const parentBookingRequestWithdrawn: CatalogEntry<ParentBookingRequestWithdrawnP
   },
   inApp: {
     title: props => (props ? `Request withdrawn — ${props.campName}` : 'Booking request withdrawn'),
+    // BUG-184: add the re-engagement sentence the email already carries, and
+    // point the CTA at "browse programs" (/camps) instead of the now-empty
+    // booking detail — a withdrawn request has nothing useful to view.
     body: props =>
       props
-        ? `Your booking request for ${props.programName} at ${props.campName} has been withdrawn. You have not been charged.`
-        : 'Your booking request has been withdrawn.',
+        ? `Your booking request for ${props.programName} at ${props.campName} has been withdrawn. You have not been charged. If you change your mind, you can submit a new request at any time.`
+        : 'Your booking request has been withdrawn. If you change your mind, you can submit a new request at any time.',
     entityType: NotificationEntityType.BookingGroup,
     // entityId is the bookingGroupId from context; props has no bookingRef
     // since the parent-facing copy doesn't surface it for a withdrawn request.
     entityId: () => '',
-    redirectUrl: () => '/bookings',
+    redirectUrl: () => '/camps',
     metadata: props => (props ? { campName: props.campName } : {}),
   },
 }
