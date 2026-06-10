@@ -25,7 +25,7 @@ import { formatCurrency } from '@world-schools/wc-utils'
 import {
   ageFromDateOfBirth,
   formatDropoffPickupLabels,
-  formatSessionRange,
+  formatSessionDateRange,
   providerRequestBannerVariant,
 } from '@world-schools/wc-frontend-utils'
 import type { BookingGroupStatus, ProviderBookingGroupDetail } from '@world-schools/wc-types'
@@ -223,6 +223,10 @@ export function BookingRequestDrawer({
       const exp = detail.expiresAt ? new Date(detail.expiresAt) : null
       const ms = exp ? exp.getTime() - Date.now() : null
       const hoursLeft = ms != null && ms > 0 ? Math.max(1, Math.floor(ms / 3600000)) : 0
+      // Deadline passed but the status hasn't flipped to `expired` yet — show
+      // the terminal "Expired" label (mirrors the list view's urgency helper)
+      // rather than the future-tense "Expires soon".
+      const isExpired = ms != null && ms <= 0
 
       if (bannerVariant === 'calm') {
         const sub =
@@ -251,9 +255,13 @@ export function BookingRequestDrawer({
               <div className="size-2 shrink-0 animate-pulse rounded-full bg-warning-500" />
               <div>
                 <div className="text-sm font-semibold text-secondary-500">
-                  {hoursLeft > 0 ? `Expires in ${hoursLeft} hours` : 'Expires soon'}
+                  {isExpired ? 'Expired' : `Expires in ${hoursLeft} hours`}
                 </div>
-                <div className="text-sm text-gray-500">Request expires if not accepted</div>
+                <div className="text-sm text-gray-500">
+                  {isExpired
+                    ? 'Request expired before it was accepted'
+                    : 'Request expires if not accepted'}
+                </div>
               </div>
             </div>
             <div className="text-lg font-bold text-secondary-500">{amount}</div>
@@ -267,9 +275,13 @@ export function BookingRequestDrawer({
             <div className="size-2 shrink-0 rounded-full bg-danger-500" />
             <div>
               <div className="text-sm font-semibold text-secondary-500">
-                {hoursLeft > 0 ? `Auto-declines in ${hoursLeft} hours` : 'Expires soon'}
+                {isExpired ? 'Expired' : `Auto-declines in ${hoursLeft} hours`}
               </div>
-              <div className="text-sm text-gray-500">Request expires if not accepted</div>
+              <div className="text-sm text-gray-500">
+                {isExpired
+                  ? 'Request expired before it was accepted'
+                  : 'Request expires if not accepted'}
+              </div>
             </div>
           </div>
           <div className="text-lg font-bold text-secondary-500">{amount}</div>
@@ -838,11 +850,7 @@ export function BookingRequestDrawer({
                       {detail.session.name}
                     </div>
                     <div className="mb-4 text-sm text-gray-500">
-                      {formatSessionRange(
-                        detail.session.startDate,
-                        detail.session.endDate,
-                        detail.session.name
-                      )}
+                      {formatSessionDateRange(detail.session.startDate, detail.session.endDate)}
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>

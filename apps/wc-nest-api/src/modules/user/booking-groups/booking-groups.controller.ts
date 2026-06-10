@@ -40,6 +40,7 @@ export class UserBookingGroupsController {
       sessionId: dto.sessionId,
       childIds: dto.childIds,
       specialRequest: dto.specialRequest,
+      guardianConsent: dto.guardianConsent,
       forceNew: dto.forceNew,
     })
     return ResponseUtil.success(result)

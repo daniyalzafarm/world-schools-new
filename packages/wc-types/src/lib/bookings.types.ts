@@ -29,6 +29,7 @@ export enum BookingDeclineReason {
   CapacityOrScheduling = 'capacity_or_scheduling',
   EligibilityCriteriaNotMet = 'eligibility_criteria_not_met',
   OperationalInability = 'operational_inability',
+  IncompleteInformation = 'incomplete_information',
   SafeguardingConcerns = 'safeguarding_concerns',
   Other = 'other',
 }
@@ -37,14 +38,29 @@ export enum BookingDeclineReason {
 /// copy. Keep wording aligned with Provider Terms so legal review stays
 /// straightforward.
 export const BOOKING_DECLINE_REASON_LABELS: Record<BookingDeclineReason, string> = {
-  [BookingDeclineReason.CapacityOrScheduling]: 'Capacity or scheduling conflict',
-  [BookingDeclineReason.EligibilityCriteriaNotMet]:
-    'Eligibility criteria not met (age, skill level, prior experience)',
-  [BookingDeclineReason.OperationalInability]:
-    'Operational inability to accommodate a specific requirement',
-  [BookingDeclineReason.SafeguardingConcerns]: 'Safeguarding concerns',
+  [BookingDeclineReason.CapacityOrScheduling]: 'Session no longer available',
+  [BookingDeclineReason.EligibilityCriteriaNotMet]: 'Enrollment requirements not met',
+  [BookingDeclineReason.OperationalInability]: 'Unable to accommodate specific needs',
+  [BookingDeclineReason.IncompleteInformation]: 'Incomplete or missing information',
+  [BookingDeclineReason.SafeguardingConcerns]: 'Safety concern',
   [BookingDeclineReason.Other]: 'Other',
 }
+
+/// Decline reasons whose free-text note is mandatory. `operational_inability`
+/// is required by Provider Terms §5.1(h)(iia)(D) ("…shall include a brief
+/// description of the specific operational limitation relied upon");
+/// `safeguarding_concerns` and `other` are required by platform policy so the
+/// decline can be reviewed under §5.1(h)(iv) pattern monitoring. The remaining
+/// reasons carry an optional note. Shared by the provider modal (client gate)
+/// and the API (server enforcement) so the rule cannot drift.
+export const DECLINE_REASONS_REQUIRING_NOTE: readonly BookingDeclineReason[] = [
+  BookingDeclineReason.OperationalInability,
+  BookingDeclineReason.SafeguardingConcerns,
+  BookingDeclineReason.Other,
+]
+
+export const DECLINE_REASON_NOTE_MIN_LENGTH = 10
+export const DECLINE_REASON_NOTE_MAX_LENGTH = 1000
 
 /**
  * Reasons a child can fail the camp eligibility gate at booking time. Returned
@@ -117,21 +133,43 @@ export type SessionDayTypeApi = 'full_day' | 'half_day' | null
 
 /** Lifecycle tabs for GET /provider/booking-groups — match `tab` query param */
 export const PROVIDER_BOOKING_TABS = [
+  'all',
   'requests',
   'upcoming',
   'at-camp',
   'past',
+  'expired',
+  'declined',
   'cancelled',
 ] as const
 
 export type ProviderBookingTab = (typeof PROVIDER_BOOKING_TABS)[number]
 
-/** Status values available for the status filter under each lifecycle tab */
+/**
+ * Status values available for the status sub-filter dropdown under each lifecycle
+ * tab. NOTE: the `all` tab's actual query is "every non-draft booking" (a superset
+ * of the statuses listed here) — edge billing states (payment_failed,
+ * partially_refunded, fully_refunded, disputed) show in the All list but are not
+ * individually selectable in the status sub-filter.
+ */
 export const PROVIDER_TAB_STATUS_FILTER: Record<ProviderBookingTab, BookingGroupStatus[]> = {
+  all: [
+    'request',
+    'accepted',
+    'deposit_paid',
+    'fully_paid',
+    'at_camp',
+    'completed',
+    'expired',
+    'declined',
+    'cancelled',
+  ],
   requests: ['request'],
   upcoming: ['accepted', 'deposit_paid', 'fully_paid'],
   'at-camp': ['at_camp'],
-  past: ['completed', 'declined', 'expired'],
+  past: ['completed'],
+  expired: ['expired'],
+  declined: ['declined'],
   cancelled: ['cancelled'],
 }
 
@@ -165,10 +203,13 @@ export interface ProviderBookingGroupsListMeta {
   total: number
   totalPages: number
   tabCounts: {
+    all: number
     requests: number
     upcoming: number
     atCamp: number
     past: number
+    expired: number
+    declined: number
     cancelled: number
   }
 }

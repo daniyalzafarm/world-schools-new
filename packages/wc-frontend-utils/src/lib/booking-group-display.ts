@@ -116,13 +116,28 @@ export function ageFromDateOfBirth(iso: string | null): number | null {
   return age
 }
 
-export function formatSessionRange(startIso: string, endIso: string, sessionName: string): string {
+/**
+ * Just the session's date range, e.g. "Jun 1 – Jun 8, 2026". Returns `fallback`
+ * (default empty) when either date can't be parsed. Use this where the session
+ * name is already shown separately, so it isn't repeated (BUG-117).
+ */
+export function formatSessionDateRange(startIso: string, endIso: string, fallback = ''): string {
   const start = new Date(startIso)
   const end = new Date(endIso)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return sessionName
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return fallback
   const a = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   const b = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  return `${a} – ${b} · ${sessionName}`
+  return `${a} – ${b}`
+}
+
+/**
+ * Date range with the session name appended, e.g. "Jun 1 – Jun 8, 2026 · Week 1".
+ * Use where the name isn't shown elsewhere (e.g. paired with the camp name on the
+ * parent dashboard). Falls back to just the name when the dates can't be parsed.
+ */
+export function formatSessionRange(startIso: string, endIso: string, sessionName: string): string {
+  const range = formatSessionDateRange(startIso, endIso)
+  return range ? `${range} · ${sessionName}` : sessionName
 }
 
 function formatTimeLabel(hhmm: string | null): string | null {

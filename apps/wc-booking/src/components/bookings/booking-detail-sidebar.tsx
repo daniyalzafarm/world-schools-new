@@ -9,8 +9,6 @@ import {
   formatDropoffPickupLabels,
   formatSessionRange,
   journeyStepStates,
-  progressBarColor,
-  progressPercent,
   statusBadgeClass,
   statusLabel,
 } from '@world-schools/wc-frontend-utils'
@@ -56,8 +54,6 @@ export function BookingDetailSidebar({
   const showCancelButton = PARENT_CANCELABLE_STATUSES.has(status)
   const currency = detail.currency
   const cover = detail.camp.coverImageUrl
-  const pct = progressPercent(status)
-  const barColor = progressBarColor(status)
   const sessionLine = formatSessionRange(
     detail.session.startDate,
     detail.session.endDate,
@@ -99,18 +95,6 @@ export function BookingDetailSidebar({
             ) : null}
           </div>
           <p className="text-sm text-default-600">{sessionLine}</p>
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs text-default-500">
-              <span>{statusLabel(status)}</span>
-              <span>{pct}%</span>
-            </div>
-            <div className="h-1 w-full overflow-hidden rounded-full bg-default-100">
-              <div
-                className={`h-full rounded-full transition-all ${barColor}`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </div>
         </div>
       </div>
 

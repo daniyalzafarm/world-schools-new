@@ -106,6 +106,9 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         // `ProviderFirstBooking` notification. Default `2` so the
         // existing tests don't accidentally tip the count to 1.
         count: jest.fn().mockResolvedValue(2),
+        // listForProvider lists rows + a global status groupBy for tab counts.
+        groupBy: jest.fn().mockResolvedValue([]),
+        findMany: jest.fn().mockResolvedValue([]),
       },
       booking: {
         updateMany: jest.fn(),
@@ -837,9 +840,152 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       await expect(
         service.declineForProvider('pr-1', 'bg-1', {
           declineReason: BookingDeclineReason.OperationalInability,
+          declineReasonOther: 'Cannot provide 1:1 supervision for this activity',
         })
       ).rejects.toThrow('Stripe down')
       expect(prisma.bookingGroup.updateMany).not.toHaveBeenCalled()
+    })
+
+    it('rejects a required-note reason when the note is missing or too short, before any Stripe call', async () => {
+      prisma.bookingGroup.findFirst.mockResolvedValue({
+        id: 'bg-1',
+        status: 'request',
+        bookingGroupNumber: 'BG-0001',
+        parentId: 'p-1',
+        camp: { name: 'C' },
+        parent: { userId: 'u-1' },
+        session: {
+          startDate: new Date('2026-08-01T00:00:00Z'),
+          endDate: new Date('2026-08-08T00:00:00Z'),
+        },
+        provider: { settings: { currency: 'GBP' } },
+      })
+
+      await expect(
+        service.declineForProvider('pr-1', 'bg-1', {
+          declineReason: BookingDeclineReason.SafeguardingConcerns,
+        })
+      ).rejects.toThrow(/at least 10 characters/)
+      await expect(
+        service.declineForProvider('pr-1', 'bg-1', {
+          declineReason: BookingDeclineReason.Other,
+          declineReasonOther: 'too short',
+        })
+      ).rejects.toThrow(/at least 10 characters/)
+
+      expect(payments.cancelForBookingGroup).not.toHaveBeenCalled()
+      expect(prisma.bookingGroup.updateMany).not.toHaveBeenCalled()
+    })
+
+    it('persists the contextual note for a non-other reason (e.g. safety concern)', async () => {
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce({
+        id: 'bg-1',
+        status: 'request',
+        bookingGroupNumber: 'BG-0001',
+        parentId: 'p-1',
+        camp: { name: 'C' },
+        parent: { userId: 'u-1' },
+        session: {
+          startDate: new Date('2026-08-01T00:00:00Z'),
+          endDate: new Date('2026-08-08T00:00:00Z'),
+        },
+        provider: { settings: { currency: 'GBP' } },
+      })
+      payments.cancelForBookingGroup.mockResolvedValueOnce(['pay-1'])
+
+      await service.declineForProvider('pr-1', 'bg-1', {
+        declineReason: BookingDeclineReason.SafeguardingConcerns,
+        declineReasonOther: '  Prior safeguarding incident on file  ',
+      })
+
+      expect(prisma.bookingGroup.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            declineReason: BookingDeclineReason.SafeguardingConcerns,
+            declineReasonOther: 'Prior safeguarding incident on file',
+          }),
+        })
+      )
+    })
+
+    it('accepts the new incomplete_information reason with an optional note', async () => {
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce({
+        id: 'bg-1',
+        status: 'request',
+        bookingGroupNumber: 'BG-0001',
+        parentId: 'p-1',
+        camp: { name: 'C' },
+        parent: { userId: 'u-1' },
+        session: {
+          startDate: new Date('2026-08-01T00:00:00Z'),
+          endDate: new Date('2026-08-08T00:00:00Z'),
+        },
+        provider: { settings: { currency: 'GBP' } },
+      })
+      payments.cancelForBookingGroup.mockResolvedValueOnce(['pay-1'])
+
+      const result = await service.declineForProvider('pr-1', 'bg-1', {
+        declineReason: BookingDeclineReason.IncompleteInformation,
+      })
+
+      expect(prisma.bookingGroup.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            declineReason: BookingDeclineReason.IncompleteInformation,
+            declineReasonOther: null,
+          }),
+        })
+      )
+      expect(result).toEqual({ bookingGroupId: 'bg-1', status: 'declined' })
+    })
+  })
+
+  describe('listForProvider tabs', () => {
+    const findManyWhere = () => prisma.bookingGroup.findMany.mock.calls[0][0].where
+
+    it('the "all" tab queries every non-draft booking and counts include edge billing states', async () => {
+      prisma.bookingGroup.groupBy.mockResolvedValueOnce([
+        { status: 'request', _count: { id: 3 } },
+        { status: 'completed', _count: { id: 5 } },
+        { status: 'expired', _count: { id: 2 } },
+        { status: 'declined', _count: { id: 1 } },
+        { status: 'disputed', _count: { id: 4 } }, // edge state — only surfaces under "All"
+      ])
+
+      const result = await service.listForProvider('pr-1', { tab: 'all' })
+
+      // "All" = every non-draft booking (future-proof, includes edge states).
+      expect(findManyWhere()).toEqual({ providerId: 'pr-1', status: { not: 'draft' } })
+      expect(result.meta.tabCounts).toEqual({
+        all: 15, // 3 + 5 + 2 + 1 + 4 (incl. the disputed edge state)
+        requests: 3,
+        upcoming: 0,
+        atCamp: 0,
+        past: 5, // completed only
+        expired: 2,
+        declined: 1,
+        cancelled: 0,
+      })
+    })
+
+    it('the "past" tab filters to completed only (declined/expired are separate tabs now)', async () => {
+      await service.listForProvider('pr-1', { tab: 'past' })
+      expect(findManyWhere()).toEqual({ providerId: 'pr-1', status: { in: ['completed'] } })
+    })
+
+    it('the "expired" and "declined" tabs filter to their own status', async () => {
+      await service.listForProvider('pr-1', { tab: 'expired' })
+      expect(findManyWhere()).toEqual({ providerId: 'pr-1', status: { in: ['expired'] } })
+
+      prisma.bookingGroup.findMany.mockClear()
+      await service.listForProvider('pr-1', { tab: 'declined' })
+      expect(findManyWhere()).toEqual({ providerId: 'pr-1', status: { in: ['declined'] } })
+    })
+
+    it('rejects a status that does not belong to the selected tab', async () => {
+      await expect(
+        service.listForProvider('pr-1', { tab: 'past', status: 'expired' as any })
+      ).rejects.toThrow('Status does not match the selected tab')
     })
   })
 

@@ -1,22 +1,21 @@
-import { IsEnum, IsOptional, IsString, MaxLength, MinLength, ValidateIf } from 'class-validator'
-import { BookingDeclineReason } from '@world-schools/wc-types'
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator'
+import { BookingDeclineReason, DECLINE_REASON_NOTE_MAX_LENGTH } from '@world-schools/wc-types'
 
 /**
- * Decline payload — Provider Terms v1.5 §5.1(h)(iii) requires a reason from
- * the controlled list on every provider-initiated decline. When the reason
- * is `other`, the provider must supply a free-text justification (subject to
- * platform moderation before being surfaced to parents).
+ * Decline payload — Provider Terms v1.7 §5.1(h)(iii) requires a reason from
+ * the controlled list on every provider-initiated decline. Several reasons
+ * carry a contextual free-text note in `declineReasonOther`; it is required for
+ * some reasons (`operational_inability`, `safeguarding_concerns`, `other`) and
+ * optional for others. The required/min-length rule is enforced in the service
+ * via `DECLINE_REASONS_REQUIRING_NOTE`; here we only bound the length.
  */
 export class DeclineBookingGroupDto {
   @IsEnum(BookingDeclineReason)
   declineReason!: BookingDeclineReason
 
-  @ValidateIf(o => o.declineReason === BookingDeclineReason.Other)
+  @IsOptional()
   @IsString()
-  @MinLength(10, {
-    message: 'Please provide a justification of at least 10 characters for an "Other" decline.',
-  })
-  @MaxLength(1000)
+  @MaxLength(DECLINE_REASON_NOTE_MAX_LENGTH)
   declineReasonOther?: string
 
   @IsOptional()

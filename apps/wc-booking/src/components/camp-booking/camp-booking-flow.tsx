@@ -47,6 +47,7 @@ import { DuplicateDraftModal } from '@/components/camp-booking/duplicate-draft-m
 import { CampRulesModal } from '@/components/camp-booking/camp-rules-modal'
 import { CancellationPolicyModal } from '@/components/camp-booking/cancellation-policy-modal'
 import { BookingTermsModal } from '@/components/camp-booking/booking-terms-modal'
+import { BookingConfirmModal } from '@/components/camp-booking/booking-confirm-modal'
 import {
   getChildUnitPrice,
   getSelectedChildrenPriceBreakdown,
@@ -538,6 +539,8 @@ function ChildrenStep() {
   const childBookingRanges = useCampBookingStore(state => state.childBookingRanges)
   const selectedChildIds = useCampBookingStore(state => state.selectedChildIds)
   const toggleChild = useCampBookingStore(state => state.toggleChild)
+  const guardianConsent = useCampBookingStore(state => state.guardianConsent)
+  const setGuardianConsent = useCampBookingStore(state => state.setGuardianConsent)
   const createDraftBookingGroup = useCampBookingStore(state => state.createDraftBookingGroup)
   const addChild = useCampBookingStore(state => state.addChild)
   const camp = useCampBookingStore(state => state.camp)
@@ -556,6 +559,22 @@ function ChildrenStep() {
     () => eligibleChildren.some(e => e.isEligible && selectedChildIds.includes(e.child.id)),
     [eligibleChildren, selectedChildIds]
   )
+
+  // Names + pronoun of the currently-selected eligible children, for the
+  // guardian confirmation copy. A single child uses their gendered pronoun
+  // ("his"/"her"); multiple (or unexpectedly empty) fall back to "their".
+  const { selectedChildNames, guardianPronoun } = useMemo(() => {
+    const selected = eligibleChildren.filter(
+      e => e.isEligible && selectedChildIds.includes(e.child.id)
+    )
+    const names = selected.map(e => e.child.firstName)
+    const pronoun =
+      selected.length === 1 ? (selected[0].child.gender === 'girl' ? 'her' : 'his') : 'their'
+    return {
+      selectedChildNames: names.length ? names.join(', ') : 'this child',
+      guardianPronoun: pronoun,
+    }
+  }, [eligibleChildren, selectedChildIds])
 
   const onContinue = async () => {
     await createDraftBookingGroup()
@@ -711,11 +730,25 @@ function ChildrenStep() {
           </div>
         </div>
       )}
+      {hasValidSelection && (
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <Checkbox
+            color="secondary"
+            isSelected={guardianConsent}
+            onValueChange={setGuardianConsent}
+            classNames={{ base: 'items-start max-w-full', label: 'text-sm text-gray-700' }}
+          >
+            I confirm I am the legal parent or guardian of{' '}
+            <span className="font-semibold">{selectedChildNames}</span> and am authorised to make
+            this booking on {guardianPronoun} behalf.
+          </Checkbox>
+        </div>
+      )}
       <div className="hidden pt-4 lg:block">
         <Button
           color="primary"
           className="w-full"
-          isDisabled={!hasValidSelection}
+          isDisabled={!hasValidSelection || !guardianConsent}
           onPress={onContinue}
           endContent={<ChevronRight size={16} />}
         >
@@ -1554,6 +1587,7 @@ interface ReviewStepProps {
   setPaymentPending: (pending: boolean) => void
   paymentError: string | null
   setPaymentError: (error: string | null) => void
+  onRequestSubmit: () => void
 }
 
 function ReviewStep({
@@ -1562,6 +1596,7 @@ function ReviewStep({
   setPaymentPending,
   paymentError,
   setPaymentError,
+  onRequestSubmit,
 }: ReviewStepProps) {
   const router = useRouter()
   const resetForNewBooking = useCampBookingStore(state => state.resetForNewBooking)
@@ -2060,9 +2095,7 @@ function ReviewStep({
                 className="w-full"
                 isDisabled={paymentPending}
                 isLoading={paymentPending}
-                onPress={() => {
-                  void stripeSectionRef.current?.submit()
-                }}
+                onPress={onRequestSubmit}
               >
                 {paymentPlan.kind === 'setup'
                   ? 'Save card and submit request'
@@ -2111,6 +2144,10 @@ export function CampBookingFlow() {
   const stripeSectionRef = useRef<StripePaymentSectionHandle>(null)
   const [paymentPending, setPaymentPending] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
+  // Final confirmation gate before the booking request is submitted. Both the
+  // desktop button and the mobile footer open this modal; the actual Stripe
+  // submit only fires once the parent confirms.
+  const [isConfirmSubmitOpen, setIsConfirmSubmitOpen] = useState(false)
 
   // The mobile footer renders into a layout-level slot (see book/layout.tsx)
   // so it sits as a flex sibling of the scroll area, not overlaying it via
@@ -2165,6 +2202,7 @@ export function CampBookingFlow() {
                       setPaymentPending={setPaymentPending}
                       paymentError={paymentError}
                       setPaymentError={setPaymentError}
+                      onRequestSubmit={() => setIsConfirmSubmitOpen(true)}
                     />
                   )}
                 </>
@@ -2184,13 +2222,20 @@ export function CampBookingFlow() {
         ? createPortal(
             <MobileBookingFooter
               paymentPending={paymentPending}
-              onSubmitPayment={() => {
-                void stripeSectionRef.current?.submit()
-              }}
+              onSubmitPayment={() => setIsConfirmSubmitOpen(true)}
             />,
             mobileFooterSlot
           )
         : null}
+      <BookingConfirmModal
+        isOpen={isConfirmSubmitOpen}
+        isSubmitting={paymentPending}
+        onClose={() => setIsConfirmSubmitOpen(false)}
+        onConfirm={() => {
+          setIsConfirmSubmitOpen(false)
+          void stripeSectionRef.current?.submit()
+        }}
+      />
       <DuplicateDraftModal
         isOpen={Boolean(duplicateDraftConflict)}
         message={

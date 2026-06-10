@@ -32,7 +32,6 @@ export function useAutosave<T>(
   const pendingPayloadRef = useRef<T | null>(null)
   const saveRef = useRef(save)
   const enabledRef = useRef(enabled)
-  const prevEnabledRef = useRef(enabled)
 
   saveRef.current = save
   enabledRef.current = enabled
@@ -95,13 +94,12 @@ export function useAutosave<T>(
 
   useEffect(() => {
     const serialized = JSON.stringify(payload)
-    const wasEnabled = prevEnabledRef.current
-    prevEnabledRef.current = enabledRef.current
 
     // While disabled (form not loaded yet, or validation errors), pause autosave
-    // and resnapshot baseline so we don't fire a stale save once re-enabled.
+    // but keep the baseline pointing at the last persisted value. This way an edit
+    // made while transiently invalid (e.g. clearing a number field before typing the
+    // new value) is still detected and saved once the form becomes valid again.
     if (!enabledRef.current) {
-      baselineRef.current = serialized
       pendingPayloadRef.current = null
       if (timerRef.current) {
         clearTimeout(timerRef.current)
@@ -110,8 +108,9 @@ export function useAutosave<T>(
       return
     }
 
-    // First run, or just transitioned from disabled to enabled — snapshot baseline.
-    if (baselineRef.current === null || !wasEnabled) {
+    // First time the form becomes enabled (initial load) — snapshot the baseline
+    // without saving, so loading server data doesn't register as a diff and resave.
+    if (baselineRef.current === null) {
       baselineRef.current = serialized
       return
     }

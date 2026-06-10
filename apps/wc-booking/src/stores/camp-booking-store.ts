@@ -35,6 +35,10 @@ interface CampBookingState {
   addOns: CampBookingAddOn[]
   selectedSessionId: string | null
   selectedChildIds: string[]
+  /// Legal-guardian confirmation captured on the Children step. Required before
+  /// continuing; reset whenever the child selection changes so the parent must
+  /// re-confirm if they change who is going.
+  guardianConsent: boolean
   addOnSelectionsById: Record<string, CampBookingAddOnSelection>
   currentStep: BookingFlowStep
   bookingGroupId: string | null
@@ -56,6 +60,7 @@ interface CampBookingActions {
   setStep: (step: BookingFlowStep) => void
   selectSession: (sessionId: string | null) => void
   toggleChild: (childId: string) => void
+  setGuardianConsent: (value: boolean) => void
   autoSelectEligibleChildren: () => void
   addChild: (child: {
     firstName: string
@@ -108,6 +113,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
     addOns: [],
     selectedSessionId: null,
     selectedChildIds: [],
+    guardianConsent: false,
     addOnSelectionsById: {},
     currentStep: START_STEP,
     bookingGroupId: null,
@@ -344,6 +350,15 @@ export const useCampBookingStore = create<CampBookingStore>()(
         } else {
           state.selectedChildIds.push(childId)
         }
+        // Changing who is going invalidates a prior guardian confirmation —
+        // force the parent to re-confirm for the new set of children.
+        state.guardianConsent = false
+      })
+    },
+
+    setGuardianConsent: value => {
+      set(state => {
+        state.guardianConsent = value
       })
     },
 
@@ -603,6 +618,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
           campId: state.camp.id,
           sessionId: state.selectedSessionId,
           childIds: state.selectedChildIds,
+          guardianConsent: state.guardianConsent,
           forceNew: options?.forceNew === true,
           // For reload restoration we only want to mark "review" after user reaches step-4.
           // Empty string should not be persisted in draft.
@@ -703,6 +719,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
         state.draftPreviews = []
         state.selectedSessionId = null
         state.selectedChildIds = []
+        state.guardianConsent = false
         state.addOnSelectionsById = {}
         state.specialRequest = ''
         state.hasSubmitted = false

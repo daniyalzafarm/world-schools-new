@@ -4,6 +4,7 @@ import {
   type EligibilityChildInput,
   type EligibilitySkillGate,
   type ExistingBookingRange,
+  getSessionAgeGroups,
   validateChildAgainstCamp,
 } from '@world-schools/wc-utils'
 import type { EligibilityResult } from '@world-schools/wc-types'
@@ -61,7 +62,16 @@ export class EligibilityService {
       }),
       this.prisma.session.findUnique({
         where: { id: params.sessionId },
-        select: { startDate: true, endDate: true },
+        select: {
+          startDate: true,
+          endDate: true,
+          // Needed to derive the session's age band (the subset of camp age
+          // groups it offers) so the age check uses it instead of camp-wide.
+          pricingType: true,
+          ageGroupPrices: true,
+          availabilityType: true,
+          ageGroupSpots: true,
+        },
       }),
       this.prisma.children.findMany({
         where: { id: { in: params.childIds } },
@@ -100,6 +110,24 @@ export class EligibilityService {
     }
 
     const campInput = this.toCampInput(camp)
+    // Restrict the age check to the selected session's age band rather than the
+    // camp-wide range; falls back to the full camp range for unrestricted sessions.
+    const sessionAgeGroups = getSessionAgeGroups(
+      Array.isArray(camp.ageGroups)
+        ? (camp.ageGroups as { id?: string; min: number; max: number }[])
+        : [],
+      {
+        pricingType: session.pricingType,
+        availabilityType: session.availabilityType,
+        ageGroupPrices: session.ageGroupPrices as
+          | { ageGroupId?: string; age_group_id?: string }[]
+          | null,
+        ageGroupSpots: session.ageGroupSpots as
+          | { ageGroupId?: string; age_group_id?: string }[]
+          | null,
+      }
+    )
+    const sessionCampInput: EligibilityCampInput = { ...campInput, ageGroups: sessionAgeGroups }
     const sessionStart = session.startDate
 
     const bookingsByChild = new Map<string, ExistingBookingRange[]>()
@@ -110,7 +138,7 @@ export class EligibilityService {
     }
 
     return children.map(child =>
-      validateChildAgainstCamp(this.toChildInput(child), campInput, sessionStart, {
+      validateChildAgainstCamp(this.toChildInput(child), sessionCampInput, sessionStart, {
         sessionEnd: session.endDate,
         existingBookings: bookingsByChild.get(child.id) ?? [],
       })

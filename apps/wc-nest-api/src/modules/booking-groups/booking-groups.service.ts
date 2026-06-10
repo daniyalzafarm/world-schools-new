@@ -25,6 +25,8 @@ import {
   type BookingDeclineReason,
   type BookingGroupStatus as BookingGroupStatusType,
   type ChildBookingRange,
+  DECLINE_REASON_NOTE_MIN_LENGTH,
+  DECLINE_REASONS_REQUIRING_NOTE,
   NotificationType,
   type SpecialCircumstanceType,
 } from '@world-schools/wc-types'
@@ -779,6 +781,7 @@ export class BookingGroupsService {
     sessionId: string
     childIds: string[]
     specialRequest?: string
+    guardianConsent: boolean
     forceNew?: boolean
   }) {
     const parent = await this.prisma.parent.findUnique({
@@ -888,6 +891,9 @@ export class BookingGroupsService {
           refundedAmount: 0,
           status: 'draft',
           requestedAt: now,
+          // Legal-guardian confirmation captured on the Children step. The DTO
+          // already enforces `guardianConsent === true`; stamp when it was given.
+          guardianConsentAt: params.guardianConsent ? now : null,
           // v28 abandon tracking: record activity at draft creation so the
           // abandon-detection cron can measure idle time. `checkoutStarted`
           // stays false until the parent actually fills in participant or
@@ -1379,6 +1385,21 @@ export class BookingGroupsService {
 
   private static providerTabStatusList(tab: ProviderBookingTab): BookingGroupStatus[] {
     switch (tab) {
+      case 'all':
+        // Status sub-filter options for the All tab. The All query itself is
+        // "every non-draft booking" (see the where clause below), so this list
+        // only constrains which statuses can be selected in the sub-filter.
+        return [
+          BookingGroupStatus.request,
+          BookingGroupStatus.accepted,
+          BookingGroupStatus.deposit_paid,
+          BookingGroupStatus.fully_paid,
+          BookingGroupStatus.at_camp,
+          BookingGroupStatus.completed,
+          BookingGroupStatus.expired,
+          BookingGroupStatus.declined,
+          BookingGroupStatus.cancelled,
+        ]
       case 'requests':
         return [BookingGroupStatus.request]
       case 'upcoming':
@@ -1390,11 +1411,11 @@ export class BookingGroupsService {
       case 'at-camp':
         return [BookingGroupStatus.at_camp]
       case 'past':
-        return [
-          BookingGroupStatus.completed,
-          BookingGroupStatus.declined,
-          BookingGroupStatus.expired,
-        ]
+        return [BookingGroupStatus.completed]
+      case 'expired':
+        return [BookingGroupStatus.expired]
+      case 'declined':
+        return [BookingGroupStatus.declined]
       case 'cancelled':
         return [BookingGroupStatus.cancelled]
       default:
@@ -1432,9 +1453,14 @@ export class BookingGroupsService {
       throw new BadRequestException('Status does not match the selected tab')
     }
 
+    // The All tab shows every non-draft booking (including edge billing states
+    // that belong to no other tab); `{ not: draft }` is future-proof as new
+    // statuses are added. All other tabs filter to their status group.
     const baseWhere: Prisma.BookingGroupWhereInput = {
       providerId,
-      status: query.status ?? { in: allowedStatuses },
+      status:
+        query.status ??
+        (tab === 'all' ? { not: BookingGroupStatus.draft } : { in: allowedStatuses }),
     }
 
     const searchWhere: Prisma.BookingGroupWhereInput = search
@@ -1578,10 +1604,13 @@ export class BookingGroupsService {
       statuses.reduce((acc, s) => acc + (countByStatus[s] ?? 0), 0)
 
     const tabCounts = {
+      all: Object.values(countByStatus).reduce((acc, n) => acc + n, 0),
       requests: countByStatus['request'] ?? 0,
       upcoming: sum(['accepted', 'deposit_paid', 'fully_paid']),
       atCamp: countByStatus['at_camp'] ?? 0,
-      past: sum(['completed', 'declined', 'expired']),
+      past: countByStatus['completed'] ?? 0,
+      expired: countByStatus['expired'] ?? 0,
+      declined: countByStatus['declined'] ?? 0,
       cancelled: countByStatus['cancelled'] ?? 0,
     }
 
@@ -3158,12 +3187,16 @@ export class BookingGroupsService {
       throw new BadRequestException('Only requested bookings can be declined')
     }
 
-    // `other` declines require a substantive free-text justification (Provider
-    // Terms §5.1(h)(iii)) so it can be moderated before being surfaced to the
-    // parent. Enforced here in addition to the DTO so it cannot be bypassed.
-    if (args.declineReason === 'other' && (args.declineReasonOther?.trim().length ?? 0) < 10) {
+    // Some reasons require a substantive free-text note (operational inability
+    // per Provider Terms §5.1(h)(iia)(D); safeguarding + other per platform
+    // policy for §5.1(h)(iv) review). Enforced here in addition to the DTO so it
+    // cannot be bypassed.
+    if (
+      DECLINE_REASONS_REQUIRING_NOTE.includes(args.declineReason) &&
+      (args.declineReasonOther?.trim().length ?? 0) < DECLINE_REASON_NOTE_MIN_LENGTH
+    ) {
       throw new BadRequestException(
-        'Please provide a justification of at least 10 characters when declining with reason "Other".'
+        `Please provide a description of at least ${DECLINE_REASON_NOTE_MIN_LENGTH} characters for this decline reason.`
       )
     }
 
@@ -3176,7 +3209,6 @@ export class BookingGroupsService {
     // open auth on the parent's card.
     await this.paymentIntentsService.cancelForBookingGroup(bookingGroup.id, 'requested_by_customer')
 
-    const isOther = args.declineReason === 'other'
     const now = new Date()
     const declined = await this.prisma.$transaction(async tx => {
       const res = await tx.bookingGroup.updateMany({
@@ -3185,7 +3217,7 @@ export class BookingGroupsService {
           status: 'declined',
           respondedAt: now,
           declineReason: args.declineReason,
-          declineReasonOther: isOther ? (args.declineReasonOther ?? null) : null,
+          declineReasonOther: args.declineReasonOther?.trim() || null,
         },
       })
       if (res.count === 0) return false

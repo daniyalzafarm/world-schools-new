@@ -92,6 +92,7 @@ export function MobileBookingFooter({ paymentPending, onSubmitPayment }: MobileB
   const children = useCampBookingStore(state => state.children)
   const childBookingRanges = useCampBookingStore(state => state.childBookingRanges)
   const selectedChildIds = useCampBookingStore(state => state.selectedChildIds)
+  const guardianConsent = useCampBookingStore(state => state.guardianConsent)
   const addOns = useCampBookingStore(state => state.addOns)
   const addOnSelectionsById = useCampBookingStore(state => state.addOnSelectionsById)
 
@@ -180,7 +181,7 @@ export function MobileBookingFooter({ paymentPending, onSubmitPayment }: MobileB
   const isDisabled =
     isLoading ||
     (currentStep === 'sessions' && !selectedSessionId) ||
-    (currentStep === 'children' && !hasValidChildSelection) ||
+    (currentStep === 'children' && (!hasValidChildSelection || !guardianConsent)) ||
     (currentStep === 'review-and-pay' && (hasSubmitted || paymentPending))
 
   const label =

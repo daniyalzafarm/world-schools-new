@@ -18,10 +18,13 @@ const defaultFilters: ProviderBookingGroupsFilters = {
 }
 
 const emptyTabCounts: ProviderBookingGroupsListMeta['tabCounts'] = {
+  all: 0,
   requests: 0,
   upcoming: 0,
   atCamp: 0,
   past: 0,
+  expired: 0,
+  declined: 0,
   cancelled: 0,
 }
 

@@ -149,6 +149,85 @@ export function checkAgeEligibility(
   }
 }
 
+/** Camp age group as stored/served — `id` is optional; the canonical key a
+ * session references it by is `${min}-${max}`. */
+export interface CampAgeGroupInput {
+  id?: string | null
+  ageGroupId?: string | null
+  min: number
+  max: number
+}
+
+/** The session fields that decide which of the camp's age groups it offers. */
+export interface SessionAgeGroupInput {
+  pricingType?: string | null
+  availabilityType?: string | null
+  /** Keys may be camelCase (`ageGroupId`) or the stored snake_case (`age_group_id`). */
+  ageGroupPrices?: ({ ageGroupId?: string | null; age_group_id?: string | null } | null)[] | null
+  ageGroupSpots?: ({ ageGroupId?: string | null; age_group_id?: string | null } | null)[] | null
+}
+
+function ageGroupRefId(
+  entry: { ageGroupId?: string | null; age_group_id?: string | null } | null | undefined
+): string | null {
+  if (!entry) return null
+  const raw = entry.ageGroupId ?? entry.age_group_id
+  return raw != null ? String(raw) : null
+}
+
+/**
+ * The age groups a specific session actually offers — the per-session band the
+ * age check must use instead of the camp-wide range.
+ *
+ * A session limits itself to a subset of the camp's age groups by referencing
+ * only those groups in its per-age-group pricing and/or availability
+ * (`ageGroupPrices` / `ageGroupSpots`, keyed by `${min}-${max}`). A session that
+ * uses single pricing AND single availability carries no references, so it
+ * inherits the camp's full age range.
+ *
+ * Falls back to the full camp range when the session is absent or its references
+ * match no camp age group (misconfigured data) — a booking is never blocked by
+ * bad data; the camp-wide bound still applies.
+ */
+export function getSessionAgeGroups(
+  campAgeGroups: CampAgeGroupInput[] | null | undefined,
+  session: SessionAgeGroupInput | null | undefined
+): AgeRange[] {
+  const valid = (campAgeGroups ?? []).filter(
+    g => typeof g?.min === 'number' && typeof g?.max === 'number'
+  )
+  const fullRange: AgeRange[] = valid.map(g => ({ min: g.min, max: g.max }))
+  if (!session) return fullRange
+
+  const referenced = new Set<string>()
+  if (session.pricingType === 'age_group') {
+    for (const p of session.ageGroupPrices ?? []) {
+      const id = ageGroupRefId(p)
+      if (id) referenced.add(id)
+    }
+  }
+  if (session.availabilityType === 'age_group') {
+    for (const s of session.ageGroupSpots ?? []) {
+      const id = ageGroupRefId(s)
+      if (id) referenced.add(id)
+    }
+  }
+  // No per-age-group references → the session covers the camp's full range.
+  if (referenced.size === 0) return fullRange
+
+  // A camp group may be referenced by its stored id, legacy `ageGroupId`, or the
+  // canonical `${min}-${max}` key, so match against any of them.
+  const restricted = valid
+    .filter(g => {
+      if (g.id != null && referenced.has(String(g.id))) return true
+      if (g.ageGroupId != null && referenced.has(String(g.ageGroupId))) return true
+      return referenced.has(`${g.min}-${g.max}`)
+    })
+    .map(g => ({ min: g.min, max: g.max }))
+
+  return restricted.length ? restricted : fullRange
+}
+
 export function checkSkillGate(
   childSkills: ChildSkillInput[],
   gate: EligibilitySkillGate

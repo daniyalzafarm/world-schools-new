@@ -3,7 +3,7 @@
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react'
 import { AlertCircle } from 'lucide-react'
 import { formatCurrency } from '@world-schools/wc-utils'
-import { ageFromDateOfBirth, formatSessionRange } from '@world-schools/wc-frontend-utils'
+import { ageFromDateOfBirth, formatSessionDateRange } from '@world-schools/wc-frontend-utils'
 import type { ProviderBookingGroupDetail } from '@world-schools/wc-types'
 
 interface AcceptBookingConfirmationModalProps {
@@ -30,11 +30,9 @@ export function AcceptBookingConfirmationModal({
   isLoading = false,
   detail,
 }: AcceptBookingConfirmationModalProps) {
-  const sessionRange = formatSessionRange(
-    detail.session.startDate,
-    detail.session.endDate,
-    detail.session.name
-  )
+  // The session name is shown on its own line below, so this is the date range
+  // only — appending the name here would repeat it (BUG-117).
+  const sessionRange = formatSessionDateRange(detail.session.startDate, detail.session.endDate)
   const formattedTotal = formatCurrency(detail.totalAmount, detail.currency)
 
   return (

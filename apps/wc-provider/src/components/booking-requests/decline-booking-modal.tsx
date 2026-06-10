@@ -12,7 +12,12 @@ import {
   SelectItem,
   Textarea,
 } from '@heroui/react'
-import { BOOKING_DECLINE_REASON_LABELS, BookingDeclineReason } from '@world-schools/wc-types'
+import {
+  BOOKING_DECLINE_REASON_LABELS,
+  BookingDeclineReason,
+  DECLINE_REASON_NOTE_MIN_LENGTH,
+  DECLINE_REASONS_REQUIRING_NOTE,
+} from '@world-schools/wc-types'
 
 export interface DeclinePayload {
   declineReason: BookingDeclineReason
@@ -26,33 +31,53 @@ interface DeclineBookingModalProps {
   isLoading?: boolean
 }
 
-const REASON_OPTIONS: Array<{ key: BookingDeclineReason; label: string }> = [
-  {
-    key: BookingDeclineReason.CapacityOrScheduling,
-    label: BOOKING_DECLINE_REASON_LABELS[BookingDeclineReason.CapacityOrScheduling],
-  },
+/**
+ * Controlled list of decline reasons in display order. `note`, when present,
+ * adds a contextual free-text field with its own prompt; the field is required
+ * when the reason is in `DECLINE_REASONS_REQUIRING_NOTE`. All notes are private
+ * to the platform — the parent only ever sees the reason label.
+ */
+const REASON_CONFIG: Array<{
+  key: BookingDeclineReason
+  note?: { label: string; placeholder: string }
+}> = [
+  { key: BookingDeclineReason.CapacityOrScheduling },
   {
     key: BookingDeclineReason.EligibilityCriteriaNotMet,
-    label: BOOKING_DECLINE_REASON_LABELS[BookingDeclineReason.EligibilityCriteriaNotMet],
+    note: { label: 'Which requirement?', placeholder: 'Optional — kept private to the platform' },
   },
   {
     key: BookingDeclineReason.OperationalInability,
-    label: BOOKING_DECLINE_REASON_LABELS[BookingDeclineReason.OperationalInability],
+    note: {
+      label: 'Please specify the need',
+      placeholder: 'Required — kept private to the platform',
+    },
+  },
+  {
+    key: BookingDeclineReason.IncompleteInformation,
+    note: { label: 'What is missing?', placeholder: 'Optional — kept private to the platform' },
   },
   {
     key: BookingDeclineReason.SafeguardingConcerns,
-    label: BOOKING_DECLINE_REASON_LABELS[BookingDeclineReason.SafeguardingConcerns],
+    note: {
+      label: 'Describe the safety concern',
+      placeholder: 'Shared only with World Camps compliance — never shown to the parent',
+    },
   },
   {
     key: BookingDeclineReason.Other,
-    label: BOOKING_DECLINE_REASON_LABELS[BookingDeclineReason.Other],
+    note: {
+      label: 'Please describe the reason',
+      placeholder: 'Required — kept private to the platform',
+    },
   },
 ]
 
 /**
- * Decline-with-reason modal (BUG-112). The controlled list comes from
- * Provider Terms v1.5 §5.1(h)(iii) — providers must select one before the
- * Decline button enables. "Other" requires a free-text justification so the
+ * Decline-with-reason modal (BUG-118). The controlled list comes from
+ * Provider Terms v1.7 §5.1(h)(iii) — providers must select one before the
+ * Decline button enables. Several reasons carry a contextual note; it is
+ * required for operational-inability, safety, and "other" declines so the
  * Platform can review per §5.1(h)(iv) pattern monitoring.
  */
 export function DeclineBookingModal({
@@ -62,25 +87,28 @@ export function DeclineBookingModal({
   isLoading = false,
 }: DeclineBookingModalProps) {
   const [reason, setReason] = useState<BookingDeclineReason | null>(null)
-  const [otherText, setOtherText] = useState('')
+  const [noteText, setNoteText] = useState('')
 
   // Reset internal state every time the modal is reopened — otherwise the
   // previous decline's reason would persist into the next booking.
   useEffect(() => {
     if (isOpen) {
       setReason(null)
-      setOtherText('')
+      setNoteText('')
     }
   }, [isOpen])
 
-  const isOther = reason === BookingDeclineReason.Other
-  const canSubmit = reason != null && (!isOther || otherText.trim().length > 0) && !isLoading
+  const selectedConfig = REASON_CONFIG.find(opt => opt.key === reason)
+  const hasNoteField = !!selectedConfig?.note
+  const noteRequired = reason != null && DECLINE_REASONS_REQUIRING_NOTE.includes(reason)
+  const noteSatisfied = !noteRequired || noteText.trim().length >= DECLINE_REASON_NOTE_MIN_LENGTH
+  const canSubmit = reason != null && noteSatisfied && !isLoading
 
   const handleConfirm = () => {
-    if (!reason) return
+    if (!reason || !canSubmit) return
     onConfirm({
       declineReason: reason,
-      declineReasonOther: isOther ? otherText.trim() : undefined,
+      declineReasonOther: hasNoteField ? noteText.trim() || undefined : undefined,
     })
   }
 
@@ -119,20 +147,20 @@ export function DeclineBookingModal({
                 trigger: 'rounded-lg border border-gray-200 bg-white shadow-none',
               }}
             >
-              {REASON_OPTIONS.map(opt => (
-                <SelectItem key={opt.key}>{opt.label}</SelectItem>
+              {REASON_CONFIG.map(opt => (
+                <SelectItem key={opt.key}>{BOOKING_DECLINE_REASON_LABELS[opt.key]}</SelectItem>
               ))}
             </Select>
 
-            {isOther && (
+            {selectedConfig?.note && (
               <Textarea
-                label="Please describe the reason"
+                label={selectedConfig.note.label}
                 labelPlacement="outside"
                 minRows={3}
-                value={otherText}
-                onValueChange={setOtherText}
-                isRequired
-                placeholder="Required when selecting Other — kept private to the platform for review"
+                value={noteText}
+                onValueChange={setNoteText}
+                isRequired={noteRequired}
+                placeholder={selectedConfig.note.placeholder}
                 classNames={{
                   label: 'text-sm text-gray-500',
                   inputWrapper: 'rounded-lg border border-gray-200 bg-white shadow-none',

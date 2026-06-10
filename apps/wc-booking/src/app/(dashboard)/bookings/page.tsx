@@ -13,8 +13,6 @@ import { bookingGroupsService } from '@/services/booking-groups.services'
 import {
   ageFromDateOfBirth,
   formatSessionRange,
-  progressBarColor,
-  progressPercent,
   statusBadgeClass,
   statusLabel,
 } from '@world-schools/wc-frontend-utils'
@@ -47,8 +45,6 @@ function BookingCard({
   const { confirm } = useConfirmDialog()
   const [deleting, setDeleting] = useState(false)
   const cover = row.camp.coverImageUrl
-  const pct = progressPercent(row.status)
-  const barColor = progressBarColor(row.status)
   const isDraft = row.status === 'draft'
   const draftContinueHref = isDraft
     ? `/camps/${encodeURIComponent(row.camp.slug)}/book?bookingGroupId=${encodeURIComponent(row.id)}`
@@ -90,7 +86,7 @@ function BookingCard({
 
   const inner = (
     <>
-      <div className="relative h-44 w-full shrink-0 overflow-hidden bg-default-100 sm:h-auto sm:w-60 sm:min-h-48">
+      <div className="relative h-44 w-full shrink-0 overflow-hidden bg-default-100 sm:h-auto sm:w-60 sm:min-h-36">
         {cover ? (
           <img
             src={cover}
@@ -153,18 +149,6 @@ function BookingCard({
               </div>
             )
           })}
-        </div>
-        <div className="mt-auto space-y-2">
-          <div className="flex justify-between text-xs text-default-500">
-            <span>{statusLabel(row.status)}</span>
-            <span>{pct}%</span>
-          </div>
-          <div className="h-1 w-full overflow-hidden rounded-full bg-default-100">
-            <div
-              className={`h-full rounded-full transition-all ${barColor}`}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
         </div>
       </div>
     </>

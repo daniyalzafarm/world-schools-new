@@ -30,10 +30,13 @@ export const PROVIDER_BOOKING_SORT_FIELDS = [
 export type ProviderBookingSortField = (typeof PROVIDER_BOOKING_SORT_FIELDS)[number]
 
 export const PROVIDER_BOOKING_TABS = [
+  'all',
   'requests',
   'upcoming',
   'at-camp',
   'past',
+  'expired',
+  'declined',
   'cancelled',
 ] as const
 

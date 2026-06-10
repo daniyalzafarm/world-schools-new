@@ -423,7 +423,11 @@ export function SessionForm({
                     label="End Date"
                     labelPlacement="outside"
                     value={stringToCalendarDate(formData.endDate) as any}
-                    minValue={today(getLocalTimeZone()).add({ days: 1 })}
+                    placeholderValue={stringToCalendarDate(formData.startDate) as any}
+                    minValue={
+                      stringToCalendarDate(formData.startDate) ??
+                      today(getLocalTimeZone()).add({ days: 1 })
+                    }
                     onChange={value => {
                       const dateString = value ? calendarDateToString(value) : ''
                       setFormData(prev => ({ ...prev, endDate: dateString }))

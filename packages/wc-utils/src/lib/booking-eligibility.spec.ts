@@ -4,6 +4,7 @@ import {
   type EligibilityChildInput,
   checkExistingBookingOverlap,
   checkSkillGate,
+  getSessionAgeGroups,
   normalizeChildGender,
   validateChildAgainstCamp,
 } from './booking-eligibility'
@@ -244,6 +245,137 @@ describe('validateChildAgainstCamp — existing booking overlap', () => {
       existingBookings: [{ startDate: '2026-09-01', endDate: '2026-09-08' }],
     })
     expect(res.eligible).toBe(true)
+  })
+})
+
+describe('getSessionAgeGroups', () => {
+  // iD Tech: camp spans 7–17 across three bands.
+  const CAMP_AGE_GROUPS = [
+    { min: 7, max: 9 },
+    { min: 10, max: 13 },
+    { min: 14, max: 17 },
+  ]
+
+  it('restricts to the band a session prices (e.g. "Ages 7-9")', () => {
+    const groups = getSessionAgeGroups(CAMP_AGE_GROUPS, {
+      pricingType: 'age_group',
+      availabilityType: 'age_group',
+      ageGroupPrices: [{ ageGroupId: '7-9' }],
+      ageGroupSpots: [{ ageGroupId: '7-9' }],
+    })
+    expect(groups).toEqual([{ min: 7, max: 9 }])
+  })
+
+  it('returns the full camp range for a single-price/single-availability session', () => {
+    const groups = getSessionAgeGroups(CAMP_AGE_GROUPS, {
+      pricingType: 'single',
+      availabilityType: 'single',
+    })
+    expect(groups).toEqual(CAMP_AGE_GROUPS)
+  })
+
+  it('returns the full range when a session prices every band', () => {
+    const groups = getSessionAgeGroups(CAMP_AGE_GROUPS, {
+      pricingType: 'age_group',
+      availabilityType: 'single',
+      ageGroupPrices: [{ ageGroupId: '7-9' }, { ageGroupId: '10-13' }, { ageGroupId: '14-17' }],
+    })
+    expect(groups).toEqual(CAMP_AGE_GROUPS)
+  })
+
+  it('unions pricing and availability references', () => {
+    const groups = getSessionAgeGroups(CAMP_AGE_GROUPS, {
+      pricingType: 'age_group',
+      availabilityType: 'age_group',
+      ageGroupPrices: [{ ageGroupId: '7-9' }],
+      ageGroupSpots: [{ ageGroupId: '14-17' }],
+    })
+    expect(groups).toEqual([
+      { min: 7, max: 9 },
+      { min: 14, max: 17 },
+    ])
+  })
+
+  it('accepts the stored snake_case age_group_id key', () => {
+    const groups = getSessionAgeGroups(CAMP_AGE_GROUPS, {
+      pricingType: 'age_group',
+      availabilityType: 'single',
+      ageGroupPrices: [{ age_group_id: '10-13' }],
+    })
+    expect(groups).toEqual([{ min: 10, max: 13 }])
+  })
+
+  it('matches a camp group by its stored id when present', () => {
+    const groups = getSessionAgeGroups(
+      [
+        { id: 'grp-a', min: 7, max: 9 },
+        { id: 'grp-b', min: 10, max: 13 },
+      ],
+      {
+        pricingType: 'age_group',
+        availabilityType: 'single',
+        ageGroupPrices: [{ ageGroupId: 'grp-b' }],
+      }
+    )
+    expect(groups).toEqual([{ min: 10, max: 13 }])
+  })
+
+  it('falls back to the full range when references match no camp group', () => {
+    const groups = getSessionAgeGroups(CAMP_AGE_GROUPS, {
+      pricingType: 'age_group',
+      availabilityType: 'single',
+      ageGroupPrices: [{ ageGroupId: 'stale-id' }],
+    })
+    expect(groups).toEqual(CAMP_AGE_GROUPS)
+  })
+
+  it('returns the full range when the session is absent', () => {
+    expect(getSessionAgeGroups(CAMP_AGE_GROUPS, null)).toEqual(CAMP_AGE_GROUPS)
+  })
+})
+
+describe('validateChildAgainstCamp — per-session age band', () => {
+  const CAMP_AGE_GROUPS = [
+    { min: 7, max: 9 },
+    { min: 10, max: 13 },
+    { min: 14, max: 17 },
+  ]
+  // "Minecraft Game Design (Ages 7-9)" — offers only the 7–9 band.
+  const session = {
+    pricingType: 'age_group',
+    availabilityType: 'age_group',
+    ageGroupPrices: [{ ageGroupId: '7-9' }],
+    ageGroupSpots: [{ ageGroupId: '7-9' }],
+  }
+  // Emma turns 12 before the session start — inside the camp's 7–17 range but
+  // outside the selected session's 7–9 band.
+  const emma = child({ dateOfBirth: '2014-01-01' })
+
+  it('blocks a child inside the camp range but outside the session band', () => {
+    const res = validateChildAgainstCamp(
+      emma,
+      { ...camp(), ageGroups: getSessionAgeGroups(CAMP_AGE_GROUPS, session) },
+      SESSION_START
+    )
+    expect(res.eligible).toBe(false)
+    expect(res.failures.map(f => f.code)).toContain('age_out_of_range')
+  })
+
+  it('would have passed against the camp-wide range (regression guard)', () => {
+    const res = validateChildAgainstCamp(emma, camp({ ageGroups: CAMP_AGE_GROUPS }), SESSION_START)
+    expect(res.eligible).toBe(true)
+  })
+
+  it('reports only the session band in the message (BUG-160)', () => {
+    const res = validateChildAgainstCamp(
+      emma,
+      { ...camp(), ageGroups: getSessionAgeGroups(CAMP_AGE_GROUPS, session) },
+      SESSION_START
+    )
+    const ageFailure = res.failures.find(f => f.code === 'age_out_of_range')
+    expect(ageFailure?.message).toContain('7–9')
+    expect(ageFailure?.message).not.toContain('10–13')
+    expect(ageFailure?.message).not.toContain('14–17')
   })
 })
 

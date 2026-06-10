@@ -56,6 +56,9 @@ export interface CreateDraftBookingGroupRequest {
   sessionId: string
   childIds: string[]
   specialRequest?: string
+  /// Parent's legal-guardian confirmation for the selected children. Backend
+  /// requires this to be true and stamps the consent timestamp on the group.
+  guardianConsent: boolean
   forceNew?: boolean
 }
 

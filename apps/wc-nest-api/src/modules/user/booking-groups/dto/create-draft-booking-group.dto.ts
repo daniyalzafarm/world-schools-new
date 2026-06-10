@@ -1,5 +1,6 @@
 import {
   ArrayNotEmpty,
+  Equals,
   IsArray,
   IsBoolean,
   IsOptional,
@@ -24,6 +25,12 @@ export class CreateDraftBookingGroupDto {
   @IsString()
   @MaxLength(1500)
   specialRequest?: string
+
+  // Mandatory legal-guardian confirmation captured on the Children step. Must be
+  // true — the parent cannot create a booking without confirming guardianship.
+  @IsBoolean()
+  @Equals(true, { message: 'Guardian confirmation is required to book' })
+  guardianConsent!: boolean
 
   @IsOptional()
   @IsBoolean()

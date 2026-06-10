@@ -1138,6 +1138,11 @@ model BookingGroup {
   respondedAt DateTime? @map("responded_at")
   expiresAt   DateTime? @map("expires_at")
 
+  /// Stamped when the parent confirms (on the Children step) that they are the
+  /// legal guardian of the selected children and are authorised to book on their
+  /// behalf. Legal/safeguarding audit — proves consent was given at booking time.
+  guardianConsentAt DateTime? @map("guardian_consent_at")
+
   /// Acceptance-window extension audit. `extensionCount` is incremented (and
   /// `lastExtendedAt` stamped) each time a provider extends the response
   /// deadline; the booking service caps extensions to prevent indefinite holds.
@@ -1212,12 +1217,13 @@ model BookingGroup {
   cancelledReason   String?   @map("cancelled_reason")
   cancelledByUserId String?   @map("cancelled_by_user_id")
 
-  /// Decline provenance — Provider Terms v1.5 §5.1(h)(iii) requires every
+  /// Decline provenance — Provider Terms v1.7 §5.1(h)(iii) requires every
   /// provider-initiated decline to be tagged with a reason from the controlled
   /// list so the Platform can perform §5.1(h)(iv) pattern monitoring.
-  /// `declineReasonOther` is only populated when `declineReason = other` and
-  /// captures the provider's free-text justification. The text is stored but
-  /// not yet surfaced to parents — a moderation flow is pending.
+  /// `declineReasonOther` holds the provider's contextual free-text note for any
+  /// reason that carries one (required for `operational_inability`,
+  /// `safeguarding_concerns`, `other`; optional for the rest). It is never
+  /// surfaced to parents on any channel — only the reason label is.
   declineReason      BookingDeclineReason? @map("decline_reason")
   declineReasonOther String?               @map("decline_reason_other") @db.Text
 
@@ -1388,6 +1394,7 @@ enum BookingDeclineReason {
   capacity_or_scheduling
   eligibility_criteria_not_met
   operational_inability
+  incomplete_information
   safeguarding_concerns
   other
 }

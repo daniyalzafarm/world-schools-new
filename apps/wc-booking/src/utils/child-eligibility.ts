@@ -1,6 +1,6 @@
 import {
-  type AgeRange,
   type ExistingBookingRange,
+  getSessionAgeGroups,
   validateChildAgainstCamp,
 } from '@world-schools/wc-utils'
 import type { ChildBookingRange, EligibilityFailureCode } from '@world-schools/wc-types'
@@ -70,9 +70,10 @@ export function getChildrenEligibility(
   children: Child[],
   childBookingRanges: ChildBookingRange[] = []
 ): ChildEligibility[] {
-  const ageGroups: AgeRange[] = ((camp?.ageGroups ?? []) as { min?: number; max?: number }[])
-    .filter(g => typeof g?.min === 'number' && typeof g?.max === 'number')
-    .map(g => ({ min: g.min as number, max: g.max as number }))
+  // Use the selected session's age band — the subset of camp age groups it
+  // actually offers — not the camp-wide range, so a child outside the session's
+  // band is correctly blocked.
+  const ageGroups = getSessionAgeGroups(camp?.ageGroups, session)
   const campInput = {
     gender: (camp?.gender ?? 'coed') as 'coed' | 'boys' | 'girls',
     ageGroups,

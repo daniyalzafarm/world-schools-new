@@ -21,7 +21,7 @@ import {
 import { FilterX, Search } from 'lucide-react'
 import { formatCurrency } from '@world-schools/wc-utils'
 import {
-  formatSessionRange,
+  formatSessionDateRange,
   providerRequestUrgencyLabel,
   providerStatusLabel,
   statusBadgeClass,
@@ -251,6 +251,19 @@ export function BookingRequestsView() {
                 }}
               >
                 <Tab
+                  key="all"
+                  title={
+                    <span className="flex items-center gap-1.5">
+                      <span>All</span>
+                      {counts.all > 0 ? (
+                        <Chip size="sm" color="secondary">
+                          {counts.all}
+                        </Chip>
+                      ) : null}
+                    </span>
+                  }
+                />
+                <Tab
                   key="requests"
                   title={
                     <span className="flex items-center gap-1.5">
@@ -297,6 +310,32 @@ export function BookingRequestsView() {
                       {counts.past > 0 ? (
                         <Chip size="sm" color="secondary">
                           {counts.past}
+                        </Chip>
+                      ) : null}
+                    </span>
+                  }
+                />
+                <Tab
+                  key="expired"
+                  title={
+                    <span className="flex items-center gap-1.5">
+                      <span>Expired</span>
+                      {counts.expired > 0 ? (
+                        <Chip size="sm" color="secondary">
+                          {counts.expired}
+                        </Chip>
+                      ) : null}
+                    </span>
+                  }
+                />
+                <Tab
+                  key="declined"
+                  title={
+                    <span className="flex items-center gap-1.5">
+                      <span>Declined</span>
+                      {counts.declined > 0 ? (
+                        <Chip size="sm" color="secondary">
+                          {counts.declined}
                         </Chip>
                       ) : null}
                     </span>
@@ -471,11 +510,7 @@ export function BookingRequestsView() {
                         <TableCell>
                           <p className="font-medium text-default-700">{row.session.name}</p>
                           <p className="text-xs text-default-500">
-                            {formatSessionRange(
-                              row.session.startDate,
-                              row.session.endDate,
-                              row.session.name
-                            )}
+                            {formatSessionDateRange(row.session.startDate, row.session.endDate)}
                           </p>
                         </TableCell>
                         <TableCell className="text-right">
