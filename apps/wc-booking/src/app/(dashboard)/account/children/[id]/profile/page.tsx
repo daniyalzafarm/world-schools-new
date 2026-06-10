@@ -8,16 +8,16 @@ import { Camera } from 'lucide-react'
 import {
   BackButton,
   DatePicker,
+  getLanguageCode,
   IconSelectField,
   type IconSelectOption,
-  IconTagSelectField,
   Input,
+  LanguageSelect,
   SelectField,
 } from '@world-schools/ui-web'
 import { useChildrenStore } from '@/stores/children-store'
 import { useBeforeUnload } from '@/hooks/use-before-unload'
 import { useChildDetailContext } from '@/components/children/ChildDetailContext'
-import { LANGUAGE_OPTIONS_WITH_FLAGS } from '@/types/child'
 
 interface FormData {
   firstName: string
@@ -317,29 +317,6 @@ export default function ChildProfilePage() {
     setFormState({ isModified, isSaving })
   }, [isModified, isSaving, setFormState])
 
-  // Helper function to convert language labels to IDs (for loading from API)
-  const convertLanguageLabelsToIds = (languages: string[]): string[] => {
-    return languages.map(lang => {
-      // Check if it's already an ID (lowercase)
-      const existingId = LANGUAGE_OPTIONS_WITH_FLAGS.find(opt => opt.id === lang.toLowerCase())
-      if (existingId) return existingId.id
-
-      // Otherwise, find by label (case-insensitive)
-      const byLabel = LANGUAGE_OPTIONS_WITH_FLAGS.find(
-        opt => opt.label.toLowerCase() === lang.toLowerCase()
-      )
-      return byLabel ? byLabel.id : lang.toLowerCase()
-    })
-  }
-
-  // Helper function to convert language IDs to labels (for saving to API)
-  const convertLanguageIdsToLabels = (languageIds: string[]): string[] => {
-    return languageIds.map(id => {
-      const language = LANGUAGE_OPTIONS_WITH_FLAGS.find(opt => opt.id === id)
-      return language ? language.label : id
-    })
-  }
-
   // Function to update school year options based on selected country
   const updateSchoolYearOptions = React.useCallback((country: string) => {
     if (!country) {
@@ -443,7 +420,7 @@ export default function ChildProfilePage() {
         photoUrl: child.photoUrl || '',
         schoolCountry,
         schoolYear: displayYear,
-        languagesSpoken: convertLanguageLabelsToIds(child.languages ?? []),
+        languagesSpoken: (child.languages ?? []).map(lang => getLanguageCode(lang) || lang),
       })
 
       // Update equivalent hint if both country and year are set
@@ -566,7 +543,7 @@ export default function ChildProfilePage() {
         photoUrl: formData.photoUrl.trim() || undefined,
         schoolCountry: formData.schoolCountry || undefined,
         schoolYear: normalizedYear,
-        languages: convertLanguageIdsToLabels(formData.languagesSpoken),
+        languages: formData.languagesSpoken,
       }
 
       const success = await updateChild(childId, updateData)
@@ -852,17 +829,12 @@ export default function ChildProfilePage() {
           </div>
 
           {/* Languages Spoken */}
-          <IconTagSelectField
+          <LanguageSelect
             label="Languages Spoken"
+            inputId="profile-languages-spoken"
             value={formData.languagesSpoken}
             onChange={value => handleFieldChange('languagesSpoken', value)}
-            items={LANGUAGE_OPTIONS_WITH_FLAGS.map(lang => ({
-              id: lang.id,
-              label: lang.label,
-              icon: lang.flag,
-            }))}
             placeholder="Add language"
-            aria-label="profile-languages-spoken"
           />
         </div>
       </form>

@@ -660,6 +660,7 @@ export function SessionForm({
                 label="Spots Available"
                 labelPlacement="outside"
                 placeholder="50"
+                description="Number of spots available for booking through World Camps (not your total camp capacity)."
                 value={formData.totalSpots?.toString() || ''}
                 onValueChange={value => {
                   setFormData(prev => ({ ...prev, totalSpots: parseInt(value) || undefined }))

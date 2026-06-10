@@ -73,6 +73,18 @@ const OPERATIONAL_STATUS_DOT_CLASS: Record<OperationalStatus, string> = {
   [OperationalStatus.Inactive]: 'bg-default-400',
 }
 
+/**
+ * Plain-language definition of each operational status, shown as a fallback
+ * tooltip when no per-provider `operationalStatusReasons` are available so the
+ * badge is never a bare, unexplained label (BUG-120).
+ */
+const OPERATIONAL_STATUS_DESCRIPTION: Record<OperationalStatus, string> = {
+  [OperationalStatus.FullyActive]: 'Fully active — all onboarding criteria are met.',
+  [OperationalStatus.SetupIncomplete]: 'Setup incomplete — onboarding started but not finished.',
+  [OperationalStatus.ActionRequired]: 'Action required — something is broken or expired.',
+  [OperationalStatus.Inactive]: 'Inactive — onboarding has not been started.',
+}
+
 // `timeZoneName: 'short'` appends "BST" / "GMT" / "GMT+1" etc so the
 // SuperAdmin always knows which zone they're looking at — uses the
 // browser's local zone (no override) so it matches the on-call's wall
@@ -461,13 +473,21 @@ export function AllProvidersView() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {app.operationalStatus && app.operationalStatusReasons ? (
+                      {app.operationalStatus ? (
                         <Tooltip
                           placement="top"
                           content={
-                            <OperationalStatusReasonsList reasons={app.operationalStatusReasons} />
+                            app.operationalStatusReasons ? (
+                              <OperationalStatusReasonsList
+                                reasons={app.operationalStatusReasons}
+                              />
+                            ) : (
+                              <span className="text-xs">
+                                {OPERATIONAL_STATUS_DESCRIPTION[app.operationalStatus]}
+                              </span>
+                            )
                           }
-                          classNames={{ content: 'p-3' }}
+                          classNames={{ content: 'p-3 max-w-xs' }}
                         >
                           <div
                             tabIndex={0}

@@ -40,6 +40,7 @@ export const Textarea: React.FC<CustomTextareaProps> = ({
   const percentage = maxLength ? (currentLength / maxLength) * 100 : 0
   const isNearLimit = percentage >= 90
   const isOverLimit = maxLength ? currentLength > maxLength : false
+  const isAtLimit = maxLength ? currentLength >= maxLength : false
   const isBelowMinimum = minLength ? currentLength < minLength : false
 
   // Determine color based on state
@@ -65,6 +66,12 @@ export const Textarea: React.FC<CustomTextareaProps> = ({
           <span className="text-default-500"> / {maxLength} characters</span>
           {minLength && <span className="text-default-500"> (minimum {minLength})</span>}
         </div>
+      )}
+
+      {showCharacterCount && maxLength && isAtLimit && (
+        <p className="mt-1 text-right text-sm text-danger">
+          Maximum {maxLength} characters reached
+        </p>
       )}
     </div>
   )

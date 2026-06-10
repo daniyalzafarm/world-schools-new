@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { addToast } from '@heroui/react'
-import { BackButton } from '@world-schools/ui-web'
+import { BackButton, getCountryDemonym } from '@world-schools/ui-web'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { profileService } from '@/services/profile.services'
 import { ProfilePhotoSection } from '@/components/account/profile-photo-section'
@@ -133,9 +133,9 @@ const ProfilePage = () => {
     const primary = profileData?.parent?.primaryNationality
     const secondary = profileData?.parent?.secondaryNationality
     if (primary && secondary) {
-      return `${primary}, ${secondary}`
+      return `${getCountryDemonym(primary)}, ${getCountryDemonym(secondary)}`
     }
-    return primary || 'Not specified'
+    return primary ? getCountryDemonym(primary) : 'Not specified'
   }
 
   // Format languages display

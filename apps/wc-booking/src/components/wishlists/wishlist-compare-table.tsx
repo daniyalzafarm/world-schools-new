@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { FcGoogle } from 'react-icons/fc'
+import { getLanguageName } from '@world-schools/ui-web'
 import type { Camp } from '@/types/camps'
 import { useWishlistsStore } from '@/stores/wishlists-store'
 import { CampSearchPopover } from './camp-search-popover'
@@ -32,15 +34,29 @@ function getAgeRange(camp: Camp): string | null {
   return `${Math.min(...mins)}–${Math.max(...maxs)} years`
 }
 
+// Prefer the Google Business Profile's structured city/country, falling back to
+// the camp's free-form location name.
+function campLocation(camp: Camp): string | null {
+  const gbp = camp.provider?.googleBusinessProfile
+  return [gbp?.city, gbp?.country].filter(Boolean).join(', ') || camp.locationName || null
+}
+
+// App (system) rating, only when there are published reviews.
+function appRating(camp: Camp): { rating: number; count: number } | null {
+  const count = camp.totalReviews ?? 0
+  if (count <= 0 || camp.overallRating == null) return null
+  return { rating: camp.overallRating, count }
+}
+
 // ─── Layout primitives ────────────────────────────────────────────────────────
 
-function SectionHeader({ label }: { label: string }) {
+function SectionHeader({ label, count = SLOT_COUNT }: { label: string; count?: number }) {
   return (
     <div className="table-row">
       <span className="table-cell px-4 py-2.5 bg-slate-800 text-white text-xs font-semibold uppercase tracking-[0.5px]">
         {label}
       </span>
-      {Array.from({ length: SLOT_COUNT }).map((_, i) => (
+      {Array.from({ length: count }).map((_, i) => (
         <span key={i} className="table-cell px-4 py-2.5 bg-slate-800" />
       ))}
     </div>
@@ -48,13 +64,12 @@ function SectionHeader({ label }: { label: string }) {
 }
 
 function DataRow({ label, values }: { label: string; values: React.ReactNode[] }) {
-  const paddedValues = Array.from({ length: SLOT_COUNT }, (_, i) => values[i] ?? null)
   return (
     <div className="table-row">
       <div className="table-cell py-3.5 px-4 text-sm font-medium text-gray-500 bg-gray-50 border-b border-gray-100 w-28 max-w-28 align-middle">
         {label}
       </div>
-      {paddedValues.map((val, i) => (
+      {values.map((val, i) => (
         <div
           key={i}
           className="table-cell py-3.5 px-4 border-b border-l border-gray-100 text-sm align-top"
@@ -159,8 +174,13 @@ export function WishlistCompareTable({
     })
   }
 
+  // Only render the columns that are in use, plus a single empty "add a camp"
+  // slot when editable — avoids the trailing blank placeholder columns (BUG-005).
+  const filledCount = slots.filter(Boolean).length
+  const visibleCount = readOnly ? Math.max(filledCount, 1) : Math.min(SLOT_COUNT, filledCount + 1)
+
   const paddedSlots: (Camp | null)[] = Array.from(
-    { length: SLOT_COUNT },
+    { length: visibleCount },
     (_, i) => slots[i] ?? null
   )
 
@@ -178,7 +198,9 @@ export function WishlistCompareTable({
       : c.scheduleType === 'weekly'
   })
   const hasAnyActivities = paddedSlots.some(c => (c?.activities?.length ?? 0) > 0)
-  const hasAnyReviews = paddedSlots.some(c => (c as any)?.provider?.googleBusinessProfile?.rating)
+  const hasAnyReviews = paddedSlots.some(
+    c => c && (appRating(c) != null || c.provider?.googleBusinessProfile?.rating != null)
+  )
 
   return (
     <div className="overflow-x-auto">
@@ -249,7 +271,7 @@ export function WishlistCompareTable({
                   </div>
 
                   {/* Location */}
-                  {camp.locationName && (
+                  {campLocation(camp) && (
                     <div className="flex items-center gap-1 text-sm text-gray-500 mb-1.5">
                       <svg
                         className="w-3.5 h-3.5 shrink-0"
@@ -261,29 +283,43 @@ export function WishlistCompareTable({
                         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                         <circle cx="12" cy="10" r="3" />
                       </svg>
-                      {camp.locationName}
+                      {campLocation(camp)}
                     </div>
                   )}
 
-                  {/* Rating + type */}
-                  <div className="flex items-center gap-2 text-sm text-gray-400 flex-wrap">
-                    {(() => {
-                      const gbp = (camp as any)?.provider?.googleBusinessProfile
-                      return gbp?.rating ? (
-                        <span className="flex items-center gap-1 text-slate-800 font-medium">
-                          <StarRating rating={gbp.rating} />
-                          {gbp.rating}
-                          {gbp.reviewsCount ? ` (${gbp.reviewsCount})` : ''}
-                        </span>
-                      ) : null
-                    })()}
-                    {camp.type && (
-                      <>
-                        {(camp as any)?.provider?.googleBusinessProfile?.rating && <span>•</span>}
-                        <span>{camp.type}</span>
-                      </>
-                    )}
-                  </div>
+                  {/* Rating (app + Google) + type */}
+                  {(() => {
+                    const app = appRating(camp)
+                    const gbp = camp.provider?.googleBusinessProfile
+                    const hasGoogle = gbp?.rating != null
+                    return (
+                      <div className="flex items-center gap-2 text-sm text-gray-400 flex-wrap">
+                        {app && (
+                          <span className="flex items-center gap-1 text-slate-800 font-medium">
+                            <StarRating rating={app.rating} />
+                            {app.rating}
+                            {app.count ? ` (${app.count})` : ''}
+                          </span>
+                        )}
+                        {hasGoogle && (
+                          <>
+                            {app && <span>•</span>}
+                            <span className="flex items-center gap-1 text-slate-800 font-medium">
+                              <FcGoogle className="w-3.5 h-3.5" aria-label="Google" />
+                              {gbp!.rating}
+                              {gbp!.reviewsCount ? ` (${gbp!.reviewsCount})` : ''}
+                            </span>
+                          </>
+                        )}
+                        {camp.type && (
+                          <>
+                            {(app || hasGoogle) && <span>•</span>}
+                            <span>{camp.type}</span>
+                          </>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </>
               ) : (
                 <EmptySlot />
@@ -293,7 +329,7 @@ export function WishlistCompareTable({
         </div>
 
         {/* ── Key Facts ─────────────────────────────────────────────────── */}
-        <SectionHeader label="Key Facts" />
+        <SectionHeader label="Key Facts" count={visibleCount} />
 
         <DataRow
           label="Founded"
@@ -330,7 +366,7 @@ export function WishlistCompareTable({
                     key={lang}
                     className="px-2.5 py-1 bg-gray-100 text-slate-800 rounded-md text-xs font-medium capitalize"
                   >
-                    {lang}
+                    {getLanguageName(lang)}
                   </span>
                 ))}
               </div>
@@ -355,7 +391,7 @@ export function WishlistCompareTable({
         {/* ── Accommodation ─────────────────────────────────────────────── */}
         {hasAnyAccommodation && (
           <>
-            <SectionHeader label="Accommodation" />
+            <SectionHeader label="Accommodation" count={visibleCount} />
             <DataRow
               label="Rooms"
               values={paddedSlots.map(camp => {
@@ -378,7 +414,7 @@ export function WishlistCompareTable({
         {/* ── Meals ─────────────────────────────────────────────────────── */}
         {hasAnyMeals && (
           <>
-            <SectionHeader label="Meals" />
+            <SectionHeader label="Meals" count={visibleCount} />
             <DataRow
               label="Meals"
               values={paddedSlots.map(camp => {
@@ -420,7 +456,7 @@ export function WishlistCompareTable({
         {/* ── What's Included ───────────────────────────────────────────── */}
         {hasAnyIncluded && (
           <>
-            <SectionHeader label="What's Included" />
+            <SectionHeader label="What's Included" count={visibleCount} />
             <DataRow
               label="Included"
               values={paddedSlots.map(camp => {
@@ -449,7 +485,7 @@ export function WishlistCompareTable({
         {/* ── Daily Schedule ────────────────────────────────────────────── */}
         {hasAnySchedule && (
           <>
-            <SectionHeader label="Daily Schedule" />
+            <SectionHeader label="Daily Schedule" count={visibleCount} />
             <DataRow
               label="Typical day"
               values={paddedSlots.map(camp => {
@@ -479,7 +515,7 @@ export function WishlistCompareTable({
         {/* ── Activities ────────────────────────────────────────────────── */}
         {hasAnyActivities && (
           <>
-            <SectionHeader label="Activities" />
+            <SectionHeader label="Activities" count={visibleCount} />
             <DataRow
               label="Main activities"
               values={paddedSlots.map(camp => {
@@ -493,24 +529,36 @@ export function WishlistCompareTable({
         {/* ── Reviews ───────────────────────────────────────────────────── */}
         {hasAnyReviews && (
           <>
-            <SectionHeader label="Reviews" />
+            <SectionHeader label="Reviews" count={visibleCount} />
             <DataRow
               label="Rating"
               values={paddedSlots.map(camp => {
                 if (!camp) return null
-                const gbp = (camp as any)?.provider?.googleBusinessProfile
-                if (!gbp?.rating) return null
+                const app = appRating(camp)
+                const gbp = camp.provider?.googleBusinessProfile
+                const hasGoogle = gbp?.rating != null
+                if (!app && !hasGoogle) return null
                 return (
-                  <div key={camp.id} className="p-3 bg-gray-50 rounded-xl">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <StarRating rating={gbp.rating} />
-                      <span className="text-sm font-semibold text-slate-800">{gbp.rating}</span>
-                      {gbp.reviewsCount && (
-                        <span className="text-xs text-gray-500">({gbp.reviewsCount} reviews)</span>
-                      )}
-                    </div>
-                    {gbp.businessName && (
-                      <div className="text-xs text-gray-500">{gbp.businessName}</div>
+                  <div key={camp.id} className="p-3 bg-gray-50 rounded-xl space-y-1.5">
+                    {/* App reviews */}
+                    {app && (
+                      <div className="flex items-center gap-1.5">
+                        <StarRating rating={app.rating} />
+                        <span className="text-sm font-semibold text-slate-800">{app.rating}</span>
+                        <span className="text-xs text-gray-500">({app.count} reviews)</span>
+                      </div>
+                    )}
+                    {/* Google reviews */}
+                    {hasGoogle && (
+                      <div className="flex items-center gap-1.5">
+                        <FcGoogle className="w-4 h-4" aria-label="Google" />
+                        <span className="text-sm font-semibold text-slate-800">{gbp!.rating}</span>
+                        {gbp!.reviewsCount != null && (
+                          <span className="text-xs text-gray-500">
+                            ({gbp!.reviewsCount} reviews)
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 )
@@ -520,7 +568,7 @@ export function WishlistCompareTable({
         )}
 
         {/* ── Actions ───────────────────────────────────────────────────── */}
-        <SectionHeader label="Actions" />
+        <SectionHeader label="Actions" count={visibleCount} />
         <div className="table-row">
           <div className="table-cell py-3.5 px-4 bg-gray-50 border-b border-gray-100 align-middle" />
           {paddedSlots.map((camp, i) => (

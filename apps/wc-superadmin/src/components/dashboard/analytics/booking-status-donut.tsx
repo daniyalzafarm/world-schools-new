@@ -4,18 +4,22 @@ import { ChartCard } from '../shared/chart-card'
 import { DonutChart } from '../charts/donut-chart'
 import { CHART_COLORS, formatStatusLabel, STATUS_COLOR_MAP } from '@/lib/chart-theme'
 import { useAnalyticsStore } from '@/stores/analytics-store'
+import { useCurrencyFormat } from '@/hooks/use-currency-format'
 
 export function BookingStatusDonut() {
   const data = useAnalyticsStore(s => s.bookingStatus)
   const loading = useAnalyticsStore(s => s.loading.bookingStatus)
   const error = useAnalyticsStore(s => s.errors.bookingStatus)
   const fetchWidget = useAnalyticsStore(s => s.fetchWidget)
+  const currency = useAnalyticsStore(s => s.currency)
+  const fmtMoney = useCurrencyFormat(currency)
 
   const slices =
     data?.slices.map(s => ({
       name: formatStatusLabel(s.status),
       value: s.count,
       color: STATUS_COLOR_MAP[s.status] ?? CHART_COLORS.gray,
+      gmvLabel: fmtMoney(s.amount),
     })) ?? []
 
   return (

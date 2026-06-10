@@ -10,7 +10,7 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@heroui/react'
-import { Input, PhoneInput } from '@world-schools/ui-web'
+import { getCountryCode, Input, PhoneInput } from '@world-schools/ui-web'
 import { onboardingService } from '@/services/onboarding.services'
 import type { GoogleBusinessProfile } from '@/types/onboarding'
 
@@ -54,7 +54,7 @@ export const CompanyContactModal: React.FC<CompanyContactModalProps> = ({
         legalCity: profile.legalInfo?.legalCity ?? '',
         legalStateProvince: profile.legalInfo?.legalStateProvince ?? '',
         legalPostalCode: profile.legalInfo?.legalPostalCode ?? '',
-        legalCountry: profile.legalInfo?.legalCountry ?? '',
+        legalCountry: getCountryCode(profile.legalInfo?.legalCountry),
         providerPhone: providerPhone.trim() || undefined,
         providerEmail: providerEmail.trim() || undefined,
         currency: profile.legalInfo?.currency ?? '',

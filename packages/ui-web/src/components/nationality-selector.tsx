@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Modal, ModalBody, ModalContent, ModalHeader } from '@heroui/react'
 import { Input } from './input'
 import { Search, X } from 'lucide-react'
-import { COUNTRIES, getCountryFlag } from '../constants/countries'
+import { COUNTRIES_DATA, getCountryFlag, getCountryName } from '../constants/countries'
 import { cn } from '../utils/cn'
 
 interface NationalitySelectorProps {
@@ -29,9 +29,11 @@ export function NationalitySelector({
   // Filter countries based on search query
   const filteredCountries = useMemo(() => {
     if (searchQuery.trim() === '') {
-      return COUNTRIES
+      return COUNTRIES_DATA
     }
-    return COUNTRIES.filter(country => country.toLowerCase().includes(searchQuery.toLowerCase()))
+    return COUNTRIES_DATA.filter(country =>
+      country.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
   }, [searchQuery])
 
   // Handle nationality selection
@@ -93,7 +95,7 @@ export function NationalitySelector({
             {value ? (
               <div className="flex items-center space-x-2">
                 <span className="text-lg">{getCountryFlag(value)}</span>
-                <span>{value}</span>
+                <span>{getCountryName(value)}</span>
               </div>
             ) : (
               placeholder
@@ -166,15 +168,15 @@ export function NationalitySelector({
                 <div className="pb-4">
                   {filteredCountries.map(country => (
                     <Button
-                      key={country}
+                      key={country.code}
                       variant="light"
-                      onPress={() => handleSelectNationality(country)}
+                      onPress={() => handleSelectNationality(country.code)}
                       className="w-full justify-start h-auto py-3 px-6 rounded-none hover:bg-gray-100 dark:hover:bg-gray-800"
                     >
                       <div className="flex items-center space-x-3">
-                        <span className="text-2xl">{getCountryFlag(country)}</span>
+                        <span className="text-2xl">{country.flag}</span>
                         <span className="text-left font-medium text-gray-900 dark:text-gray-100">
-                          {country}
+                          {country.name}
                         </span>
                       </div>
                     </Button>

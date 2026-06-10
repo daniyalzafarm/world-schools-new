@@ -20,7 +20,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
-import { cn, useConfirmDialog, UserAvatar } from '@world-schools/ui-web'
+import { cn, getCountryName, useConfirmDialog, UserAvatar } from '@world-schools/ui-web'
 import { profileService, type UserProfile } from '@/services/profile.services'
 import { useAuth } from '@/hooks/use-auth'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -157,7 +157,7 @@ export default function AccountHubPage() {
 
   const getLocation = () => {
     const city = profileData?.city
-    const country = profileData?.country
+    const country = getCountryName(profileData?.country)
     if (!city && !country) return 'Location not set'
     if (city && country) return `${city}, ${country}`
     return city || country || 'Location not set'

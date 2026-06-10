@@ -2,6 +2,7 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsObject,
   IsOptional,
   IsString,
@@ -10,6 +11,7 @@ import {
   ValidateNested,
 } from 'class-validator'
 import { Type } from 'class-transformer'
+import { LANGUAGE_CODES } from '@world-schools/wc-types'
 
 export class UpdateBasicInfoDto {
   @IsOptional()
@@ -60,6 +62,8 @@ export class UpdateBasicInfoDto {
 
   @IsOptional()
   @IsArray()
+  @IsString({ each: true })
+  @IsIn(LANGUAGE_CODES, { each: true })
   languages?: string[]
 
   @IsOptional()

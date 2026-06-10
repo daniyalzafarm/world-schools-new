@@ -3,14 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Radio, RadioGroup } from '@heroui/react'
-import { Textarea } from '@world-schools/ui-web'
+import { getLanguageCode, LanguageSelect, Textarea } from '@world-schools/ui-web'
 import { useCampsStore } from '../../../../../stores/camps-store'
 import { useAutosave } from '../../../../../hooks/useAutosave'
-import { ActivityGrid } from '../../../../../components/camp-editor/ActivityGrid'
-import { CustomActivityInput } from '../../../../../components/camp-editor/CustomActivityInput'
 import {
   LANGUAGE_PROFICIENCY_LEVELS,
-  PREDEFINED_LANGUAGES,
   TEACHING_METHODS,
 } from '../../../../../constants/languages-activities'
 
@@ -76,30 +73,22 @@ export default function LanguagesEditorPage() {
     setLanguagesData(updated)
   }
 
-  const toggleLanguage = (languageId: string) => {
-    const updated = {
-      ...languagesData,
-      selectedLanguages: languagesData.selectedLanguages.includes(languageId)
-        ? languagesData.selectedLanguages.filter(id => id !== languageId)
-        : [...languagesData.selectedLanguages, languageId],
-    }
-    setLanguagesData(updated)
-  }
+  // Known languages resolve to canonical ISO codes; anything unresolvable is a
+  // custom free-text language. Keep the two stored arrays so the data shape and
+  // downstream consumers are unchanged.
+  const selectedLanguageValues = [
+    ...languagesData.selectedLanguages.map(lang => getLanguageCode(lang) || lang),
+    ...languagesData.customLanguages,
+  ]
 
-  const addCustomLanguage = (languageName: string) => {
-    const updated = {
+  const handleLanguagesChange = (values: string[]) => {
+    setLanguagesData({
       ...languagesData,
-      customLanguages: [...languagesData.customLanguages, languageName],
-    }
-    setLanguagesData(updated)
-  }
-
-  const removeCustomLanguage = (index: number) => {
-    const updated = {
-      ...languagesData,
-      customLanguages: languagesData.customLanguages.filter((_, i) => i !== index),
-    }
-    setLanguagesData(updated)
+      selectedLanguages: values
+        .filter(value => getLanguageCode(value))
+        .map(value => getLanguageCode(value)),
+      customLanguages: values.filter(value => !getLanguageCode(value)),
+    })
   }
 
   return (
@@ -202,48 +191,20 @@ export default function LanguagesEditorPage() {
             <div>
               <label className="text-sm font-medium text-foreground">Languages Offered</label>
               <p className="mt-1 text-sm leading-normal text-default-500">
-                Select all languages taught at your camp
+                Select all languages taught at your camp — type to add a custom language
               </p>
             </div>
             <span className="rounded-full bg-default-100 px-3 py-1 text-xs font-medium text-default-700">
-              {languagesData.selectedLanguages.length} selected
+              {selectedLanguageValues.length} selected
             </span>
           </div>
 
-          <ActivityGrid
-            activities={PREDEFINED_LANGUAGES}
-            selectedActivities={languagesData.selectedLanguages}
-            onToggle={toggleLanguage}
+          <LanguageSelect
+            allowCustom
+            value={selectedLanguageValues}
+            onChange={handleLanguagesChange}
+            placeholder="Add language (or type a custom one)"
           />
-
-          {/* Custom Languages */}
-          {languagesData.customLanguages.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {languagesData.customLanguages.map((language, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 rounded-lg border-2 border-primary bg-primary/5 px-3 py-2"
-                >
-                  <span className="text-sm font-medium">{language}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeCustomLanguage(index)}
-                    className="text-default-500 hover:text-danger"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-3">
-            <CustomActivityInput
-              placeholder="e.g., Hindi, Turkish..."
-              onAdd={addCustomLanguage}
-              buttonText="Add Language"
-            />
-          </div>
         </div>
       </div>
     </div>

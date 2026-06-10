@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation'
 import type { WishlistItem } from '@/types/wishlists'
 import { useWishlistsStore } from '@/stores/wishlists-store'
 import { Button } from '@heroui/react'
-import { Calendar, ChartNoAxesColumn, MessageCircle } from 'lucide-react'
 import { formatCurrency, getCampCurrency } from '@/utils/currency'
+import { formatRating, formatReviewCount } from '@/utils/rating-format'
 import { StarRating } from '@world-schools/ui-web'
+import { FcGoogle } from 'react-icons/fc'
 
 interface WishlistCampCardProps {
   item: WishlistItem
@@ -41,8 +42,36 @@ export function WishlistCampCard({ item, readOnly = false, id }: WishlistCampCar
   }
   const priceLabel = minPrice !== undefined ? formatCurrency(minPrice, currency) : null
 
-  const rating = (camp?.totalReviews ?? 0) > 0 ? (camp?.overallRating ?? null) : null
-  const reviewsCount = camp?.totalReviews ?? 0
+  // Google Business Profile: location + reviews.
+  const gbp = camp?.provider?.googleBusinessProfile
+  const locationLabel =
+    [gbp?.city, gbp?.country].filter(Boolean).join(', ') || camp?.locationName || null
+
+  // App (system) reviews computed from the internal CampReview table.
+  const systemReviewsCount = camp?.totalReviews ?? 0
+  const hasSystemReviews = systemReviewsCount > 0
+  const systemRating = hasSystemReviews ? (camp?.overallRating ?? null) : null
+
+  const googleRating = gbp?.rating != null ? Number(gbp.rating) : null
+  const googleReviewsCount = gbp?.reviewsCount ?? 0
+  const hasGoogleReviews = googleReviewsCount > 0
+  const googleReviewsUrl = gbp?.placeId
+    ? `https://search.google.com/local/reviews?placeid=${gbp.placeId}`
+    : null
+
+  const googleRatingContent = (
+    <>
+      <FcGoogle size={14} aria-label="Google" />
+      {hasGoogleReviews && googleRating != null ? (
+        <>
+          <span className="font-semibold text-gray-900">{formatRating(googleRating)}</span>
+          <span className="text-gray-400">({formatReviewCount(googleReviewsCount)})</span>
+        </>
+      ) : (
+        <span className="text-gray-400">(0 reviews)</span>
+      )}
+    </>
+  )
 
   function prevSlide(e: React.MouseEvent) {
     e.stopPropagation()
@@ -66,10 +95,10 @@ export function WishlistCampCard({ item, readOnly = false, id }: WishlistCampCar
   return (
     <article
       id={id}
-      className={`relative bg-white border rounded-2xl overflow-hidden transition-all duration-200 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] ${
+      className={`relative bg-white border rounded-2xl overflow-hidden transition-all duration-200 ${
         isCompareSelected
           ? 'border-slate-800 shadow-[0_0_0_2px_#1E2A4A]'
-          : 'border-gray-100 hover:border-gray-200'
+          : 'border-gray-100 hover:border-gray-200 hover:shadow-[0_0_0_2px_#1E2A4A'
       }`}
     >
       {/* Compare checkmark overlay */}
@@ -196,21 +225,51 @@ export function WishlistCampCard({ item, readOnly = false, id }: WishlistCampCar
         </div>
 
         {/* Location */}
-        {camp?.locationName && (
-          <p className="text-sm text-gray-500 mb-1 truncate" title={camp.locationName}>
-            {camp.locationName}
+        {locationLabel && (
+          <p className="text-sm text-gray-500 mb-1 truncate" title={locationLabel}>
+            {locationLabel}
           </p>
         )}
 
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex justify-between items-center mb-2">
           {/* Price */}
-          {priceLabel && <p className="text-sm font-semibold text-gray-900">{priceLabel}</p>}
-          {/* Rating */}
-          {rating != null && (
-            <div className="flex items-center gap-1.5">
-              <StarRating rating={1} maxRating={1} color="primary" showRating={false} size={13} />
-              <span className="text-xs font-medium text-gray-700">{rating.toFixed(1)}</span>
-              {reviewsCount > 0 && <span className="text-xs text-gray-400">({reviewsCount})</span>}
+          <span className="text-sm font-semibold text-gray-900">
+            {priceLabel ? <p>{priceLabel}</p> : <p>No Sessions</p>}
+          </span>
+          {/* Ratings: app + Google, matching the camp profile page */}
+          {camp?.provider && (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-600">
+              {/* App reviews */}
+              <span className="flex items-center gap-1">
+                <StarRating rating={1} maxRating={1} color="primary" showRating={false} size={13} />
+                {hasSystemReviews && systemRating != null ? (
+                  <>
+                    <span className="font-semibold text-gray-900">
+                      {formatRating(systemRating)}
+                    </span>
+                    <span className="text-gray-400">({formatReviewCount(systemReviewsCount)})</span>
+                  </>
+                ) : (
+                  <span className="text-gray-400">(0 reviews)</span>
+                )}
+              </span>
+
+              <span className="text-gray-300">·</span>
+
+              {/* Google reviews */}
+              {googleReviewsUrl ? (
+                <a
+                  href={googleReviewsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="flex items-center gap-1 hover:text-gray-900"
+                >
+                  {googleRatingContent}
+                </a>
+              ) : (
+                <span className="flex items-center gap-1">{googleRatingContent}</span>
+              )}
             </div>
           )}
         </div>
@@ -227,7 +286,11 @@ export function WishlistCampCard({ item, readOnly = false, id }: WishlistCampCar
             >
               Message
             </Button>
-            <Button variant="bordered" onPress={() => toggleCompare(item.campId)}>
+            <Button
+              variant={isCompareSelected ? 'solid' : 'bordered'}
+              color={isCompareSelected ? 'secondary' : 'default'}
+              onPress={() => toggleCompare(item.campId)}
+            >
               Compare
             </Button>
           </div>

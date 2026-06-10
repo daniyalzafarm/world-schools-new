@@ -262,24 +262,6 @@ export const CAMP_SIZE_OPTIONS = [
   { id: 'large', label: 'Large & vibrant', description: '150+ campers' },
 ] as const
 
-// Language Options with Flag Emojis
-export const LANGUAGE_OPTIONS_WITH_FLAGS = [
-  { id: 'english', label: 'English', flag: '🇬🇧' },
-  { id: 'spanish', label: 'Spanish', flag: '🇪🇸' },
-  { id: 'french', label: 'French', flag: '🇫🇷' },
-  { id: 'german', label: 'German', flag: '🇩🇪' },
-  { id: 'italian', label: 'Italian', flag: '🇮🇹' },
-  { id: 'portuguese', label: 'Portuguese', flag: '🇵🇹' },
-  { id: 'dutch', label: 'Dutch', flag: '🇳🇱' },
-  { id: 'russian', label: 'Russian', flag: '🇷🇺' },
-  { id: 'chinese', label: 'Chinese', flag: '🇨🇳' },
-  { id: 'japanese', label: 'Japanese', flag: '🇯🇵' },
-  { id: 'arabic', label: 'Arabic', flag: '🇸🇦' },
-  { id: 'hindi', label: 'Hindi', flag: '🇮🇳' },
-  { id: 'polish', label: 'Polish', flag: '🇵🇱' },
-  { id: 'swedish', label: 'Swedish', flag: '🇸🇪' },
-] as const
-
 // ============================================
 // Helper Functions
 // ============================================

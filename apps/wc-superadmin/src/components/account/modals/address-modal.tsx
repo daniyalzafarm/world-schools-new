@@ -9,10 +9,8 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
-  Select,
-  SelectItem,
 } from '@heroui/react'
-import { COUNTRIES, Input } from '@world-schools/ui-web'
+import { CountrySelect, getCountryCode, Input } from '@world-schools/ui-web'
 import { profileService } from '@/services/profile.services'
 
 interface AddressModalProps {
@@ -45,7 +43,7 @@ export const AddressModal: React.FC<AddressModalProps> = ({
       setAddress(currentAddress?.address || '')
       setCity(currentAddress?.city || '')
       setPostalCode(currentAddress?.postalCode || '')
-      setCountry(currentAddress?.country || '')
+      setCountry(getCountryCode(currentAddress?.country))
       setError(null)
     }
   }, [isOpen, currentAddress])
@@ -156,23 +154,17 @@ export const AddressModal: React.FC<AddressModalProps> = ({
             />
           </div>
 
-          <Select
+          <CountrySelect
             label="Country"
-            labelPlacement="outside"
             placeholder="Select country"
-            selectedKeys={country ? [country] : []}
-            onSelectionChange={keys => {
-              const selected = Array.from(keys)[0] as string
-              setCountry(selected)
+            isRequired
+            value={country}
+            onChange={value => {
+              setCountry(value)
               if (error) setError(null)
             }}
-            isRequired
             isDisabled={isSaving}
-          >
-            {COUNTRIES.map(countryName => (
-              <SelectItem key={countryName}>{countryName}</SelectItem>
-            ))}
-          </Select>
+          />
         </ModalBody>
         <ModalFooter>
           <Button variant="light" onPress={handleClose} isDisabled={isSaving}>

@@ -4,12 +4,14 @@ import {
   IsArray,
   IsDateString,
   IsEnum,
+  IsIn,
   IsOptional,
   IsString,
   Length,
   ValidateNested,
 } from 'class-validator'
 import { ChildGender } from '../../../../generated/client/client'
+import { LANGUAGE_CODES } from '@world-schools/wc-types'
 import { CampPreferencesDto } from './camp-preferences.dto'
 import { EmergencyContactDto } from './emergency-contact.dto'
 import { MedicalInfoDto } from './medical-info.dto'
@@ -65,12 +67,13 @@ export class UpdateChildDto {
   schoolCountry?: string
 
   @ApiProperty({
-    description: 'Languages spoken by the child',
-    example: ['English', 'Spanish'],
+    description: 'Languages spoken by the child (ISO 639-1 codes)',
+    example: ['en', 'es'],
     required: false,
   })
   @IsArray()
   @IsString({ each: true })
+  @IsIn(LANGUAGE_CODES, { each: true })
   @IsOptional()
   languages?: string[]
 

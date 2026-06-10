@@ -12,7 +12,7 @@ import {
   ScrollShadow,
 } from '@heroui/react'
 import { Star } from 'lucide-react'
-import { getInitials, StarRating } from '@world-schools/ui-web'
+import { getCountryName, getInitials, StarRating } from '@world-schools/ui-web'
 import { REVIEW_TAG_CONFIG } from '@world-schools/wc-types'
 import type { CampReviewCategoryScores, PublicCampReview } from '@/types/reviews'
 import { ExpandableText } from '@/components/camp/ExpandableText'
@@ -93,7 +93,7 @@ function ReviewCard({ review }: { review: PublicCampReview }) {
   const { reviewer } = review
   const initials = getInitials(`${reviewer.firstName} ${reviewer.lastName}`)
   const gradient = getAvatarGradient(review.id)
-  const locationParts = [reviewer.city, reviewer.country].filter(Boolean)
+  const locationParts = [reviewer.city, getCountryName(reviewer.country)].filter(Boolean)
   const location = locationParts.join(', ')
   const displayName = [
     reviewer.firstName,

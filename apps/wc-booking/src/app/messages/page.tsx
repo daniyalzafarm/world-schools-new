@@ -651,7 +651,7 @@ export default function MessagesPage() {
                 Cancel
               </Button>
               <Button
-                color="danger"
+                className="bg-[#1E2A4A] text-white"
                 onPress={handleSubmitReport}
                 isLoading={isSubmittingReport}
                 disabled={selectedReasons.length === 0}

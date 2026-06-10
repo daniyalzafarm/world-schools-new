@@ -5,8 +5,28 @@ export * from './components'
 export * from './hooks'
 
 // Export constants
-export { COUNTRIES, COUNTRIES_DATA, getCountryByName, getCountryFlag } from './constants/countries'
-export type { Country } from './constants/countries'
+export {
+  COUNTRIES,
+  COUNTRIES_DATA,
+  COUNTRY_OPTIONS,
+  getCountryByCode,
+  getCountryByName,
+  getCountryCode,
+  getCountryName,
+  getCountryFlag,
+  getCountryDemonym,
+  NATIONALITY_OPTIONS,
+} from './constants/countries'
+export type { Country, CountryData } from './constants/countries'
+export {
+  LANGUAGES_DATA,
+  LANGUAGE_OPTIONS,
+  getLanguageByCode,
+  getLanguageName,
+  getLanguageFlag,
+  getLanguageCode,
+} from './constants/languages'
+export type { LanguageData } from './constants/languages'
 
 // Export utilities
 export * from './utils'

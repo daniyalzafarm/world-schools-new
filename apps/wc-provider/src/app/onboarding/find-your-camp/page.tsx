@@ -11,7 +11,7 @@ import {
   Chip,
   Spinner,
 } from '@heroui/react'
-import { Input, PhoneInput } from '@world-schools/ui-web'
+import { CountrySelect, getCountryCode, Input, PhoneInput } from '@world-schools/ui-web'
 import { Controller, useForm } from 'react-hook-form'
 import { isValidPhoneNumber, parsePhoneNumber } from 'react-phone-number-input'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
@@ -190,7 +190,7 @@ export default function OnboardingStep1Page() {
         legalCity: legalInfo.legalCity || '',
         legalStateProvince: legalInfo.legalStateProvince || '',
         legalPostalCode: legalInfo.legalPostalCode || '',
-        legalCountry: legalInfo.legalCountry || '',
+        legalCountry: getCountryCode(legalInfo.legalCountry) || '',
         yearFounded: legalInfo.yearFounded ?? undefined,
         providerPhone: legalInfo.providerPhone || '',
         providerEmail: legalInfo.providerEmail || '',
@@ -264,7 +264,7 @@ export default function OnboardingStep1Page() {
         legalCity: selectedBusiness.city || '',
         legalStateProvince: selectedBusiness.state || '',
         legalPostalCode: selectedBusiness.postalCode || '',
-        legalCountry: selectedBusiness.country || '',
+        legalCountry: getCountryCode(selectedBusiness.country) || '',
         yearFounded: undefined, // Not available from Google Places - clear it
         providerPhone: formattedPhone,
         providerEmail: '', // Not available from Google Places - clear it
@@ -967,20 +967,18 @@ export default function OnboardingStep1Page() {
                   control={control}
                   rules={{ required: 'Country is required' }}
                   render={({ field }) => (
-                    <Input
+                    <CountrySelect
                       label="Country"
-                      placeholder="United States"
+                      placeholder="Select country"
                       value={field.value || ''}
-                      onChange={e => field.onChange(e.target.value)}
+                      onChange={field.onChange}
                       isDisabled={isReadOnly}
                       isRequired
                       isInvalid={!!errors.legalCountry}
                       errorMessage={errors.legalCountry?.message}
-                      classNames={{
-                        inputWrapper: hasFieldChanged('legalCountry')
-                          ? 'border-2 border-warning'
-                          : '',
-                      }}
+                      inputWrapperClassName={
+                        hasFieldChanged('legalCountry') ? 'border-2 border-warning' : undefined
+                      }
                     />
                   )}
                 />

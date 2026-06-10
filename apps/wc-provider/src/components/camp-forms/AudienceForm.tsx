@@ -2,20 +2,9 @@
 
 import React, { useMemo } from 'react'
 import { Button } from '@heroui/react'
-import { Input, LanguageChip, RadioButton } from '@world-schools/ui-web'
+import { getLanguageCode, Input, LanguageSelect, RadioButton } from '@world-schools/ui-web'
 import { Trash2 } from 'lucide-react'
 import type { AgeGroup, Gender } from '../../types/camps'
-
-const LANGUAGE_OPTIONS = [
-  { value: 'english', label: 'English' },
-  { value: 'french', label: 'French' },
-  { value: 'german', label: 'German' },
-  { value: 'spanish', label: 'Spanish' },
-  { value: 'italian', label: 'Italian' },
-  { value: 'portuguese', label: 'Portuguese' },
-  { value: 'dutch', label: 'Dutch' },
-  { value: 'chinese', label: 'Chinese' },
-]
 
 export interface AudienceFormData {
   ageGroups: AgeGroup[]
@@ -172,13 +161,6 @@ export const AudienceForm: React.FC<AudienceFormProps> = ({
     onChange({ ageGroups: newAgeGroups })
   }
 
-  const toggleLanguage = (value: string) => {
-    const newLanguages = formData.languages.includes(value)
-      ? formData.languages.filter(lang => lang !== value)
-      : [...formData.languages, value]
-    onChange({ languages: newLanguages })
-  }
-
   return (
     <div className="flex flex-col gap-4">
       {editContext ? (
@@ -279,17 +261,11 @@ export const AudienceForm: React.FC<AudienceFormProps> = ({
         <div className="mb-2 text-sm leading-normal text-default-500">
           Select all languages used for activities and communication
         </div>
-        <div className="flex flex-wrap gap-2">
-          {LANGUAGE_OPTIONS.map(lang => (
-            <LanguageChip
-              key={lang.value}
-              label={lang.label}
-              value={lang.value}
-              selected={formData.languages.includes(lang.value)}
-              onClick={() => toggleLanguage(lang.value)}
-            />
-          ))}
-        </div>
+        <LanguageSelect
+          value={formData.languages.map(lang => getLanguageCode(lang) || lang)}
+          onChange={languages => onChange({ languages })}
+          placeholder="Add language"
+        />
       </div>
 
       {/* Gender */}

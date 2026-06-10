@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
 import { IsArray, IsIn, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator'
+import { LANGUAGE_CODES } from '@world-schools/wc-types'
 
 class LocationPreferencesDto {
   @ApiProperty({
@@ -133,12 +134,13 @@ export class CampPreferencesDto {
   preferredDuration?: string[]
 
   @ApiProperty({
-    description: 'Languages spoken by the child',
-    example: ['English', 'Spanish'],
+    description: 'Languages spoken by the child (ISO 639-1 codes)',
+    example: ['en', 'es'],
     required: false,
   })
   @IsArray()
   @IsString({ each: true })
+  @IsIn(LANGUAGE_CODES, { each: true })
   @IsOptional()
   languagesSpoken?: string[]
 

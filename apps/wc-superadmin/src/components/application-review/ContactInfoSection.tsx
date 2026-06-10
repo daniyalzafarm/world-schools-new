@@ -1,6 +1,7 @@
 'use client'
 
 import { EMOJI } from '@world-schools/wc-frontend-utils'
+import { getCountryName } from '@world-schools/ui-web'
 import type { ApplicationDetail } from '../../types/application-review'
 
 interface ContactInfoSectionProps {
@@ -93,7 +94,7 @@ export function ContactInfoSection({ application }: ContactInfoSectionProps) {
             <div className="text-sm text-default-600">Business Address</div>
             <div className="text-foreground">
               {application.legalStreetAddress
-                ? `${application.legalStreetAddress}${application.legalAptSuite ? `, ${application.legalAptSuite}` : ''}, ${application.legalCity}, ${application.legalStateProvince} ${application.legalPostalCode}, ${application.legalCountry}`
+                ? `${application.legalStreetAddress}${application.legalAptSuite ? `, ${application.legalAptSuite}` : ''}, ${application.legalCity}, ${application.legalStateProvince} ${application.legalPostalCode}, ${getCountryName(application.legalCountry)}`
                 : 'N/A'}
             </div>
           </div>

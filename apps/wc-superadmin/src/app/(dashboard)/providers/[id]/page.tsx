@@ -31,7 +31,7 @@ import {
   Star,
   Upload,
 } from 'lucide-react'
-import { getInitials } from '@world-schools/ui-web'
+import { getCountryName, getInitials } from '@world-schools/ui-web'
 import { campsService } from '@/services/camps.services'
 import * as adminSettingsService from '@/services/admin-settings.services'
 import { AppFeeModal } from '@/components/providers/app-fee-modal'
@@ -156,7 +156,11 @@ export default function ProviderDetailPage() {
     )
   }
 
-  const location = [detail.legalCity, detail.legalStateProvince, detail.legalCountry]
+  const location = [
+    detail.legalCity,
+    detail.legalStateProvince,
+    getCountryName(detail.legalCountry),
+  ]
     .filter(Boolean)
     .join(', ')
 
@@ -386,7 +390,7 @@ function ContactInfoCard({ detail }: { detail: ProviderDetail }) {
     detail.legalCity,
     detail.legalStateProvince,
     detail.legalPostalCode,
-    detail.legalCountry,
+    getCountryName(detail.legalCountry),
   ]
     .filter(Boolean)
     .join(', ')

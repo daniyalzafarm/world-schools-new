@@ -259,6 +259,7 @@ export default function GettingThereEditorPage() {
                     <div className="border-t border-default-100 bg-default-50 px-4 pb-4 pt-3 space-y-3">
                       <Textarea
                         label="Description"
+                        isRequired
                         placeholder={`Describe ${transport.name.toLowerCase()} details, timings, meeting points...`}
                         value={detail.description ?? ''}
                         onChange={e =>
@@ -267,6 +268,12 @@ export default function GettingThereEditorPage() {
                         minRows={2}
                         maxLength={MAX_TRANSPORT_DESC_LENGTH}
                         showCharacterCount
+                        isInvalid={!detail.description?.trim()}
+                        errorMessage={
+                          !detail.description?.trim()
+                            ? 'Please add details for this transportation option'
+                            : undefined
+                        }
                       />
                     </div>
                   )}

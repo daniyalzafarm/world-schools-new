@@ -2027,7 +2027,7 @@ function ReviewStep({
         </p>
 
         <div className="hidden lg:block rounded-xl bg-gray-50 p-3 text-center text-xs leading-5 text-gray-500">
-          By clicking the button to request to book, you agree to the{' '}
+          By clicking the button &quot;Request to book&quot;, you agree to the{' '}
           <button
             type="button"
             onClick={() => setIsCampRulesOpen(true)}
@@ -2055,7 +2055,7 @@ function ReviewStep({
         </div>
 
         <div className="lg:hidden rounded-xl bg-gray-50 px-4 py-3 text-center text-xs leading-5 text-gray-500">
-          By clicking the button to request to book, you agree to the{' '}
+          By clicking the button &quot;Request to book&quot;, you agree to the{' '}
           <button
             type="button"
             onClick={() => setIsCampRulesOpen(true)}

@@ -1,6 +1,7 @@
 'use client'
 
 import { Tab, Tabs } from '@heroui/react'
+import { getCountryName } from '@world-schools/ui-web'
 import { useEffect, useRef, useState } from 'react'
 import { ChartCard } from '../shared/chart-card'
 import { ProgressRow } from '../shared/progress-row'
@@ -81,7 +82,7 @@ export function GeographicDistributionWidget() {
         {list.map((country, i) => (
           <ProgressRow
             key={country.code}
-            label={country.name || 'Unknown'}
+            label={getCountryName(country.code) || country.name || 'Unknown'}
             value={
               <>
                 <span className="text-default-400 mr-1.5">{country.percent}%</span>

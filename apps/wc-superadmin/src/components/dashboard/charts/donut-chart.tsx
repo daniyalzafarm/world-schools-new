@@ -7,6 +7,8 @@ interface DonutSlice {
   name: string
   value: number
   color: string
+  /** Pre-formatted secondary metric (e.g. GMV) shown in the hover tooltip. */
+  gmvLabel?: string
 }
 
 interface DonutChartProps {
@@ -15,6 +17,27 @@ interface DonutChartProps {
   centerValue?: string | number
   height?: number
   formatValue?: (value: number) => string
+}
+
+function DonutTooltip({
+  active,
+  payload,
+  formatValue,
+}: {
+  active?: boolean
+  payload?: { payload?: DonutSlice }[]
+  formatValue?: (value: number) => string
+}) {
+  if (!active || !payload?.length) return null
+  const datum = payload[0]?.payload
+  if (!datum) return null
+  return (
+    <div className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs shadow-sm dark:bg-default-50">
+      <div className="font-semibold text-foreground">{datum.name}</div>
+      <div className="text-default-600">{formatValue ? formatValue(datum.value) : datum.value}</div>
+      {datum.gmvLabel ? <div className="text-default-500">GMV: {datum.gmvLabel}</div> : null}
+    </div>
+  )
 }
 
 export function DonutChart({
@@ -45,21 +68,16 @@ export function DonutChart({
               <Cell key={i} fill={slice.color} stroke="transparent" />
             ))}
           </Pie>
-          <Tooltip
-            formatter={(value: any) => (formatValue ? formatValue(Number(value)) : value)}
-            contentStyle={{
-              borderRadius: 8,
-              border: '1px solid rgba(0,0,0,0.08)',
-              background: 'var(--background, white)',
-              fontSize: 12,
-            }}
-          />
+          <Tooltip content={<DonutTooltip formatValue={formatValue} />} />
           <Legend
             iconType="circle"
             wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-            formatter={(value, _entry, index) => {
-              const slice = slices[index]
-              const pct = total > 0 ? Math.round(((slice?.value ?? 0) / total) * 100) : 0
+            formatter={(value: string) => {
+              // Pair the percentage with the slice by NAME, not by legend index —
+              // recharts can iterate legend items in a different order than the
+              // `slices` array, which previously swapped percentages (BUG-125).
+              const slice = slices.find(s => s.name === value)
+              const pct = total > 0 && slice ? Math.round((slice.value / total) * 100) : 0
               return (
                 <span className="text-default-700 dark:text-default-200">
                   {value} <span className="text-default-400">— {pct}%</span>

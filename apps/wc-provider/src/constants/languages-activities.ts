@@ -1,21 +1,14 @@
-export const PREDEFINED_LANGUAGES = [
-  { id: 'english', name: 'English', icon: '🇬🇧' },
-  { id: 'spanish', name: 'Spanish', icon: '🇪🇸' },
-  { id: 'french', name: 'French', icon: '🇫🇷' },
-  { id: 'german', name: 'German', icon: '🇩🇪' },
-  { id: 'italian', name: 'Italian', icon: '🇮🇹' },
-  { id: 'mandarin', name: 'Mandarin', icon: '🇨🇳' },
-  { id: 'japanese', name: 'Japanese', icon: '🇯🇵' },
-  { id: 'korean', name: 'Korean', icon: '🇰🇷' },
-  { id: 'arabic', name: 'Arabic', icon: '🇸🇦' },
-  { id: 'portuguese', name: 'Portuguese', icon: '🇵🇹' },
-  { id: 'russian', name: 'Russian', icon: '🇷🇺' },
-  { id: 'dutch', name: 'Dutch', icon: '🇳🇱' },
-  { id: 'swedish', name: 'Swedish', icon: '🇸🇪' },
-  { id: 'norwegian', name: 'Norwegian', icon: '🇳🇴' },
-  { id: 'danish', name: 'Danish', icon: '🇩🇰' },
-  { id: 'polish', name: 'Polish', icon: '🇵🇱' },
-]
+import { LANGUAGES_DATA } from '@world-schools/ui-web'
+
+/**
+ * Predefined language catalog, derived from the shared language source of truth.
+ * `id` is the canonical ISO code so selections persist as codes.
+ */
+export const PREDEFINED_LANGUAGES = LANGUAGES_DATA.map(language => ({
+  id: language.code,
+  name: language.name,
+  icon: language.flag,
+}))
 
 export const LANGUAGE_PROFICIENCY_LEVELS = [
   {

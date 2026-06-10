@@ -170,6 +170,8 @@ export class UserCampsService {
                 formattedAddress: true,
                 rating: true,
                 reviewsCount: true,
+                city: true,
+                country: true,
                 phone: true,
                 website: true,
               },
@@ -252,12 +254,57 @@ export class UserCampsService {
         : null,
     }))
 
+    // Attach app review aggregates so consumers (camp profile, compare table)
+    // get the system rating in the same call.
+    const { overallRating, totalReviews } = await this.computeCampOverallRating(camp.id)
+
     return {
       ...campWithPhotos,
       locationLat: camp.locationLat != null ? Number(camp.locationLat) : null,
       locationLng: camp.locationLng != null ? Number(camp.locationLng) : null,
+      overallRating,
+      totalReviews,
       sessions: transformedSessions,
     }
+  }
+
+  /**
+   * Computes a camp's overall app rating (mean of the per-dimension averages,
+   * rounded to one decimal) and the count of published reviews. Mirrors the
+   * formula used by getCampReviews.
+   */
+  private async computeCampOverallRating(
+    campId: string
+  ): Promise<{ overallRating: number | null; totalReviews: number }> {
+    const agg = await this.prisma.campReview.aggregate({
+      where: { campId, status: 'published' },
+      _avg: {
+        happinessRating: true,
+        safetyRating: true,
+        communicationRating: true,
+        asDescribedRating: true,
+        growthRating: true,
+        valueRating: true,
+      },
+      _count: { _all: true },
+    })
+
+    const round1 = (v: number | null) => (v != null ? Math.round(v * 10) / 10 : null)
+    const dims = [
+      agg._avg.happinessRating,
+      agg._avg.safetyRating,
+      agg._avg.communicationRating,
+      agg._avg.asDescribedRating,
+      agg._avg.growthRating,
+      agg._avg.valueRating,
+    ]
+      .map(v => round1(v as unknown as number | null))
+      .filter((v): v is number => v != null)
+
+    const overallRating =
+      dims.length > 0 ? Math.round((dims.reduce((a, b) => a + b, 0) / dims.length) * 10) / 10 : null
+
+    return { overallRating, totalReviews: agg._count._all }
   }
 
   async getCampSessions(campId: string) {

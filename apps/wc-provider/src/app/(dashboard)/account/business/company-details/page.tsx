@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { addToast } from '@heroui/react'
-import { BackButton } from '@world-schools/ui-web'
+import { BackButton, getCountryName } from '@world-schools/ui-web'
 import { InfoRow } from '@/components/account/info-row'
 import { CompanyInfoModal } from '@/components/account/modals/company-info-modal'
 import { CompanyAddressModal } from '@/components/account/modals/company-address-modal'
@@ -165,7 +165,7 @@ export default function CompanyDetailsPage() {
     if (info?.legalCity) parts.push(info.legalCity)
     if (info?.legalStateProvince) parts.push(info.legalStateProvince)
     if (info?.legalPostalCode) parts.push(info.legalPostalCode)
-    if (info?.legalCountry) parts.push(info.legalCountry)
+    if (info?.legalCountry) parts.push(getCountryName(info.legalCountry))
     return parts.join(', ')
   }
 

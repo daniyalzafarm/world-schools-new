@@ -9,6 +9,11 @@ import { CHART_COLORS } from '@/lib/chart-theme'
 interface KpiCardProps {
   label: string
   value: string
+  /** Pre-formatted previous-period value, shown beneath the label (BUG-127). */
+  previousValue?: string
+  /** Prior period had no data — show a neutral "New" badge instead of a
+   *  misleading "↑ 100%" divide-by-zero trend (BUG-130). */
+  isNewPeriod?: boolean
   icon: ReactNode
   iconBgClass?: string
   iconColorClass?: string
@@ -23,6 +28,8 @@ interface KpiCardProps {
 export function KpiCard({
   label,
   value,
+  previousValue,
+  isNewPeriod = false,
   icon,
   iconBgClass = 'bg-primary-50 dark:bg-primary-900/30',
   iconColorClass = 'text-primary-600 dark:text-primary-300',
@@ -63,19 +70,26 @@ export function KpiCard({
           <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${iconBgClass}`}>
             <span className={iconColorClass}>{icon}</span>
           </div>
-          {trendPct !== undefined && (
-            <div
-              className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${trendColorClass}`}
-            >
-              {trendPct === 0 ? (
-                <Minus className="h-3 w-3" />
-              ) : trendPct > 0 ? (
-                <ArrowUpRight className="h-3 w-3" />
-              ) : (
-                <ArrowDownRight className="h-3 w-3" />
-              )}
-              {Math.abs(trendPct)}%
+          {isNewPeriod ? (
+            <div className="flex items-center gap-1 rounded-full bg-default-100 px-2 py-0.5 text-xs font-semibold text-default-500 dark:bg-default-800">
+              <Minus className="h-3 w-3" />
+              New
             </div>
+          ) : (
+            trendPct !== undefined && (
+              <div
+                className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${trendColorClass}`}
+              >
+                {trendPct === 0 ? (
+                  <Minus className="h-3 w-3" />
+                ) : trendPct > 0 ? (
+                  <ArrowUpRight className="h-3 w-3" />
+                ) : (
+                  <ArrowDownRight className="h-3 w-3" />
+                )}
+                {Math.abs(trendPct)}%
+              </div>
+            )
           )}
         </div>
         <div className="min-w-0">
@@ -92,6 +106,11 @@ export function KpiCard({
             {value}
           </div>
           <div className="mt-0.5 text-sm text-default-500">{label}</div>
+          {previousValue !== undefined && (
+            <div className="mt-0.5 text-xs text-default-400">
+              {isNewPeriod ? 'No prior-period data' : `vs ${previousValue} prior period`}
+            </div>
+          )}
         </div>
         {sparkline && sparkline.length > 1 && (
           <div className="-mx-1 min-w-0">

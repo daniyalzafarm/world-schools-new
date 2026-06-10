@@ -44,7 +44,16 @@ export interface WishlistItemCamp {
   gender: Camp['gender']
   photos: Camp['photos']
   status: string
-  provider?: { settings?: { currency?: string } | null } | null
+  provider?: {
+    settings?: { currency?: string } | null
+    googleBusinessProfile?: {
+      placeId?: string | null
+      rating?: number | null
+      reviewsCount?: number | null
+      city?: string | null
+      country?: string | null
+    } | null
+  } | null
   overallRating?: number | null
   totalReviews?: number
   sessions?: Session[]

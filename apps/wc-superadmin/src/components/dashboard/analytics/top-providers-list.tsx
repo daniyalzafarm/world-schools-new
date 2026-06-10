@@ -1,6 +1,7 @@
 'use client'
 
 import { Avatar } from '@heroui/react'
+import { getCountryName } from '@world-schools/ui-web'
 import { ChartCard } from '../shared/chart-card'
 import { RankedList, RankedListRow } from '../shared/ranked-list'
 import { useCurrencyFormat } from '@/hooks/use-currency-format'
@@ -43,7 +44,7 @@ export function TopProvidersList() {
             primary={p.name}
             secondary={
               <>
-                {[p.city, p.country].filter(Boolean).join(', ') || '—'}
+                {[p.city, getCountryName(p.country)].filter(Boolean).join(', ') || '—'}
                 <span className="mx-1.5 text-default-300">·</span>
                 {p.bookingCount} bookings
               </>

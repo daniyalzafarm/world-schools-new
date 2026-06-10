@@ -12,6 +12,7 @@ import {
   Select,
   SelectItem,
 } from '@heroui/react'
+import { getCountryCode } from '@world-schools/ui-web'
 import { onboardingService } from '@/services/onboarding.services'
 import type { GoogleBusinessProfile } from '@/types/onboarding'
 
@@ -94,7 +95,7 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         legalCity: profile.legalInfo?.legalCity ?? '',
         legalStateProvince: profile.legalInfo?.legalStateProvince ?? '',
         legalPostalCode: profile.legalInfo?.legalPostalCode ?? '',
-        legalCountry: profile.legalInfo?.legalCountry ?? '',
+        legalCountry: getCountryCode(profile.legalInfo?.legalCountry),
         providerPhone: profile.legalInfo?.providerPhone ?? undefined,
         providerEmail: profile.legalInfo?.providerEmail ?? undefined,
         currency,

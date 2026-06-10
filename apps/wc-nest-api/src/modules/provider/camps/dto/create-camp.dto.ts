@@ -1,6 +1,7 @@
 import {
   ArrayMinSize,
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -12,6 +13,7 @@ import {
   ValidateNested,
 } from 'class-validator'
 import { Type } from 'class-transformer'
+import { LANGUAGE_CODES } from '@world-schools/wc-types'
 
 export class CreateCampDto {
   @IsString()
@@ -84,6 +86,7 @@ export class UpdateCampAudienceDto {
 
   @IsNotEmpty()
   @IsString({ each: true })
+  @IsIn(LANGUAGE_CODES, { each: true })
   languages: string[]
 
   @IsEnum(['coed', 'boys', 'girls'])

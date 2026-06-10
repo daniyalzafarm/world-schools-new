@@ -29,7 +29,13 @@ import {
   providerRequestBannerVariant,
 } from '@world-schools/wc-frontend-utils'
 import type { BookingGroupStatus, ProviderBookingGroupDetail } from '@world-schools/wc-types'
-import { cn, Textarea } from '@world-schools/ui-web'
+import {
+  cn,
+  getCountryDemonym,
+  getCountryName,
+  getLanguageName,
+  Textarea,
+} from '@world-schools/ui-web'
 import { Calendar, Globe, Languages, MapPin, Star } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -58,7 +64,7 @@ function firstName(displayName: string): string {
 }
 
 function formatLocation(p: ProviderBookingGroupDetail['parent']): string | null {
-  const parts = [p.city, p.state, p.country].filter(Boolean)
+  const parts = [p.city, p.state, getCountryName(p.country)].filter(Boolean)
   return parts.length ? parts.join(', ') : null
 }
 
@@ -399,9 +405,12 @@ export function BookingRequestDrawer({
   const renderAboutSection = (d: ProviderBookingGroupDetail) => {
     const fn = firstName(d.parent.displayName)
     const loc = formatLocation(d.parent)
-    const langs = d.parent.languages?.length ? d.parent.languages.join(', ') : null
+    const langs = d.parent.languages?.length
+      ? d.parent.languages.map(getLanguageName).join(', ')
+      : null
     const nat = [d.parent.primaryNationality, d.parent.secondaryNationality]
       .filter(Boolean)
+      .map(n => getCountryDemonym(n as string))
       .join(' · ')
     const notSpecified = 'Not Specified'
 
@@ -794,7 +803,7 @@ export function BookingRequestDrawer({
                                 <div className="flex justify-between py-2 text-sm">
                                   <span className="text-gray-500">Languages</span>
                                   <span className="font-medium text-secondary-500">
-                                    {b.child.languages.join(', ')}
+                                    {b.child.languages.map(getLanguageName).join(', ')}
                                   </span>
                                 </div>
                               ) : null}

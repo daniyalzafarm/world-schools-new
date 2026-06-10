@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, ChevronRight, MapPin, Phone, Shield, User } from 'lucide-react'
 import { profileService, type UserProfile } from '@/services/profile.services'
-import { UserAvatar } from '@world-schools/ui-web'
+import { getCountryName, UserAvatar } from '@world-schools/ui-web'
 
 interface QuickLink {
   title: string
@@ -72,7 +72,7 @@ export default function AccountHubPage() {
 
   const getLocation = () => {
     const city = profileData?.city
-    const country = profileData?.country
+    const country = getCountryName(profileData?.country)
     if (!city && !country) return 'Location not set'
     if (city && country) return `${city}, ${country}`
     return city || country || 'Location not set'

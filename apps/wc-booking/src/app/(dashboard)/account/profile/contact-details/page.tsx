@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { BackButton } from '@world-schools/ui-web'
+import { BackButton, getCountryName } from '@world-schools/ui-web'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { profileService } from '@/services/profile.services'
 import { InfoRow } from '@/components/account/info-row'
@@ -67,7 +67,7 @@ const ContactDetailsPage = () => {
     if (profileData?.address) parts.push(profileData.address)
     if (profileData?.city) parts.push(profileData.city)
     if (profileData?.postalCode) parts.push(profileData.postalCode)
-    if (profileData?.country) parts.push(profileData.country)
+    if (profileData?.country) parts.push(getCountryName(profileData.country))
 
     return parts.join(', ')
   }

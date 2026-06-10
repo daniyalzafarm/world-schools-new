@@ -13,7 +13,7 @@ export const ROOM_AMENITIES = [
   { id: 'ensuite', name: 'Ensuite Bathroom', icon: '🚿' },
   { id: 'shared-bathroom', name: 'Shared Bathroom', icon: '🚿' },
   { id: 'air-conditioning', name: 'Air Conditioning', icon: '❄️' },
-  { id: 'heating', name: 'Heating', icon: '🔥' },
+  { id: 'heating', name: 'Heating', icon: '🌡️' },
   { id: 'wifi', name: 'WiFi', icon: '📶' },
   { id: 'storage', name: 'Storage Space', icon: '🗄️' },
   { id: 'desk', name: 'Desk', icon: '🪑' },

@@ -327,6 +327,15 @@ export class UserWishlistsService {
             provider: {
               select: {
                 settings: true,
+                googleBusinessProfile: {
+                  select: {
+                    placeId: true,
+                    rating: true,
+                    reviewsCount: true,
+                    city: true,
+                    country: true,
+                  },
+                },
               },
             },
             sessions: {

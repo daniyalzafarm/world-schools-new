@@ -5,7 +5,8 @@ import { useParams } from 'next/navigation'
 import { addToast, Divider } from '@heroui/react'
 import {
   BackButton,
-  IconTagSelectField,
+  getLanguageCode,
+  LanguageSelect,
   RangeSlider,
   SelectField,
   selectFieldClassNames,
@@ -21,7 +22,6 @@ import {
   type CampPreferences,
   ENVIRONMENT_OPTIONS,
   INTEREST_OPTIONS_WITH_EMOJIS,
-  LANGUAGE_OPTIONS_WITH_FLAGS,
   VALUES_OPTIONS,
 } from '@/types/child'
 import { EmojiCard } from '@/components/emoji-card'
@@ -116,29 +116,6 @@ export default function ChildPreferencesPage() {
     setFormState({ isModified, isSaving })
   }, [isModified, isSaving, setFormState])
 
-  // Helper function to convert language labels to IDs (for loading from API)
-  const convertLanguageLabelsToIds = (languages: string[]): string[] => {
-    return languages.map(lang => {
-      // Check if it's already an ID (lowercase)
-      const existingId = LANGUAGE_OPTIONS_WITH_FLAGS.find(opt => opt.id === lang.toLowerCase())
-      if (existingId) return existingId.id
-
-      // Otherwise, find by label (case-insensitive)
-      const byLabel = LANGUAGE_OPTIONS_WITH_FLAGS.find(
-        opt => opt.label.toLowerCase() === lang.toLowerCase()
-      )
-      return byLabel ? byLabel.id : lang.toLowerCase()
-    })
-  }
-
-  // Helper function to convert language IDs to labels (for saving to API)
-  const convertLanguageIdsToLabels = (languageIds: string[]): string[] => {
-    return languageIds.map(id => {
-      const language = LANGUAGE_OPTIONS_WITH_FLAGS.find(opt => opt.id === id)
-      return language ? language.label : id
-    })
-  }
-
   // Initialize form data from child
   useEffect(() => {
     if (child?.campPreferences) {
@@ -156,7 +133,7 @@ export default function ChildPreferencesPage() {
         currency: prefs.budgetRange?.currency || 'USD',
         preferredDuration: prefs.preferredDuration ?? [],
         // Convert language labels to IDs for compatibility with IconTagInput
-        languagesSpoken: convertLanguageLabelsToIds(prefs.languagesSpoken ?? []),
+        languagesSpoken: (prefs.languagesSpoken ?? []).map(lang => getLanguageCode(lang) || lang),
         previousCampExperience: prefs.previousCampExperience || '',
       })
     }
@@ -246,7 +223,7 @@ export default function ChildPreferencesPage() {
         preferredDuration:
           formData.preferredDuration.length > 0 ? formData.preferredDuration : undefined,
         // Convert language IDs back to labels for API compatibility
-        languagesSpoken: convertLanguageIdsToLabels(formData.languagesSpoken),
+        languagesSpoken: formData.languagesSpoken,
         previousCampExperience: formData.previousCampExperience.trim() || undefined,
       }
 
@@ -352,17 +329,12 @@ export default function ChildPreferencesPage() {
               aria-label="camp-preferences-add-location"
             />
           </div>
-          <IconTagSelectField
+          <LanguageSelect
             label="Preferred camp languages"
+            inputId="camp-preferences-add-language"
             value={formData.languagesSpoken}
             onChange={value => handleFieldChange('languagesSpoken', value)}
-            items={LANGUAGE_OPTIONS_WITH_FLAGS.map(lang => ({
-              id: lang.id,
-              label: lang.label,
-              icon: lang.flag,
-            }))}
             placeholder="Add language"
-            aria-label="camp-preferences-add-language"
           />
         </div>
 

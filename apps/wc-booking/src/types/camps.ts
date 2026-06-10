@@ -210,6 +210,8 @@ export interface Camp {
       formattedAddress: string
       rating?: number
       reviewsCount?: number
+      city?: string | null
+      country?: string | null
       phone?: string
       website?: string
     }
@@ -224,4 +226,7 @@ export interface Camp {
     }
   }
   sessions?: Session[]
+  // App review aggregates attached by getCampBySlug
+  overallRating?: number | null
+  totalReviews?: number
 }

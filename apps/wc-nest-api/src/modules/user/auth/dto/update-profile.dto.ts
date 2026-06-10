@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsArray, IsOptional, IsString, MaxLength } from 'class-validator'
+import { IsArray, IsIn, IsISO31661Alpha2, IsOptional, IsString, MaxLength } from 'class-validator'
+import { LANGUAGE_CODES } from '@world-schools/wc-types'
 
 export class UpdateProfileDto {
   @ApiProperty({
@@ -76,39 +77,40 @@ export class UpdateProfileDto {
   postalCode?: string
 
   @ApiProperty({
-    description: 'Country',
-    example: 'United States',
+    description: 'Country (ISO 3166-1 alpha-2 code)',
+    example: 'US',
     required: false,
   })
-  @IsString()
+  @IsISO31661Alpha2()
   @IsOptional()
   country?: string
 
   @ApiProperty({
-    description: 'Primary nationality',
-    example: 'American',
+    description: 'Primary nationality (ISO 3166-1 alpha-2 country code)',
+    example: 'US',
     required: false,
   })
-  @IsString()
+  @IsISO31661Alpha2()
   @IsOptional()
   primaryNationality?: string
 
   @ApiProperty({
-    description: 'Secondary nationality',
-    example: 'British',
+    description: 'Secondary nationality (ISO 3166-1 alpha-2 country code)',
+    example: 'GB',
     required: false,
   })
-  @IsString()
+  @IsISO31661Alpha2()
   @IsOptional()
   secondaryNationality?: string
 
   @ApiProperty({
-    description: 'Languages spoken',
-    example: ['English', 'French', 'Spanish'],
+    description: 'Languages spoken (ISO 639-1 codes)',
+    example: ['en', 'fr', 'es'],
     required: false,
   })
   @IsArray()
   @IsString({ each: true })
+  @IsIn(LANGUAGE_CODES, { each: true })
   @IsOptional()
   languages?: string[]
 

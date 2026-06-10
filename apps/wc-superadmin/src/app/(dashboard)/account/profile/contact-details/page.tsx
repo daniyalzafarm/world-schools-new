@@ -6,6 +6,7 @@ import { PhoneModal } from '@/components/account/modals/phone-modal'
 import { AddressModal } from '@/components/account/modals/address-modal'
 import { Check, X } from 'lucide-react'
 import { Chip } from '@heroui/react'
+import { getCountryName } from '@world-schools/ui-web'
 import { profileService } from '@/services/profile.services'
 
 export default function ContactDetailsPage() {
@@ -53,7 +54,7 @@ export default function ContactDetailsPage() {
     if (profileData?.address) parts.push(profileData.address)
     if (profileData?.city) parts.push(profileData.city)
     if (profileData?.postalCode) parts.push(profileData.postalCode)
-    if (profileData?.country) parts.push(profileData.country)
+    if (profileData?.country) parts.push(getCountryName(profileData.country))
 
     return parts.join(', ')
   }

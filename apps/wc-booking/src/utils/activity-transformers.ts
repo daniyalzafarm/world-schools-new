@@ -1,6 +1,6 @@
+import { getLanguageFlag, getLanguageName } from '@world-schools/ui-web'
 import type { ActivityItem } from '@/types/camps'
 import { COACHING_TYPES, PREDEFINED_SPORTS, SKILL_LEVELS } from '@/constants/sports-activities'
-import { PREDEFINED_LANGUAGES } from '@/constants/languages-activities'
 import { PREDEFINED_ARTS } from '@/constants/arts-activities'
 import { PREDEFINED_ADVENTURE } from '@/constants/adventure-activities'
 import { PREDEFINED_WATER_ACTIVITIES } from '@/constants/water-activities'
@@ -78,10 +78,24 @@ export function transformSportsActivities(data: any): ActivityItem[] {
 }
 
 /**
- * Transform language programs data
+ * Transform language programs data. Selected languages are canonical ISO codes
+ * resolved via the shared language source of truth; custom languages pass through.
  */
 export function transformLanguagePrograms(data: any): ActivityItem[] {
-  return transformActivityIds(data?.selectedLanguages, PREDEFINED_LANGUAGES, data?.customLanguages)
+  const items: ActivityItem[] = []
+
+  ;(data?.selectedLanguages ?? []).forEach((code: string) => {
+    items.push({ id: code, name: getLanguageName(code), icon: getLanguageFlag(code) })
+  })
+  ;(data?.customLanguages ?? []).forEach((name: string) => {
+    items.push({
+      id: `custom-${name.toLowerCase().replace(/\s+/g, '-')}`,
+      name,
+      icon: '✨',
+    })
+  })
+
+  return items
 }
 
 /**

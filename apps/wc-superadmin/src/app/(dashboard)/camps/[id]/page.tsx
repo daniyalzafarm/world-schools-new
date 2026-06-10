@@ -24,7 +24,7 @@ import {
   Tabs,
 } from '@heroui/react'
 import { Clock, DollarSign, ExternalLink, Mail, MapPin, Star, Tent, Users } from 'lucide-react'
-import { CollapsibleSection, getInitials, StarRating } from '@world-schools/ui-web'
+import { CollapsibleSection, getInitials, getLanguageName, StarRating } from '@world-schools/ui-web'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import config from '@/config/config'
 import { PageSlot } from '@/components/layout/page-slot'
@@ -1325,7 +1325,7 @@ function CampDetailsTab({ detail }: { detail: CampDetail }) {
                   <div className="flex flex-wrap gap-1.5">
                     {campLangs.map(l => (
                       <Chip key={l} size="sm" variant="flat">
-                        {fmtLabel(l)}
+                        {getLanguageName(l)}
                       </Chip>
                     ))}
                   </div>
@@ -1337,7 +1337,7 @@ function CampDetailsTab({ detail }: { detail: CampDetail }) {
                   <div className="flex flex-wrap gap-1.5">
                     {langProgramItems.map(l => (
                       <Chip key={l} size="sm" variant="flat">
-                        {fmtLabel(l)}
+                        {getLanguageName(l)}
                       </Chip>
                     ))}
                   </div>

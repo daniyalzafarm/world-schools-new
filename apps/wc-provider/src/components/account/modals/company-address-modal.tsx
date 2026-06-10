@@ -9,10 +9,8 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
-  Select,
-  SelectItem,
 } from '@heroui/react'
-import { COUNTRIES, Input } from '@world-schools/ui-web'
+import { CountrySelect, getCountryCode, Input } from '@world-schools/ui-web'
 import { onboardingService } from '@/services/onboarding.services'
 import type { GoogleBusinessProfile } from '@/types/onboarding'
 
@@ -45,7 +43,7 @@ export const CompanyAddressModal: React.FC<CompanyAddressModalProps> = ({
       setLegalCity(profile.legalInfo?.legalCity ?? '')
       setLegalStateProvince(profile.legalInfo?.legalStateProvince ?? '')
       setLegalPostalCode(profile.legalInfo?.legalPostalCode ?? '')
-      setLegalCountry(profile.legalInfo?.legalCountry ?? '')
+      setLegalCountry(getCountryCode(profile.legalInfo?.legalCountry))
       setError(null)
     }
   }, [isOpen, profile])
@@ -200,23 +198,17 @@ export const CompanyAddressModal: React.FC<CompanyAddressModalProps> = ({
               isRequired
               isDisabled={isSaving}
             />
-            <Select
+            <CountrySelect
               label="Country"
-              labelPlacement="outside"
               placeholder="Select country"
-              selectedKeys={legalCountry ? [legalCountry] : []}
-              onSelectionChange={keys => {
-                const selected = Array.from(keys)[0] as string
-                setLegalCountry(selected)
+              isRequired
+              value={legalCountry}
+              onChange={value => {
+                setLegalCountry(value)
                 if (error) setError(null)
               }}
-              isRequired
               isDisabled={isSaving}
-            >
-              {COUNTRIES.map(countryName => (
-                <SelectItem key={countryName}>{countryName}</SelectItem>
-              ))}
-            </Select>
+            />
           </div>
         </ModalBody>
         <ModalFooter>

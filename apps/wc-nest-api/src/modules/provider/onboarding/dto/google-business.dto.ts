@@ -1,4 +1,14 @@
-import { IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator'
+import {
+  IsIn,
+  IsInt,
+  IsISO31661Alpha2,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
 import { SUPPORTED_CONNECT_CURRENCIES } from '../../../stripe/stripe.constants'
 
@@ -94,8 +104,11 @@ export class SaveGoogleBusinessProfileDto {
   @IsNotEmpty()
   legalPostalCode: string
 
+  // Lenient by design: this DTO is populated from the Google Business Profile
+  // API, which returns a display name (e.g. "Canada"), not an ISO2 code. The
+  // value is normalized to a code when the provider later edits it in the UI.
   @ApiProperty({
-    description: 'Legal country',
+    description: 'Legal country (display name from Google, or ISO2 code)',
     example: 'Canada',
   })
   @IsString()
@@ -192,9 +205,8 @@ export class UpdateCompanyDetailsDto {
   @IsNotEmpty()
   legalPostalCode: string
 
-  @ApiProperty({ description: 'Legal country', example: 'Canada' })
-  @IsString()
-  @IsNotEmpty()
+  @ApiProperty({ description: 'Legal country (ISO 3166-1 alpha-2 code)', example: 'CA' })
+  @IsISO31661Alpha2()
   legalCountry: string
 
   @ApiProperty({ description: 'Year founded', example: 2010, minimum: 1800, maximum: 2100 })
