@@ -8,6 +8,8 @@ import {
 import { PrismaService } from '../../../prisma/prisma.service'
 import { RedisService } from '../../redis/redis.service'
 import { RedisPubSubService } from './redis-pub-sub.service'
+import { ConfigService } from '../../../config/config.service'
+import { AzureStorageService } from '@world-schools/wc-utils/backend'
 import {
   ContextType,
   ConversationStatus,
@@ -31,11 +33,13 @@ export class ConversationsService {
   private readonly CACHE_TTL = 300 // 5 minutes
   private readonly recentCacheInvalidations = new Map<string, number>()
   private readonly CACHE_INVALIDATION_DEBOUNCE_MS = 1000
+  private azureStorage: AzureStorageService | null = null
 
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
-    private redisPubSub: RedisPubSubService
+    private redisPubSub: RedisPubSubService,
+    private configService: ConfigService
   ) {}
 
   /**
@@ -251,6 +255,14 @@ export class ConversationsService {
       }
     }
 
+    // Attach camp identity (name/location/photo) so the new conversation shows
+    // the camp — not the operator org — immediately after creation and on the
+    // post-send re-fetch (prevents the header flipping to the provider name).
+    const campContext = (await this.buildCampContextMap([conversation])).get(conversation.id)
+    if (campContext) {
+      enrichedConversation = { ...enrichedConversation, ...campContext }
+    }
+
     return enrichedConversation
   }
 
@@ -338,11 +350,36 @@ export class ConversationsService {
   }
 
   /**
-   * Get the number of conversations where the current user personally has unread messages,
-   * excluding support tickets. Queries ConversationParticipant directly so provider-org
-   * fallback logic (which inflates counts) is never applied.
+   * Get the number of conversations where the current user personally has unread
+   * messages, excluding support tickets.
+   *
+   * - Regular users: query ConversationParticipant directly (their unread lives on
+   *   participant.unreadCount), so provider-org fallback can never inflate the count.
+   * - Provider users: they have no participant row, so count their organisation's
+   *   USER_PROVIDER conversations that contain at least one message not sent by and
+   *   not yet read by them — consistent with the per-conversation badges built from
+   *   read receipts in getConversations().
    */
   async getPersonalUnreadConversationsCount(userId: string): Promise<number> {
+    const providerId = await this.getProviderIdForUser(userId)
+
+    if (providerId) {
+      const unreadConversations = await this.prisma.message.groupBy({
+        by: ['conversationId'],
+        where: {
+          senderId: { not: userId },
+          readReceipts: { none: { userId } },
+          conversation: {
+            type: ConversationType.USER_PROVIDER,
+            metadata: { path: ['providerId'], equals: providerId },
+            NOT: { contextType: ContextType.SUPPORT_TICKET },
+          },
+        },
+        _count: { _all: true },
+      })
+      return unreadConversations.length
+    }
+
     return this.prisma.conversationParticipant.count({
       where: {
         userId,
@@ -385,6 +422,169 @@ export class ConversationsService {
     await this.redis.setex(cacheKey, 300, count.toString())
 
     return count
+  }
+
+  /**
+   * Resolve camp identity (name / location / primary photo) for the given
+   * conversations whose context points at a camp — either directly
+   * (contextType CAMP, contextId = camp id) or via a booking
+   * (contextType BOOKING, contextId = booking id → booking.campId).
+   *
+   * Returns a map keyed by conversationId. Batched to avoid N+1 queries,
+   * mirroring the provider enrichment in getConversations(). Used so the UI
+   * can show the camp (name/photo/location) rather than the operator org.
+   */
+  private async buildCampContextMap(
+    conversations: {
+      id: string
+      type: ConversationType
+      contextType: ContextType | null
+      contextId: string | null
+    }[]
+  ): Promise<
+    Map<string, { campName: string; campLocation: string | null; campPhotoUrl: string | null }>
+  > {
+    const result = new Map<
+      string,
+      { campName: string; campLocation: string | null; campPhotoUrl: string | null }
+    >()
+
+    const directCampIds = new Set<string>()
+    const bookingIds = new Set<string>()
+    for (const conv of conversations) {
+      if (conv.type !== ConversationType.USER_PROVIDER || !conv.contextId) continue
+      if (conv.contextType === ContextType.CAMP) directCampIds.add(conv.contextId)
+      else if (conv.contextType === ContextType.BOOKING) bookingIds.add(conv.contextId)
+    }
+
+    if (directCampIds.size === 0 && bookingIds.size === 0) return result
+
+    // Resolve booking-context conversations to their camp
+    const bookingToCampId = new Map<string, string>()
+    if (bookingIds.size > 0) {
+      const bookings = await this.prisma.booking.findMany({
+        where: { id: { in: Array.from(bookingIds) } },
+        select: { id: true, campId: true },
+      })
+      for (const booking of bookings) {
+        bookingToCampId.set(booking.id, booking.campId)
+        directCampIds.add(booking.campId)
+      }
+    }
+
+    // Batch-load all camps in one query
+    const camps = await this.prisma.camp.findMany({
+      where: { id: { in: Array.from(directCampIds) } },
+      select: { id: true, name: true, locationName: true, photos: true },
+    })
+
+    // Resolve each unique camp's identity once, signing the primary photo to a
+    // viewable SAS URL (camp photos are Azure blobs; the raw stored path won't
+    // render). SAS signing is a local crypto op, so per-camp is cheap.
+    const campIdentityById = new Map<
+      string,
+      { campName: string; campLocation: string | null; campPhotoUrl: string | null }
+    >()
+    await Promise.all(
+      camps.map(async camp => {
+        campIdentityById.set(camp.id, {
+          campName: camp.name,
+          campLocation: camp.locationName ?? null,
+          campPhotoUrl: await this.resolveCampPhotoUrl(camp.photos),
+        })
+      })
+    )
+
+    for (const conv of conversations) {
+      if (conv.type !== ConversationType.USER_PROVIDER || !conv.contextId) continue
+      const campId =
+        conv.contextType === ContextType.CAMP
+          ? conv.contextId
+          : conv.contextType === ContextType.BOOKING
+            ? bookingToCampId.get(conv.contextId)
+            : undefined
+      if (!campId) continue
+      const identity = campIdentityById.get(campId)
+      if (!identity) continue
+
+      result.set(conv.id, identity)
+    }
+
+    return result
+  }
+
+  /**
+   * Resolve a camp's primary photo to a viewable URL. Camp photos are stored as
+   * Azure blob paths (or absolute URLs); blob paths must be signed with a SAS
+   * token to be displayable. Mirrors BookingGroupsService.resolveCampCoverImageUrl
+   * so the messaging avatar matches camp imagery elsewhere on the platform.
+   */
+  private async resolveCampPhotoUrl(photos: unknown): Promise<string | null> {
+    if (!Array.isArray(photos) || photos.length === 0) return null
+    const list = photos as Array<{ url?: string; isPrimary?: boolean }>
+    const withUrl = list.filter(photo => photo?.url)
+    if (withUrl.length === 0) return null
+
+    const chosen = withUrl.find(photo => photo.isPrimary) ?? withUrl[0]
+    const raw = String(chosen.url).trim()
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      return raw
+    }
+
+    try {
+      return await this.getAzureStorage().generateSasUrl(raw, 24)
+    } catch (err) {
+      this.logger.warn(
+        `Failed to sign camp photo URL: ${err instanceof Error ? err.message : String(err)}`
+      )
+      return null
+    }
+  }
+
+  /**
+   * Lazily construct the Azure storage client (same pattern as AttachmentsService
+   * and BookingGroupsService).
+   */
+  private getAzureStorage(): AzureStorageService {
+    if (!this.azureStorage) {
+      const config = this.configService.azureStorageConfig
+      if (!config.accountName || !config.accountKey || !config.containerName) {
+        throw new Error('Azure Storage is not configured. Please contact the administrator.')
+      }
+      this.azureStorage = new AzureStorageService(config)
+    }
+    return this.azureStorage
+  }
+
+  /**
+   * Compute per-conversation unread counts for a provider user from message read
+   * receipts. Provider users have no ConversationParticipant row, so their unread
+   * can't live on participant.unreadCount; instead count messages not sent by them
+   * and not yet read by them — the same definition markAllAsRead clears. Returns an
+   * empty map when userId is null (non-provider viewer) or there are no
+   * conversations. Single grouped query (no N+1).
+   */
+  private async buildProviderUnreadMap(
+    userId: string | null,
+    conversationIds: string[]
+  ): Promise<Map<string, number>> {
+    const result = new Map<string, number>()
+    if (!userId || conversationIds.length === 0) return result
+
+    const grouped = await this.prisma.message.groupBy({
+      by: ['conversationId'],
+      where: {
+        conversationId: { in: conversationIds },
+        senderId: { not: userId },
+        readReceipts: { none: { userId } },
+      },
+      _count: { _all: true },
+    })
+
+    for (const row of grouped) {
+      result.set(row.conversationId, row._count._all)
+    }
+    return result
   }
 
   /**
@@ -477,9 +677,22 @@ export class ConversationsService {
     // ✅ PHASE 2 FIX: Create provider lookup map for O(1) access
     const providerMap = new Map(providers.map(p => [p.id, p]))
 
+    // Resolve camp identity (name/location/photo) for camp-/booking-context conversations
+    const campContextMap = await this.buildCampContextMap(conversations)
+
+    // Provider users have no ConversationParticipant row, so their per-conversation
+    // unread can't come from participant.unreadCount. Compute it from read receipts
+    // (same definition markAllAsRead clears) in a single grouped query, then expose
+    // it via the virtual provider participant below so the sidebar badge/dot work.
+    const providerUnreadMap = await this.buildProviderUnreadMap(
+      providerId ? userId! : null,
+      conversations.map(c => c.id)
+    )
+
     // ✅ PHASE 2 FIX: Enrich conversations using the provider map (no additional queries)
     const enrichedConversations = conversations.map(conv => {
       const metadata = conv.metadata as { providerId?: string } | null
+      const campContext = campContextMap.get(conv.id)
 
       if (conv.type === ConversationType.USER_PROVIDER && metadata?.providerId) {
         const provider = providerMap.get(metadata.providerId)
@@ -490,7 +703,11 @@ export class ConversationsService {
           const virtualProviderParticipant = {
             id: `virtual-${metadata.providerId}`,
             conversationId: conv.id,
-            userId: metadata.providerId, // Use provider ID as userId for virtual participant
+            // For a provider viewer, key this on the requesting provider user's id
+            // so their own participant lookup (sidebar/store) resolves and the
+            // computed unread count is shown. For a parent viewer (providerId null)
+            // keep the provider org id, matching prior behaviour.
+            userId: providerId ? userId! : metadata.providerId,
             providerId: metadata.providerId,
             pinned: false,
             pinnedAt: null,
@@ -499,7 +716,7 @@ export class ConversationsService {
             archived: false,
             archivedAt: null,
             lastReadAt: null,
-            unreadCount: 0,
+            unreadCount: providerId ? (providerUnreadMap.get(conv.id) ?? 0) : 0,
             joinedAt: conv.createdAt,
             leftAt: null,
             isRateLimited: false,
@@ -510,11 +727,12 @@ export class ConversationsService {
 
           return {
             ...conv,
+            ...campContext,
             participants: [...conv.participants, virtualProviderParticipant],
           }
         }
       }
-      return conv
+      return campContext ? { ...conv, ...campContext } : conv
     })
 
     // Cache the result
@@ -553,6 +771,9 @@ export class ConversationsService {
       throw new ForbiddenException('You are not a participant in this conversation')
     }
 
+    // Resolve camp identity (name/location/photo) for camp-/booking-context conversations
+    const campContext = (await this.buildCampContextMap([conversation])).get(conversation.id)
+
     // Enrich with provider organization data if needed
     // Type guard for metadata
     const metadata = conversation.metadata as { providerId?: string } | null
@@ -590,12 +811,13 @@ export class ConversationsService {
 
         return {
           ...conversation,
+          ...campContext,
           participants: [...conversation.participants, virtualProviderParticipant],
         }
       }
     }
 
-    return conversation
+    return campContext ? { ...conversation, ...campContext } : conversation
   }
 
   /**
@@ -679,9 +901,14 @@ export class ConversationsService {
         skipDuplicates: true,
       })
 
-      // Step 3: reset participant unread counter atomically
-      await tx.conversationParticipant.update({
-        where: { conversationId_userId: { conversationId, userId } },
+      // Step 3: reset participant unread counter atomically.
+      // updateMany (not update) so this never throws for users without a
+      // participant row (e.g. provider users, who see conversations via their
+      // organization). Previously `update` threw NotFound and rolled back the
+      // read receipts created above, so a provider's read state never persisted
+      // and the conversation stayed "unread" after opening/replying.
+      await tx.conversationParticipant.updateMany({
+        where: { conversationId, userId },
         data: { unreadCount: 0 },
       })
 

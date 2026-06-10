@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { ConversationsService } from './conversations.service'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { RedisService } from '../../redis/redis.service'
+import { RedisPubSubService } from './redis-pub-sub.service'
+import { ConfigService } from '../../../config/config.service'
 import { NotFoundException, ForbiddenException } from '@nestjs/common'
 import { ConversationType, ConversationStatus, ContextType } from '../../../generated/client/client'
 
@@ -91,19 +93,24 @@ describe('ConversationsService', () => {
     conversation: {
       create: jest.fn(),
       findMany: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
       findUnique: jest.fn(),
       update: jest.fn(),
       count: jest.fn(),
     },
     conversationParticipant: {
       update: jest.fn(),
+      updateMany: jest.fn(),
       findFirst: jest.fn(),
       findUnique: jest.fn(),
+      count: jest.fn(),
     },
     message: {
       findMany: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue({ id: 'msg-1' }),
       updateMany: jest.fn(),
       count: jest.fn(),
+      groupBy: jest.fn().mockResolvedValue([]),
     },
     messageReadReceipt: {
       createMany: jest.fn(),
@@ -111,6 +118,22 @@ describe('ConversationsService', () => {
     conversationLabelAssignment: {
       create: jest.fn(),
       delete: jest.fn(),
+    },
+    // Used by camp-identity enrichment (buildCampContextMap) and the
+    // provider-id lookup (getProviderIdForUser). Default to empty so existing
+    // tests see no enrichment unless they opt in.
+    booking: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    camp: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    provider: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    user: {
+      findUnique: jest.fn().mockResolvedValue(null),
     },
     $transaction: jest.fn((callback: any) => callback(mockPrismaService)),
   }
@@ -120,6 +143,18 @@ describe('ConversationsService', () => {
     setex: jest.fn(),
     del: jest.fn(),
     isReady: jest.fn().mockReturnValue(true),
+    getClient: jest
+      .fn()
+      .mockReturnValue({ scan: jest.fn().mockResolvedValue(['0', []]), del: jest.fn() }),
+  }
+
+  const mockRedisPubSubService = {
+    publishMessage: jest.fn(),
+    getProviderUsers: jest.fn().mockResolvedValue([]),
+  }
+
+  const mockConfigService = {
+    azureStorageConfig: { accountName: 'acct', accountKey: 'key', containerName: 'container' },
   }
 
   beforeEach(async () => {
@@ -128,6 +163,8 @@ describe('ConversationsService', () => {
         ConversationsService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: RedisService, useValue: mockRedisService },
+        { provide: RedisPubSubService, useValue: mockRedisPubSubService },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile()
 
@@ -155,7 +192,13 @@ describe('ConversationsService', () => {
       }
 
       // Mock findExistingConversation to return null (no existing conversation)
+      mockPrismaService.conversation.findFirst.mockResolvedValue(null)
       mockPrismaService.conversation.findMany.mockResolvedValue([])
+      mockPrismaService.provider.findUnique.mockResolvedValue({
+        id: mockParticipantId,
+        legalCompanyName: 'Test Provider',
+        email: 'provider@example.com',
+      })
       mockPrismaService.conversation.create.mockResolvedValue(mockConversation)
 
       const result = await service.createConversation(dto)
@@ -172,20 +215,16 @@ describe('ConversationsService', () => {
       )
     })
 
-    it('should create conversation without initial message', async () => {
+    it('should reject creating a conversation without an initial message', async () => {
       const dto = {
         userId: mockUserId,
         participantId: mockParticipantId,
         participantType: 'provider' as const,
       }
 
-      mockPrismaService.conversation.findMany.mockResolvedValue([])
-      mockPrismaService.conversation.create.mockResolvedValue(mockConversation)
-
-      const result = await service.createConversation(dto)
-
-      expect(result).toEqual(mockConversation)
-      expect(prisma.conversation.create).toHaveBeenCalled()
+      // Initial message is required (conversations are created on first send).
+      await expect(service.createConversation(dto)).rejects.toThrow('Initial message is required')
+      expect(prisma.conversation.create).not.toHaveBeenCalled()
     })
 
     it('should invalidate cache after creating conversation', async () => {
@@ -193,14 +232,22 @@ describe('ConversationsService', () => {
         userId: mockUserId,
         participantId: mockParticipantId,
         participantType: 'provider' as const,
+        initialMessage: 'Hello there',
       }
 
-      mockPrismaService.conversation.findMany.mockResolvedValue([])
+      mockPrismaService.conversation.findFirst.mockResolvedValue(null)
+      mockPrismaService.provider.findUnique.mockResolvedValue({
+        id: mockParticipantId,
+        legalCompanyName: 'Test Provider',
+        email: 'provider@example.com',
+      })
       mockPrismaService.conversation.create.mockResolvedValue(mockConversation)
+      mockPrismaService.message.findFirst = jest.fn().mockResolvedValue({ id: 'msg-1' })
 
       await service.createConversation(dto)
 
-      expect(redis.del).toHaveBeenCalled()
+      // Cross-replica cache invalidation is broadcast via Redis pub/sub.
+      expect(mockRedisPubSubService.publishMessage).toHaveBeenCalled()
     })
   })
 
@@ -399,14 +446,135 @@ describe('ConversationsService', () => {
 
       mockPrismaService.message.findMany.mockResolvedValue(unreadMessages)
       mockPrismaService.messageReadReceipt.createMany.mockResolvedValue({ count: 2 })
-      mockPrismaService.conversationParticipant.update.mockResolvedValue({})
+      mockPrismaService.conversationParticipant.updateMany.mockResolvedValue({ count: 1 })
 
       const result = await service.markAllAsRead(mockConversationId, mockUserId)
 
       expect(result.markedAsRead).toBe(2)
       expect(prisma.message.findMany).toHaveBeenCalled()
       expect(prisma.messageReadReceipt.createMany).toHaveBeenCalled()
-      expect(prisma.conversationParticipant.update).toHaveBeenCalled()
+      // updateMany (not update) so it never throws for users without a
+      // participant row (e.g. provider users seeing conversations via their org).
+      expect(prisma.conversationParticipant.updateMany).toHaveBeenCalled()
+    })
+
+    it('should not throw when the user has no participant row (provider user)', async () => {
+      const unreadMessages = [{ id: 'msg-1' }]
+
+      mockPrismaService.message.findMany.mockResolvedValue(unreadMessages)
+      mockPrismaService.messageReadReceipt.createMany.mockResolvedValue({ count: 1 })
+      // No participant row → updateMany matches nothing (count 0) and does not throw.
+      mockPrismaService.conversationParticipant.updateMany.mockResolvedValue({ count: 0 })
+
+      const result = await service.markAllAsRead(mockConversationId, mockUserId)
+
+      expect(result.markedAsRead).toBe(1)
+      expect(prisma.messageReadReceipt.createMany).toHaveBeenCalled()
+    })
+  })
+
+  describe('camp identity enrichment', () => {
+    const campConversation = {
+      ...mockConversation,
+      id: 'camp-conv-1',
+      contextType: ContextType.CAMP,
+      contextId: 'camp-1',
+      metadata: { providerId: mockParticipantId },
+      participants: [mockConversation.participants[0]],
+    }
+
+    it('enriches camp-context conversations with camp name, location and photo', async () => {
+      mockRedisService.get.mockResolvedValue(null)
+      mockPrismaService.conversation.findMany.mockResolvedValue([campConversation])
+      mockPrismaService.provider.findMany.mockResolvedValue([
+        { id: mockParticipantId, legalCompanyName: 'Test Provider', email: 'p@example.com' },
+      ])
+      mockPrismaService.camp.findMany.mockResolvedValue([
+        {
+          id: 'camp-1',
+          name: 'Sunny Camp',
+          locationName: 'Swiss Alps, Switzerland',
+          photos: [
+            { url: 'https://cdn/secondary.jpg', isPrimary: false },
+            { url: 'https://cdn/primary.jpg', isPrimary: true },
+          ],
+        },
+      ])
+
+      const result = await service.getConversations({
+        userId: mockUserId,
+        filter: 'all',
+        limit: 50,
+        offset: 0,
+      })
+
+      expect(result[0].campName).toBe('Sunny Camp')
+      expect(result[0].campLocation).toBe('Swiss Alps, Switzerland')
+      expect(result[0].campPhotoUrl).toBe('https://cdn/primary.jpg')
+    })
+  })
+
+  describe('provider unread (computed from read receipts)', () => {
+    const providerUserId = 'provider-user-1'
+    const providerOrgId = 'provider-org-1'
+    const providerConversation = {
+      ...mockConversation,
+      id: 'prov-conv-1',
+      metadata: { providerId: providerOrgId },
+      participants: [mockConversation.participants[0]], // only the booking user; no provider row
+    }
+
+    // Make getProviderIdForUser resolve to the provider org for the requesting user.
+    const asProviderUser = () =>
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: providerUserId,
+        roles: [{ role: { providerId: providerOrgId } }],
+      })
+
+    it('exposes per-conversation unread for a provider user via the virtual participant', async () => {
+      asProviderUser()
+      mockRedisService.get.mockResolvedValue(null)
+      mockPrismaService.conversation.findMany.mockResolvedValue([providerConversation])
+      mockPrismaService.provider.findMany.mockResolvedValue([
+        { id: providerOrgId, legalCompanyName: 'Org', email: 'o@example.com' },
+      ])
+      mockPrismaService.message.groupBy.mockResolvedValue([
+        { conversationId: 'prov-conv-1', _count: { _all: 3 } },
+      ])
+
+      const result = await service.getConversations({
+        userId: providerUserId,
+        filter: 'all',
+        limit: 50,
+        offset: 0,
+      })
+
+      const ownParticipant = result[0].participants.find((p: any) => p.userId === providerUserId)
+      expect(ownParticipant).toBeDefined()
+      expect(ownParticipant.unreadCount).toBe(3)
+    })
+
+    it('counts unread conversations for a provider via read receipts in the badge total', async () => {
+      asProviderUser()
+      mockPrismaService.message.groupBy.mockResolvedValue([
+        { conversationId: 'c1', _count: { _all: 2 } },
+        { conversationId: 'c2', _count: { _all: 1 } },
+      ])
+
+      const count = await service.getPersonalUnreadConversationsCount(providerUserId)
+
+      expect(count).toBe(2)
+      expect(prisma.message.groupBy).toHaveBeenCalled()
+    })
+
+    it('counts unread via participant rows for a non-provider user', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(null) // not a provider
+      mockPrismaService.conversationParticipant.count.mockResolvedValue(4)
+
+      const count = await service.getPersonalUnreadConversationsCount(mockUserId)
+
+      expect(count).toBe(4)
+      expect(prisma.conversationParticipant.count).toHaveBeenCalled()
     })
   })
 

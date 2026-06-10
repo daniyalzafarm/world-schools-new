@@ -69,14 +69,19 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
     const providerParticipant = otherParticipants.find(p => p.providerId)
     const providerName = providerParticipant?.provider?.legalCompanyName || 'Provider'
     const isSuperadmin = conv.type === 'USER_SUPERADMIN'
+    // Prefer the camp identity (enriched server-side) over the operator org so
+    // the card shows the camp — not "World Schools"/"Provider".
+    const displayName = isSuperadmin ? 'World Camps Support' : conv.campName || providerName
 
     return {
       id: conv.id,
-      name: isSuperadmin ? 'World Camps Support' : providerName,
+      name: displayName,
       lastMessage: conv.lastMessage?.content || '',
       time: getTimestamp(conv.lastActivityAt),
       lastSeen: getTimestamp(conv.lastActivityAt),
-      avatar: '', // No real avatar - ConversationItem will show initials from name
+      // Camp photo as the conversation avatar; ConversationItem falls back to
+      // initials from `name` when empty.
+      avatar: isSuperadmin ? '' : conv.campPhotoUrl || '',
       verified: isSuperadmin,
       pinned: currentUserParticipant?.pinned ?? false,
       starred: currentUserParticipant?.starred ?? false,

@@ -368,6 +368,11 @@ export interface ConversationResponseDto {
   subject: string | null
   contextType: ContextType | null
   contextId: string | null
+  // Camp identity for camp-/booking-context conversations, enriched server-side
+  // so the UI can show the camp (name/location/photo) instead of the operator org.
+  campName?: string | null
+  campLocation?: string | null
+  campPhotoUrl?: string | null
   metadata: any | null
   assignedToUserId: string | null
   assignedAt: Date | null

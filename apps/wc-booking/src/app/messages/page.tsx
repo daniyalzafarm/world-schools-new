@@ -65,6 +65,7 @@ export default function MessagesPage() {
     messagesError,
     draftConversation,
     setActiveConversation,
+    clearDraftConversation,
     fetchMessages,
     sendMessage,
     markAsRead,
@@ -162,6 +163,24 @@ export default function MessagesPage() {
 
   // Get active conversation object
   const activeConversation = conversations.find(c => c.id === activeConversationId) ?? null
+
+  // Deep-link support: if a draft was opened for a provider the user already has
+  // a conversation with (e.g. "Message camp" from a booking or camp profile),
+  // open that existing thread instead of the empty "Select a conversation" /
+  // compose state. Resolves as soon as conversations are loaded.
+  useEffect(() => {
+    const providerId = draftConversation?.providerId
+    if (!providerId) return
+    const existing = conversations.find(
+      c =>
+        c.type === 'USER_PROVIDER' &&
+        (c.metadata as { providerId?: string } | null)?.providerId === providerId
+    )
+    if (existing) {
+      setActiveConversation(existing.id)
+      clearDraftConversation()
+    }
+  }, [draftConversation?.providerId, conversations, setActiveConversation, clearDraftConversation])
 
   // Convert MessageResponseDto to EnhancedMessage type
   const convertToEnhancedMessage = (msg: MessageResponseDto): EnhancedMessage => {
@@ -372,8 +391,13 @@ export default function MessagesPage() {
       return 'World Camps Support'
     }
 
-    // For USER_PROVIDER conversations, get provider name from participants
-    // Filter out current user to get the "other" participant
+    // Prefer the camp identity (enriched server-side) over the operator org so
+    // the parent sees the camp they are messaging — not "World Schools".
+    if (activeConversation.campName) {
+      return activeConversation.campName
+    }
+
+    // Fallback: provider name from participants
     const otherParticipants =
       activeConversation.participants?.filter(p => p.userId !== user?.id) ?? []
     const providerParticipant = otherParticipants.find(p => p.providerId)
@@ -381,7 +405,10 @@ export default function MessagesPage() {
   }
 
   const name = getConversationName()
-  const avatarSrc = undefined // No real avatar yet - Avatar component will show initials from name
+  // Camp photo (enriched server-side) as the conversation avatar; falls back to
+  // initials from `name` when absent.
+  const avatarSrc = activeConversation?.campPhotoUrl ?? undefined
+  const campLocation = activeConversation?.campLocation ?? null
 
   // Check if conversation is with superadmin
   const isSuperadminConversation = activeConversation?.type === 'USER_SUPERADMIN'
@@ -418,17 +445,16 @@ export default function MessagesPage() {
               <ChevronLeft size={20} />
             </Button>
             <div className="relative">
-              <Avatar name={draftConversation.providerName} size="md" />
+              <Avatar
+                name={draftConversation.contextName || draftConversation.providerName}
+                size="md"
+              />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                {draftConversation.providerName}
+                {draftConversation.contextName || draftConversation.providerName}
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {draftConversation.contextName
-                  ? `About: ${draftConversation.contextName}`
-                  : 'New conversation'}
-              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">New conversation</p>
             </div>
           </div>
         </div>
@@ -494,7 +520,7 @@ export default function MessagesPage() {
                       ? 'Away'
                       : isSuperadminConversation
                         ? 'Support Team'
-                        : 'Provider'}
+                        : campLocation || 'Provider'}
               </p>
             </div>
           </div>

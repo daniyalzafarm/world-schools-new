@@ -2,10 +2,12 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@heroui/react'
 import { ChevronRight } from 'lucide-react'
 import {
   ageFromDateOfBirth,
+  ContextType,
   formatDropoffPickupLabels,
   formatSessionRange,
   journeyStepStates,
@@ -14,6 +16,7 @@ import {
 } from '@world-schools/wc-frontend-utils'
 import { formatCurrency } from '@/utils/currency'
 import type { ParentBookingGroupDetail, ParentBookingGroupStatus } from '@/types/camp-booking'
+import { useMessagingStore } from '@/stores/messaging-store'
 import { CancelBookingModal } from './cancel-booking-modal'
 
 /**
@@ -29,14 +32,35 @@ const PARENT_CANCELABLE_STATUSES = new Set<ParentBookingGroupStatus>([
   'fully_paid',
 ])
 
-function ActionRow({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center justify-between border-b border-default-200 py-4 text-default-800 transition-opacity hover:opacity-80"
-    >
+function ActionRow({
+  href,
+  label,
+  onClick,
+}: {
+  href?: string
+  label: string
+  onClick?: () => void
+}) {
+  const rowClassName =
+    'flex items-center justify-between border-b border-default-200 py-4 text-default-800 transition-opacity hover:opacity-80'
+  const rowContent = (
+    <>
       <span className="text-sm font-medium">{label}</span>
       <ChevronRight className="h-5 w-5 text-default-300" aria-hidden />
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={`${rowClassName} w-full text-left`}>
+        {rowContent}
+      </button>
+    )
+  }
+
+  return (
+    <Link href={href ?? '#'} className={rowClassName}>
+      {rowContent}
     </Link>
   )
 }
@@ -50,6 +74,8 @@ export function BookingDetailSidebar({
   onCancelled?: () => void
 }) {
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  const router = useRouter()
+  const { setDraftConversation } = useMessagingStore()
   const status = detail.status as ParentBookingGroupStatus
   const showCancelButton = PARENT_CANCELABLE_STATUSES.has(status)
   const currency = detail.currency
@@ -71,6 +97,21 @@ export function BookingDetailSidebar({
   const campSlug = detail.camp.slug
   const campProfileHref = `/camps/${encodeURIComponent(campSlug)}`
   const campusHref = `${campProfileHref}#campus`
+
+  // Open the conversation with this camp's provider. The messages page resolves
+  // this draft to the existing thread when one exists (deep-link); otherwise it
+  // shows the compose view — so the parent never lands on an empty list.
+  const handleMessageCamp = () => {
+    setDraftConversation({
+      providerId: detail.providerId,
+      providerName: detail.provider.legalCompanyName || 'Provider',
+      participantType: 'provider',
+      contextType: ContextType.CAMP,
+      contextId: detail.camp.id,
+      contextName: detail.camp.name,
+    })
+    router.push('/messages')
+  }
 
   return (
     <div className="space-y-6 px-4 py-6 pb-24 sm:px-6 lg:py-8 lg:pb-10">
@@ -123,7 +164,7 @@ export function BookingDetailSidebar({
       )}
 
       <div>
-        <ActionRow href="/messages" label="Message camp" />
+        <ActionRow onClick={handleMessageCamp} label="Message camp" />
         <ActionRow href={campProfileHref} label="View camp profile" />
         <ActionRow href={campusHref} label="Getting there" />
       </div>

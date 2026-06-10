@@ -189,6 +189,8 @@ export function createNestJsConfig(importMetaUrl) {
         '*.min.js',
         'webpack.config.js',
         'prisma/migrations/**',
+        // Generated Prisma client — codegen output, not hand-written source.
+        'src/generated/**',
       ],
     },
 
