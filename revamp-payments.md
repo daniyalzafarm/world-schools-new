@@ -38,6 +38,14 @@ Do NOT use Express accounts.
 
 Express accounts would make the platform responsible for negative balances and dispute exposure.
 
+## Authorization Validity Window
+
+Stripe has no native "capture at time X" scheduling — a manual-capture PaymentIntent stays in `requires_capture` until our backend explicitly calls capture. Scheduling is therefore our responsibility (see Scheduled Capture Processing below).
+
+Card authorizations are typically valid for 7 days (less for some payment methods). The 24-hour grace period fits comfortably within this window.
+
+**Assumption:** the grace period must remain well under the authorization validity window. Extending it beyond ~5–6 days would require re-authorization logic, which is out of scope for this redesign.
+
 ---
 
 # Payment Architecture
@@ -106,7 +114,7 @@ acceptance_time <= grace_deadline
 Action:
 
 * Keep PaymentIntent authorized.
-* Schedule capture at the grace deadline.
+* Schedule capture at the grace deadline (delayed BullMQ job — see Scheduled Capture Processing).
 * Capture automatically when grace deadline is reached.
 
 Reason:
@@ -201,19 +209,26 @@ DEPOSIT_CAPTURED_IMMEDIATELY
 
 ---
 
-# Scheduled Processing Requirements
+# Scheduled Capture Processing
 
-Implement a background job that:
+Stripe cannot schedule the capture for us, so capture timing is owned by the backend using two layers:
 
-1. Finds bookings where:
+## Primary: Delayed BullMQ Job
 
-   * Provider has accepted.
-   * Deposit has not been captured.
-   * Grace deadline has passed.
+At provider acceptance (within grace period):
 
-2. Captures the associated PaymentIntent.
+* Enqueue a BullMQ delayed job with `delay = grace_deadline - now`.
+* Use the booking ID as the job ID so the job is addressable.
+* The job fires once at the deadline and captures the PaymentIntent.
 
-Pseudo-logic:
+On customer cancellation during the grace period:
+
+* Remove the delayed job by booking ID.
+* Cancel the PaymentIntent.
+
+## Backstop: Reconciliation Cron
+
+A low-frequency cron acts as a safety net for lost delayed jobs (Redis data loss, worker crash mid-capture). It derives due captures from booking state, not from remembered schedules:
 
 ```text
 for each booking:
@@ -222,6 +237,16 @@ for each booking:
        and current_time >= grace_deadline:
            capture_payment_intent()
 ```
+
+The cron and the delayed job may race; idempotency rules below make this harmless.
+
+## Capture Safety Rules
+
+Every capture attempt (job or cron) must:
+
+* Use a Stripe idempotency key (derived from the booking ID).
+* Treat "PaymentIntent already captured" as success, not an error.
+* Treat "PaymentIntent canceled" as a no-op (customer cancelled in time).
 
 ---
 
@@ -236,7 +261,7 @@ accepted_before_grace_deadline ?
 If TRUE:
 
 ```text
-schedule capture for grace_deadline
+enqueue delayed capture job for grace_deadline
 ```
 
 If FALSE:
@@ -260,6 +285,7 @@ current_time < grace_deadline
 If TRUE:
 
 ```text
+remove delayed capture job (if scheduled)
 cancel payment intent
 ```
 
@@ -268,6 +294,20 @@ If FALSE:
 ```text
 follow standard cancellation/refund policy
 ```
+
+---
+
+# Webhook-Driven State Sync
+
+Stripe is the source of truth for payment state. Booking state must be updated from Stripe webhook events, not solely from API call responses — this closes the gap where a capture succeeds but the process dies before persisting the result.
+
+Relevant events:
+
+* `payment_intent.succeeded` → mark deposit captured.
+* `payment_intent.canceled` → mark payment intent cancelled.
+* `payment_intent.payment_failed` → flag for review / retry handling.
+
+Webhook handlers must be idempotent (events can be delivered more than once) and must tolerate arriving before or after the corresponding API response is processed.
 
 ---
 
@@ -296,8 +336,9 @@ This redesign affects:
 3. Provider acceptance flow
 4. Customer cancellation flow
 5. Booking state management
-6. Scheduled payment processing jobs
+6. Scheduled payment processing (delayed capture jobs + reconciliation cron)
 7. Stripe PaymentIntent lifecycle handling
-8. Existing payout restriction logic
+8. Stripe webhook handlers
+9. Existing payout restriction logic
 
 All affected scenarios should be reviewed and fully regression tested before release.
