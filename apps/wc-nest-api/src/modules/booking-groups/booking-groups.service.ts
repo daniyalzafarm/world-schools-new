@@ -1168,6 +1168,35 @@ export class BookingGroupsService {
   }
 
   /**
+   * Resolve the parent's most relevant booking group with a given camp, for the
+   * messaging context panel (a conversation is camp-scoped, so it maps to at
+   * most one "primary" booking). Drafts are excluded — they aren't submitted
+   * bookings, so the panel treats a camp with only drafts as an inquiry. Picks
+   * the most recently updated non-draft group, then returns the full parent
+   * detail via `getForParent`. Returns `null` when no booking exists.
+   */
+  async getPrimaryForParentByCamp(userId: string, campId: string) {
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+      select: { id: true },
+    })
+    if (!parent) throw new ForbiddenException('Only parents can access bookings')
+
+    const primary = await this.prisma.bookingGroup.findFirst({
+      where: {
+        parentId: parent.id,
+        campId,
+        status: { not: BookingGroupStatus.draft },
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: { id: true },
+    })
+    if (!primary) return null
+
+    return this.getForParent(userId, primary.id)
+  }
+
+  /**
    * Parent dashboard: all booking groups with fields needed for list cards.
    */
   async listForParent(userId: string, query: QueryParentBookingGroupsDto = {}) {

@@ -20,6 +20,8 @@ export class UserResponseDto {
   firstName: string | null
   lastName: string | null
   email: string
+  /** SAS-resolved profile photo URL (null when unset). */
+  profilePhotoUrl?: string | null
 }
 
 /**

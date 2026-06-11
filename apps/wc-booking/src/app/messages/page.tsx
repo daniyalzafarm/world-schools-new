@@ -25,8 +25,9 @@ import {
   type ReportReason,
   Textarea,
 } from '@world-schools/ui-web'
-import { ChevronLeft, MessageSquare, MoreVertical, Users } from 'lucide-react'
+import { ChevronLeft, MessageSquare, MoreVertical, PanelRight, Users } from 'lucide-react'
 import { useMessagingStore } from '@/stores/messaging-store'
+import { useMessagePanelStore } from '@/stores/message-panel-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { MessageListSkeleton } from '@/components/messages/message-skeleton'
 import { TypingDots } from '@/components/messages/TypingIndicator'
@@ -52,6 +53,9 @@ export default function MessagesPage() {
 
   // Get user from auth store
   const { user } = useAuthStore()
+
+  // Right context panel toggle (camp/booking info)
+  const { togglePanel, setPanelOpen } = useMessagePanelStore()
 
   // Get messaging store state and actions
   const {
@@ -433,7 +437,7 @@ export default function MessagesPage() {
       // ✅ WhatsApp Web pattern: Show draft conversation UI
       <div className="flex h-full flex-col bg-white dark:bg-gray-900">
         {/* Chat Header for Draft */}
-        <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 h-20">
           <div className="flex items-center gap-3">
             <Button
               isIconOnly
@@ -493,8 +497,8 @@ export default function MessagesPage() {
     ) : (
       <div className="flex h-full flex-col bg-white dark:bg-gray-900">
         {/* Chat Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 h-20">
+          <div className="flex items-center gap-3 w-full">
             <Button
               isIconOnly
               variant="light"
@@ -504,59 +508,93 @@ export default function MessagesPage() {
             >
               <ChevronLeft size={20} />
             </Button>
-            <div className="relative">
-              <Avatar src={avatarSrc} name={name} size="md" />
-              {/* Presence indicator */}
-              <PresenceIndicator status={presenceStatus} position="bottom-right" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{name}</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {isArchivedPage
-                  ? `${name} (Archived)`
-                  : presenceStatus === 'ONLINE'
-                    ? 'Online'
-                    : presenceStatus === 'AWAY'
-                      ? 'Away'
-                      : isSuperadminConversation
-                        ? 'Support Team'
-                        : campLocation || 'Provider'}
-              </p>
+            {/* Clicking the contact identity opens the context panel.
+                Inert for support chats, which have no context panel. */}
+            <div
+              role={isSuperadminConversation ? undefined : 'button'}
+              tabIndex={isSuperadminConversation ? undefined : 0}
+              onClick={() => !isSuperadminConversation && setPanelOpen(true)}
+              onKeyDown={e => {
+                if (isSuperadminConversation) return
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setPanelOpen(true)
+                }
+              }}
+              className={`flex items-center gap-3 w-full ${
+                isSuperadminConversation ? '' : 'cursor-pointer'
+              }`}
+              aria-label={isSuperadminConversation ? undefined : 'Open camp info'}
+            >
+              <div className="relative">
+                <Avatar src={avatarSrc} name={name} size="md" />
+                {/* Presence indicator */}
+                <PresenceIndicator status={presenceStatus} position="bottom-right" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{name}</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {isArchivedPage
+                    ? `${name} (Archived)`
+                    : presenceStatus === 'ONLINE'
+                      ? 'Online'
+                      : presenceStatus === 'AWAY'
+                        ? 'Away'
+                        : isSuperadminConversation
+                          ? 'Support Team'
+                          : campLocation || 'Provider'}
+                </p>
+              </div>
             </div>
           </div>
 
-          <Dropdown placement="bottom-end">
-            <DropdownTrigger>
-              <Button isIconOnly variant="light" size="sm">
-                <MoreVertical size={20} />
+          <div className="flex items-center gap-1 pl-8">
+            {/* Toggle the camp/booking context panel — not shown for support chats */}
+            {!isSuperadminConversation && (
+              <Button
+                isIconOnly
+                variant="light"
+                size="sm"
+                aria-label="Toggle camp info"
+                onPress={togglePanel}
+              >
+                <PanelRight size={20} />
               </Button>
-            </DropdownTrigger>
-            <DropdownMenu
-              aria-label="Conversation actions"
-              onAction={key => {
-                if (key === 'transfer') {
-                  handleTransferToAdmin()
-                } else if (key === 'report') {
-                  const lastMessage =
-                    activeMessages.length > 0 ? activeMessages[activeMessages.length - 1] : null
-                  if (lastMessage?.id) {
-                    setReportedMessageId(lastMessage.id)
-                    setReportError(null)
-                    setShowReportModal(true)
+            )}
+
+            <Dropdown placement="bottom-end">
+              <DropdownTrigger>
+                <Button isIconOnly variant="light" size="sm">
+                  <MoreVertical size={20} />
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu
+                aria-label="Conversation actions"
+                onAction={key => {
+                  if (key === 'transfer') {
+                    handleTransferToAdmin()
+                  } else if (key === 'report') {
+                    const lastMessage =
+                      activeMessages.length > 0 ? activeMessages[activeMessages.length - 1] : null
+                    if (lastMessage?.id) {
+                      setReportedMessageId(lastMessage.id)
+                      setReportError(null)
+                      setShowReportModal(true)
+                    }
                   }
-                }
-              }}
-            >
-              {!isSuperadminConversation ? (
-                <DropdownItem key="transfer" startContent={<Users size={16} />}>
-                  Transfer to Representative
+                }}
+              >
+                {!isSuperadminConversation ? (
+                  <DropdownItem key="transfer" startContent={<Users size={16} />}>
+                    Transfer to Representative
+                  </DropdownItem>
+                ) : null}
+                <DropdownItem key="report" className="text-danger" color="danger">
+                  Report
                 </DropdownItem>
-              ) : null}
-              <DropdownItem key="report" className="text-danger" color="danger">
-                Report
-              </DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
+              </DropdownMenu>
+            </Dropdown>
+          </div>
         </div>
 
         {/* Messages + Input (shared MessageThread) */}

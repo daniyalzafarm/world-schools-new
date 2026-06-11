@@ -111,6 +111,11 @@ export const NATIONALITY_OPTIONS: { value: string; label: string }[] = (() => {
 
 const BY_CODE = new Map(COUNTRIES_DATA.map(c => [c.code.toUpperCase(), c]))
 const BY_NAME = new Map(COUNTRIES_DATA.map(c => [c.name.toLowerCase(), c]))
+// Best-effort: for the few shared demonyms (e.g. "Indian"), the last alphabetical
+// entry wins — good enough for a legacy-data fallback; unique ones (most) are exact.
+const BY_DEMONYM = new Map(
+  COUNTRIES_DATA.filter(c => c.demonym).map(c => [c.demonym.toLowerCase(), c])
+)
 
 /** Look up a country by its ISO2 code. */
 export const getCountryByCode = (code?: string | null): CountryData | undefined =>
@@ -120,12 +125,17 @@ export const getCountryByCode = (code?: string | null): CountryData | undefined 
 export const getCountryByName = (name?: string | null): CountryData | undefined =>
   name ? BY_NAME.get(name.toLowerCase()) : undefined
 
+/** Look up a country by its English demonym (e.g. "Pakistani" → Pakistan). */
+export const getCountryByDemonym = (demonym?: string | null): CountryData | undefined =>
+  demonym ? BY_DEMONYM.get(demonym.toLowerCase()) : undefined
+
 /**
- * Resolve a stored value (ISO2 code, or a legacy display name) to a country.
- * Resilient during the name→code migration window.
+ * Resolve a stored value (ISO2 code, a legacy display name, or a demonym) to a
+ * country. Resilient during the name→code migration window — older records may
+ * still hold a country name or a nationality demonym instead of the ISO2 code.
  */
 const resolve = (codeOrName?: string | null): CountryData | undefined =>
-  getCountryByCode(codeOrName) ?? getCountryByName(codeOrName)
+  getCountryByCode(codeOrName) ?? getCountryByName(codeOrName) ?? getCountryByDemonym(codeOrName)
 
 /** Display name for a stored value; falls back to the raw value if unknown. */
 export const getCountryName = (codeOrName?: string | null): string =>

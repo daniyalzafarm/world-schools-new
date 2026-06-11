@@ -23,6 +23,7 @@ import {
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 import { ConversationAccessGuard } from '../../messaging/guards/conversation-access.guard'
 import { ConversationsService } from '../../messaging/services/conversations.service'
+import { ProviderContactProfileService } from './provider-contact-profile.service'
 import {
   AddLabelDto,
   AssignConversationDto,
@@ -55,7 +56,10 @@ import {
 export class ProviderConversationsController {
   private readonly logger = new Logger(ProviderConversationsController.name)
 
-  constructor(private readonly conversationsService: ConversationsService) {}
+  constructor(
+    private readonly conversationsService: ConversationsService,
+    private readonly contactProfileService: ProviderContactProfileService
+  ) {}
 
   /**
    * Create a new conversation or return existing one
@@ -208,6 +212,32 @@ export class ProviderConversationsController {
       message: 'Conversation retrieved successfully',
       data: conversation,
     }
+  }
+
+  /**
+   * Get the contact profile for the parent in a provider↔parent conversation
+   * (powers the messaging right-hand context panel). Returns null data for
+   * non provider↔parent conversations (e.g. support).
+   */
+  @Get(':id/contact-profile')
+  @UseGuards(ConversationAccessGuard)
+  @ApiOperation({
+    summary: 'Get the parent contact profile for a conversation',
+    description:
+      "Returns the messaged parent's profile, children, returning status, and their review of " +
+      'the provider. User must be a participant.',
+  })
+  @ApiParam({ name: 'id', description: 'Conversation ID', type: String })
+  @ApiResponse({ status: 200, description: 'Contact profile retrieved successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Not a participant' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getContactProfile(@Param('id') conversationId: string, @CurrentUser() user: any) {
+    const data = await this.contactProfileService.getForProvider(
+      user.id,
+      user.providerId,
+      conversationId
+    )
+    return { success: true, data }
   }
 
   /**

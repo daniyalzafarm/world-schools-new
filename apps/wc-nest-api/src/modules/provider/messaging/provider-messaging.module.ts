@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common'
 import { MessagingModule } from '../../messaging/messaging.module'
+import { ConfigModule } from '../../../config/config.module'
 import { ProviderMessagesController } from './provider-messages.controller'
 import { ProviderConversationsController } from './provider-conversations.controller'
 import { ProviderAttachmentsController } from './provider-attachments.controller'
+import { ProviderContactProfileService } from './provider-contact-profile.service'
+import { ProfilePhotoService } from '../../user/auth/services/profile-photo.service'
 
 /**
  * Provider Messaging Module
@@ -19,11 +22,12 @@ import { ProviderAttachmentsController } from './provider-attachments.controller
  * - Uses wc_provider_access_token cookie (automatically selected by JWT strategy based on /provider/* path)
  */
 @Module({
-  imports: [MessagingModule],
+  imports: [MessagingModule, ConfigModule],
   controllers: [
     ProviderMessagesController,
     ProviderConversationsController,
     ProviderAttachmentsController,
   ],
+  providers: [ProviderContactProfileService, ProfilePhotoService],
 })
 export class ProviderMessagingModule {}

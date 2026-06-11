@@ -79,7 +79,9 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
       lastMessage: conv.lastMessage?.content || '',
       time: getTimestamp(conv.lastActivityAt),
       lastSeen: getTimestamp(conv.lastActivityAt),
-      avatar: '', // No real avatar - ConversationItem will show initials from name
+      // Parent's profile photo (SAS-resolved); ConversationItem falls back to
+      // initials from the name when empty.
+      avatar: isSuperadmin ? '' : (userParticipant?.user?.profilePhotoUrl ?? ''),
       verified: isSuperadmin,
       pinned: currentUserParticipant?.pinned ?? false,
       starred: currentUserParticipant?.starred ?? false,

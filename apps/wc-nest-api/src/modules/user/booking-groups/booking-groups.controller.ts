@@ -64,6 +64,17 @@ export class UserBookingGroupsController {
     return ResponseUtil.success(result)
   }
 
+  // Declared before `@Get(':id')` so the static prefix isn't swallowed by the
+  // id param route.
+  @Get('by-camp/:campId')
+  @ApiOperation({
+    summary: "The parent's primary booking with a camp (messaging context panel)",
+  })
+  async getByCamp(@CurrentUser() user: any, @Param('campId') campId: string) {
+    const result = await this.bookingGroupsService.getPrimaryForParentByCamp(user.id, campId)
+    return ResponseUtil.success(result)
+  }
+
   @Get()
   @ApiOperation({ summary: 'List booking groups for the current parent' })
   async list(@CurrentUser() user: any, @Query() query: QueryParentBookingGroupsDto) {

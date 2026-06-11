@@ -144,7 +144,15 @@ export class ConversationsService {
       include: {
         participants: {
           include: {
-            user: { select: { id: true, firstName: true, lastName: true, email: true } },
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profilePhotoUrl: true,
+              },
+            },
             provider: { select: { id: true, legalCompanyName: true, email: true } },
           },
         },
@@ -542,6 +550,43 @@ export class ConversationsService {
   }
 
   /**
+   * Resolve each participant's stored profile-photo blob path to a usable SAS
+   * URL (mutates in place). Lets the conversation list + chat header show the
+   * other party's real avatar instead of initials. Blob paths are deduped within
+   * the call so a repeated photo is signed once.
+   */
+  private async enrichParticipantPhotos(
+    conversations: Array<{
+      participants?: Array<{ user?: { profilePhotoUrl?: string | null } | null }>
+    }>
+  ): Promise<void> {
+    const cache = new Map<string, string | null>()
+    const resolve = async (raw: string): Promise<string | null> => {
+      if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+      if (cache.has(raw)) return cache.get(raw) ?? null
+      let url: string | null = null
+      try {
+        url = await this.getAzureStorage().generateSasUrl(raw, 24)
+      } catch (err) {
+        this.logger.warn(
+          `Failed to sign profile photo URL: ${err instanceof Error ? err.message : String(err)}`
+        )
+      }
+      cache.set(raw, url)
+      return url
+    }
+
+    for (const conv of conversations) {
+      for (const participant of conv.participants ?? []) {
+        const raw = participant.user?.profilePhotoUrl
+        if (participant.user && raw) {
+          participant.user.profilePhotoUrl = await resolve(raw)
+        }
+      }
+    }
+  }
+
+  /**
    * Lazily construct the Azure storage client (same pattern as AttachmentsService
    * and BookingGroupsService).
    */
@@ -632,7 +677,15 @@ export class ConversationsService {
         participants: {
           // Include ALL participants (frontend will filter out current user if needed)
           include: {
-            user: { select: { id: true, firstName: true, lastName: true, email: true } },
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profilePhotoUrl: true,
+              },
+            },
             provider: { select: { id: true, legalCompanyName: true, email: true } },
           },
         },
@@ -654,6 +707,9 @@ export class ConversationsService {
       take: limit,
       skip: offset,
     })
+
+    // Resolve participant avatars (SAS URLs) so the sidebar shows real photos.
+    await this.enrichParticipantPhotos(conversations)
 
     // ✅ PHASE 2 FIX: Collect all unique provider IDs (avoid N+1 queries)
     const providerIds = new Set<string>()
@@ -750,7 +806,15 @@ export class ConversationsService {
       include: {
         participants: {
           include: {
-            user: { select: { id: true, firstName: true, lastName: true, email: true } },
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profilePhotoUrl: true,
+              },
+            },
             provider: { select: { id: true, legalCompanyName: true, email: true } },
           },
         },
@@ -770,6 +834,9 @@ export class ConversationsService {
     if (!isParticipant) {
       throw new ForbiddenException('You are not a participant in this conversation')
     }
+
+    // Resolve participant avatars (SAS URLs) so the chat header shows real photos.
+    await this.enrichParticipantPhotos([conversation])
 
     // Resolve camp identity (name/location/photo) for camp-/booking-context conversations
     const campContext = (await this.buildCampContextMap([conversation])).get(conversation.id)
@@ -1140,7 +1207,15 @@ export class ConversationsService {
         include: {
           participants: {
             include: {
-              user: { select: { id: true, firstName: true, lastName: true, email: true } },
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  profilePhotoUrl: true,
+                },
+              },
               provider: { select: { id: true, legalCompanyName: true, email: true } },
             },
           },
@@ -1163,7 +1238,15 @@ export class ConversationsService {
         include: {
           participants: {
             include: {
-              user: { select: { id: true, firstName: true, lastName: true, email: true } },
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  profilePhotoUrl: true,
+                },
+              },
               provider: { select: { id: true, legalCompanyName: true, email: true } },
             },
           },

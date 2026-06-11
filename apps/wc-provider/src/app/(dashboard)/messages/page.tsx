@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import {
   addToast,
@@ -24,10 +24,12 @@ import {
   type ReportReason,
   Textarea,
 } from '@world-schools/ui-web'
-import { ChevronLeft, MessageSquare, MoreVertical } from 'lucide-react'
+import { ChevronLeft, MessageSquare, MoreVertical, PanelRight } from 'lucide-react'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { MessagesSidebar } from '@/components/layout/messages-sidebar'
+import { ContactProfilePanel } from '@/components/messages/context-panel/ContactProfilePanel'
 import { useMessagingStore } from '@/stores/messaging-store'
+import { useMessagePanelStore } from '@/stores/message-panel-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { MessageListSkeleton } from '@/components/messages/message-skeleton'
 import { TypingDots } from '@/components/messages/TypingIndicator'
@@ -59,6 +61,27 @@ export default function MessagesPage() {
 
   // Get user from auth store
   const { user } = useAuthStore()
+
+  // Right contact panel toggle (parent profile)
+  const { togglePanel, setPanelOpen } = useMessagePanelStore()
+
+  // Measure the chat-area region (chat + panel) so the panel can switch between
+  // a side column and a full-cover overlay based on its own available width —
+  // independent of the viewport (WhatsApp Web behaviour). Below 860px (chat min
+  // 480 + panel 380) the panel covers the chat.
+  const chatAreaRef = useRef<HTMLDivElement>(null)
+  const [panelOverlay, setPanelOverlay] = useState(false)
+
+  useEffect(() => {
+    const el = chatAreaRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(entries => {
+      const width = entries[0]?.contentRect.width ?? 0
+      setPanelOverlay(width < 860)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   // Get messaging store state and actions
   const {
@@ -348,7 +371,16 @@ export default function MessagesPage() {
   }
 
   const name = getConversationName()
-  const avatarSrc = undefined // No real avatar yet - Avatar component will show initials from name
+  // Parent's profile photo (SAS-resolved server-side) for the chat header; falls
+  // back to initials when absent or for support chats.
+  const avatarSrc =
+    activeConversation && activeConversation.type !== 'USER_SUPERADMIN'
+      ? (activeConversation.participants?.find(p => !p.providerId && p.userId)?.user
+          ?.profilePhotoUrl ?? undefined)
+      : undefined
+
+  // The contact profile panel only applies to provider↔parent conversations.
+  const isParentConversation = activeConversation?.type === 'USER_PROVIDER'
 
   // Main content - conversation view or empty state
   const mainContent = !activeConversation ? (
@@ -368,8 +400,8 @@ export default function MessagesPage() {
   ) : (
     <div className="flex h-full flex-col bg-white dark:bg-gray-900">
       {/* Chat Header */}
-      <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 h-20">
+        <div className="flex items-center gap-3 w-full">
           <Button
             isIconOnly
             variant="light"
@@ -379,25 +411,41 @@ export default function MessagesPage() {
           >
             <ChevronLeft size={20} />
           </Button>
-          <div className="relative">
-            <Avatar src={avatarSrc} name={name} size="md" />
-            {/* Presence indicator */}
-            <PresenceIndicator status={presenceStatus} position="bottom-right" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{name}</h2>
-            <div className="flex items-center gap-2">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {isArchivedPage
-                  ? `${name} (Archived)`
-                  : presenceStatus === 'ONLINE'
-                    ? 'Online'
-                    : presenceStatus === 'AWAY'
-                      ? 'Away'
-                      : 'User'}
-              </p>
-              {/* Provider-specific: Assignment status indicator */}
-              {/* {assignmentStatus && !isArchivedPage && (
+          {/* Clicking the contact identity opens the profile panel (WhatsApp-style).
+              Inert for support chats, which have no profile panel. */}
+          <div
+            role={isParentConversation ? 'button' : undefined}
+            tabIndex={isParentConversation ? 0 : undefined}
+            onClick={() => isParentConversation && setPanelOpen(true)}
+            onKeyDown={e => {
+              if (!isParentConversation) return
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setPanelOpen(true)
+              }
+            }}
+            className={`flex items-center gap-3 w-full ${isParentConversation ? 'cursor-pointer' : ''}`}
+            aria-label={isParentConversation ? 'Open contact profile' : undefined}
+          >
+            <div className="relative">
+              <Avatar src={avatarSrc} name={name} size="md" />
+              {/* Presence indicator */}
+              <PresenceIndicator status={presenceStatus} position="bottom-right" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{name}</h2>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {isArchivedPage
+                    ? `${name} (Archived)`
+                    : presenceStatus === 'ONLINE'
+                      ? 'Online'
+                      : presenceStatus === 'AWAY'
+                        ? 'Away'
+                        : 'User'}
+                </p>
+                {/* Provider-specific: Assignment status indicator */}
+                {/* {assignmentStatus && !isArchivedPage && (
                 <>
                   <span className="text-gray-300">•</span>
                   {assignmentStatus.isAssigned ? (
@@ -413,35 +461,51 @@ export default function MessagesPage() {
                   )}
                 </>
               )} */}
+              </div>
             </div>
           </div>
         </div>
 
-        <Dropdown placement="bottom-end">
-          <DropdownTrigger>
-            <Button isIconOnly variant="light" size="sm">
-              <MoreVertical size={20} />
+        <div className="flex items-center gap-1 pl-8">
+          {/* Toggle the contact profile panel — not shown for support chats */}
+          {isParentConversation && (
+            <Button
+              isIconOnly
+              variant="light"
+              size="sm"
+              aria-label="Toggle contact profile"
+              onPress={togglePanel}
+            >
+              <PanelRight size={20} />
             </Button>
-          </DropdownTrigger>
-          <DropdownMenu
-            aria-label="Conversation actions"
-            onAction={key => {
-              if (key === 'report') {
-                const lastMessage =
-                  activeMessages.length > 0 ? activeMessages[activeMessages.length - 1] : null
-                if (lastMessage?.id) {
-                  setReportedMessageId(lastMessage.id)
-                  setReportError(null)
-                  setShowReportModal(true)
+          )}
+
+          <Dropdown placement="bottom-end">
+            <DropdownTrigger>
+              <Button isIconOnly variant="light" size="sm">
+                <MoreVertical size={20} />
+              </Button>
+            </DropdownTrigger>
+            <DropdownMenu
+              aria-label="Conversation actions"
+              onAction={key => {
+                if (key === 'report') {
+                  const lastMessage =
+                    activeMessages.length > 0 ? activeMessages[activeMessages.length - 1] : null
+                  if (lastMessage?.id) {
+                    setReportedMessageId(lastMessage.id)
+                    setReportError(null)
+                    setShowReportModal(true)
+                  }
                 }
-              }
-            }}
-          >
-            <DropdownItem key="report" className="text-danger" color="danger">
-              Report
-            </DropdownItem>
-          </DropdownMenu>
-        </Dropdown>
+              }}
+            >
+              <DropdownItem key="report" className="text-danger" color="danger">
+                Report
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+        </div>
       </div>
 
       {/* Messages + Input (shared MessageThread) */}
@@ -584,10 +648,17 @@ export default function MessagesPage() {
           {/* Messages Sidebar */}
           <MessagesSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-          {/* Main Messages Content */}
-          <main className="flex-1 overflow-auto bg-white dark:bg-gray-900">
-            <div className="h-full">{mainContent}</div>
-          </main>
+          {/* Chat area region (conversation + contact panel). Relative so the
+              panel can cover exactly this region as an overlay when narrow. */}
+          <div ref={chatAreaRef} className="relative flex flex-1 min-w-0 overflow-hidden">
+            {/* Main Messages Content */}
+            <main className="flex-1 overflow-auto bg-white dark:bg-gray-900 min-w-0">
+              <div className="h-full">{mainContent}</div>
+            </main>
+
+            {/* Right contact profile panel for the active conversation */}
+            <ContactProfilePanel overlay={panelOverlay} />
+          </div>
         </div>
       </div>
     </ProtectedRoute>

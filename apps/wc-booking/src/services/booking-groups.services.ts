@@ -43,6 +43,16 @@ export const bookingGroupsService = {
   },
 
   /**
+   * The parent's primary (most recent non-draft) booking with a camp, or `null`
+   * when none exists. Powers the messaging context panel in a single call.
+   */
+  async getByCamp(campId: string): Promise<ApiResult<ParentBookingGroupDetail | null>> {
+    return apiClient.get<ParentBookingGroupDetail | null>(
+      `/user/booking-groups/by-camp/${encodeURIComponent(campId)}`
+    )
+  },
+
+  /**
    * Non-mutating pre-validation: evaluates the selected children against a
    * camp/session (age, gender, GATE skills, readiness). Mirrors the
    * authoritative gate run at submit so the UI can block / explain BEFORE the
