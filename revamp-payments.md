@@ -52,6 +52,8 @@ Card authorizations are typically valid for 7 days (less for some payment method
 
 ## Booking Creation
 
+This flow applies when a deposit applies to the booking (see Deposit Settings & Camp-Level Override below). No-deposit bookings follow the existing no-deposit payment modes instead.
+
 When a booking request is submitted:
 
 1. Create a PaymentIntent.
@@ -67,6 +69,55 @@ This allows us to:
 * Hold funds securely.
 * Cancel without refunds during the grace period.
 * Capture later without requiring customer interaction.
+
+---
+
+# Deposit Settings & Camp-Level Override
+
+## Existing Provider-Level Settings
+
+Deposit settings are configured per provider (`ProviderSettings`): whether a deposit is required, its type (percentage or fixed), and its value. These settings currently apply to all of a provider's camps.
+
+## New: Per-Camp Deposit Toggle
+
+Add a camp-level override so a provider can disable the deposit for an individual listing.
+
+### Data Model
+
+* New boolean on the Camp model: `depositEnabled`, default `true`.
+* Effective deposit resolution at booking submission:
+
+```text
+deposit_applies = provider.depositRequired AND camp.depositEnabled
+```
+
+* The booking-time deposit snapshot (`depositSnapshot`) must record the camp toggle state, so toggling later never affects existing bookings.
+
+### Booking Flow Impact
+
+Toggle ON (default):
+
+* Provider-level deposit settings apply unchanged.
+* Booking follows the deposit authorize/capture flow described in this document.
+
+Toggle OFF:
+
+* No deposit authorization is created.
+* Booking follows the existing no-deposit payment modes:
+
+  * `full_at_due` — SetupIntent at booking, full charge later (far-out bookings).
+  * `full_at_booking` — full charge at booking (near-term bookings).
+* Grace-period capture scheduling does not apply (there is no authorized PaymentIntent to capture or cancel).
+
+### Provider UI (wc-provider)
+
+Add a card on `/camps/[camp_id]/edit/sessions`:
+
+* Shows a read-only summary of the provider-level deposit settings (type + percentage / fixed amount).
+* Toggle ("deposit enabled for this listing"), ON by default; turning it off disables the deposit for this camp only.
+* Clear explanation that the provider-level deposit settings apply otherwise.
+* If the provider has no deposit configured at provider level: show an explanatory state with a link to the provider deposit settings page; hide/disable the toggle (it would have no effect).
+* Follows the existing camp-edit toggle-card + autosave pattern; persisted via a camp section PATCH endpoint.
 
 ---
 
@@ -340,5 +391,8 @@ This redesign affects:
 7. Stripe PaymentIntent lifecycle handling
 8. Stripe webhook handlers
 9. Existing payout restriction logic
+10. Camp data model (new `depositEnabled` field)
+11. Camp edit UI in wc-provider (sessions page deposit card)
+12. Booking financial snapshot / deposit resolution
 
 All affected scenarios should be reviewed and fully regression tested before release.
