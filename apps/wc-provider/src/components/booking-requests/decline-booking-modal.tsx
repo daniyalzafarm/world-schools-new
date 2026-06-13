@@ -44,7 +44,7 @@ const REASON_CONFIG: Array<{
   { key: BookingDeclineReason.CapacityOrScheduling },
   {
     key: BookingDeclineReason.EligibilityCriteriaNotMet,
-    note: { label: 'Which requirement?', placeholder: 'Optional — kept private to the platform' },
+    note: { label: 'Which requirement?', placeholder: 'Required — kept private to the platform' },
   },
   {
     key: BookingDeclineReason.OperationalInability,
@@ -55,7 +55,7 @@ const REASON_CONFIG: Array<{
   },
   {
     key: BookingDeclineReason.IncompleteInformation,
-    note: { label: 'What is missing?', placeholder: 'Optional — kept private to the platform' },
+    note: { label: 'What is missing?', placeholder: 'Required — kept private to the platform' },
   },
   {
     key: BookingDeclineReason.SafeguardingConcerns,
@@ -76,9 +76,9 @@ const REASON_CONFIG: Array<{
 /**
  * Decline-with-reason modal (BUG-118). The controlled list comes from
  * Provider Terms v1.7 §5.1(h)(iii) — providers must select one before the
- * Decline button enables. Several reasons carry a contextual note; it is
- * required for operational-inability, safety, and "other" declines so the
- * Platform can review per §5.1(h)(iv) pattern monitoring.
+ * Decline button enables. Every reason except capacity-or-scheduling carries
+ * a required contextual note so the Platform can review per §5.1(h)(iv)
+ * pattern monitoring.
  */
 export function DeclineBookingModal({
   isOpen,

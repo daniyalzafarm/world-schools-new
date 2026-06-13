@@ -3296,10 +3296,10 @@ export class BookingGroupsService {
       throw new BadRequestException('Only requested bookings can be declined')
     }
 
-    // Some reasons require a substantive free-text note (operational inability
-    // per Provider Terms §5.1(h)(iia)(D); safeguarding + other per platform
-    // policy for §5.1(h)(iv) review). Enforced here in addition to the DTO so it
-    // cannot be bypassed.
+    // Every reason except capacity-or-scheduling requires a substantive
+    // free-text note (operational inability per Provider Terms §5.1(h)(iia)(D);
+    // the rest per platform policy for §5.1(h)(iv) review). Enforced here in
+    // addition to the DTO so it cannot be bypassed.
     if (
       DECLINE_REASONS_REQUIRING_NOTE.includes(args.declineReason) &&
       (args.declineReasonOther?.trim().length ?? 0) < DECLINE_REASON_NOTE_MIN_LENGTH

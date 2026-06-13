@@ -46,15 +46,17 @@ export const BOOKING_DECLINE_REASON_LABELS: Record<BookingDeclineReason, string>
   [BookingDeclineReason.Other]: 'Other',
 }
 
-/// Decline reasons whose free-text note is mandatory. `operational_inability`
-/// is required by Provider Terms §5.1(h)(iia)(D) ("…shall include a brief
-/// description of the specific operational limitation relied upon");
-/// `safeguarding_concerns` and `other` are required by platform policy so the
-/// decline can be reviewed under §5.1(h)(iv) pattern monitoring. The remaining
-/// reasons carry an optional note. Shared by the provider modal (client gate)
-/// and the API (server enforcement) so the rule cannot drift.
+/// Decline reasons whose free-text note is mandatory — every reason except
+/// `capacity_or_scheduling`. `operational_inability` is required by Provider
+/// Terms §5.1(h)(iia)(D) ("…shall include a brief description of the specific
+/// operational limitation relied upon"); the rest are required by platform
+/// policy so the decline can be reviewed under §5.1(h)(iv) pattern monitoring.
+/// Shared by the provider modal (client gate) and the API (server enforcement)
+/// so the rule cannot drift.
 export const DECLINE_REASONS_REQUIRING_NOTE: readonly BookingDeclineReason[] = [
+  BookingDeclineReason.EligibilityCriteriaNotMet,
   BookingDeclineReason.OperationalInability,
+  BookingDeclineReason.IncompleteInformation,
   BookingDeclineReason.SafeguardingConcerns,
   BookingDeclineReason.Other,
 ]
