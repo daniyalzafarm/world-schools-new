@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import {
   CAMPUS_SETTING,
   CAMPUS_SIZE,
@@ -14,8 +13,6 @@ import { HiBadgeCheck } from 'react-icons/hi'
 import { FcGoogle } from 'react-icons/fc'
 import { Images, MapPin, Star } from 'lucide-react'
 import { cn, StarRating } from '@world-schools/ui-web'
-import { getCampBySlug, getCampReviews } from '@/services/camps.services'
-import { campAddOnsService } from '@/services/camp-addons.services'
 import type { Camp } from '@/types/camps'
 import type { Session } from '@/types/sessions'
 import type { CampBookingAddOn } from '@/types/camp-booking'
@@ -64,59 +61,23 @@ const PREDEFINED_TRANSPORT = [
   { id: 'group-transport', name: 'Group Transport', icon: '🚌' },
 ]
 
-export default function CampPage() {
-  const params = useParams()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const campSlug = params.campSlug as string
+interface CampPageContentProps {
+  camp: Camp
+  campReviews: CampReviewsData | null
+  addOns: CampBookingAddOn[]
+}
 
-  const [camp, setCamp] = useState<Camp | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export function CampPageContent({ camp, campReviews, addOns }: CampPageContentProps) {
   const [isGalleryOpen, setIsGalleryOpen] = useState(false)
   const [galleryPhotoIndex, setGalleryPhotoIndex] = useState(-1)
   const [selectedSession, setSelectedSession] = useState<Session | null>(null)
   const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false)
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
   const [isReviewsDrawerOpen, setIsReviewsDrawerOpen] = useState(false)
-  const [addOns, setAddOns] = useState<CampBookingAddOn[]>([])
-  const [campReviews, setCampReviews] = useState<CampReviewsData | null>(null)
   const [innerNavReplacesTopbar, setInnerNavReplacesTopbar] = useState(false)
-
-  // Depend on the primitive preview token, not the full `searchParams` object —
-  // the reference can change unexpectedly and re-trigger the fetch.
-  const previewToken = searchParams.get('preview') || ''
-  useEffect(() => {
-    if (!campSlug) return
-    const fetchCamp = async () => {
-      try {
-        setIsLoading(true)
-        const campData = await getCampBySlug(campSlug, previewToken || undefined)
-        setCamp(campData)
-      } catch (err: any) {
-        console.error('Failed to fetch camp:', err)
-        setError(err.message || 'Failed to load camp')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchCamp().catch(console.error)
-  }, [campSlug, previewToken])
-
-  // Fetch add-ons after camp loads
-  useEffect(() => {
-    if (!camp?.id) return
-    campAddOnsService
-      .getByCampId(camp.id)
-      .then(res => {
-        if (res.success && Array.isArray(res.data)) setAddOns(res.data)
-      })
-      .catch(() => {})
-  }, [camp?.id])
 
   // Auto-select when there's exactly one reservable session (bookable + not sold out).
   useEffect(() => {
-    if (!camp) return
     const reservable = (camp.sessions ?? []).filter(s => {
       // Bookable = published, sane dates, and starts in the future. This drops
       // past/invalid sessions so we never auto-select one the booking flow rejects.
@@ -132,20 +93,8 @@ export default function CampPage() {
     }
   }, [camp])
 
-  // Fetch camp reviews after camp loads (used in header + reviews section)
-  useEffect(() => {
-    if (!camp?.id) return
-    getCampReviews(camp.id)
-      .then(setCampReviews)
-      .catch(() => {})
-  }, [camp?.id])
-
   // Camp profile: after gallery clears the top of the viewport, inner nav replaces main topbar (model B).
   useEffect(() => {
-    if (!camp) {
-      setInnerNavReplacesTopbar(false)
-      return
-    }
     const gallery = document.getElementById('gallery')
     if (!gallery) return
 
@@ -163,39 +112,6 @@ export default function CampPage() {
       ro.disconnect()
     }
   }, [camp])
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen flex-col bg-white">
-        <CampPageTopbar />
-        <div className="flex flex-1 items-center justify-center">
-          <div className="text-center">
-            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-gray-900" />
-            <p className="mt-4 text-gray-600">Loading camp details...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (error || !camp) {
-    return (
-      <div className="flex min-h-screen flex-col bg-white">
-        <CampPageTopbar />
-        <div className="flex flex-1 items-center justify-center">
-          <div className="text-center">
-            <h1 className="mb-2 text-2xl font-bold text-gray-900">Camp Not Found</h1>
-            <p className="text-gray-600">
-              {error || 'The camp you are looking for does not exist.'}
-            </p>
-            <Button onPress={() => router.push('/')} className="mt-4" color="primary" size="lg">
-              Go Home
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   // The backend returns absolute SAS URLs for photos, so no storage-prefixing is needed.
   const getImageUrl = (url: string) => url || ''

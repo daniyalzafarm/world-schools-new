@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://booking.world-camps.org',
+    url: config.app.metadataBase,
     siteName: 'World Camps',
     title: 'World Camps - Discover Amazing Camp Experiences',
     description:
