@@ -2,13 +2,17 @@ import { describe, it, expect } from 'vitest'
 import {
   BALANCE_DUE_OFFSET_DAYS_DEPOSIT_FLOW,
   BALANCE_DUE_OFFSET_DAYS_NO_DEPOSIT_FLOW,
+  GRACE_PERIOD_FROM_REQUEST_HOURS,
   GRACE_PERIOD_HOURS,
   INVALID_DEPOSIT_CONFIG,
+  NEAR_TERM_THRESHOLD_DAYS,
   PROVIDER_RESPONSE_WINDOW_HOURS,
   computeDepositAmountNumber,
   computeGracePeriodDeadline,
+  computeGracePeriodDeadlineFromRequest,
   computePaymentPlan,
   computeProviderResponseDeadline,
+  isFlexiblePolicy,
 } from './payment-plan'
 
 const NOW = new Date('2026-04-28T12:00:00.000Z')
@@ -164,6 +168,47 @@ describe('deadline helpers', () => {
     const responded = new Date('2026-05-01T08:00:00.000Z')
     const deadline = computeGracePeriodDeadline(responded)
     expect(deadline.getTime() - responded.getTime()).toBe(GRACE_PERIOD_HOURS * 60 * 60 * 1000)
+  })
+})
+
+describe('computeGracePeriodDeadlineFromRequest (revamp Spec v2.3)', () => {
+  it('returns request + 24h for a far-out programme', () => {
+    const deadline = computeGracePeriodDeadlineFromRequest(NOW, dayOffset(60))
+    expect(deadline.getTime() - NOW.getTime()).toBe(
+      GRACE_PERIOD_FROM_REQUEST_HOURS * 60 * 60 * 1000
+    )
+  })
+
+  it('is zero-length when the programme starts beyond but near the threshold (8 days → 24h)', () => {
+    const deadline = computeGracePeriodDeadlineFromRequest(NOW, dayOffset(8))
+    expect(deadline.getTime() - NOW.getTime()).toBe(
+      GRACE_PERIOD_FROM_REQUEST_HOURS * 60 * 60 * 1000
+    )
+  })
+
+  it('collapses to a zero-length grace when the programme starts within 7 days', () => {
+    const deadline = computeGracePeriodDeadlineFromRequest(NOW, dayOffset(5))
+    expect(deadline.getTime()).toBe(NOW.getTime())
+  })
+
+  it('treats exactly 7 days as near-term (zero-length, inclusive boundary)', () => {
+    const deadline = computeGracePeriodDeadlineFromRequest(NOW, dayOffset(NEAR_TERM_THRESHOLD_DAYS))
+    expect(deadline.getTime()).toBe(NOW.getTime())
+  })
+
+  it('treats programmes already started as near-term (zero-length)', () => {
+    const deadline = computeGracePeriodDeadlineFromRequest(NOW, dayOffset(-1))
+    expect(deadline.getTime()).toBe(NOW.getTime())
+  })
+})
+
+describe('isFlexiblePolicy', () => {
+  it('is true only for the flexible tier', () => {
+    expect(isFlexiblePolicy('flexible')).toBe(true)
+    expect(isFlexiblePolicy('moderate')).toBe(false)
+    expect(isFlexiblePolicy('custom')).toBe(false)
+    expect(isFlexiblePolicy(null)).toBe(false)
+    expect(isFlexiblePolicy(undefined)).toBe(false)
   })
 })
 

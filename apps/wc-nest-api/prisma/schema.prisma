@@ -280,6 +280,14 @@ model Provider {
   appFeeUpdatedAt        DateTime? @map("app_fee_updated_at")
   appFeeUpdatedByAdminId String?   @map("app_fee_updated_by_admin_id")
 
+  /// Payments revamp (Spec v2.3) — provider suspension is admin-decided via the
+  /// review queue (no hard-coded auto-suspension; PT v1.7 §17.2/§5.4 are
+  /// discretionary). Categories accumulate across review actions; reason is
+  /// admin free-text (bounded for the same email-deliverability reason as
+  /// `rejectionReason`).
+  suspensionCategories Json?   @map("suspension_categories")
+  suspensionReasonText String? @map("suspension_reason_text") @db.VarChar(2000)
+
   /// 0–100 score recomputed by `ProfileCompletionService` on Provider/Camp
   /// updates. Drives `Provider_Profile_Incomplete` reminders. Thresholds
   /// (e.g. `<50` = incomplete) live in the catalog entries, not here.
@@ -307,6 +315,7 @@ model Provider {
   // Billing / Payments Relations
   payoutEvents             PayoutEvent[]
   providerConnectCustomers ProviderConnectCustomer[]
+  adminReviewQueue         ProviderAdminReviewQueue[]
 
   @@index([ownerId])
   @@index([approvalStatus])
@@ -637,6 +646,11 @@ model ProviderSettings {
   cancellationPolicySpecialCircumstances Json?     @map("cancellation_policy_special_circumstances") @db.JsonB
   cancellationPolicyAgreedAt             DateTime? @map("cancellation_policy_agreed_at")
 
+  /// Payments revamp (Spec v2.3) — Custom-policy capture-schedule builder config
+  /// (up to 4 events with refund-% bands). Null for the named tiers, where the
+  /// capture schedule is derived from the cancellation-policy snapshot at booking.
+  captureSchedule Json? @map("capture_schedule") @db.JsonB
+
   /// Provider-level payout mode. Each booking accepted while this is set
   /// snapshots its value into `BookingGroup.payoutMode` so post-acceptance
   /// edits do not retroactively rewrite an in-flight schedule.
@@ -749,6 +763,13 @@ model Camp {
   campFocus               Json? // {primaryFocus: {activityId, activityName, categoryId, categoryName, icon}, description, philosophy, learningApproach}
   safetySupervision       Json?   @map("safety_supervision") // {staffRatios?: {label, value}[], items?: string[], description?: string}
   screenPolicy            Json?   @map("screen_policy") // {description: string}
+
+  /// Payments revamp (Spec v2.3) — per-Listing deposit override. When false,
+  /// this camp takes no deposit regardless of the provider-level deposit
+  /// settings (`deposit_applies = provider.depositRequired AND camp.depositEnabled`).
+  /// Frozen into `BookingGroup.depositSnapshot` at request so toggling never
+  /// affects existing bookings.
+  depositEnabled Boolean @default(true) @map("deposit_enabled")
 
   // Publishing
   status      CampStatus @default(draft)
@@ -1181,6 +1202,39 @@ model BookingGroup {
   /// for deposit flow, -90d for no-deposit flow). Null when full payment is taken at booking.
   balanceDueAt DateTime? @map("balance_due_at")
 
+  // ============================================
+  // Payments revamp (Spec v2.3) — request-anchored grace + capture engine
+  // ============================================
+
+  /// Request-anchored grace deadline: booking_request_time + 24h, OR the request
+  /// time itself (zero-length grace) when the programme starts within 7 days.
+  /// Distinct from the legacy `gracePeriodEndsAt` (acceptance + 48h), which is
+  /// retained for back-compat during the cutover.
+  graceDeadline DateTime? @map("grace_deadline")
+
+  /// Internal capture mechanics derived from the cancellation policy. Never shown
+  /// to users (they see the named tiers Flexible/Moderate/Strict/Custom).
+  captureMode CaptureMode? @map("capture_mode")
+
+  /// Manual-capture deposit PaymentIntent — held in `requires_capture` until the
+  /// grace deadline (or captured immediately when accepted post-grace).
+  depositPaymentIntentId String? @map("deposit_payment_intent_id")
+
+  /// Saved off-session payment method on the connected account, used for the
+  /// scheduled balance captures.
+  savedPaymentMethodId String? @map("saved_payment_method_id")
+
+  /// Stamped when the deposit capture succeeds.
+  depositCapturedAt DateTime? @map("deposit_captured_at")
+
+  /// Admin payment-review queue (failed-capture escalation). Never auto-cancel:
+  /// `payment_review_status` is set when capture retries are exhausted and an
+  /// admin must triage. Distinct from provider-cancellation review.
+  paymentReviewStatus            String?   @map("payment_review_status")
+  paymentReviewFlaggedAt         DateTime? @map("payment_review_flagged_at")
+  paymentReviewResolvedAt        DateTime? @map("payment_review_resolved_at")
+  paymentReviewResolvedByAdminId String?   @map("payment_review_resolved_by_admin_id")
+
   /// Cached pointer to the **earliest pending tranche's** `releaseAt` — kept
   /// for fast sorting / superadmin display. Source of truth is
   /// `BookingPayoutSchedule`. Null when no pending tranches remain (fully
@@ -1259,6 +1313,9 @@ model BookingGroup {
   disputes                    Dispute[]
   reimbursements              Reimbursement[]
   payoutSchedule              BookingPayoutSchedule[]
+  scheduledCaptures           BookingScheduledCapture[]
+  consentSnapshots            BookingConsentSnapshot[]
+  paymentAuditLog             BookingPaymentAuditLog[]
   cancelledByUser             User?                   @relation("BookingGroupCancelledBy", fields: [cancelledByUserId], references: [id])
   payoutOverrideAgreedByAdmin User?                   @relation("BookingGroupPayoutOverrideAdmin", fields: [payoutOverrideAgreedByAdminId], references: [id])
 
@@ -1415,6 +1472,12 @@ enum BookingGroupStatus {
   partially_refunded // One or more refunds issued; some payments still net positive
   fully_refunded // All payments fully reversed
   disputed // Open dispute on at least one charge
+  // Payments revamp (Spec v2.3) — request-anchored grace + capture engine.
+  payment_authorized // Deposit/Setup authorized at request; awaiting provider response
+  provider_accepted // Provider accepted; capture schedule resolved
+  waiting_for_grace_deadline // Accepted within grace; deposit capture deferred to grace deadline
+  deposit_captured // Deposit captured (post-grace); awaiting balance captures
+  payment_review // Capture retries exhausted; flagged for manual admin review (never auto-cancel)
 }
 
 // ============================================
@@ -2779,6 +2842,62 @@ enum PayoutTrancheStatus {
   skipped
 }
 
+// ============================================
+// Payments revamp (Spec v2.3) — capture engine, consent, audit enums
+// ============================================
+
+enum ScheduledCaptureStatus {
+  scheduled
+  processing
+  completed
+  failed
+  cancelled
+}
+
+/// Internal capture mechanics for observability only — NEVER shown to users,
+/// who only ever see the named tiers (Flexible / Moderate / Strict / Custom).
+enum CaptureMode {
+  binary
+  two_stage
+  custom
+}
+
+enum PaymentAuditEventType {
+  deposit_auth_created
+  deposit_captured
+  grace_scheduled
+  balance_capture_scheduled
+  balance_capture_fired
+  balance_capture_failed
+  capture_cancelled
+  grace_refund_issued
+  policy_refund_issued
+  provider_cancellation_refund
+  force_majeure_action
+  payment_review_flagged
+  admin_override
+  consent_captured
+}
+
+enum PlatformFeeDisposition {
+  retained
+  refunded
+}
+
+enum ProviderSuspensionCategory {
+  precautionary
+  safeguarding
+  fraud
+  insolvency
+  failed_capture_escalation
+}
+
+enum ProviderReviewStatus {
+  pending
+  under_review
+  resolved
+}
+
 /// One row per Stripe PaymentIntent. A BookingGroup has 1..N (deposit + balance,
 /// or full, plus retry rebills). Refunds are tracked as separate Refund rows.
 model Payment {
@@ -3108,6 +3227,160 @@ model BookingPayoutSchedule {
   @@index([stripePayoutId])
   @@index([payoutEventId])
   @@map("booking_payout_schedules")
+}
+
+// ============================================
+// Payments revamp (Spec v2.3) — capture engine, consent, audit, FM, review queue
+// ============================================
+
+/// Per-capture-event schedule for a booking. Sequence 0 = deposit; 1..4 = balance
+/// captures derived from the cancellation-policy refund-% drop boundaries. This
+/// is the SOLE source of truth for capture timing (no captureDate columns on
+/// BookingGroup). `@@unique([bookingGroupId, sequence])` is the idempotency
+/// anchor for the BullMQ jobId and the Stripe idempotency key.
+model BookingScheduledCapture {
+  id             String @id @default(uuid())
+  bookingGroupId String @map("booking_group_id")
+
+  /// 0 = deposit, 1..4 = balance captures (furthest-out boundary first).
+  sequence Int
+
+  amount               Decimal @db.Decimal(12, 2)
+  applicationFeeAmount Decimal @map("application_fee_amount") @db.Decimal(12, 2)
+  currency             String  @db.VarChar(3)
+
+  /// Band-boundary date (00:00 programme-location tz, stored as UTC), pre-guard.
+  captureDate          DateTime @map("capture_date")
+  /// max(captureDate, graceDeadline, acceptanceTime). The cron fires at/after this.
+  effectiveCaptureDate DateTime @map("effective_capture_date")
+
+  status ScheduledCaptureStatus @default(scheduled)
+
+  stripePaymentIntentId String?   @map("stripe_payment_intent_id")
+  paymentId             String?   @map("payment_id")
+  failureCode           String?   @map("failure_code")
+  failureMessage        String?   @map("failure_message") @db.Text
+  retryDeadline         DateTime? @map("retry_deadline")
+  cancelledReason       String?   @map("cancelled_reason")
+  fmEventId             String?   @map("fm_event_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bookingGroup BookingGroup @relation(fields: [bookingGroupId], references: [id], onDelete: Restrict)
+
+  @@unique([bookingGroupId, sequence])
+  @@index([status, effectiveCaptureDate])
+  @@index([bookingGroupId])
+  @@map("booking_scheduled_captures")
+}
+
+/// Snapshot of the exact cancellation policy + charge schedule shown to the
+/// customer at checkout (SCA mandate evidence + dispute defence). A consented
+/// reschedule appends a new row and supersedes the prior; the latest
+/// non-superseded row is authoritative. 10-year retention (see audit log).
+model BookingConsentSnapshot {
+  id             String @id @default(uuid())
+  bookingGroupId String @map("booking_group_id")
+
+  policyText       String    @map("policy_text") @db.Text
+  chargeSchedule   Json      @map("charge_schedule") @db.JsonB
+  depositInfo      Json      @map("deposit_info") @db.JsonB
+  gracePeriodHours Int       @default(24) @map("grace_period_hours")
+  acknowledgedAt   DateTime  @map("acknowledged_at")
+  ipAddress        String?   @map("ip_address")
+  userAgent        String?   @map("user_agent") @db.Text
+  schemaVersion    Int       @default(1) @map("schema_version")
+  supersededAt     DateTime? @map("superseded_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  bookingGroup BookingGroup @relation(fields: [bookingGroupId], references: [id], onDelete: Restrict)
+
+  @@index([bookingGroupId])
+  @@map("booking_consent_snapshots")
+}
+
+/// Append-only payment audit log. 10-year retention (Swiss CO Art. 958f). Never
+/// UPDATE/DELETE — corrections are new rows. Excluded from the 90-day
+/// webhook-event retention cron. `actor` is a plain user id or 'system'.
+model BookingPaymentAuditLog {
+  id           String                @id @default(uuid())
+  timestampUtc DateTime              @default(now()) @map("timestamp_utc")
+  actor        String
+  eventType    PaymentAuditEventType @map("event_type")
+
+  bookingGroupId     String  @map("booking_group_id")
+  scheduledCaptureId String? @map("scheduled_capture_id")
+  paymentIntentId    String? @map("payment_intent_id")
+
+  amountMinorUnits       BigInt?                 @map("amount_minor_units")
+  currency               String?                 @db.VarChar(3)
+  priorStatus            String?                 @map("prior_status")
+  newStatus              String?                 @map("new_status")
+  reasonText             String?                 @map("reason_text") @db.Text
+  fmEventId              String?                 @map("fm_event_id")
+  platformFeeDisposition PlatformFeeDisposition? @map("platform_fee_disposition")
+
+  bookingGroup BookingGroup @relation(fields: [bookingGroupId], references: [id], onDelete: Restrict)
+
+  @@index([bookingGroupId, timestampUtc])
+  @@index([eventType])
+  @@index([actor])
+  @@index([timestampUtc])
+  @@map("booking_payment_audit_log")
+}
+
+/// One row per bulk Force Majeure action (admin-triggered). Scheduled-capture
+/// and audit rows reference it via `fmEventId` (plain pointer, not a hard FK).
+model ForceMajeureEvent {
+  id                  String @id @default(uuid())
+  administratorUserId String @map("administrator_user_id")
+  description         String @db.Text
+
+  affectedProgrammeDateFrom DateTime? @map("affected_programme_date_from")
+  affectedProgrammeDateTo   DateTime? @map("affected_programme_date_to")
+  affectedProviderId        String?   @map("affected_provider_id")
+  affectedRegion            String?   @map("affected_region")
+  affectedBookingCount      Int       @default(0) @map("affected_booking_count")
+  totalRefundedAmount       Decimal   @default(0) @map("total_refunded_amount") @db.Decimal(14, 2)
+  platformFeeRefunded       Boolean   @default(false) @map("platform_fee_refunded")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([affectedProviderId])
+  @@index([createdAt])
+  @@map("force_majeure_events")
+}
+
+/// Replaces hard-coded provider auto-suspension. A provider cancellation (or a
+/// failed-capture escalation) inserts a row here for a manual, reason-captured
+/// admin decision (PT v1.7 §17.2 / §5.4 are discretionary).
+model ProviderAdminReviewQueue {
+  id         String @id @default(uuid())
+  providerId String @map("provider_id")
+
+  suspensionType       ProviderSuspensionCategory @map("suspension_type")
+  status               ProviderReviewStatus       @default(pending)
+  affectedListingIds   Json?                      @map("affected_listing_ids")
+  affectedBookingCount Int                        @default(0) @map("affected_booking_count")
+  reasonText           String                     @map("reason_text") @db.Text
+  initiatingRefundId   String?                    @map("initiating_refund_id")
+
+  reviewedAt       DateTime? @map("reviewed_at")
+  reviewedByUserId String?   @map("reviewed_by_user_id")
+  decision         String?
+  decisionNotes    String?   @map("decision_notes") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId])
+  @@index([status])
+  @@map("provider_admin_review_queue")
 }
 
 /// Tracks a camp's debt to World Camps when a refund was issued after funds
