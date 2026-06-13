@@ -3,10 +3,8 @@ import type { Metadata, Viewport } from 'next'
 import config from '@/config/config'
 import { getServerConfig, serializeConfigForScript } from '@/config/runtime-config'
 
-import { Providers } from './providers'
+import { RootProviders } from './providers'
 import './globals.css'
-
-export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   metadataBase: new URL(config.app.metadataBase),
@@ -104,7 +102,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: runtimeConfigScript }} />
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
-        <Providers>{children}</Providers>
+        <RootProviders>{children}</RootProviders>
       </body>
     </html>
   )

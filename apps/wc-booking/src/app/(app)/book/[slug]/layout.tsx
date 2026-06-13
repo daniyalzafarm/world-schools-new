@@ -45,7 +45,7 @@ function CampBookingStepsBar() {
 export default function CampBookingLayout({ children }: { children: ReactNode }) {
   const router = useRouter()
   const params = useParams()
-  const campSlug = typeof params.campSlug === 'string' ? params.campSlug : ''
+  const campSlug = typeof params.slug === 'string' ? params.slug : ''
   const currentStep = useCampBookingStore(state => state.currentStep)
   const setStep = useCampBookingStore(state => state.setStep)
   const steps = useVisibleSteps()
@@ -60,7 +60,7 @@ export default function CampBookingLayout({ children }: { children: ReactNode })
   }
 
   const exitToCampProfile = () => {
-    if (campSlug) router.push(`/camps/${campSlug}`)
+    if (campSlug) router.push(`/camp/${campSlug}`)
     else router.back()
   }
 

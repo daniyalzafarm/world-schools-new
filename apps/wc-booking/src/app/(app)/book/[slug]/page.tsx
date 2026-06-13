@@ -10,7 +10,7 @@ export default function CampBookingPage() {
   const params = useParams()
   const searchParams = useSearchParams()
   const router = useRouter()
-  const campSlug = params.campSlug as string
+  const campSlug = params.slug as string
   const bookingGroupId = searchParams.get('bookingGroupId')
   const preselectedSessionId = searchParams.get('sessionId')
 
@@ -81,12 +81,12 @@ export default function CampBookingPage() {
   useEffect(() => {
     if (!currentBookingGroupId) return
     if (searchParams.get('bookingGroupId') === currentBookingGroupId) return
-    router.replace(`/camps/${campSlug}/book?bookingGroupId=${currentBookingGroupId}`)
+    router.replace(`/book/${campSlug}?bookingGroupId=${currentBookingGroupId}`)
   }, [currentBookingGroupId, campSlug, router, searchParams])
 
   useEffect(() => {
     if (!preselectedSessionId || currentBookingGroupId) return
-    router.replace(`/camps/${campSlug}/book`)
+    router.replace(`/book/${campSlug}`)
   }, [preselectedSessionId, currentBookingGroupId, campSlug, router])
 
   return <CampBookingFlow />
