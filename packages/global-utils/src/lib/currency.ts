@@ -117,3 +117,15 @@ export function getCurrencySymbol(currencyCode: string): string {
     return symbols[currencyCode] || currencyCode
   }
 }
+
+/**
+ * Human-readable currency name for a code (e.g. `'USD'` → `'US Dollar'`).
+ * Falls back to the code itself if the runtime cannot resolve a display name.
+ */
+export function getCurrencyName(currencyCode: string): string {
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'currency' }).of(currencyCode) ?? currencyCode
+  } catch {
+    return currencyCode
+  }
+}

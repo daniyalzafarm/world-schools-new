@@ -23,16 +23,15 @@ import { TrustScoreBadge } from '../../../components/onboarding/TrustScoreBadge'
 import type { GoogleBusinessSearchResult, LegalBusinessInfo } from '../../../types/onboarding'
 import { Search } from 'lucide-react'
 import { getRuntimeConfig } from '../../../config/runtime-config'
+import { getCurrencyName, SUPPORTED_CURRENCIES } from '@world-schools/wc-utils'
 
 /* eslint-disable no-undef */
 // Google Maps API types are loaded via script tag
 
-const CURRENCIES = [
-  { value: 'USD', label: 'USD - US Dollar' },
-  { value: 'EUR', label: 'EUR - Euro' },
-  { value: 'GBP', label: 'GBP - British Pound' },
-  { value: 'CHF', label: 'CHF - Swiss Franc' },
-]
+const CURRENCIES = SUPPORTED_CURRENCIES.map(code => ({
+  value: code,
+  label: `${code} - ${getCurrencyName(code)}`,
+}))
 
 const TIMEZONES = [
   { value: 'America/New_York', label: 'Eastern Time (ET)' },

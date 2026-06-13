@@ -13,15 +13,14 @@ import {
   SelectItem,
 } from '@heroui/react'
 import { getCountryCode } from '@world-schools/ui-web'
+import { getCurrencyName, SUPPORTED_CURRENCIES } from '@world-schools/wc-utils'
 import { onboardingService } from '@/services/onboarding.services'
 import type { GoogleBusinessProfile } from '@/types/onboarding'
 
-const CURRENCIES = [
-  { value: 'USD', label: 'USD - US Dollar' },
-  { value: 'EUR', label: 'EUR - Euro' },
-  { value: 'GBP', label: 'GBP - British Pound' },
-  { value: 'CHF', label: 'CHF - Swiss Franc' },
-]
+const CURRENCIES = SUPPORTED_CURRENCIES.map(code => ({
+  value: code,
+  label: `${code} - ${getCurrencyName(code)}`,
+}))
 
 const TIMEZONES = [
   { value: 'America/New_York', label: 'Eastern Time (ET)' },

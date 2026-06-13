@@ -12,4 +12,5 @@ export {
   type SupportedCurrency,
   formatCurrency,
   getCurrencySymbol,
+  getCurrencyName,
 } from '@world-schools/global-utils/currency'

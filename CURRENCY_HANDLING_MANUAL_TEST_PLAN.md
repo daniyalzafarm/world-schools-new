@@ -40,18 +40,20 @@ Spin up **four** providers, one per launch currency. The simplest path is to run
 
 ---
 
-## Section B — Currency allow-list (launch scope: USD / GBP / CHF / EUR)
+## Section B — Currency allow-list (all 15 supported currencies)
 
-Backend allow-list lives in [apps/wc-nest-api/src/modules/stripe/stripe.constants.ts](apps/wc-nest-api/src/modules/stripe/stripe.constants.ts) (`SUPPORTED_CONNECT_CURRENCIES`). DTO-level validation in [apps/wc-nest-api/src/modules/provider/onboarding/dto/google-business.dto.ts](apps/wc-nest-api/src/modules/provider/onboarding/dto/google-business.dto.ts) (`@IsIn` on `SaveGoogleBusinessProfileDto` and `UpdateCompanyDetailsDto`).
+Supported set (single source of truth: `SUPPORTED_CURRENCIES` in [packages/global-utils/src/lib/currency.ts](packages/global-utils/src/lib/currency.ts)): **CHF, EUR, GBP, USD, CAD, AED, AUD, SGD, JPY, CNY, HKD, DKK, SEK, THB, NZD**.
+
+Backend allow-list lives in [apps/wc-nest-api/src/modules/stripe/stripe.constants.ts](apps/wc-nest-api/src/modules/stripe/stripe.constants.ts) (`SUPPORTED_CONNECT_CURRENCIES`), derived from `SUPPORTED_CURRENCIES`. DTO-level validation in [apps/wc-nest-api/src/modules/provider/onboarding/dto/google-business.dto.ts](apps/wc-nest-api/src/modules/provider/onboarding/dto/google-business.dto.ts) (`@IsIn` on `SaveGoogleBusinessProfileDto` and `UpdateCompanyDetailsDto`). Frontend dropdowns derive from the same `SUPPORTED_CURRENCIES` list, so the four surfaces never drift.
 
 | # | Case | Pass criteria |
 |---|---|---|
-| B1 | Provider onboarding dropdown — `find-your-camp` page | Dropdown lists exactly **USD, EUR, GBP, CHF**. No CAD / AUD / NZD / JPY / CNY / INR options are visible. File: [apps/wc-provider/src/app/onboarding/find-your-camp/page.tsx](apps/wc-provider/src/app/onboarding/find-your-camp/page.tsx). |
-| B2 | Company-settings modal (post-onboarding edit) | Same four options only. File: [apps/wc-provider/src/components/account/modals/company-settings-modal.tsx](apps/wc-provider/src/components/account/modals/company-settings-modal.tsx). |
-| B3 | API direct: POST `SaveGoogleBusinessProfileDto` with `currency: "JPY"` | 400 Bad Request. Response message contains `currency must be one of: USD, GBP, CHF, EUR` (order may differ). |
-| B4 | API direct: PATCH `UpdateCompanyDetailsDto` with `currency: "CAD"` | Same — 400 with the same allow-list message. |
-| B5 | API direct: same endpoints with each of `USD`, `GBP`, `CHF`, `EUR` | 200 OK; `ProviderSettings.currency` row updated to the submitted value. |
-| B6 | Stripe Connect account creation for each launch currency | Walk Stripe-Connect onboarding for the four seeded providers. Each resulting `acct_*` has `default_currency` matching the provider's currency. Verify in **Stripe Dashboard → Connect → Accounts → [acct_*] → Account details**. |
+| B1 | Provider onboarding dropdown — `find-your-camp` page | Dropdown lists all 15 supported currencies (`CODE - Name`, e.g. `USD - US Dollar`, `JPY - Japanese Yen`). No INR / BRL / ZAR (unsupported) options are visible. File: [apps/wc-provider/src/app/onboarding/find-your-camp/page.tsx](apps/wc-provider/src/app/onboarding/find-your-camp/page.tsx). |
+| B2 | Company-settings modal (post-onboarding edit) | Same 15 options. File: [apps/wc-provider/src/components/account/modals/company-settings-modal.tsx](apps/wc-provider/src/components/account/modals/company-settings-modal.tsx). |
+| B3 | API direct: POST `SaveGoogleBusinessProfileDto` with `currency: "INR"` (unsupported) | 400 Bad Request. Response message is `currency must be one of: ...` listing the 15 supported codes (order may differ). |
+| B4 | API direct: PATCH `UpdateCompanyDetailsDto` with `currency: "BRL"` (unsupported) | Same — 400 with the same allow-list message. |
+| B5 | API direct: same endpoints with each of the 15 supported currencies (spot-check `USD`, `CHF`, `JPY`, `AED`, `NZD`) | 200 OK; `ProviderSettings.currency` row updated to the submitted value. |
+| B6 | Stripe Connect account creation per currency | Walk Stripe-Connect onboarding for providers seeded across several of the 15 currencies. Each resulting `acct_*` has `default_currency` matching the provider's currency. For non-bank-account currencies (everything beyond CHF/EUR/GBP/USD), confirm the platform Stripe account has `default_currency = chf` with balance conversion-to-default enabled. Verify in **Stripe Dashboard → Connect → Accounts → [acct_*] → Account details**. |
 | B7 | Lower-case submitted currency (`"usd"`) | If the FE always upper-cases (current behavior), expect 200. If sent verbatim via API, expect 400 — `@IsIn` is case-sensitive against the upper-case list. Document the observed behavior. |
 
 ---

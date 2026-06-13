@@ -154,7 +154,7 @@ export class SaveGoogleBusinessProfileDto {
   website?: string
 
   @ApiProperty({
-    description: 'Currency code (ISO 4217). Restricted to launch-scope currencies.',
+    description: 'Currency code (ISO 4217). One of the platform-supported settlement currencies.',
     enum: SUPPORTED_CURRENCY_CODES,
     example: 'USD',
   })
@@ -231,7 +231,7 @@ export class UpdateCompanyDetailsDto {
   website?: string
 
   @ApiProperty({
-    description: 'Currency code (ISO 4217). Restricted to launch-scope currencies.',
+    description: 'Currency code (ISO 4217). One of the platform-supported settlement currencies.',
     enum: SUPPORTED_CURRENCY_CODES,
     example: 'USD',
   })
