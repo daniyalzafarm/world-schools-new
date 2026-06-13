@@ -1220,10 +1220,10 @@ model BookingGroup {
   /// Decline provenance — Provider Terms v1.7 §5.1(h)(iii) requires every
   /// provider-initiated decline to be tagged with a reason from the controlled
   /// list so the Platform can perform §5.1(h)(iv) pattern monitoring.
-  /// `declineReasonOther` holds the provider's contextual free-text note for any
-  /// reason that carries one (required for `operational_inability`,
-  /// `safeguarding_concerns`, `other`; optional for the rest). It is never
-  /// surfaced to parents on any channel — only the reason label is.
+  /// `declineReasonOther` holds the provider's contextual free-text note,
+  /// required for every reason except `capacity_or_scheduling` (which carries
+  /// no note). It is never surfaced to parents on any channel — only the
+  /// reason label is.
   declineReason      BookingDeclineReason? @map("decline_reason")
   declineReasonOther String?               @map("decline_reason_other") @db.Text
 

@@ -872,6 +872,17 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
           declineReasonOther: 'too short',
         })
       ).rejects.toThrow(/at least 10 characters/)
+      await expect(
+        service.declineForProvider('pr-1', 'bg-1', {
+          declineReason: BookingDeclineReason.EligibilityCriteriaNotMet,
+        })
+      ).rejects.toThrow(/at least 10 characters/)
+      await expect(
+        service.declineForProvider('pr-1', 'bg-1', {
+          declineReason: BookingDeclineReason.IncompleteInformation,
+          declineReasonOther: 'too short',
+        })
+      ).rejects.toThrow(/at least 10 characters/)
 
       expect(payments.cancelForBookingGroup).not.toHaveBeenCalled()
       expect(prisma.bookingGroup.updateMany).not.toHaveBeenCalled()
@@ -908,7 +919,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       )
     })
 
-    it('accepts the new incomplete_information reason with an optional note', async () => {
+    it('accepts the incomplete_information reason with its now-mandatory note', async () => {
       prisma.bookingGroup.findFirst.mockResolvedValueOnce({
         id: 'bg-1',
         status: 'request',
@@ -926,13 +937,14 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
 
       const result = await service.declineForProvider('pr-1', 'bg-1', {
         declineReason: BookingDeclineReason.IncompleteInformation,
+        declineReasonOther: 'Emergency contact details are missing',
       })
 
       expect(prisma.bookingGroup.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             declineReason: BookingDeclineReason.IncompleteInformation,
-            declineReasonOther: null,
+            declineReasonOther: 'Emergency contact details are missing',
           }),
         })
       )
