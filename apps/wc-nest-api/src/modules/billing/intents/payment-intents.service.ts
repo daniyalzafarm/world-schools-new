@@ -203,11 +203,10 @@ export class PaymentIntentsService {
    */
   async createSetupIntent(bookingGroupId: string): Promise<SetupResult> {
     const group = await this.loadBookingGroupOrThrow(bookingGroupId)
-    if (!group.balanceDueAt) {
-      throw new BadRequestException(
-        'Cannot create SetupIntent for a booking with no balanceDueAt configured'
-      )
-    }
+    // Payments revamp (Spec v2.3): the SetupIntent only SAVES the card for the
+    // off-session captures the engine fires at the policy boundaries — it no
+    // longer depends on a single `balanceDueAt`. (Near-term no-deposit bookings
+    // have no `balanceDueAt` and are now valid here.)
     if (!group.serviceFeeAmount) {
       // Strict — the booking-groups service must always snapshot the service fee
       // at submission. Falling back to anything else here would make the eventual
@@ -276,9 +275,14 @@ export class PaymentIntentsService {
       })
     )
 
-    // Placeholder Payment row so the balance-charge cron picks this up at dueAt.
-    // The actual PaymentIntent will be created by the cron via `chargeOffSession`
-    // and the row's `stripePaymentIntentId` is filled in at that point.
+    // Placeholder Payment row carrying the connect context (customer +
+    // connected account) that the per-capture balance Payment rows inherit.
+    //
+    // Payments revamp (Spec v2.3): `dueAt` is intentionally NULL so the legacy
+    // balance-charge cron (which picks up `dueAt <= now`) NEVER charges this
+    // full-price placeholder — the scheduled-capture engine owns the actual
+    // charges now. Without this, a no-deposit booking would be double-charged
+    // (placeholder + per-capture rows).
     const payment = await this.prisma.payment.upsert({
       where: { idempotencyKey: `${idempotencyKey}:placeholder` },
       create: {
@@ -293,10 +297,8 @@ export class PaymentIntentsService {
         stripeAccountId,
         status: PaymentStatus.processing,
         captureMethod: CaptureMethod.automatic,
-        dueAt: group.balanceDueAt,
+        dueAt: null,
         idempotencyKey: `${idempotencyKey}:placeholder`,
-        // H8: row sits in `processing` until `dueAt` and the cron picks it
-        // up; a stuck row past dueAt is the signal we want.
         processingStartedAt: new Date(),
       },
       update: { stripeSetupIntentId: setupIntent.id },

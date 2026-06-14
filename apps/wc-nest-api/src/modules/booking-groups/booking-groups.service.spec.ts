@@ -307,7 +307,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       })
     })
 
-    it('uses authorizeFull when no deposit and session start <90 days', async () => {
+    it('uses createSetupIntent for near-term no-deposit bookings (revamp Spec v2.3: full_at_booking unified onto SetupIntent)', async () => {
       prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
       prisma.bookingGroup.findFirst.mockResolvedValueOnce(
         makeBookingGroup({
@@ -323,6 +323,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
             name: 'Cool Camp',
             status: 'published',
             ageGroups: [{ min: 5, max: 18 }],
+            depositEnabled: true,
           },
           provider: {
             appFeePercentage: new Prisma.Decimal('10'),
@@ -341,19 +342,21 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       prisma.systemSettings.upsert.mockResolvedValueOnce({
         defaultAppFee: new Prisma.Decimal('10'),
       })
-      payments.authorizeFull.mockResolvedValueOnce({
+      payments.createSetupIntent.mockResolvedValueOnce({
         paymentId: 'pay-2',
-        paymentIntentId: 'pi_2',
-        clientSecret: 'secret_2',
-        amount: '2000.00',
-        currency: 'eur',
+        setupIntentId: 'si_2',
+        clientSecret: 'secret_si2',
       })
+      prisma.payment.findUniqueOrThrow.mockResolvedValueOnce({ currency: 'eur' })
 
       const result = await service.submitForParent('u-1', 'bg-1', CONSENT)
 
-      expect(payments.authorizeFull).toHaveBeenCalledWith('bg-1')
+      // Near-term no-deposit no longer charges on-session at acceptance — it
+      // saves the card and the engine captures off-session at the boundaries.
+      expect(payments.createSetupIntent).toHaveBeenCalledWith('bg-1')
+      expect(payments.authorizeFull).not.toHaveBeenCalled()
       expect(payments.authorizeDeposit).not.toHaveBeenCalled()
-      expect(result.payment.kind).toBe('full')
+      expect(result.payment).toMatchObject({ intentType: 'setup_intent', kind: 'setup' })
     })
 
     it('uses createSetupIntent when no deposit and session start ≥90 days', async () => {
@@ -829,6 +832,31 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
           data: expect.objectContaining({ status: 'accepted', respondedAt: expect.any(Date) }),
         })
       )
+      expect(result).toEqual({ bookingGroupId: 'bg-1', status: 'accepted' })
+    })
+
+    it('no-deposit booking (revamp Spec v2.3): also materialises via the engine (full_at_due unified)', async () => {
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce({
+        id: 'bg-1',
+        status: 'request',
+        bookingGroupNumber: 'BG-0001',
+        parentId: 'p-1',
+        totalAmount: new Prisma.Decimal('1500.00'),
+        paymentMode: PaymentMode.full_at_due,
+        camp: { name: 'C' },
+        parent: { userId: 'u-1' },
+        session: {
+          startDate: new Date('2026-12-01T00:00:00Z'),
+          endDate: new Date('2026-12-08T00:00:00Z'),
+        },
+        provider: { settings: { currency: 'EUR' } },
+      })
+
+      const result = await service.acceptForProvider('pr-1', 'bg-1')
+
+      expect(payments.captureForBookingGroup).not.toHaveBeenCalled()
+      expect(captureScheduler.materializeForBooking).toHaveBeenCalledWith('bg-1', expect.any(Date))
+      expect(payouts.generateScheduleForBooking).not.toHaveBeenCalled()
       expect(result).toEqual({ bookingGroupId: 'bg-1', status: 'accepted' })
     })
 

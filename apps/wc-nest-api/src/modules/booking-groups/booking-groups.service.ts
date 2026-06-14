@@ -2741,18 +2741,13 @@ export class BookingGroupsService {
           currency: result.currency,
         }
       }
-      case PaymentMode.full_at_booking: {
-        const result = await this.paymentIntentsService.authorizeFull(bookingGroupId)
-        return {
-          intentType: 'payment_intent',
-          kind: 'full',
-          paymentId: result.paymentId,
-          intentId: result.paymentIntentId,
-          clientSecret: result.clientSecret,
-          amount: result.amount,
-          currency: result.currency,
-        }
-      }
+      // Payments revamp (Spec v2.3): ALL no-deposit bookings save the card via a
+      // SetupIntent and have the whole price captured off-session by the capture
+      // engine at the policy boundaries — there is no on-session full charge at
+      // acceptance anymore. `full_at_booking` (near-term) and `full_at_due`
+      // (far-out) are therefore identical at the intent layer; the scheduled
+      // captures collapse to ~acceptance for near-term bookings.
+      case PaymentMode.full_at_booking:
       case PaymentMode.full_at_due: {
         const result = await this.paymentIntentsService.createSetupIntent(bookingGroupId)
         return {
@@ -3201,13 +3196,16 @@ export class BookingGroupsService {
 
     const gracePeriodEndsAt = computeGracePeriodDeadline(now)
 
-    // Payments revamp (Spec v2.3): deposit bookings now run on the capture-
-    // schedule engine. Acceptance flips FIRST, then the engine drives the
-    // deposit capture-or-defer (capture now if grace already expired, else a
-    // delayed job at the grace deadline) and the balance captures. No-deposit
-    // bookings (full_at_due / full_at_booking) keep the legacy flow until the
-    // no-deposit unification (tracked for pre-step-8).
-    const usesCaptureEngine = bookingGroup.paymentMode === PaymentMode.deposit_then_balance
+    // Payments revamp (Spec v2.3): ALL bookings now run on the capture-schedule
+    // engine. Acceptance flips FIRST, then the engine drives the deposit
+    // capture-or-defer (deposit bookings) and/or the off-session balance captures
+    // (deposit + no-deposit) at their refund-tier boundaries. The legacy
+    // capture-before-flip + payout-schedule branch is retained only as a
+    // defensive fallback for a (malformed) booking with no paymentMode snapshot.
+    const usesCaptureEngine =
+      bookingGroup.paymentMode === PaymentMode.deposit_then_balance ||
+      bookingGroup.paymentMode === PaymentMode.full_at_due ||
+      bookingGroup.paymentMode === PaymentMode.full_at_booking
 
     // Legacy flow only: capture before flipping status so a stale auth keeps the
     // booking in `request`. The capture-engine path defers this to the engine
