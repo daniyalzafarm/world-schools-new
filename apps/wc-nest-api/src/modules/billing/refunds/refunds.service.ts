@@ -14,7 +14,6 @@ import {
   BookingGroupStatus,
   PaymentKind,
   PaymentStatus,
-  PayoutTrancheStatus,
   RefundReason,
   RefundStatus,
   ReimbursementStatus,
@@ -1026,7 +1025,7 @@ export class RefundsService {
     // under Direct Charges the refund debits the connected account directly,
     // and if the payout has already moved funds out, the platform collects from
     // the camp side-channel via Reimbursement.
-    const requiresReimbursement = await this.resolveRequiresReimbursement(args.group.id)
+    const requiresReimbursement = this.resolveRequiresReimbursement()
 
     const params: RefundCreateParams = {
       charge: args.payment.stripeChargeId,
@@ -1179,7 +1178,7 @@ export class RefundsService {
     const amountMajor = new Prisma.Decimal(refund.amount)
       .div(this.minorUnitFactor(refund.currency))
       .toFixed(2)
-    const requiresReimbursement = await this.resolveRequiresReimbursement(payment.bookingGroupId)
+    const requiresReimbursement = this.resolveRequiresReimbursement()
 
     // Phase 4 audit fix Q1b: always write `pending` for the recovery row,
     // even if Stripe's webhook payload says `succeeded`. The caller
@@ -1226,14 +1225,15 @@ export class RefundsService {
    * back what was over-released. The exact reimbursement amount is computed
    * separately by the caller via `computeReimbursementCap`.
    */
-  private async resolveRequiresReimbursement(bookingGroupId: string): Promise<boolean> {
-    const count = await this.prisma.bookingPayoutSchedule.count({
-      where: {
-        bookingGroupId,
-        status: { in: [PayoutTrancheStatus.released, PayoutTrancheStatus.paid] },
-      },
-    })
-    return count > 0
+  private resolveRequiresReimbursement(): boolean {
+    // Payments revamp (Spec v2.3): RETIRED. Under capture-when-non-refundable on
+    // Standard accounts, money is captured only once it is already non-refundable
+    // and is immediately the Provider's — there is never a "refund after the
+    // funds were disbursed early" scenario, so reimbursement is never required.
+    //
+    // This also MUST short-circuit before the destructive migration (M2) drops
+    // `BookingPayoutSchedule`, which this used to query.
+    return false
   }
 
   /**

@@ -299,19 +299,13 @@ export class StripeConnectService {
         name: provider.legalCompanyName ?? undefined,
         url: provider.website ?? undefined,
       },
-      // Manual payout schedule: captured funds settle to the connected account
-      // and stay there until the platform-driven `payout-release.cron.ts`
-      // (Phase 5) calls `payouts.create({}, { stripeAccount })` based on each
-      // booking's `transferDate`. This is what gives us per-booking precision
-      // for both the default (first business day after session start) and
-      // early-payout (agreed earlier date) flows. Required by the spec — do
-      // NOT change to `daily` / `weekly` without a coordinated payout-release
-      // refactor.
-      settings: {
-        payouts: {
-          schedule: { interval: 'manual' },
-        },
-      },
+      // Payments revamp (Spec v2.3): NO platform-controlled payout schedule.
+      // Under capture-when-non-refundable on Standard accounts, money is only
+      // ever captured once it is already non-refundable and is immediately the
+      // Provider's — there is nothing for the platform to hold back. Providers
+      // manage their own payout schedule (Stripe automatic by default) through
+      // their Stripe dashboard. (The old `interval: 'manual'` + payout-release
+      // cron is removed; `delay_days` is unavailable on Standard accounts.)
     }
 
     // Content-hashed idempotency key. Identical params (the actual retry case)

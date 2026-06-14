@@ -546,31 +546,24 @@ describe('RefundsService', () => {
   })
 
   describe('processCampCancelRefund', () => {
-    it('Phase 8: issues full refund + creates Reimbursement when at least one tranche has paid', async () => {
+    it('revamp Spec v2.3: never creates a Reimbursement — captured funds are immediately the provider’s (retired)', async () => {
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(makeGroup())
       prisma.payment.findMany.mockResolvedValueOnce([makePayment()])
       prisma.refund.findUnique.mockResolvedValue(null)
       stripe.client.refunds.create.mockResolvedValue({ id: 're_1', status: 'succeeded' })
-      // The new resolveRequiresReimbursement queries the tranche table.
-      // Returning >0 simulates "deposit_grace tranche has already paid."
-      prisma.bookingPayoutSchedule.count.mockResolvedValueOnce(1)
       prisma.refund.create.mockResolvedValue({
         id: 'r-1',
         amount: new Prisma.Decimal('600.00'),
         bookingGroupId: 'bg-1',
-        requiresReimbursement: true,
+        requiresReimbursement: false,
       })
 
       await service.processCampCancelRefund({ bookingGroupId: 'bg-1', adminUserId: 'u-1' })
 
-      expect(reimbursements.createIfNeeded).toHaveBeenCalledWith(
-        expect.objectContaining({
-          bookingGroupId: 'bg-1',
-          refundId: 'r-1',
-          currency: 'eur',
-        }),
-        expect.anything() // Phase-7 H4: tx client passed as 2nd arg
-      )
+      // resolveRequiresReimbursement is retired (always false) — no Reimbursement
+      // is ever created, and the dropped BookingPayoutSchedule table is no longer
+      // queried (pre-M2 requirement).
+      expect(reimbursements.createIfNeeded).not.toHaveBeenCalled()
     })
 
     it('Phase 8: does NOT create Reimbursement when no tranches have released yet', async () => {
@@ -608,33 +601,24 @@ describe('RefundsService', () => {
       )
     })
 
-    it('Phase-7 H4: createIfNeeded throwing rolls back the Refund row + refundedAmount increment', async () => {
+    it('revamp Spec v2.3: a camp-cancel refund completes without ever invoking the reimbursement path', async () => {
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(makeGroup())
       prisma.payment.findMany.mockResolvedValueOnce([makePayment()])
       prisma.refund.findUnique.mockResolvedValue(null)
       stripe.client.refunds.create.mockResolvedValue({ id: 're_1', status: 'succeeded' })
-      // Phase 8: at least one tranche has paid → createIfNeeded gets called.
-      prisma.bookingPayoutSchedule.count.mockResolvedValueOnce(1)
       prisma.refund.create.mockResolvedValue({
         id: 'r-1',
         amount: new Prisma.Decimal('600.00'),
         bookingGroupId: 'bg-1',
-        requiresReimbursement: true,
+        requiresReimbursement: false,
       })
-      reimbursements.createIfNeeded.mockRejectedValueOnce(new Error('db blip'))
 
-      await expect(
-        service.processCampCancelRefund({ bookingGroupId: 'bg-1', adminUserId: 'u-1' })
-      ).rejects.toThrow('db blip')
+      // Reimbursement is retired, so even if createIfNeeded would throw, it is
+      // never called — the refund succeeds cleanly.
+      await service.processCampCancelRefund({ bookingGroupId: 'bg-1', adminUserId: 'u-1' })
 
-      // The error propagated; the outer transaction would roll back the
-      // Refund insert + refundedAmount increment together with the failed
-      // Reimbursement create. (We verify the helper was called with a tx as
-      // its second arg — that's the contract that lets the rollback happen.)
-      expect(reimbursements.createIfNeeded).toHaveBeenCalledWith(
-        expect.objectContaining({ refundId: 'r-1' }),
-        expect.anything()
-      )
+      expect(stripe.client.refunds.create).toHaveBeenCalled()
+      expect(reimbursements.createIfNeeded).not.toHaveBeenCalled()
     })
   })
 
