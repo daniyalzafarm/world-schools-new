@@ -15,6 +15,7 @@ import {
   PaymentIntentsService,
 } from '../billing/intents/payment-intents.service'
 import { PayoutsService } from '../billing/payouts/payouts.service'
+import { CaptureSchedulerService } from '../billing/captures/capture-scheduler.service'
 import { RedisService } from '../redis/redis.service'
 import { RefundsService } from '../billing/refunds/refunds.service'
 import { RefundsNotificationsService } from '../billing/refunds/notifications/refunds-notifications.service'
@@ -47,6 +48,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
   let refundsNotifications: any
   let eventEmitter: any
   let eligibilityService: any
+  let captureScheduler: any
 
   function makeBookingGroup(overrides: Partial<any> = {}) {
     return {
@@ -164,6 +166,9 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       ),
       generateScheduleForBooking: jest.fn().mockResolvedValue({ trancheCount: 1 }),
     }
+    // Payments revamp (Spec v2.3): deposit acceptance materialises + dispatches
+    // the capture schedule via this service instead of the payout engine.
+    captureScheduler = { materializeForBooking: jest.fn().mockResolvedValue(undefined) }
     refunds = {
       previewParentCancel: jest.fn(),
       cancelForParent: jest.fn(),
@@ -198,6 +203,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         { provide: RefundsNotificationsService, useValue: refundsNotifications },
         { provide: RedisService, useValue: redis },
         { provide: EligibilityService, useValue: eligibilityService },
+        { provide: CaptureSchedulerService, useValue: captureScheduler },
       ],
     }).compile()
     service = module.get(BookingGroupsService)
@@ -787,6 +793,40 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
             respondedAt: expect.any(Date),
             gracePeriodEndsAt: expect.any(Date),
           }),
+        })
+      )
+      expect(result).toEqual({ bookingGroupId: 'bg-1', status: 'accepted' })
+    })
+
+    it('deposit booking (revamp Spec v2.3): flips first, then materialises the capture schedule (no capture-before-flip, no payout schedule)', async () => {
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce({
+        id: 'bg-1',
+        status: 'request',
+        bookingGroupNumber: 'BG-0001',
+        parentId: 'p-1',
+        totalAmount: new Prisma.Decimal('2000.00'),
+        // Deposit flow → new capture engine.
+        paymentMode: PaymentMode.deposit_then_balance,
+        camp: { name: 'C' },
+        parent: { userId: 'u-1' },
+        session: {
+          startDate: new Date('2026-08-01T00:00:00Z'),
+          endDate: new Date('2026-08-08T00:00:00Z'),
+        },
+        provider: { settings: { currency: 'GBP' } },
+      })
+
+      const result = await service.acceptForProvider('pr-1', 'bg-1')
+
+      // Flip-first: no capture before the status transition (engine drives it).
+      expect(payments.captureForBookingGroup).not.toHaveBeenCalled()
+      // Engine materialisation replaces the legacy payout-schedule generation.
+      expect(captureScheduler.materializeForBooking).toHaveBeenCalledWith('bg-1', expect.any(Date))
+      expect(payouts.generateScheduleForBooking).not.toHaveBeenCalled()
+      expect(prisma.bookingGroup.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'bg-1', status: 'request' },
+          data: expect.objectContaining({ status: 'accepted', respondedAt: expect.any(Date) }),
         })
       )
       expect(result).toEqual({ bookingGroupId: 'bg-1', status: 'accepted' })

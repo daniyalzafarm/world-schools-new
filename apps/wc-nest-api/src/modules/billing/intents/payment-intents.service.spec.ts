@@ -813,7 +813,7 @@ describe('PaymentIntentsService', () => {
       )
     })
 
-    it('markSucceeded advances accepted → deposit_paid AND creates the balance Payment row (Phase 3 fix Q1)', async () => {
+    it('markSucceeded advances accepted → deposit_paid and does NOT mint a legacy balance row (revamp Spec v2.3)', async () => {
       prisma.payment.findUnique.mockResolvedValueOnce({
         id: 'pay-deposit',
         bookingGroupId: 'bg-1',
@@ -821,8 +821,6 @@ describe('PaymentIntentsService', () => {
         amount: new Prisma.Decimal('600.00'),
         status: PaymentStatus.requires_capture,
         currency: 'eur',
-        // Direct Charges: connect-customer FK + connected-account snapshot,
-        // both carried forward onto the balance row.
         providerConnectCustomerId: 'pcc-1',
         stripeAccountId: 'acct_1',
       })
@@ -834,7 +832,6 @@ describe('PaymentIntentsService', () => {
         balanceDueAt: new Date('2026-09-01T00:00:00Z'),
         appFeePercentageSnapshot: new Prisma.Decimal('15'),
       })
-      prisma.payment.findFirst.mockResolvedValueOnce(null) // no existing balance row
 
       await service.markSucceeded({
         id: 'pi_dep',
@@ -843,33 +840,15 @@ describe('PaymentIntentsService', () => {
         metadata: { paymentId: 'pay-deposit' },
       } as never)
 
+      // Deposit capture still advances the booking lifecycle.
       expect(prisma.bookingGroup.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: { status: 'deposit_paid' },
         })
       )
-      // The balance row was minted with snapshot fields carried from the
-      // deposit row + the booking's snapshot for fee math + dueAt.
-      expect(prisma.payment.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            bookingGroupId: 'bg-1',
-            kind: PaymentKind.balance,
-            amount: expect.anything(), // 2000 - 600 = 1400
-            currency: 'eur',
-            providerConnectCustomerId: 'pcc-1',
-            stripeAccountId: 'acct_1',
-            status: PaymentStatus.processing,
-            captureMethod: 'automatic',
-            dueAt: new Date('2026-09-01T00:00:00Z'),
-            stripePaymentIntentId: null,
-            stripeSetupIntentId: null,
-            // 1400 * 15% = 210.00
-            applicationFeeAmount: expect.anything(),
-            idempotencyKey: expect.stringMatching(/^pay:bg:bg-1:balance:[0-9a-f]{16}$/),
-          }),
-        })
-      )
+      // Balance is now owned by booking_scheduled_captures — the legacy single
+      // balance Payment row is NO LONGER minted here (would double-charge).
+      expect(prisma.payment.create).not.toHaveBeenCalled()
     })
 
     it('markSucceeded for deposit is idempotent on balance creation — re-fire skips when balance row already exists', async () => {

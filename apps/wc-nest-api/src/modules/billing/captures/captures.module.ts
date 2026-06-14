@@ -4,6 +4,7 @@ import { RedisModule } from '../../redis/redis.module'
 import { PaymentIntentsModule } from '../intents/payment-intents.module'
 import { PaymentAuditLogService } from '../shared/payment-audit-log.service'
 import { CaptureEngineService } from './capture-engine.service'
+import { CaptureSchedulerService } from './capture-scheduler.service'
 import { CancelCaptureService } from './cancel-capture.service'
 import { EnqueueCaptureService } from './enqueue-capture.service'
 import { ScheduledCaptureReconciliationCron } from './crons/scheduled-capture-reconciliation.cron'
@@ -24,6 +25,7 @@ import { ScheduledCapturesWorker } from './scheduled-captures.worker'
   imports: [PrismaModule, RedisModule, PaymentIntentsModule, ScheduledCapturesQueueModule],
   providers: [
     CaptureEngineService,
+    CaptureSchedulerService,
     EnqueueCaptureService,
     CancelCaptureService,
     ScheduledCapturesWorker,
@@ -31,6 +33,7 @@ import { ScheduledCapturesWorker } from './scheduled-captures.worker'
     PaymentAuditLogService,
   ],
   exports: [
+    CaptureSchedulerService,
     EnqueueCaptureService,
     CancelCaptureService,
     PaymentAuditLogService,

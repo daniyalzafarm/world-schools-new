@@ -1414,57 +1414,13 @@ export class PaymentIntentsService {
         })
       }
 
-      // Phase 3 fix Q1: when a deposit captures and the booking moves to
-      // `deposit_paid`, create the balance Payment row so the off-session
-      // balance-charge cron has something to pick up at `dueAt =
-      // balanceDueAt`. Skipped for `fully_paid` (deposit==total — there's
-      // no balance to charge later). Idempotent — a webhook re-fire after
-      // the row exists hits the findFirst guard and bails before create.
-      if (
-        payment.kind === PaymentKind.deposit &&
-        nextStatus === BookingGroupStatus.deposit_paid &&
-        updatedGroup.balanceDueAt
-      ) {
-        const existingBalance = await tx.payment.findFirst({
-          where: {
-            bookingGroupId: payment.bookingGroupId,
-            kind: PaymentKind.balance,
-          },
-          select: { id: true },
-        })
-        if (!existingBalance) {
-          const balanceAmount = updatedGroup.totalAmount.minus(payment.amount)
-          if (balanceAmount.greaterThan(0) && updatedGroup.appFeePercentageSnapshot != null) {
-            const applicationFee = computeApplicationFee(
-              balanceAmount,
-              updatedGroup.appFeePercentageSnapshot
-            )
-            // Content-hashed on the booking + dueAt so a retry generates
-            // the same key. The unique constraint on Payment.idempotencyKey
-            // is the second line of defense behind the findFirst guard.
-            const idempotencyKey = buildIdempotencyKey(`pay:bg:${payment.bookingGroupId}:balance`, {
-              dueAt: updatedGroup.balanceDueAt.toISOString(),
-            })
-            await tx.payment.create({
-              data: {
-                bookingGroupId: payment.bookingGroupId,
-                kind: PaymentKind.balance,
-                stripePaymentIntentId: null,
-                stripeSetupIntentId: null,
-                providerConnectCustomerId: payment.providerConnectCustomerId,
-                amount: balanceAmount,
-                applicationFeeAmount: new Prisma.Decimal(applicationFee),
-                currency: payment.currency,
-                stripeAccountId: payment.stripeAccountId,
-                status: PaymentStatus.processing,
-                captureMethod: CaptureMethod.automatic,
-                dueAt: updatedGroup.balanceDueAt,
-                idempotencyKey,
-              },
-            })
-          }
-        }
-      }
+      // Payments revamp (Spec v2.3): the legacy single balance Payment row that
+      // used to be minted here on deposit capture is REMOVED. Balance is now
+      // owned by `booking_scheduled_captures` — each refund-tier increment gets
+      // its own Payment row via `chargeScheduledBalanceCapture` when the capture
+      // engine fires it. Minting the old single row here would double-charge
+      // (old balance-charge cron pickup + new per-capture rows). The deposit
+      // capture's only job now is advancing `accepted → deposit_paid` above.
     })
 
     // Persist the saved PM (best-effort; failures here don't roll back the

@@ -61,6 +61,7 @@ import {
   buildCaptureSchedule,
   resolveProgrammeLocationTimezone,
 } from '../billing/shared/capture-schedule.util'
+import { CaptureSchedulerService } from '../billing/captures/capture-scheduler.service'
 import type {
   ProviderBookingSortField,
   ProviderBookingTab,
@@ -102,7 +103,8 @@ export class BookingGroupsService {
     private readonly refundsService: RefundsService,
     private readonly refundsNotifications: RefundsNotificationsService,
     private readonly redis: RedisService,
-    private readonly eligibilityService: EligibilityService
+    private readonly eligibilityService: EligibilityService,
+    private readonly captureScheduler: CaptureSchedulerService
   ) {}
 
   /**
@@ -3122,6 +3124,8 @@ export class BookingGroupsService {
         sessionId: true,
         totalAmount: true,
         expiresAt: true,
+        // Payments revamp (Spec v2.3): drives the new-model vs legacy decision.
+        paymentMode: true,
         camp: { select: { name: true, ageGroups: true } },
         parent: { select: { userId: true } },
         session: {
@@ -3197,24 +3201,31 @@ export class BookingGroupsService {
 
     const gracePeriodEndsAt = computeGracePeriodDeadline(now)
 
-    // Capture before flipping status: if the capture fails (stale auth),
-    // we want the BookingGroup to remain in `request` so the parent can
-    // retry payment. Capture is idempotent for already-succeeded intents
-    // (no-op) and for the SetupIntent path (the captureForBookingGroup
-    // query is scoped to manual-capture intents, so the SetupIntent
-    // placeholder is left alone).
-    try {
-      await this.paymentIntentsService.captureForBookingGroup(bookingGroup.id)
-    } catch (err) {
-      if (err instanceof PaymentAuthorizationExpiredError) {
-        throw new PreconditionFailedException({
-          message:
-            "The parent's card authorization has expired. Ask them to re-enter their card before accepting.",
-          code: 'PAYMENT_AUTH_EXPIRED',
-          paymentId: err.paymentId,
-        })
+    // Payments revamp (Spec v2.3): deposit bookings now run on the capture-
+    // schedule engine. Acceptance flips FIRST, then the engine drives the
+    // deposit capture-or-defer (capture now if grace already expired, else a
+    // delayed job at the grace deadline) and the balance captures. No-deposit
+    // bookings (full_at_due / full_at_booking) keep the legacy flow until the
+    // no-deposit unification (tracked for pre-step-8).
+    const usesCaptureEngine = bookingGroup.paymentMode === PaymentMode.deposit_then_balance
+
+    // Legacy flow only: capture before flipping status so a stale auth keeps the
+    // booking in `request`. The capture-engine path defers this to the engine
+    // (flip-first + accept-and-retry — confirmed approach).
+    if (!usesCaptureEngine) {
+      try {
+        await this.paymentIntentsService.captureForBookingGroup(bookingGroup.id)
+      } catch (err) {
+        if (err instanceof PaymentAuthorizationExpiredError) {
+          throw new PreconditionFailedException({
+            message:
+              "The parent's card authorization has expired. Ask them to re-enter their card before accepting.",
+            code: 'PAYMENT_AUTH_EXPIRED',
+            paymentId: err.paymentId,
+          })
+        }
+        throw err
       }
-      throw err
     }
 
     // Status-guarded transition (C2): only flip when still `request`, so a
@@ -3251,19 +3262,31 @@ export class BookingGroupsService {
       throw new ConflictException('This booking is no longer awaiting a response.')
     }
 
-    // Phase 8: with `gracePeriodEndsAt` set + capture complete, generate the
-    // payout schedule. The schedule reads the booking's snapshotted
-    // `payoutMode` (frozen at submit) and writes one or more
-    // BookingPayoutSchedule rows. Failure to schedule MUST NOT roll back
-    // acceptance — log and let ops reconcile via the (still-cron-safe)
-    // generator. The cron's idempotency guard means a manual rerun is safe.
-    try {
-      await this.payoutsService.generateScheduleForBooking(bookingGroup.id)
-    } catch (err) {
-      this.logger.error(
-        `acceptForProvider: failed to generate payout schedule for ${bookingGroup.id}: ${(err as Error).message}`,
-        (err as Error).stack
-      )
+    if (usesCaptureEngine) {
+      // Payments revamp (Spec v2.3): materialise the scheduled-capture rows now
+      // that `respondedAt` (acceptance time) is set, and dispatch them — the
+      // deposit captures now (grace expired) or defers to the grace deadline;
+      // balance increments enqueue at their refund-tier boundaries. Failure here
+      // MUST NOT roll back acceptance — the hourly reconciliation cron recovers
+      // un-materialised/undispatched captures from booking state.
+      try {
+        await this.captureScheduler.materializeForBooking(bookingGroup.id, now)
+      } catch (err) {
+        this.logger.error(
+          `acceptForProvider: failed to materialise capture schedule for ${bookingGroup.id}: ${(err as Error).message}`,
+          (err as Error).stack
+        )
+      }
+    } else {
+      // Legacy payout schedule (removed in step 8 once no-deposit is unified).
+      try {
+        await this.payoutsService.generateScheduleForBooking(bookingGroup.id)
+      } catch (err) {
+        this.logger.error(
+          `acceptForProvider: failed to generate payout schedule for ${bookingGroup.id}: ${(err as Error).message}`,
+          (err as Error).stack
+        )
+      }
     }
 
     this.eventEmitter.emit(WsInternalEvent.BookingStatusChanged, {
