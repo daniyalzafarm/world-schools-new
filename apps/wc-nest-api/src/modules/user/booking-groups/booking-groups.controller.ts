@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Ip,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { ResponseUtil } from '../../../common/utils/response.util'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
@@ -10,6 +21,7 @@ import { CheckEligibilityDto } from './dto/check-eligibility.dto'
 import { CreateDraftBookingGroupDto } from './dto/create-draft-booking-group.dto'
 import { QueryParentBookingGroupsDto } from './dto/query-parent-booking-groups.dto'
 import { SaveBookingGroupAddOnsDto } from './dto/save-booking-group-addons.dto'
+import { SubmitBookingGroupDto } from './dto/submit-booking-group.dto'
 import { UpdateDraftBookingGroupDto } from './dto/update-draft-booking-group.dto'
 
 @ApiTags('User Booking Groups')
@@ -91,8 +103,20 @@ export class UserBookingGroupsController {
 
   @Post(':id/submit')
   @ApiOperation({ summary: 'Submit draft booking group as request' })
-  async submit(@CurrentUser() user: any, @Param('id') id: string) {
-    const result = await this.bookingGroupsService.submitForParent(user.id, id)
+  async submit(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: SubmitBookingGroupDto,
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent: string
+  ) {
+    const result = await this.bookingGroupsService.submitForParent(user.id, id, {
+      consentAcknowledged: dto.consentAcknowledged ?? false,
+      policyTextShown: dto.policyTextShown ?? null,
+      schemaVersion: dto.schemaVersion ?? 1,
+      ipAddress: ip ?? null,
+      userAgent: userAgent ?? null,
+    })
     return ResponseUtil.success(result)
   }
 

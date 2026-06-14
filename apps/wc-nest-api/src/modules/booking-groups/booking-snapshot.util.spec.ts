@@ -352,6 +352,61 @@ describe('computeBookingFinancialSnapshot — app fee custom toggle (Phase 5)', 
   })
 })
 
+describe('deposit suppression (revamp Spec v2.3)', () => {
+  const depositSettings = {
+    depositRequired: true,
+    depositType: 'percentage' as const,
+    depositPercentage: 30,
+  }
+
+  it('suppresses the deposit when the camp toggle is off → no-deposit flow', () => {
+    const result = computeBookingFinancialSnapshot({
+      totalAmount: new Prisma.Decimal('2000.00'),
+      sessionStartDate: dayOffset(200),
+      providerAppFeeCustom: false,
+      providerAppFeePercentage: null,
+      systemDefaultAppFee: new Prisma.Decimal('10'),
+      depositSettings,
+      depositEnabledForCamp: false,
+      now: NOW,
+    })
+    expect(result.depositAmount).toBeNull()
+    expect(result.depositSnapshot).toBeNull()
+    expect(result.paymentMode).toBe(PaymentMode.full_at_due) // 200d out, no deposit
+  })
+
+  it('forces ZERO deposit for the Flexible policy regardless of provider settings', () => {
+    const result = computeBookingFinancialSnapshot({
+      totalAmount: new Prisma.Decimal('2000.00'),
+      sessionStartDate: dayOffset(200),
+      providerAppFeeCustom: false,
+      providerAppFeePercentage: null,
+      systemDefaultAppFee: new Prisma.Decimal('10'),
+      depositSettings,
+      policyName: 'flexible',
+      now: NOW,
+    })
+    expect(result.depositAmount).toBeNull()
+    expect(result.depositSnapshot).toBeNull()
+  })
+
+  it('keeps the deposit when the camp toggle is on and the policy is not Flexible', () => {
+    const result = computeBookingFinancialSnapshot({
+      totalAmount: new Prisma.Decimal('2000.00'),
+      sessionStartDate: dayOffset(200),
+      providerAppFeeCustom: false,
+      providerAppFeePercentage: null,
+      systemDefaultAppFee: new Prisma.Decimal('10'),
+      depositSettings,
+      depositEnabledForCamp: true,
+      policyName: 'moderate',
+      now: NOW,
+    })
+    expect(result.depositAmount?.toFixed(2)).toBe('600.00')
+    expect(result.paymentMode).toBe(PaymentMode.deposit_then_balance)
+  })
+})
+
 describe('computeProviderResponseDeadline', () => {
   it('returns now + 72h', () => {
     const deadline = computeProviderResponseDeadline(NOW)

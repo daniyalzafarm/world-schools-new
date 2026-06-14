@@ -20,8 +20,18 @@ import { RefundsService } from '../billing/refunds/refunds.service'
 import { RefundsNotificationsService } from '../billing/refunds/notifications/refunds-notifications.service'
 import { ProfilePhotoService } from '../user/auth/services/profile-photo.service'
 import { BookingDeclineReason } from '@world-schools/wc-types'
-import { BookingGroupsService } from './booking-groups.service'
+import { BookingGroupsService, type BookingSubmitConsent } from './booking-groups.service'
 import { EligibilityService } from './eligibility.service'
+
+// Payments revamp (Spec v2.3): submit now carries checkout consent. Default
+// fixture acknowledges it (the happy path); the consent-rejection test overrides.
+const CONSENT: BookingSubmitConsent = {
+  consentAcknowledged: true,
+  policyTextShown: 'Cancellation policy + charge schedule shown at checkout',
+  schemaVersion: 1,
+  ipAddress: '203.0.113.7',
+  userAgent: 'jest-test-agent',
+}
 
 /**
  * Phase 2 wiring tests. Focuses on the new submit → authorize → capture →
@@ -57,6 +67,8 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         name: 'Cool Camp',
         status: 'published',
         ageGroups: [{ min: 5, max: 18 }],
+        // Payments revamp (Spec v2.3): per-Listing deposit toggle (default on).
+        depositEnabled: true,
       },
       // C4 audit fix: session capacity fields are now selected by submit
       // so it can re-check availability. Default: 20-spot single-cohort
@@ -128,6 +140,12 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       systemSettings: {
         upsert: jest.fn().mockResolvedValue({ defaultAppFee: new Prisma.Decimal('10') }),
       },
+      // Payments revamp (Spec v2.3): consent snapshot written in the submit tx;
+      // removed in the authorize-failure rollback.
+      bookingConsentSnapshot: {
+        create: jest.fn().mockResolvedValue({}),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
       // Submit locks the session row FOR UPDATE before the capacity recount.
       $queryRaw: jest.fn().mockResolvedValue([]),
       $transaction: jest.fn(async (fn: any) => fn(prisma)),
@@ -188,6 +206,46 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
   })
 
   describe('submitForParent', () => {
+    it('rejects a draft submit without consent acknowledgement (revamp Spec v2.3)', async () => {
+      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce(makeBookingGroup())
+
+      await expect(
+        service.submitForParent('u-1', 'bg-1', { ...CONSENT, consentAcknowledged: false })
+      ).rejects.toBeInstanceOf(BadRequestException)
+
+      // Never transitions / authorizes a payment without consent.
+      expect(prisma.bookingGroup.updateMany).not.toHaveBeenCalled()
+      expect(payments.authorizeDeposit).not.toHaveBeenCalled()
+    })
+
+    it('persists a consent snapshot (policy text + IP + charge schedule) in the submit transaction', async () => {
+      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce(makeBookingGroup())
+      payments.authorizeDeposit.mockResolvedValueOnce({
+        paymentId: 'pay-1',
+        paymentIntentId: 'pi_1',
+        clientSecret: 'secret_1',
+        amount: '600.00',
+        currency: 'eur',
+      })
+
+      await service.submitForParent('u-1', 'bg-1', CONSENT)
+
+      expect(prisma.bookingConsentSnapshot.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            bookingGroupId: 'bg-1',
+            ipAddress: '203.0.113.7',
+            gracePeriodHours: 24,
+            chargeSchedule: expect.objectContaining({
+              events: expect.any(Array),
+            }),
+          }),
+        })
+      )
+    })
+
     it('writes app fee/deposit/balance/transferDate snapshots and authorizes a deposit PaymentIntent', async () => {
       prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
       prisma.bookingGroup.findFirst.mockResolvedValueOnce(makeBookingGroup())
@@ -202,7 +260,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         currency: 'eur',
       })
 
-      const result = await service.submitForParent('u-1', 'bg-1')
+      const result = await service.submitForParent('u-1', 'bg-1', CONSENT)
 
       // C5 audit fix: the draft→request transition is a status-guarded
       // `updateMany` (so concurrent submits can't both transition). Phase 8:
@@ -285,7 +343,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         currency: 'eur',
       })
 
-      const result = await service.submitForParent('u-1', 'bg-1')
+      const result = await service.submitForParent('u-1', 'bg-1', CONSENT)
 
       expect(payments.authorizeFull).toHaveBeenCalledWith('bg-1')
       expect(payments.authorizeDeposit).not.toHaveBeenCalled()
@@ -333,7 +391,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       })
       prisma.payment.findUniqueOrThrow.mockResolvedValueOnce({ currency: 'eur' })
 
-      const result = await service.submitForParent('u-1', 'bg-1')
+      const result = await service.submitForParent('u-1', 'bg-1', CONSENT)
 
       expect(payments.createSetupIntent).toHaveBeenCalledWith('bg-1')
       expect(result.payment).toMatchObject({
@@ -351,7 +409,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       })
       payments.authorizeDeposit.mockRejectedValueOnce(new Error('stripe down'))
 
-      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toThrow('stripe down')
+      await expect(service.submitForParent('u-1', 'bg-1', CONSENT)).rejects.toThrow('stripe down')
 
       // C5 audit fix: the forward transition is now `updateMany` (status-
       // guarded), but the rollback on Stripe failure stays as a plain
@@ -382,7 +440,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         currency: 'eur',
       })
 
-      const result = await service.submitForParent('u-1', 'bg-1')
+      const result = await service.submitForParent('u-1', 'bg-1', CONSENT)
 
       // Resume must NOT re-write snapshots — they already exist.
       expect(prisma.bookingGroup.update).not.toHaveBeenCalled()
@@ -402,7 +460,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       prisma.bookingGroup.findFirst.mockResolvedValueOnce(
         makeBookingGroup({ status: 'request', paymentMode: null })
       )
-      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toBeInstanceOf(
+      await expect(service.submitForParent('u-1', 'bg-1', CONSENT)).rejects.toBeInstanceOf(
         BadRequestException
       )
     })
@@ -410,7 +468,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
     it('rejects when booking is in a non-resumable status (e.g. completed)', async () => {
       prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
       prisma.bookingGroup.findFirst.mockResolvedValueOnce(makeBookingGroup({ status: 'completed' }))
-      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toBeInstanceOf(
+      await expect(service.submitForParent('u-1', 'bg-1', CONSENT)).rejects.toBeInstanceOf(
         BadRequestException
       )
     })
@@ -447,7 +505,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         currency: 'eur',
       })
 
-      await service.submitForParent('u-1', 'bg-1')
+      await service.submitForParent('u-1', 'bg-1', CONSENT)
 
       // Snapshotted on the booking — frozen so post-submit edits to provider
       // settings don't retroactively shift this in-flight booking. C5 audit
@@ -493,7 +551,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         currency: 'eur',
       })
 
-      await service.submitForParent('u-1', 'bg-1')
+      await service.submitForParent('u-1', 'bg-1', CONSENT)
 
       // C5 audit fix: forward transition is `updateMany`.
       expect(prisma.bookingGroup.updateMany).toHaveBeenCalledWith(
@@ -532,7 +590,9 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         .mockResolvedValueOnce([{ child: { dateOfBirth: null } }]) // incoming: 1
         .mockResolvedValueOnce(Array.from({ length: 5 }, () => ({ child: { dateOfBirth: null } }))) // existing: 5
 
-      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toThrow(/Session is now full/)
+      await expect(service.submitForParent('u-1', 'bg-1', CONSENT)).rejects.toThrow(
+        /Session is now full/
+      )
       // Stripe call MUST NOT fire — capacity check runs before authorize.
       // Likewise, the status flip (`updateMany`) must not happen.
       expect(payments.authorizeDeposit).not.toHaveBeenCalled()
@@ -574,7 +634,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         .mockResolvedValueOnce([{ child: { dateOfBirth: olderDob } }]) // incoming: 1 in 10-13
         .mockResolvedValueOnce([{ child: { dateOfBirth: olderDob } }]) // existing: 1 in 10-13
 
-      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toThrow(/10-13/)
+      await expect(service.submitForParent('u-1', 'bg-1', CONSENT)).rejects.toThrow(/10-13/)
     })
 
     it('skips capacity enforcement when the session has unlimited spots (totalSpots=null)', async () => {
@@ -600,7 +660,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         currency: 'eur',
       })
 
-      await service.submitForParent('u-1', 'bg-1')
+      await service.submitForParent('u-1', 'bg-1', CONSENT)
 
       // No capacity check → no booking.count call, authorize proceeds.
       expect(prisma.booking.count).not.toHaveBeenCalled()
@@ -614,7 +674,9 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       // mimicking another in-flight submit holding the SET-NX lock.
       ;(service as any)._testRedisClient.set.mockResolvedValueOnce(null)
 
-      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toThrow(/already in progress/)
+      await expect(service.submitForParent('u-1', 'bg-1', CONSENT)).rejects.toThrow(
+        /already in progress/
+      )
       // Critically: NO parent lookup, NO PaymentIntent created, NO row touched.
       expect(prisma.parent.findUnique).not.toHaveBeenCalled()
       expect(payments.authorizeDeposit).not.toHaveBeenCalled()
@@ -645,7 +707,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         currency: 'eur',
       })
 
-      await service.submitForParent('u-1', 'bg-1')
+      await service.submitForParent('u-1', 'bg-1', CONSENT)
 
       expect(prisma.booking.count).not.toHaveBeenCalled()
       expect(payments.authorizeDeposit).toHaveBeenCalledWith('bg-1')
@@ -680,7 +742,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         currency: 'eur',
       })
 
-      const result = await service.submitForParent('u-1', 'bg-1')
+      const result = await service.submitForParent('u-1', 'bg-1', CONSENT)
 
       // We did NOT cause a second status flip — the first submitter did.
       expect(prisma.bookingGroup.updateMany).toHaveBeenCalledTimes(1)
@@ -1014,7 +1076,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         },
       ])
 
-      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toBeInstanceOf(
+      await expect(service.submitForParent('u-1', 'bg-1', CONSENT)).rejects.toBeInstanceOf(
         UnprocessableEntityException
       )
       expect(payments.authorizeDeposit).not.toHaveBeenCalled()
@@ -1037,7 +1099,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         },
       ])
 
-      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toBeInstanceOf(
+      await expect(service.submitForParent('u-1', 'bg-1', CONSENT)).rejects.toBeInstanceOf(
         UnprocessableEntityException
       )
       expect(payments.authorizeDeposit).not.toHaveBeenCalled()
@@ -1056,7 +1118,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         })
       )
 
-      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toBeInstanceOf(
+      await expect(service.submitForParent('u-1', 'bg-1', CONSENT)).rejects.toBeInstanceOf(
         BadRequestException
       )
       expect(payments.authorizeDeposit).not.toHaveBeenCalled()
@@ -1078,7 +1140,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         })
       )
 
-      await expect(service.submitForParent('u-1', 'bg-1')).rejects.toBeInstanceOf(
+      await expect(service.submitForParent('u-1', 'bg-1', CONSENT)).rejects.toBeInstanceOf(
         BadRequestException
       )
       expect(payments.authorizeDeposit).not.toHaveBeenCalled()

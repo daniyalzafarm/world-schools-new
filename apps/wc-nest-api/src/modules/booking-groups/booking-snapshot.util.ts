@@ -4,6 +4,7 @@ import {
   BALANCE_DUE_OFFSET_DAYS_NO_DEPOSIT_FLOW,
   computeDepositAmountNumber,
   INVALID_DEPOSIT_CONFIG,
+  isFlexiblePolicy,
 } from '@world-schools/wc-utils'
 import type { DepositType } from '@world-schools/wc-types'
 import { Prisma } from '../../generated/client/client'
@@ -21,6 +22,7 @@ export {
   BALANCE_DUE_OFFSET_DAYS_NO_DEPOSIT_FLOW,
   PROVIDER_RESPONSE_WINDOW_HOURS,
   computeGracePeriodDeadline,
+  computeGracePeriodDeadlineFromRequest,
   computeProviderResponseDeadline,
 } from '@world-schools/wc-utils'
 
@@ -89,6 +91,15 @@ export interface SnapshotInput {
   providerAppFeePercentage: Prisma.Decimal | null
   systemDefaultAppFee: Prisma.Decimal
   depositSettings: DepositSettingsForSnapshot | null
+  /// Payments revamp (Spec v2.3): per-Listing deposit override. When `false`,
+  /// this camp takes NO deposit regardless of provider deposit settings.
+  /// Defaults to `true` (deposit applies) when omitted.
+  depositEnabledForCamp?: boolean
+  /// Payments revamp (Spec v2.3, Alex answer 4): the booking's cancellation
+  /// policy name. The Flexible tier is "fully refundable", which only holds with
+  /// ZERO deposit — so a Flexible booking is forced to no-deposit regardless of
+  /// provider/camp settings.
+  policyName?: string | null
   now: Date
 }
 
@@ -132,8 +143,18 @@ export function computeBookingFinancialSnapshot(input: SnapshotInput): BookingFi
     .div(100)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
 
-  const depositAmount = computeDepositAmount(totalAmount, depositSettings)
-  const depositSnapshot = buildDepositSnapshot(depositSettings, depositAmount, now)
+  // Payments revamp (Spec v2.3): a deposit applies only when the provider
+  // requires one AND the camp's per-Listing toggle is on AND the policy is not
+  // Flexible (Flexible is "fully refundable", incompatible with a non-refundable
+  // deposit — Alex answer 4). When suppressed, the booking follows the no-deposit
+  // flow; the frozen `depositAmount = null` makes the decision immutable, so a
+  // later camp/provider toggle never moves this in-flight booking.
+  const depositSuppressed =
+    input.depositEnabledForCamp === false || isFlexiblePolicy(input.policyName)
+  const effectiveDepositSettings = depositSuppressed ? null : depositSettings
+
+  const depositAmount = computeDepositAmount(totalAmount, effectiveDepositSettings)
+  const depositSnapshot = buildDepositSnapshot(effectiveDepositSettings, depositAmount, now)
   const daysUntilStart = Math.floor((sessionStartDate.getTime() - now.getTime()) / MS_PER_DAY)
 
   let paymentMode: PaymentMode

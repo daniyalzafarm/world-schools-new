@@ -53,9 +53,14 @@ import { RedisService } from '../redis/redis.service'
 import {
   computeBookingFinancialSnapshot,
   computeGracePeriodDeadline,
+  computeGracePeriodDeadlineFromRequest,
   computeProviderResponseDeadline,
 } from './booking-snapshot.util'
 import { buildBookingPolicySnapshot } from '../billing/shared/cancellation-policy.util'
+import {
+  buildCaptureSchedule,
+  resolveProgrammeLocationTimezone,
+} from '../billing/shared/capture-schedule.util'
 import type {
   ProviderBookingSortField,
   ProviderBookingTab,
@@ -67,6 +72,20 @@ import {
   type ParentBookingTab,
   type QueryParentBookingGroupsDto,
 } from '../user/booking-groups/dto/query-parent-booking-groups.dto'
+
+/**
+ * Checkout consent carried into the submit flow (Payments revamp, Spec v2.3).
+ * IP / user-agent are captured server-side from the request. Required (must be
+ * acknowledged) on the initial draft→request submit; the idempotent resume path
+ * does not re-check it (consent was captured on the first submit).
+ */
+export interface BookingSubmitConsent {
+  consentAcknowledged: boolean
+  policyTextShown: string | null
+  schemaVersion: number
+  ipAddress: string | null
+  userAgent: string | null
+}
 
 @Injectable()
 export class BookingGroupsService {
@@ -2175,7 +2194,7 @@ export class BookingGroupsService {
    * If the Stripe authorize call fails, the BookingGroup stays as `draft` so
    * the parent can retry without losing their selections.
    */
-  async submitForParent(userId: string, bookingGroupId: string) {
+  async submitForParent(userId: string, bookingGroupId: string, consent: BookingSubmitConsent) {
     // C5 audit fix: serialize concurrent submit attempts against the same
     // (user, bookingGroup) pair via a Redis SET-NX lock. Stripe's
     // PaymentIntent idempotency key + the unique constraint on
@@ -2186,7 +2205,7 @@ export class BookingGroupsService {
     // flight, please wait". Redis unavailable → fall through (the storage
     // guarantees still hold).
     return this.withSubmitLock(userId, bookingGroupId, () =>
-      this.submitForParentLocked(userId, bookingGroupId)
+      this.submitForParentLocked(userId, bookingGroupId, consent)
     )
   }
 
@@ -2219,7 +2238,11 @@ export class BookingGroupsService {
     }
   }
 
-  private async submitForParentLocked(userId: string, bookingGroupId: string) {
+  private async submitForParentLocked(
+    userId: string,
+    bookingGroupId: string,
+    consent: BookingSubmitConsent
+  ) {
     const parent = await this.prisma.parent.findUnique({
       where: { userId },
       select: { id: true },
@@ -2248,6 +2271,9 @@ export class BookingGroupsService {
             name: true,
             status: true,
             ageGroups: true,
+            // Payments revamp (Spec v2.3): per-Listing deposit override, frozen
+            // into the financial snapshot at submit.
+            depositEnabled: true,
           },
         },
         // C4 audit fix: select the capacity fields so submit can re-check
@@ -2323,6 +2349,15 @@ export class BookingGroupsService {
       throw new BadRequestException('Only draft or in-progress bookings can be submitted')
     }
 
+    // Payments revamp (Spec v2.3): consent is a contractual requirement (SCA
+    // mandate evidence + dispute defence). Enforced here on the draft→request
+    // path only — the idempotent resume path above already returned without it.
+    if (consent.consentAcknowledged !== true) {
+      throw new BadRequestException(
+        'You must acknowledge the payment schedule and cancellation policy to submit this booking.'
+      )
+    }
+
     // State-machine assertion (defense-in-depth alongside the status-guarded
     // updateMany below).
     this.assertTransition(BookingGroupStatus.draft, BookingGroupStatus.request)
@@ -2385,6 +2420,10 @@ export class BookingGroupsService {
       // `provider.settings` may be null (incomplete onboarding); the snapshot
       // util treats null as "no deposit configured."
       depositSettings: bookingGroup.provider.settings,
+      // Payments revamp (Spec v2.3): per-Listing deposit override + Flexible
+      // forces zero deposit. Both frozen into the snapshot at submit.
+      depositEnabledForCamp: bookingGroup.camp.depositEnabled,
+      policyName: bookingGroup.provider.settings?.cancellationPolicy ?? 'moderate',
       now,
     })
 
@@ -2399,6 +2438,11 @@ export class BookingGroupsService {
       payoutMode === 'offset_days' ? (settings?.earlyPayoutOffsetDays ?? null) : null
     const expiresAt = computeProviderResponseDeadline(now)
 
+    // Payments revamp (Spec v2.3): the grace window is anchored to the booking
+    // REQUEST (24h), or zero-length when the programme starts within 7 days —
+    // computed + frozen here so the capture engine reads one authoritative value.
+    const graceDeadline = computeGracePeriodDeadlineFromRequest(now, bookingGroup.session.startDate)
+
     // Cancellation-policy snapshot — same consumer-protection invariant as
     // the payout snapshot above: the parent's refund schedule must not move
     // if the provider edits their policy after acceptance. Read by
@@ -2410,6 +2454,41 @@ export class BookingGroupsService {
         settings?.cancellationPolicySpecialCircumstances ?? null,
       now,
     })
+
+    // Payments revamp (Spec v2.3): derive the capture schedule the customer is
+    // consenting to (deposit at grace deadline + balance captures at each
+    // refund-tier boundary). Stored on the consent snapshot as dispute evidence;
+    // the actual `booking_scheduled_captures` rows are materialised at acceptance
+    // (when `acceptanceTime` is known and jobs are enqueued).
+    const programmeTimezone = resolveProgrammeLocationTimezone({
+      providerTimezone: settings?.timezone,
+    })
+    const depositMajor = snapshot.depositAmount ? snapshot.depositAmount.toNumber() : 0
+    const captureSchedule = buildCaptureSchedule({
+      tiers: cancellationPolicySnapshot.tiers,
+      depositAmount: depositMajor,
+      balanceAmount: bookingGroup.totalAmount.toNumber() - depositMajor,
+      sessionStart: bookingGroup.session.startDate,
+      timezone: programmeTimezone,
+      graceDeadline,
+      acceptanceTime: null,
+    })
+    const chargeScheduleJson = {
+      graceDeadline: graceDeadline.toISOString(),
+      captureMode: captureSchedule.captureMode,
+      events: captureSchedule.events.map(e => ({
+        sequence: e.sequence,
+        kind: e.kind,
+        amount: e.amount,
+        captureDate: e.captureDate.toISOString(),
+      })),
+    }
+    const depositInfoJson = {
+      applies: snapshot.depositAmount != null,
+      amount: snapshot.depositAmount ? snapshot.depositAmount.toFixed(2) : null,
+      gracePeriodHours: 24,
+      campDepositEnabled: bookingGroup.camp.depositEnabled,
+    }
 
     // C5 + capacity audit fix: do the capacity recount and the status-guarded
     // draft → request transition ATOMICALLY. A `SELECT … FOR UPDATE` on the
@@ -2436,7 +2515,7 @@ export class BookingGroupsService {
         throw new ConflictException(capacity.message ?? 'Session is now full.')
       }
 
-      return tx.bookingGroup.updateMany({
+      const updated = await tx.bookingGroup.updateMany({
         where: { id: bookingGroup.id, status: 'draft' },
         data: {
           status: 'request',
@@ -2451,6 +2530,8 @@ export class BookingGroupsService {
             : Prisma.JsonNull,
           paymentMode: snapshot.paymentMode,
           balanceDueAt: snapshot.balanceDueAt,
+          // Payments revamp (Spec v2.3): request-anchored grace deadline.
+          graceDeadline,
           payoutMode,
           payoutOffsetDaysSnapshot,
           cancellationPolicySnapshot:
@@ -2458,6 +2539,25 @@ export class BookingGroupsService {
           eligibilityCheckSnapshot: eligibilityCheckSnapshot as unknown as Prisma.InputJsonValue,
         },
       })
+
+      // Payments revamp (Spec v2.3): persist the consent snapshot atomically with
+      // the draft→request transition (only when this submit won the race).
+      if (updated.count > 0) {
+        await tx.bookingConsentSnapshot.create({
+          data: {
+            bookingGroupId: bookingGroup.id,
+            policyText: consent.policyTextShown ?? '',
+            chargeSchedule: chargeScheduleJson as unknown as Prisma.InputJsonValue,
+            depositInfo: depositInfoJson as unknown as Prisma.InputJsonValue,
+            gracePeriodHours: 24,
+            acknowledgedAt: now,
+            ipAddress: consent.ipAddress,
+            userAgent: consent.userAgent,
+            schemaVersion: consent.schemaVersion,
+          },
+        })
+      }
+      return updated
     })
     if (transitionResult.count === 0) {
       // A concurrent submit raced past us between our `findFirst` and this
@@ -2496,6 +2596,13 @@ export class BookingGroupsService {
         bookingGroup.totalAmount
       )
     } catch (err) {
+      // Payments revamp (Spec v2.3): the consent snapshot was inserted in the
+      // (now logically-reverted) transition transaction; remove it so a retry
+      // re-captures a fresh one rather than orphaning this failed attempt's row.
+      await this.prisma.bookingConsentSnapshot.deleteMany({
+        where: { bookingGroupId: bookingGroup.id },
+      })
+
       // Roll back the status transition + null out the snapshots so the
       // parent can retry without their booking being stuck in `request`
       // with stale values from a failed submit. The snapshots are
@@ -2512,6 +2619,7 @@ export class BookingGroupsService {
           depositSnapshot: Prisma.JsonNull,
           paymentMode: null,
           balanceDueAt: null,
+          graceDeadline: null,
           transferDate: null,
           cancellationPolicySnapshot: Prisma.JsonNull,
         },
