@@ -12,6 +12,7 @@ import {
 import { PrismaService } from '../../../prisma/prisma.service'
 import { RedisService } from '../../redis/redis.service'
 import { StripeService } from '../../stripe/stripe.service'
+import { CancelCaptureService } from '../captures/cancel-capture.service'
 import { PayoutsService } from '../payouts/payouts.service'
 import { ReimbursementsService } from '../reimbursements/reimbursements.service'
 import { buildBookingPolicySnapshot } from '../shared/cancellation-policy.util'
@@ -33,6 +34,7 @@ describe('RefundsService', () => {
   let redisClient: any
   let reimbursements: any
   let payouts: any
+  let cancelCapture: any
 
   function makeGroup(overrides: Partial<any> = {}) {
     // Default fixture populates `cancellationPolicySnapshot` so the existing
@@ -166,6 +168,9 @@ describe('RefundsService', () => {
       cancelPendingTranches: jest.fn().mockResolvedValue({ canceledCount: 0 }),
       recomputeRemainingTranches: jest.fn().mockResolvedValue({ canceledCount: 0 }),
     }
+    // Payments revamp (Spec v2.3): the shared cancel sink cancels scheduled
+    // captures + removes their delayed jobs for every cancel path.
+    cancelCapture = { cancelForBooking: jest.fn().mockResolvedValue(undefined) }
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -175,6 +180,7 @@ describe('RefundsService', () => {
         { provide: RedisService, useValue: redis },
         { provide: ReimbursementsService, useValue: reimbursements },
         { provide: PayoutsService, useValue: payouts },
+        { provide: CancelCaptureService, useValue: cancelCapture },
         { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
@@ -217,6 +223,9 @@ describe('RefundsService', () => {
           data: expect.objectContaining({ status: 'cancelled', cancelledReason: 'grace_period' }),
         })
       )
+      // Payments revamp (Spec v2.3): the shared cancel sink cancels the booking's
+      // scheduled captures + removes their delayed jobs (covers every cancel path).
+      expect(cancelCapture.cancelForBooking).toHaveBeenCalledWith('bg-1', 'cancelled:grace_period')
     })
 
     it('rejects when grace period has ended', async () => {

@@ -22,6 +22,7 @@ import {
 import { PrismaService } from '../../../prisma/prisma.service'
 import { RedisService } from '../../redis/redis.service'
 import { StripeService } from '../../stripe/stripe.service'
+import { CancelCaptureService } from '../captures/cancel-capture.service'
 import { PayoutsService } from '../payouts/payouts.service'
 import { ReimbursementsService } from '../reimbursements/reimbursements.service'
 import { billingAudit } from '../shared/audit-log.util'
@@ -146,6 +147,7 @@ export class RefundsService {
     private readonly redis: RedisService,
     private readonly reimbursementsService: ReimbursementsService,
     private readonly payoutsService: PayoutsService,
+    private readonly cancelCaptureService: CancelCaptureService,
     private readonly eventEmitter: EventEmitter2
   ) {}
 
@@ -1342,12 +1344,17 @@ export class RefundsService {
         cancelledByUserId: cancelledByUserId ?? null,
       },
     })
-    // Phase 8: any cancellation invalidates pending payout tranches. Already-
-    // released tranches stay (under Direct Charges their unwind is the
-    // connected-account debit from `refunds.create` + a Reimbursement when the
-    // funds have moved out), but we MUST stop the cron from firing future
-    // tranches on a cancelled booking. The payouts service is idempotent —
-    // calling this on a booking with no pending tranches is a no-op.
+    // Payments revamp (Spec v2.3) — CRITICAL: cancel the booking's scheduled
+    // captures and remove their delayed BullMQ jobs. This is wired into the
+    // SHARED cancellation sink so it covers EVERY cancel path (parent grace/
+    // post-grace, camp-cancel, provider-declined, fraud, expiry, Force Majeure) —
+    // the contractual invariant that no capture fires on a cancelled booking.
+    // The engine's "PaymentIntent canceled = no-op" guard is the second line of
+    // defence against a job that fires in the race window.
+    await this.cancelCaptureService.cancelForBooking(bookingGroupId, `cancelled:${reason}`)
+
+    // Legacy payout-tranche cancellation (no-op for capture-engine bookings,
+    // which never create tranches). Removed in step 8 with the payout engine.
     await this.payoutsService.cancelPendingTranches(bookingGroupId, `refund:${reason}`)
 
     // Phase 7.5 — when the cancellation was driven by a balance payment
