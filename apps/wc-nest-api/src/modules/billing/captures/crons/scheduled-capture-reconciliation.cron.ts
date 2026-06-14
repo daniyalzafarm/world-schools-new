@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Cron, CronExpression } from '@nestjs/schedule'
-import { ScheduledCaptureStatus } from '../../../../generated/client/enums'
+import { BookingGroupStatus, ScheduledCaptureStatus } from '../../../../generated/client/enums'
 import { PrismaService } from '../../../../prisma/prisma.service'
 import { RedisService } from '../../../redis/redis.service'
 import { CAPTURE_ELIGIBLE_STATUSES } from '../../shared/capture-eligible-statuses'
@@ -53,7 +53,7 @@ export class ScheduledCaptureReconciliationCron {
    */
   async runBatch(
     now: Date = new Date()
-  ): Promise<{ processed: number; completed: number; failed: number }> {
+  ): Promise<{ processed: number; completed: number; failed: number; escalated: number }> {
     const due = await this.prisma.bookingScheduledCapture.findMany({
       where: {
         status: ScheduledCaptureStatus.scheduled,
@@ -76,11 +76,65 @@ export class ScheduledCaptureReconciliationCron {
       else if (outcome.status === 'failed') failed++
     }
 
-    if (due.length > 0) {
+    const escalated = await this.escalateStuckCaptures(now)
+
+    if (due.length > 0 || escalated > 0) {
       this.logger.log(
-        `scheduled-capture reconciliation: processed=${due.length} completed=${completed} failed=${failed}`
+        `scheduled-capture reconciliation: processed=${due.length} completed=${completed} failed=${failed} escalated=${escalated}`
       )
     }
-    return { processed: due.length, completed, failed }
+    return { processed: due.length, completed, failed, escalated }
+  }
+
+  /**
+   * Routes bookings whose capture has stayed `failed` past its 48h retry window
+   * to the admin payment-review queue — NEVER auto-cancel (Spec v2.3 §7). The
+   * balance-charge cron retries the linked Payment row within the window; a
+   * successful retry syncs the capture to `completed` (via `markSucceeded`), so
+   * a capture still `failed` at `retryDeadline` is genuinely stuck.
+   *
+   * Flipping to `payment_review` pauses the booking's other captures too (the
+   * status leaves `CAPTURE_ELIGIBLE_STATUSES`) — we stop charging a card that is
+   * failing until an admin triages.
+   */
+  private async escalateStuckCaptures(now: Date): Promise<number> {
+    const stuck = await this.prisma.bookingScheduledCapture.findMany({
+      where: {
+        status: ScheduledCaptureStatus.failed,
+        retryDeadline: { lte: now },
+        bookingGroup: {
+          paymentReviewStatus: null,
+          status: { in: CAPTURE_ELIGIBLE_STATUSES },
+        },
+      },
+      select: { bookingGroupId: true },
+      distinct: ['bookingGroupId'],
+      take: BATCH_SIZE,
+    })
+
+    let escalated = 0
+    for (const row of stuck) {
+      // Status-guarded: only flag from a capture-eligible state, never overwrite
+      // an admin/cancelled/disputed status, and never re-escalate.
+      const res = await this.prisma.bookingGroup.updateMany({
+        where: {
+          id: row.bookingGroupId,
+          paymentReviewStatus: null,
+          status: { in: CAPTURE_ELIGIBLE_STATUSES },
+        },
+        data: {
+          status: BookingGroupStatus.payment_review,
+          paymentReviewStatus: 'capture_failed',
+          paymentReviewFlaggedAt: now,
+        },
+      })
+      if (res.count > 0) {
+        escalated++
+        this.logger.warn(
+          `booking ${row.bookingGroupId} → payment_review: a scheduled capture stayed failed past its retry window`
+        )
+      }
+    }
+    return escalated
   }
 }

@@ -71,6 +71,13 @@ describe('PaymentIntentsService', () => {
         findUniqueOrThrow: jest.fn(),
         create: jest.fn(),
       },
+      // Payments revamp (Spec v2.3): markSucceeded syncs the linked scheduled
+      // capture to `completed`; chargeScheduledBalanceCapture reads/links rows.
+      bookingScheduledCapture: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
       $transaction: jest.fn(async (fn: any) => fn(prisma)),
     }
     stripe = {
@@ -849,6 +856,43 @@ describe('PaymentIntentsService', () => {
       // Balance is now owned by booking_scheduled_captures — the legacy single
       // balance Payment row is NO LONGER minted here (would double-charge).
       expect(prisma.payment.create).not.toHaveBeenCalled()
+    })
+
+    it('markSucceeded syncs the linked scheduled capture to completed (revamp Spec v2.3 retry-success)', async () => {
+      prisma.payment.findUnique.mockResolvedValueOnce({
+        id: 'pay-balance-1',
+        bookingGroupId: 'bg-1',
+        kind: PaymentKind.balance,
+        amount: new Prisma.Decimal('700.00'),
+        status: PaymentStatus.failed, // a previously-failed balance capture, now retried
+        currency: 'eur',
+        providerConnectCustomerId: 'pcc-1',
+        stripeAccountId: 'acct_1',
+      })
+      prisma.bookingGroup.update.mockResolvedValueOnce({
+        status: 'deposit_paid',
+        totalAmount: new Prisma.Decimal('2000.00'),
+        paidAmount: new Prisma.Decimal('1300.00'),
+        refundedAmount: new Prisma.Decimal('0'),
+        balanceDueAt: null,
+        appFeePercentageSnapshot: new Prisma.Decimal('15'),
+      })
+
+      await service.markSucceeded({
+        id: 'pi_bal',
+        amount: 70000,
+        currency: 'eur',
+        metadata: { paymentId: 'pay-balance-1' },
+      } as never)
+
+      // The scheduled-capture row linked to this Payment flips to completed,
+      // status-guarded so a webhook re-fire is idempotent.
+      expect(prisma.bookingScheduledCapture.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ paymentId: 'pay-balance-1' }),
+          data: expect.objectContaining({ status: 'completed' }),
+        })
+      )
     })
 
     it('markSucceeded for deposit is idempotent on balance creation — re-fire skips when balance row already exists', async () => {

@@ -11,6 +11,7 @@ import {
   CaptureMethod,
   PaymentKind,
   PaymentStatus,
+  ScheduledCaptureStatus,
 } from '../../../generated/client/enums'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { StripeConnectService } from '../../provider/stripe-connect/stripe-connect.service'
@@ -1423,6 +1424,25 @@ export class PaymentIntentsService {
       // engine fires it. Minting the old single row here would double-charge
       // (old balance-charge cron pickup + new per-capture rows). The deposit
       // capture's only job now is advancing `accepted → deposit_paid` above.
+
+      // Payments revamp (Spec v2.3): sync the linked scheduled capture to
+      // `completed`. This covers a SUCCESSFUL RETRY of a previously-failed
+      // balance capture (the balance-charge cron re-charged the Payment row, and
+      // the engine that first fired it has already moved on) — without this the
+      // scheduled-capture row would stay `failed` and later escalate to
+      // payment_review even though the money was collected. Status-guarded so a
+      // webhook re-fire is idempotent.
+      await tx.bookingScheduledCapture.updateMany({
+        where: {
+          paymentId: payment.id,
+          status: { in: [ScheduledCaptureStatus.processing, ScheduledCaptureStatus.failed] },
+        },
+        data: {
+          status: ScheduledCaptureStatus.completed,
+          failureCode: null,
+          failureMessage: null,
+        },
+      })
     })
 
     // Persist the saved PM (best-effort; failures here don't roll back the
