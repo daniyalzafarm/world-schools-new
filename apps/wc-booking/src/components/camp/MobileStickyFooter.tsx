@@ -88,7 +88,7 @@ export function MobileStickyFooter({
             </div>
           </div>
           <Link
-            href={`/camps/${campSlug}/book?sessionId=${selectedSession.id}`}
+            href={`/book/${campSlug}?sessionId=${selectedSession.id}`}
             className="shrink-0 px-6 py-3 rounded-xl bg-primary hover:brightness-95 text-secondary text-sm font-bold transition-all"
           >
             Reserve →

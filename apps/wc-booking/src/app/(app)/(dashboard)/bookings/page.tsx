@@ -47,7 +47,7 @@ function BookingCard({
   const cover = row.camp.coverImageUrl
   const isDraft = row.status === 'draft'
   const draftContinueHref = isDraft
-    ? `/camps/${encodeURIComponent(row.camp.slug)}/book?bookingGroupId=${encodeURIComponent(row.id)}`
+    ? `/book/${encodeURIComponent(row.camp.slug)}?bookingGroupId=${encodeURIComponent(row.id)}`
     : null
   const detailHref = !isDraft ? `/bookings/${encodeURIComponent(row.id)}` : null
 

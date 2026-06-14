@@ -118,7 +118,7 @@ function CompactSessionCard({
 
   return (
     <Link
-      href={`/camps/${campSlug}/book?sessionId=${session.id}`}
+      href={`/book/${campSlug}?sessionId=${session.id}`}
       className={[
         'no-underline border-2 rounded-xl px-4 py-3.5 mb-2 flex items-center gap-3 cursor-pointer transition-all',
         isSelected
@@ -211,7 +211,7 @@ export function CampSidebar({
 
   const handleMessageOrganizer = () => {
     if (!isAuthenticated || !user) {
-      router.push(`/login?returnUrl=${encodeURIComponent(`/camps/${camp.slug}`)}`)
+      router.push(`/login?returnUrl=${encodeURIComponent(`/camp/${camp.slug}`)}`)
       return
     }
     if (!camp.provider?.id) return
@@ -345,7 +345,7 @@ export function CampSidebar({
             ) : selectedSession ? (
               <>
                 <Link
-                  href={`/camps/${camp.slug}/book?sessionId=${selectedSession.id}`}
+                  href={`/book/${camp.slug}?sessionId=${selectedSession.id}`}
                   className="block w-full py-4 px-5 bg-primary hover:brightness-95 text-secondary text-base font-bold rounded-xl text-center transition-colors mt-3"
                 >
                   Reserve

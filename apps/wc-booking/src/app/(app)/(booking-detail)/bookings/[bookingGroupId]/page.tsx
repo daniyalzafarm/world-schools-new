@@ -41,7 +41,7 @@ export default function BookingGroupDetailPage() {
     if (detail?.status !== 'draft') return
     const slug = detail.camp.slug
     router.replace(
-      `/camps/${encodeURIComponent(slug)}/book?bookingGroupId=${encodeURIComponent(detail.id)}`
+      `/book/${encodeURIComponent(slug)}?bookingGroupId=${encodeURIComponent(detail.id)}`
     )
   }, [detail, router])
 

@@ -440,7 +440,7 @@ export function InquirySessionsSection({
       </div>
       {campSlug ? (
         <Link
-          href={`/camps/${campSlug}`}
+          href={`/camp/${campSlug}`}
           className="mt-3 block text-center text-sm font-semibold text-secondary underline underline-offset-2 hover:opacity-70"
         >
           View all {sessions.length} sessions →

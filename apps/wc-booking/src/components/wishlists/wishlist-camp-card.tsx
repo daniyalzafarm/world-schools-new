@@ -218,7 +218,7 @@ export function WishlistCampCard({ item, readOnly = false, id }: WishlistCampCar
           <h2
             className="text-sm font-semibold leading-snug cursor-pointer hover:text-teal-600 transition-colors truncate"
             title={camp?.name ?? 'Unknown Camp'}
-            onClick={() => campSlug && router.push(`/camps/${campSlug}`)}
+            onClick={() => campSlug && router.push(`/camp/${campSlug}`)}
           >
             {camp?.name ?? 'Unknown Camp'}
           </h2>
@@ -277,7 +277,7 @@ export function WishlistCampCard({ item, readOnly = false, id }: WishlistCampCar
         {/* Actions */}
         {!readOnly && (
           <div className="flex justify-between">
-            <Button color="primary" onPress={() => campSlug && router.push(`/camps/${campSlug}`)}>
+            <Button color="primary" onPress={() => campSlug && router.push(`/camp/${campSlug}`)}>
               Book
             </Button>
             <Button

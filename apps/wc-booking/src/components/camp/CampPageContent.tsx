@@ -11,8 +11,8 @@ import { isSessionBookable } from '@world-schools/wc-utils'
 import { Button } from '@heroui/react'
 import { HiBadgeCheck } from 'react-icons/hi'
 import { FcGoogle } from 'react-icons/fc'
-import { Images, MapPin, Star } from 'lucide-react'
-import { cn, StarRating } from '@world-schools/ui-web'
+import { Images, MapPin } from 'lucide-react'
+import { StarRating } from '@world-schools/ui-web'
 import type { Camp } from '@/types/camps'
 import type { Session } from '@/types/sessions'
 import type { CampBookingAddOn } from '@/types/camp-booking'
@@ -211,6 +211,8 @@ export function CampPageContent({ camp, campReviews, addOns }: CampPageContentPr
             src={primaryPhotoUrl || '/placeholder-camp.jpg'}
             alt={camp.name}
             className="h-full w-full object-cover"
+            fetchPriority="high"
+            decoding="async"
             onClick={() => {
               if (camp.photos?.length) {
                 setGalleryPhotoIndex(0)
@@ -241,6 +243,8 @@ export function CampPageContent({ camp, campReviews, addOns }: CampPageContentPr
                 src={primaryPhotoUrl || '/placeholder-camp.jpg'}
                 alt={camp.name}
                 className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                fetchPriority="high"
+                decoding="async"
               />
               <div className="pointer-events-none absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
             </div>
@@ -257,6 +261,8 @@ export function CampPageContent({ camp, campReviews, addOns }: CampPageContentPr
                   src={getImageUrl(photo.url)}
                   alt={`${camp.name} ${index + 2}`}
                   className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             ))}

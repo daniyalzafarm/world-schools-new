@@ -95,7 +95,7 @@ export function BookingDetailSidebar({
   const { steps, states } = journeyStepStates(status)
   const balanceDue = Math.max(0, detail.totalAmount - detail.paidAmount)
   const campSlug = detail.camp.slug
-  const campProfileHref = `/camps/${encodeURIComponent(campSlug)}`
+  const campProfileHref = `/camp/${encodeURIComponent(campSlug)}`
   const campusHref = `${campProfileHref}#campus`
 
   // Open the conversation with this camp's provider. The messages page resolves

@@ -19,7 +19,7 @@ export function RebookOfferCard({ eligible }: RebookOfferCardProps) {
         Returning families often get first pick of dates. Take a look at what&apos;s open for next
         season.
       </p>
-      <Button as={Link} href={`/camps/${eligible.slug}`} color="secondary" radius="lg">
+      <Button as={Link} href={`/camp/${eligible.slug}`} color="secondary" radius="lg">
         View camp
       </Button>
     </div>

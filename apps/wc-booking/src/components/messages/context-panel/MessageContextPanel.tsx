@@ -175,7 +175,7 @@ function BookingActions({
   detail: ParentBookingGroupDetail
 }) {
   const bookingHref = `/bookings/${detail.id}`
-  const campHref = `/camps/${detail.camp.slug}`
+  const campHref = `/camp/${detail.camp.slug}`
   switch (state) {
     case 'request-pending':
       return (
@@ -321,8 +321,8 @@ function PanelBody({ context }: { context: ConversationContext }) {
         </div>
         {data.slug ? (
           <div className="flex flex-col gap-2.5 border-t border-default-200 p-6 dark:border-slate-700">
-            <PrimaryLink href={`/camps/${data.slug}/book`}>Start booking</PrimaryLink>
-            <TextLink href={`/camps/${data.slug}`}>View full camp profile →</TextLink>
+            <PrimaryLink href={`/book/${data.slug}`}>Start booking</PrimaryLink>
+            <TextLink href={`/camp/${data.slug}`}>View full camp profile →</TextLink>
           </div>
         ) : null}
       </>

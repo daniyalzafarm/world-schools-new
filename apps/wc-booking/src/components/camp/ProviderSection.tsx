@@ -92,7 +92,7 @@ export function ProviderSection({ provider, campId, campSlug, campTitle }: Provi
   const handleMessageOrganizer = () => {
     if (!isAuthenticated || !user) {
       router.push(
-        `/login?returnUrl=${encodeURIComponent(campSlug ? `/camps/${campSlug}` : window.location.pathname)}`
+        `/login?returnUrl=${encodeURIComponent(campSlug ? `/camp/${campSlug}` : window.location.pathname)}`
       )
       return
     }

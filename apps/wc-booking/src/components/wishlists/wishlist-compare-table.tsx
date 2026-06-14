@@ -265,7 +265,7 @@ export function WishlistCompareTable({
                   {/* Name */}
                   <div
                     className="text-base font-semibold mb-1.5 cursor-pointer hover:text-teal-600 transition-colors leading-snug"
-                    onClick={() => router.push(`/camps/${camp.slug}`)}
+                    onClick={() => router.push(`/camp/${camp.slug}`)}
                   >
                     {camp.name}
                   </div>
@@ -580,7 +580,7 @@ export function WishlistCompareTable({
                 <div className="flex flex-col gap-2.5">
                   <button
                     className="w-full py-3.5 bg-primary rounded-xl text-sm font-semibold text-slate-800 hover:bg-emerald-400 transition-colors"
-                    onClick={() => router.push(`/camps/${camp.slug}`)}
+                    onClick={() => router.push(`/camp/${camp.slug}`)}
                   >
                     Book
                   </button>

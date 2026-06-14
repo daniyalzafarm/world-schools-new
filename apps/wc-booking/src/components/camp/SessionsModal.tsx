@@ -261,7 +261,7 @@ export function SessionsModal({
                     )}
                   </div>
                   <a
-                    href={`/camps/${campSlug}/book?sessionId=${selectedSession.id}`}
+                    href={`/book/${campSlug}?sessionId=${selectedSession.id}`}
                     onClick={handleReserve}
                     className="shrink-0 bg-primary hover:brightness-95 text-secondary text-sm font-bold rounded-xl py-3 px-6 transition-all whitespace-nowrap"
                   >

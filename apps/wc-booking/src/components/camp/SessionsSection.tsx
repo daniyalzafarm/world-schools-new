@@ -368,7 +368,7 @@ function SessionCard({
 
   if (isDisabled) return <div className={className}>{body}</div>
   return (
-    <Link href={`/camps/${campSlug}/book?sessionId=${session.id}`} className={className}>
+    <Link href={`/book/${campSlug}?sessionId=${session.id}`} className={className}>
       {body}
     </Link>
   )

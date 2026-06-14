@@ -95,7 +95,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
           {/* Camp info */}
           <div className="flex flex-col gap-1 w-full min-w-0">
             <Link
-              href={`/camps/${encodeURIComponent(review.camp.slug)}`}
+              href={`/camp/${encodeURIComponent(review.camp.slug)}`}
               className="font-semibold text-slate-900 dark:text-white truncate block hover:underline"
             >
               {review.camp.name}
