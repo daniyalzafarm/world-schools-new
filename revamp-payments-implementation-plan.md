@@ -185,6 +185,21 @@ New files under `billing/captures/`, mirroring existing patterns exactly:
 - **wc-provider:** deposit-toggle card on `camps/[campId]/edit/sessions` (autosave PATCH; explanatory state + link when no provider-level deposit); `onboarding/payment-policies` renders a derived charge-schedule preview (named tiers only; internal capture mode hidden); read-only "Payment & Schedule" on the provider booking detail.
 - **wc-superadmin:** new payment-review page (`PaymentReviewQueueTable`, `PaymentAuditLogDrawer`, `PaymentReviewResolutionModal`); FM bulk tool (date/provider/region + fee toggle); provider admin-review surface; remove `PayoutModeModal`/`transferDate` UI.
 
+### Step 6b — notification layer (folded into step 10)
+
+The customer/admin alerting for the capture engine, deferred from step 6 (the
+state is already persisted; this is the messaging on top). Do it alongside the
+step-10 frontends since it shares the notification catalog + email surfaces:
+
+- **Pre-capture reminders (30-day / 7-day):** generalise `balance-reminder.cron.ts`
+  to query `booking_scheduled_captures`; new catalog entries + `packages/wc-email-templates`
+  templates; card-expiry warning when the saved card expires before a capture.
+- **`payment_review` alerts:** catalog entries for the superadmin + provider when
+  a booking is escalated (the reconciliation cron sets the DB state; this adds the
+  notification dispatch from the escalation site).
+- **SCA auth-link email:** ensure the off-session `authentication_required` notification
+  surfaces the `next_action.redirect_to_url.url` so the customer can complete 3DS.
+
 ---
 
 ## 11. Currency
