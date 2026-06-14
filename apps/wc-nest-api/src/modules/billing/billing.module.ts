@@ -5,6 +5,7 @@ import { RedisModule } from '../redis/redis.module'
 import { WebhookEventRetentionCron } from '../stripe/webhook/crons/webhook-event-retention.cron'
 import { StripeWebhookController } from '../stripe/webhook/stripe-webhook.controller'
 import { StripeWebhookService } from '../stripe/webhook/stripe-webhook.service'
+import { CapturesModule } from './captures/captures.module'
 import { DisputesModule } from './disputes/disputes.module'
 import { PaymentIntentsModule } from './intents/payment-intents.module'
 import { PayoutsModule } from './payouts/payouts.module'
@@ -38,6 +39,7 @@ import { ReimbursementsModule } from './reimbursements/reimbursements.module'
     // that gates concurrent runs across pods.
     RedisModule,
     PaymentIntentsModule,
+    CapturesModule,
     RefundsModule,
     PayoutsModule,
     DisputesModule,
@@ -47,6 +49,7 @@ import { ReimbursementsModule } from './reimbursements/reimbursements.module'
   providers: [StripeWebhookService, WebhookEventRetentionCron],
   exports: [
     PaymentIntentsModule,
+    CapturesModule,
     RefundsModule,
     PayoutsModule,
     DisputesModule,

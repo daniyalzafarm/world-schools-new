@@ -1159,6 +1159,104 @@ export class PaymentIntentsService {
   }
 
   /**
+   * Payments revamp (Spec v2.3): fire a single BALANCE scheduled capture. The
+   * scheduled-capture engine calls this at each refund-tier boundary. It
+   * idempotently creates the per-capture balance `Payment` row carrying that
+   * increment's amount + application fee, links it to the scheduled-capture row,
+   * then charges it off-session via `chargeOffSession` (whose retry pickup the
+   * balance-charge cron already owns).
+   *
+   * Connect context (customer + connected account) is inherited from an existing
+   * Payment on the booking (the deposit auth or the no-deposit SetupIntent
+   * placeholder). Returns the resulting Payment status rather than throwing on a
+   * decline — `chargeOffSession` swallows `StripeCardError` (records the row
+   * `failed` + nextRetryAt) and persists `requires_action` for SCA, so the
+   * engine must read the settled status to mark the scheduled-capture correctly.
+   */
+  async chargeScheduledBalanceCapture(scheduledCaptureId: string): Promise<{
+    status: 'succeeded' | 'failed' | 'requires_action'
+    paymentId: string
+    stripePaymentIntentId: string | null
+    failureCode: string | null
+    failureMessage: string | null
+  }> {
+    const capture = await this.prisma.bookingScheduledCapture.findUnique({
+      where: { id: scheduledCaptureId },
+    })
+    if (!capture) throw new NotFoundException(`ScheduledCapture ${scheduledCaptureId} not found`)
+
+    // Reuse the linked Payment row if a prior fire already created it (idempotent).
+    let paymentId = capture.paymentId
+    if (!paymentId) {
+      // Inherit connect context from an existing Payment on the booking.
+      const context = await this.prisma.payment.findFirst({
+        where: {
+          bookingGroupId: capture.bookingGroupId,
+          providerConnectCustomerId: { not: null },
+        },
+        select: { providerConnectCustomerId: true, stripeAccountId: true },
+        orderBy: { createdAt: 'asc' },
+      })
+      if (!context?.providerConnectCustomerId) {
+        throw new BadRequestException(
+          `Booking ${capture.bookingGroupId} has no connect customer; cannot charge balance capture`
+        )
+      }
+      const idempotencyKey = buildIdempotencyKey(`pay:capture:${capture.id}`, {
+        seq: capture.sequence,
+        amount: capture.amount.toString(),
+      })
+      const payment = await this.prisma.payment.create({
+        data: {
+          bookingGroupId: capture.bookingGroupId,
+          kind: PaymentKind.balance,
+          stripePaymentIntentId: null,
+          stripeSetupIntentId: null,
+          providerConnectCustomerId: context.providerConnectCustomerId,
+          amount: capture.amount,
+          applicationFeeAmount: capture.applicationFeeAmount,
+          currency: capture.currency,
+          stripeAccountId: context.stripeAccountId,
+          status: PaymentStatus.processing,
+          captureMethod: CaptureMethod.automatic,
+          dueAt: capture.effectiveCaptureDate,
+          idempotencyKey,
+        },
+      })
+      paymentId = payment.id
+      await this.prisma.bookingScheduledCapture.update({
+        where: { id: capture.id },
+        data: { paymentId },
+      })
+    }
+
+    await this.chargeOffSession(paymentId)
+
+    const settled = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      select: {
+        status: true,
+        stripePaymentIntentId: true,
+        failureCode: true,
+        failureMessage: true,
+      },
+    })
+    const status =
+      settled?.status === PaymentStatus.succeeded
+        ? 'succeeded'
+        : settled?.status === PaymentStatus.requires_action
+          ? 'requires_action'
+          : 'failed'
+    return {
+      status,
+      paymentId,
+      stripePaymentIntentId: settled?.stripePaymentIntentId ?? null,
+      failureCode: settled?.failureCode ?? null,
+      failureMessage: settled?.failureMessage ?? null,
+    }
+  }
+
+  /**
    * Webhook: `payment_intent.succeeded`. Captures (no pun intended) the success
    * path: persist the charge id + saved PM, increment paidAmount on the
    * BookingGroup, and (if this was the deposit) advance the group status.
