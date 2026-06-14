@@ -185,6 +185,21 @@ New files under `billing/captures/`, mirroring existing patterns exactly:
 - **wc-provider:** deposit-toggle card on `camps/[campId]/edit/sessions` (autosave PATCH; explanatory state + link when no provider-level deposit); `onboarding/payment-policies` renders a derived charge-schedule preview (named tiers only; internal capture mode hidden); read-only "Payment & Schedule" on the provider booking detail.
 - **wc-superadmin:** new payment-review page (`PaymentReviewQueueTable`, `PaymentAuditLogDrawer`, `PaymentReviewResolutionModal`); FM bulk tool (date/provider/region + fee toggle); provider admin-review surface; remove `PayoutModeModal`/`transferDate` UI.
 
+### Step 7 remainder — provider-cancel + reschedule (folded into step 10)
+
+Net-new backend flows that surface in the wc-superadmin review-queue UI, so built
+alongside step 10. The shared cancel sink (`markGroupCancelled → cancelForBooking`)
+and Force Majeure already cancel scheduled captures; these add the provider-driven
+paths on top:
+
+- **`cancelByProvider`:** provider-initiated programme cancellation → full refund of
+  all captures (`refund_application_fee: true`) via the existing refund path + the
+  cancel sink; inserts a `provider_admin_review_queue` row (default `precautionary`,
+  escalating to account-wide for safeguarding/fraud) — **no auto-suspend**; notify.
+- **Provider reschedule:** with customer consent → cancel existing rows/jobs, recompute
+  the schedule/bands against the new start date, re-capture the consent snapshot;
+  without consent → the `cancelByProvider` full-refund flow.
+
 ### Step 6b — notification layer (folded into step 10)
 
 The customer/admin alerting for the capture engine, deferred from step 6 (the
