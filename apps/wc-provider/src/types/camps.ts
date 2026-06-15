@@ -118,6 +118,12 @@ export interface Camp {
     description: string
   } | null
   sessionType?: 'flexible' | 'fixed' | null
+  /**
+   * Per-listing "no deposit for this listing" toggle (Payments revamp, Spec
+   * v2.3). When false, the deposit is suppressed for this camp regardless of
+   * the provider-level deposit setting. Defaults to true on the backend.
+   */
+  depositEnabled?: boolean
   currency: string // ISO 4217 currency code. Inherited from ProviderSettings.currency, always present.
   sessionsCount?: { published: number; total: number }
   addOnsCount?: { enabled: number; total: number }

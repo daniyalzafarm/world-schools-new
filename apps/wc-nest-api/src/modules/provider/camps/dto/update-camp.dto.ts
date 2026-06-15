@@ -73,6 +73,15 @@ export class UpdateBasicInfoDto {
   @IsOptional()
   @IsArray()
   activities?: string[]
+
+  /**
+   * Payments revamp (Spec v2.3): per-listing "no deposit for this listing"
+   * toggle. When false, the booking snapshot suppresses the deposit regardless
+   * of the provider-level deposit setting (the whole price becomes balance).
+   */
+  @IsOptional()
+  @IsBoolean()
+  depositEnabled?: boolean
 }
 
 export class UpdatePhotosDto {

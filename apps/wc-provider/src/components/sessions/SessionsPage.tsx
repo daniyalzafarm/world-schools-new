@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { SessionsList } from './SessionsList'
 import { SessionDetailPanel } from './SessionDetailPanel'
 import { ManageDiscountsPanel } from './ManageDiscountsPanel'
+import { CampDepositToggleCard } from './CampDepositToggleCard'
 import { useCampsStore } from '@/stores/camps-store'
 import { useSessionsStore } from '@/stores/sessions-store'
 import { useCampEditorLayoutOptional } from '@/components/camps/CampEditorLayoutContext'
@@ -168,15 +169,23 @@ export function SessionsPage({ campId }: SessionsPageProps) {
   ])
 
   return (
-    <SessionsList
-      sessions={sessions}
-      isLoading={isLoading}
-      selectedSession={selectedSession}
-      onSelectSession={setSelectedSession}
-      onCreateSession={handleCreate}
-      onManageDiscounts={handleManageDiscounts}
-      sortBy={sortBy}
-      onSortChange={setSortBy}
-    />
+    <div className="space-y-4">
+      {currentCamp ? (
+        <CampDepositToggleCard
+          campId={campId}
+          depositEnabled={currentCamp.depositEnabled ?? true}
+        />
+      ) : null}
+      <SessionsList
+        sessions={sessions}
+        isLoading={isLoading}
+        selectedSession={selectedSession}
+        onSelectSession={setSelectedSession}
+        onCreateSession={handleCreate}
+        onManageDiscounts={handleManageDiscounts}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+      />
+    </div>
   )
 }
