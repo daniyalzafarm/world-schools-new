@@ -14,6 +14,8 @@ import { SuperAdminDisputesModule } from './disputes/disputes.module'
 import { SuperAdminAnalyticsModule } from './analytics/analytics.module'
 import { SuperAdminFinancialModule } from './financial/financial.module'
 import { ProviderReviewModule } from './provider-review/provider-review.module'
+import { PaymentReviewModule } from './payment-review/payment-review.module'
+import { ForceMajeureModule } from './force-majeure/force-majeure.module'
 
 @Module({
   imports: [
@@ -32,6 +34,8 @@ import { ProviderReviewModule } from './provider-review/provider-review.module'
     SuperAdminAnalyticsModule,
     SuperAdminFinancialModule,
     ProviderReviewModule,
+    PaymentReviewModule,
+    ForceMajeureModule,
   ],
 })
 export class SuperAdminModule {}

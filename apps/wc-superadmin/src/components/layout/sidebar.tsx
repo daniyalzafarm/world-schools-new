@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Badge, Button, Tooltip } from '@heroui/react'
 import {
+  AlertTriangle,
   ArrowLeftToLine,
   Banknote,
   Bell,
@@ -111,11 +112,32 @@ const NAV_ITEMS: NavItem[] = [
     permission: 'billing.read',
   },
   {
+    name: 'Payment Reviews',
+    href: '/payment-reviews',
+    icon: <Banknote size={20} />,
+    type: 'regular',
+    permission: 'billing.read',
+  },
+  {
+    name: 'Force Majeure',
+    href: '/force-majeure',
+    icon: <AlertTriangle size={20} />,
+    type: 'regular',
+    permission: 'billing.write',
+  },
+  {
     name: 'Disputes',
     href: '/disputes',
     icon: <Gavel size={20} />,
     type: 'regular',
     permission: 'disputes.read',
+  },
+  {
+    name: 'Provider Reviews',
+    href: '/provider-reviews',
+    icon: <ShieldCheck size={20} />,
+    type: 'regular',
+    permission: 'providers.read',
   },
   {
     name: 'All Providers',
