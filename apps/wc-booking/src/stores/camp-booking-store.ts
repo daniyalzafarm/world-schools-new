@@ -52,6 +52,11 @@ interface CampBookingState {
   /// (PaymentIntent) and confirm asynchronously (3DS) — the button stays
   /// enabled until paymentConfirmed is true.
   paymentConfirmed: boolean
+  /// Payments revamp (Spec v2.3): checkout consent captured from the review
+  /// step's acknowledgement checkbox. Set BEFORE the Stripe flow starts (on the
+  /// checkbox toggle) so `submitBookingGroup` only READS it — it must never
+  /// mutate the store inside the elements.submit()→confirmPayment window.
+  consent: { consentAcknowledged: boolean; policyTextShown: string } | null
 }
 
 interface CampBookingActions {
@@ -94,6 +99,7 @@ interface CampBookingActions {
    */
   markPaymentConfirmed: () => void
   setSpecialRequest: (value: string) => void
+  setConsent: (consent: { consentAcknowledged: boolean; policyTextShown: string } | null) => void
   resetForNewBooking: () => void
   specialRequest: string
 }
@@ -124,6 +130,13 @@ export const useCampBookingStore = create<CampBookingStore>()(
     draftPreviews: [],
     specialRequest: '',
     paymentConfirmed: false,
+    consent: null,
+
+    setConsent: consent => {
+      set(state => {
+        state.consent = consent
+      })
+    },
 
     initByCampSlug: async campSlug => {
       set(state => {
@@ -697,7 +710,19 @@ export const useCampBookingStore = create<CampBookingStore>()(
         // ignore: submit endpoint will throw if it can't change status
       }
 
-      const response = await bookingGroupsService.submit(state.bookingGroupId)
+      // Consent was captured on the checkbox toggle (before this Stripe-flow
+      // window opened), so we only READ it here — no store mutation. Optional on
+      // the resume path; the server enforces it on the initial draft→request.
+      const response = await bookingGroupsService.submit(
+        state.bookingGroupId,
+        state.consent
+          ? {
+              consentAcknowledged: state.consent.consentAcknowledged,
+              policyTextShown: state.consent.policyTextShown,
+              schemaVersion: 1,
+            }
+          : undefined
+      )
       if (!response.success) {
         throw new Error((response.data as any)?.message ?? 'Failed to submit booking request')
       }
@@ -724,6 +749,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
         state.specialRequest = ''
         state.hasSubmitted = false
         state.paymentConfirmed = false
+        state.consent = null
       })
     },
   }))

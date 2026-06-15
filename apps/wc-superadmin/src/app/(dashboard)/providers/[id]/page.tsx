@@ -20,7 +20,6 @@ import {
 } from '@heroui/react'
 import {
   Building,
-  Calendar,
   ExternalLink,
   FileText,
   Mail,
@@ -35,8 +34,6 @@ import { getCountryName, getInitials } from '@world-schools/ui-web'
 import { campsService } from '@/services/camps.services'
 import * as adminSettingsService from '@/services/admin-settings.services'
 import { AppFeeModal } from '@/components/providers/app-fee-modal'
-import { PayoutModeModal } from '@/components/providers/payout-mode-modal'
-import type { ProviderPayoutMode } from '@/services/providers.services'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { PageSlot } from '@/components/layout/page-slot'
 import { useProvidersStore } from '@/stores/providers-store'
@@ -707,7 +704,6 @@ function SettingsTab({
 }) {
   const [systemDefaultAppFee, setSystemDefaultAppFee] = useState<number | null>(null)
   const [appFeeOpen, setAppFeeOpen] = useState(false)
-  const [payoutModeOpen, setPayoutModeOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -739,16 +735,6 @@ function SettingsTab({
       hour: '2-digit',
       minute: '2-digit',
     })
-  }
-
-  const settings = detail.settings ?? null
-  const payoutMode: ProviderPayoutMode = settings?.payoutMode ?? 'default_after_start'
-  const offsetDays = settings?.earlyPayoutOffsetDays ?? null
-
-  const PAYOUT_MODE_LABELS: Record<ProviderPayoutMode, string> = {
-    default_after_start: 'Default — payout after session start',
-    offset_days: 'Early payout — single payout before session start',
-    policy_staged: 'Policy staged — multiple payouts as funds become non-refundable',
   }
 
   return (
@@ -799,53 +785,6 @@ function SettingsTab({
         </CardBody>
       </Card>
 
-      {/* Payout Mode Card */}
-      <Card shadow="none" className="border border-default-200">
-        <CardBody className="p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-default-500" />
-              <h3 className="font-semibold text-foreground">Payout Mode</h3>
-            </div>
-            <Button size="sm" variant="flat" onPress={() => setPayoutModeOpen(true)}>
-              Edit
-            </Button>
-          </div>
-
-          <div className="text-sm">
-            {payoutMode === 'offset_days' && offsetDays != null ? (
-              <Chip size="sm" color="warning" variant="flat">
-                Early payout: {offsetDays} day{offsetDays === 1 ? '' : 's'} before start
-              </Chip>
-            ) : payoutMode === 'policy_staged' ? (
-              <Chip size="sm" color="warning" variant="flat">
-                Policy staged
-              </Chip>
-            ) : (
-              <div className="text-default-500">{PAYOUT_MODE_LABELS[payoutMode]}</div>
-            )}
-          </div>
-
-          {settings?.payoutModeAgreementNote && (
-            <div className="rounded-md border border-default-200 bg-default-50 p-3 text-xs">
-              <div className="text-default-500 mb-1">Agreement note</div>
-              <div className="whitespace-pre-wrap text-foreground">
-                {settings.payoutModeAgreementNote}
-              </div>
-            </div>
-          )}
-
-          {settings?.payoutModeAgreedAt && (
-            <div className="text-xs text-default-400">
-              Last changed {formatTimestamp(settings.payoutModeAgreedAt)}
-              {settings.payoutModeAgreedByAdmin
-                ? ` by ${formatAdmin(settings.payoutModeAgreedByAdmin)}`
-                : ''}
-            </div>
-          )}
-        </CardBody>
-      </Card>
-
       <AppFeeModal
         isOpen={appFeeOpen}
         onClose={() => setAppFeeOpen(false)}
@@ -853,16 +792,6 @@ function SettingsTab({
         currentCustom={detail.appFeeCustom}
         currentPercentage={detail.appFeePercentage != null ? Number(detail.appFeePercentage) : null}
         systemDefault={systemDefaultAppFee ?? 0}
-        onSaved={onSaved}
-      />
-
-      <PayoutModeModal
-        isOpen={payoutModeOpen}
-        onClose={() => setPayoutModeOpen(false)}
-        providerId={providerId}
-        currentMode={payoutMode}
-        currentOffsetDays={offsetDays}
-        currentAgreementNote={settings?.payoutModeAgreementNote ?? null}
         onSaved={onSaved}
       />
     </div>

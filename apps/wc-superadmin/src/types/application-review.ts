@@ -100,12 +100,6 @@ export interface ProviderSettings {
   depositFixedAmount?: number | null
   cancellationPolicy: string
   cancellationPolicyCustom?: string | null
-  // Phase 8 — provider payout mode
-  payoutMode?: 'default_after_start' | 'offset_days' | 'policy_staged'
-  earlyPayoutOffsetDays?: number | null
-  payoutModeAgreementNote?: string | null
-  payoutModeAgreedAt?: string | null
-  payoutModeAgreedByAdmin?: AdminSummary | null
 }
 
 export interface AdminSummary {

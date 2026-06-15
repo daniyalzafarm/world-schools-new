@@ -1,24 +1,9 @@
 import apiClient from '../utils/api-client'
 import type { ProviderDetail } from '../types/providers'
-import type { ProviderSettings } from '../types/application-review'
 
 export interface UpdateAppFeePayload {
   custom: boolean
   appFeePercentage?: number
-}
-
-/**
- * Phase 8 — superadmin sets a provider's payout mode.
- *  - default_after_start: single payout day after camp starts (no extra fields)
- *  - offset_days: single payout X days before camp starts (offsetDays + agreementNote required)
- *  - policy_staged: multi-tranche releases driven by deposit + cancellation policy (agreementNote required)
- */
-export type ProviderPayoutMode = 'default_after_start' | 'offset_days' | 'policy_staged'
-
-export interface UpdatePayoutModePayload {
-  payoutMode: ProviderPayoutMode
-  offsetDays?: number
-  agreementNote?: string
 }
 
 export interface ImportRowError {
@@ -83,14 +68,6 @@ export const providersService = {
       payload
     )
     return response.data as ProviderDetail
-  },
-
-  async setPayoutMode(id: string, payload: UpdatePayoutModePayload): Promise<ProviderSettings> {
-    const response = await apiClient.patch<ProviderSettings>(
-      `/superadmin/providers/${id}/payout-mode`,
-      payload
-    )
-    return response.data as ProviderSettings
   },
 
   async importProviders(file: File): Promise<ImportProvidersResult> {

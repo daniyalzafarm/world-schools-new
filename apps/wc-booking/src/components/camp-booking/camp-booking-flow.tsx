@@ -1612,10 +1612,14 @@ function ReviewStep({
   const specialRequest = useCampBookingStore(state => state.specialRequest)
   const setSpecialRequest = useCampBookingStore(state => state.setSpecialRequest)
   const camp = useCampBookingStore(state => state.camp)
+  const setConsent = useCampBookingStore(state => state.setConsent)
   const ratings = useBookingRatings()
   const [isCampRulesOpen, setIsCampRulesOpen] = useState(false)
   const [isCancellationOpen, setIsCancellationOpen] = useState(false)
   const [isBookingTermsOpen, setIsBookingTermsOpen] = useState(false)
+  // Payments revamp (Spec v2.3): explicit checkout consent. Gates payment
+  // confirmation and is persisted as a consent snapshot at submit.
+  const [consentAcknowledged, setConsentAcknowledged] = useState(false)
 
   const session = useMemo(
     () => sessions.find(item => item.id === selectedSessionId),
@@ -1780,6 +1784,46 @@ function ReviewStep({
         : null,
     })
   }, [total, sessionStartDateForPlan, camp])
+
+  // The exact charge-schedule + cancellation-policy text the customer is
+  // acknowledging — persisted verbatim in the consent snapshot (dispute evidence).
+  const policyTextShown = useMemo(() => {
+    const lines: string[] = []
+    if (paymentPlan?.kind === 'deposit') {
+      lines.push(
+        `A non-refundable deposit of ${formatCurrency(paymentPlan.chargeAmount, currency)} is charged after the provider accepts; the remaining ${formatCurrency(paymentPlan.futureBalanceAmount, currency)} is charged automatically before the camp starts.`
+      )
+    } else if (paymentPlan?.kind === 'full') {
+      lines.push(
+        `The full program fee of ${formatCurrency(paymentPlan.chargeAmount, currency)} is charged after the provider accepts.`
+      )
+    } else if (paymentPlan?.kind === 'setup') {
+      lines.push(
+        `No charge today. Your card is saved and the full amount of ${formatCurrency(paymentPlan.futureBalanceAmount, currency)} is charged automatically before the camp starts.`
+      )
+    }
+    lines.push(
+      `Cancellation policy: ${camp?.provider?.settings?.cancellationPolicy ?? 'standard'}.`
+    )
+    return lines.join(' ')
+  }, [paymentPlan, currency, camp])
+
+  const handleConsentChange = (checked: boolean) => {
+    setConsentAcknowledged(checked)
+    setConsent(checked ? { consentAcknowledged: true, policyTextShown } : null)
+    if (checked) setPaymentError(null)
+  }
+
+  // Consent gate: blocks the Stripe confirm flow until the box is ticked.
+  const beforeConfirm = () => {
+    if (!consentAcknowledged) {
+      setPaymentError(
+        'Please acknowledge the payment schedule and cancellation policy to continue.'
+      )
+      return false
+    }
+    return true
+  }
 
   return (
     <>
@@ -1996,6 +2040,7 @@ function ReviewStep({
               stripeAccountId={camp.provider.stripeAccountId}
               onPendingChange={setPaymentPending}
               onError={setPaymentError}
+              beforeConfirm={beforeConfirm}
             />
           </div>
         ) : !(hasSubmitted && paymentConfirmed) ? (
@@ -2084,6 +2129,17 @@ function ReviewStep({
 
         {paymentPlan && camp?.provider?.stripeAccountId && !(hasSubmitted && paymentConfirmed) ? (
           <div className="space-y-3">
+            <Checkbox
+              isSelected={consentAcknowledged}
+              onValueChange={handleConsentChange}
+              size="sm"
+              className="items-start"
+            >
+              <span className="text-xs leading-5 text-gray-600">
+                I acknowledge the payment schedule shown above and the cancellation policy, and
+                authorize the charges described.
+              </span>
+            </Checkbox>
             {paymentError ? (
               <div className="rounded-xl border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700">
                 {paymentError}
@@ -2093,7 +2149,7 @@ function ReviewStep({
               <Button
                 color="primary"
                 className="w-full"
-                isDisabled={paymentPending}
+                isDisabled={paymentPending || !consentAcknowledged}
                 isLoading={paymentPending}
                 onPress={onRequestSubmit}
               >

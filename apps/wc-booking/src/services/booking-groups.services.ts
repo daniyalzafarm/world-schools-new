@@ -99,11 +99,20 @@ export const bookingGroupsService = {
    * Submits a draft booking. Server creates the Stripe PaymentIntent (or
    * SetupIntent) atomically with the status transition, returning the
    * client secret + payment metadata so Elements can confirm the card.
+   *
+   * Payments revamp (Spec v2.3): carries the checkout consent acknowledgement.
+   * The server REJECTS the initial draft→request submit unless
+   * `consentAcknowledged === true`, and persists a consent snapshot (with the
+   * IP / user-agent captured server-side). Consent is optional on the
+   * idempotent resume path (re-submitting an already-`request` booking).
    */
-  async submit(bookingGroupId: string): Promise<ApiResult<SubmitBookingGroupResponse>> {
+  async submit(
+    bookingGroupId: string,
+    consent?: { consentAcknowledged: boolean; policyTextShown?: string; schemaVersion?: number }
+  ): Promise<ApiResult<SubmitBookingGroupResponse>> {
     return apiClient.post<SubmitBookingGroupResponse>(
       `/user/booking-groups/${bookingGroupId}/submit`,
-      {}
+      consent ?? {}
     )
   },
 
