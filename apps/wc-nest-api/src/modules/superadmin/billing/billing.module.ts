@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { BillingModule } from '../../billing/billing.module'
+import { ProviderReviewModule } from '../provider-review/provider-review.module'
 import { SuperAdminBillingController } from './billing.controller'
 
 /**
@@ -10,7 +11,7 @@ import { SuperAdminBillingController } from './billing.controller'
  * `PaymentIntentsService`.
  */
 @Module({
-  imports: [BillingModule],
+  imports: [BillingModule, ProviderReviewModule],
   controllers: [SuperAdminBillingController],
 })
 export class SuperAdminBillingModule {}

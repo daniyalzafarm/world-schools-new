@@ -327,6 +327,56 @@ export class RefundsService {
   }
 
   /**
+   * Provider cancels their own accepted programme (Payments revamp, Spec v2.3
+   * §8). Refund mechanics match a camp-cancel — 100% refund of every captured
+   * payment INCLUDING the application fee — and every scheduled capture is
+   * cancelled via the shared sink (`markGroupCancelled`). The booking-level
+   * reason is `provider_cancelled` so the audit log records a
+   * `provider_cancellation_refund` event; the caller routes the provider to the
+   * admin review queue (NEVER auto-suspend). Returns the providerId + sessionId
+   * so the caller can open a precautionary review.
+   */
+  async cancelByProvider(input: {
+    bookingGroupId: string
+    initiatedByUserId: string
+    voidAuthFn?: (bookingGroupId: string) => Promise<void>
+  }) {
+    return this.withLock(input.bookingGroupId, async () => {
+      const group = await this.loadGroupOrThrow(input.bookingGroupId)
+      if (NON_CANCELABLE_BOOKING_STATUSES.has(group.status)) {
+        throw new BadRequestException(
+          `Booking is in ${group.status} status and cannot be cancelled by the provider`
+        )
+      }
+      const succeeded = await this.succeededPayments(group.id)
+      if (succeeded.length === 0) {
+        if (input.voidAuthFn) await input.voidAuthFn(group.id)
+        await this.markGroupCancelled(group.id, 'provider_cancelled', input.initiatedByUserId)
+        return {
+          mode: 'void_auth' as const,
+          refunds: [],
+          providerId: group.providerId,
+          sessionId: group.sessionId,
+        }
+      }
+      const refunds = await this.refundEachFully({
+        group,
+        payments: succeeded,
+        reason: RefundReason.camp_cancel,
+        ...REFUND_FLAGS_FULL_REFUND_AND_FEE,
+        initiatedByUserId: input.initiatedByUserId,
+      })
+      await this.markGroupCancelled(group.id, 'provider_cancelled', input.initiatedByUserId)
+      return {
+        mode: 'provider_cancel' as const,
+        refunds,
+        providerId: group.providerId,
+        sessionId: group.sessionId,
+      }
+    })
+  }
+
+  /**
    * Spec: provider declines explicitly. Auths were voided in the Stripe call
    * (no funds ever captured), but if the provider somehow declines after a
    * deposit was already captured, we still need to refund.

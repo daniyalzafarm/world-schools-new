@@ -13,6 +13,7 @@ import { SuperAdminBillingModule } from './billing/billing.module'
 import { SuperAdminDisputesModule } from './disputes/disputes.module'
 import { SuperAdminAnalyticsModule } from './analytics/analytics.module'
 import { SuperAdminFinancialModule } from './financial/financial.module'
+import { ProviderReviewModule } from './provider-review/provider-review.module'
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { SuperAdminFinancialModule } from './financial/financial.module'
     SuperAdminDisputesModule,
     SuperAdminAnalyticsModule,
     SuperAdminFinancialModule,
+    ProviderReviewModule,
   ],
 })
 export class SuperAdminModule {}

@@ -10,6 +10,8 @@ import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permiss
 import { PaymentIntentsService } from '../../billing/intents/payment-intents.service'
 import { RefundsService } from '../../billing/refunds/refunds.service'
 import { ReimbursementsService } from '../../billing/reimbursements/reimbursements.service'
+import { ProviderSuspensionCategory } from '../../../generated/client/enums'
+import { ProviderAdminReviewQueueService } from '../provider-review/provider-admin-review.service'
 import { CancelByCampDto } from './dto/cancel-camp.dto'
 import { CancelForceMajeureDto } from './dto/cancel-force-majeure.dto'
 import { ListReimbursementsDto } from './dto/list-reimbursements.dto'
@@ -41,7 +43,8 @@ export class SuperAdminBillingController {
   constructor(
     private readonly refundsService: RefundsService,
     private readonly reimbursementsService: ReimbursementsService,
-    private readonly paymentIntentsService: PaymentIntentsService
+    private readonly paymentIntentsService: PaymentIntentsService,
+    private readonly providerReviewService: ProviderAdminReviewQueueService
   ) {}
 
   // -------- Booking-group refund actions ---------------------------------
@@ -91,6 +94,42 @@ export class SuperAdminBillingController {
         this.paymentIntentsService
           .cancelForBookingGroup(id, 'requested_by_customer')
           .then(() => undefined),
+    })
+    return ResponseUtil.success({
+      bookingGroupId,
+      mode: result.mode,
+      refundCount: result.refunds.length,
+    })
+  }
+
+  @Post('booking-groups/:id/refund/provider-cancel')
+  @Permissions('billing.write')
+  @ApiOperation({
+    summary:
+      'Record a provider programme cancellation. 100% refund (incl. app fee) + cancels scheduled captures, then opens a precautionary admin review (never auto-suspends).',
+  })
+  async cancelByProvider(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id') bookingGroupId: string
+  ) {
+    const result = await this.refundsService.cancelByProvider({
+      bookingGroupId,
+      initiatedByUserId: user.id,
+      voidAuthFn: id =>
+        this.paymentIntentsService
+          .cancelForBookingGroup(id, 'requested_by_customer')
+          .then(() => undefined),
+    })
+    // No auto-suspend (Spec v2.3 §4): a provider cancelling their own programme
+    // opens a precautionary review for a human to triage. Best-effort — the
+    // refund has already committed.
+    await this.providerReviewService.enqueueSafe({
+      providerId: result.providerId,
+      suspensionType: ProviderSuspensionCategory.precautionary,
+      reasonText: `Provider cancelled booking ${bookingGroupId}`,
+      affectedListingIds: result.sessionId ? [result.sessionId] : undefined,
+      affectedBookingCount: 1,
+      initiatingRefundId: result.refunds[0]?.id ?? null,
     })
     return ResponseUtil.success({
       bookingGroupId,

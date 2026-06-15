@@ -618,6 +618,65 @@ describe('RefundsService', () => {
     })
   })
 
+  describe('cancelByProvider (Spec v2.3 §8 — provider programme cancellation)', () => {
+    it('full-refunds captures, stops future captures, and returns provider + session for review', async () => {
+      prisma.bookingGroup.findUnique.mockResolvedValueOnce(
+        makeGroup({ providerId: 'prov-9', sessionId: 'sess-9', status: 'deposit_paid' })
+      )
+      prisma.payment.findMany.mockResolvedValueOnce([makePayment()])
+      prisma.refund.findUnique.mockResolvedValue(null)
+      stripe.client.refunds.create.mockResolvedValue({ id: 're_1', status: 'succeeded' })
+      prisma.refund.create.mockResolvedValue({ id: 'r-1', requiresReimbursement: false })
+
+      const result = await service.cancelByProvider({
+        bookingGroupId: 'bg-1',
+        initiatedByUserId: 'prov-user-1',
+      })
+
+      expect(result.mode).toBe('provider_cancel')
+      expect(result.providerId).toBe('prov-9')
+      expect(result.sessionId).toBe('sess-9')
+      // Shared sink stops future captures and flips to cancelled with the
+      // provider reason (routes the audit to provider_cancellation_refund).
+      expect(cancelCapture.cancelForBooking).toHaveBeenCalledWith(
+        'bg-1',
+        'cancelled:provider_cancelled'
+      )
+      expect(prisma.bookingGroup.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'cancelled',
+            cancelledReason: 'provider_cancelled',
+          }),
+        })
+      )
+      expect(paymentAuditLog.appendSafe).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bookingGroupId: 'bg-1',
+          eventType: PaymentAuditEventType.provider_cancellation_refund,
+        })
+      )
+    })
+
+    it('voids the auth and issues no refund when nothing was captured', async () => {
+      prisma.bookingGroup.findUnique.mockResolvedValueOnce(
+        makeGroup({ providerId: 'prov-9', sessionId: 'sess-9' })
+      )
+      prisma.payment.findMany.mockResolvedValueOnce([]) // nothing succeeded
+      const voidAuthFn = jest.fn().mockResolvedValue(undefined)
+
+      const result = await service.cancelByProvider({
+        bookingGroupId: 'bg-1',
+        initiatedByUserId: 'prov-user-1',
+        voidAuthFn,
+      })
+
+      expect(voidAuthFn).toHaveBeenCalledWith('bg-1')
+      expect(result.mode).toBe('void_auth')
+      expect(stripe.client.refunds.create).not.toHaveBeenCalled()
+    })
+  })
+
   describe('processProviderDeclinedRefund / processProviderExpiredRefund', () => {
     it('exits early without acquiring lock when nothing was captured (common case)', async () => {
       prisma.payment.count.mockResolvedValueOnce(0)
