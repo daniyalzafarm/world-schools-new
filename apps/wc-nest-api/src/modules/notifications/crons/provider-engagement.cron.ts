@@ -28,7 +28,6 @@ const BATCH_SIZE = 500
  *  - messaging-unanswered 24h / 48h (hourly)
  *  - review-not-responded reminder (weekly)
  *  - dispute-evidence-due reminder (daily)
- *  - payout-reminder (weekly — for upcoming tranches within 7d)
  */
 @Injectable()
 export class ProviderEngagementCron {
@@ -57,10 +56,9 @@ export class ProviderEngagementCron {
         NotificationType.ProviderProgramsNotUpdated60d
       )
       const reviewReminder = await this.dispatchReviewNotRespondedReminder()
-      const payout = await this.dispatchPayoutReminder()
-      if (incomplete || stripe || not30 || not60 || reviewReminder || payout) {
+      if (incomplete || stripe || not30 || not60 || reviewReminder) {
         this.logger.log(
-          `provider-engagement weekly: profile=${incomplete} stripe=${stripe} 30d=${not30} 60d=${not60} review=${reviewReminder} payout=${payout}`
+          `provider-engagement weekly: profile=${incomplete} stripe=${stripe} 30d=${not30} 60d=${not60} review=${reviewReminder}`
         )
       }
     } catch (err) {
@@ -98,9 +96,8 @@ export class ProviderEngagementCron {
     if (!(await this.lock('daily'))) return
     try {
       const dispute = await this.dispatchDisputeEvidenceDue()
-      const delayed = await this.dispatchPayoutDelayed()
-      if (dispute || delayed) {
-        this.logger.log(`provider-engagement daily: dispute=${dispute} delayed=${delayed}`)
+      if (dispute) {
+        this.logger.log(`provider-engagement daily: dispute=${dispute}`)
       }
     } catch (err) {
       this.logger.error(
@@ -276,52 +273,6 @@ export class ProviderEngagementCron {
       notify(this.eventEmitter, NotificationType.ProviderDisputeEvidenceDue, { disputeId: d.id })
     }
     return disputes.length
-  }
-
-  private async dispatchPayoutReminder(): Promise<number> {
-    // Cohort: pending payout tranches releasing in the next 7 days.
-    // Reminder gives the provider visibility on incoming funds before
-    // the bank credit shows up.
-    const now = new Date()
-    const windowEnd = new Date(now.getTime() + 7 * 86_400_000)
-    const tranches = await this.prisma.bookingPayoutSchedule.findMany({
-      where: {
-        status: 'pending',
-        releaseAt: { gte: now, lt: windowEnd },
-      },
-      select: { id: true, bookingGroupId: true, releaseAt: true },
-      take: BATCH_SIZE,
-    })
-    for (const t of tranches) {
-      notify(this.eventEmitter, NotificationType.ProviderPayoutReminder, {
-        bookingGroupId: t.bookingGroupId,
-        extra: { whenLabel: t.releaseAt.toISOString().slice(0, 10) },
-      })
-    }
-    return tranches.length
-  }
-
-  private async dispatchPayoutDelayed(): Promise<number> {
-    // Cohort: PayoutEvent rows whose `arrivalDate` is in the past but
-    // status is still non-terminal (pending / in_transit). Stripe has no
-    // dedicated `payout.delayed` webhook event — a payout becomes
-    // "delayed" by missing its expected arrival date. The
-    // `NotificationDelivery` unique index dedupes per (templateKey,
-    // channel, dedupeKey), so the daily re-run is idempotent per
-    // payoutEventId until the event flips to paid/failed/canceled.
-    const yesterday = new Date(Date.now() - 86_400_000)
-    const events = await this.prisma.payoutEvent.findMany({
-      where: {
-        status: { in: ['pending', 'in_transit'] },
-        arrivalDate: { lt: yesterday },
-      },
-      select: { id: true },
-      take: BATCH_SIZE,
-    })
-    for (const e of events) {
-      notify(this.eventEmitter, NotificationType.ProviderPayoutDelayed, { payoutEventId: e.id })
-    }
-    return events.length
   }
 
   private async dispatchMessagingUnanswered(

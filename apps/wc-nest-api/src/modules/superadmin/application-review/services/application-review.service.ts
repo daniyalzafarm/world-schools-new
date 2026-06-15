@@ -611,18 +611,25 @@ export class ApplicationReviewService {
   }
 
   /**
-   * Single query — returns the subset of `providerIds` that have any
-   * `PayoutEvent` in `failed` status in the last 90 days. Used by the
-   * list endpoint to avoid N subqueries.
+   * Single query — returns the subset of `providerIds` that have a booking
+   * stuck in `payment_review` in the last 90 days. Used by the list endpoint
+   * to avoid N subqueries.
+   *
+   * Payments revamp (Spec v2.3): the payout engine (and its `PayoutEvent`
+   * failure signal) is gone. The new "money problem needing ops attention" is
+   * a booking whose scheduled capture exhausted its retries and escalated to
+   * `payment_review` (never auto-cancelled). An unresolved review flagged in
+   * the last 90 days drives the provider's operational ActionRequired badge.
    */
   private async findRecentFailedPayoutProviderIds(providerIds: string[]): Promise<Set<string>> {
     if (providerIds.length === 0) return new Set()
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
-    const rows = await this.prisma.payoutEvent.findMany({
+    const rows = await this.prisma.bookingGroup.findMany({
       where: {
         providerId: { in: providerIds },
-        status: 'failed',
-        createdAt: { gte: ninetyDaysAgo },
+        paymentReviewStatus: { not: null },
+        paymentReviewResolvedAt: null,
+        paymentReviewFlaggedAt: { gte: ninetyDaysAgo },
       },
       select: { providerId: true },
       distinct: ['providerId'],

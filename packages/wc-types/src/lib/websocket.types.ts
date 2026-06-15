@@ -117,13 +117,10 @@ export enum NotificationType {
   ProviderBookingRequestWithdrawn = 'provider.booking.requestWithdrawn',
   ProviderBookingModified = 'provider.booking.modified',
 
-  // ---- v28 catalog — provider : payments / payouts ----
-  ProviderPayoutScheduleConfirmed = 'provider.payouts.scheduleConfirmed',
+  // ---- v28 catalog — provider : payments ----
+  // Payments revamp (Spec v2.3): the payout engine is removed. Only the
+  // live "balance collected" capture notification survives.
   ProviderBalanceCollected = 'provider.payments.balanceCollected',
-  ProviderPayoutReminder = 'provider.payouts.reminder',
-  ProviderPayoutReleased = 'provider.payouts.released',
-  ProviderPayoutFailed = 'provider.payouts.failed',
-  ProviderPayoutDelayed = 'provider.payouts.delayed',
 
   // ---- v28 catalog — provider : refunds / disputes ----
   ProviderRefundIssued = 'provider.refund.issued',
@@ -169,10 +166,11 @@ export enum NotificationType {
   SuperadminBookingCancelledNonPayment = 'superadmin.booking.cancelledNonPayment',
   SuperadminCampUnresponsiveExpiredRequests = 'superadmin.camp.unresponsiveExpiredRequests',
 
-  // ---- v28 catalog — superadmin : payments / disputes (5) ----
+  // ---- v28 catalog — superadmin : payments / disputes ----
   SuperadminDisputeFiled = 'superadmin.dispute.filed',
   SuperadminDisputeResolved = 'superadmin.dispute.resolved',
-  SuperadminPayoutFailure = 'superadmin.payout.failure',
+  // Payments revamp (Spec v2.3): SuperadminPayoutFailure removed with the
+  // payout engine. RecoveryNeeded + FundsPendingTransfer are still emitted live.
   SuperadminPayoutRecoveryNeeded = 'superadmin.payout.recoveryNeeded',
   SuperadminFundsPendingTransfer = 'superadmin.payout.fundsPendingTransfer',
 
@@ -197,7 +195,6 @@ export enum NotificationEntityType {
   Refund = 'refund',
   Dispute = 'dispute',
   Payout = 'payout',
-  PayoutTranche = 'payout_tranche',
   Reimbursement = 'reimbursement',
   Review = 'review',
   WishlistItem = 'wishlist_item',

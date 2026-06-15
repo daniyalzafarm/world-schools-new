@@ -41,9 +41,8 @@ import type { CatalogEntry } from '../types'
  * (Accepted / Declined / RequestReceived). Phase 8 fills the rest in
  * domain batches: onboarding → booking lifecycle → payments/payouts →
  * refunds/disputes → messaging → reviews → pre-camp/operations → support.
- * Phase 8.5 wired the three audit-flagged orphans
- * (`ProviderReviewResponsePublished`, `ProviderConnectStripeNudge`,
- * `ProviderPayoutDelayed`).
+ * Phase 8.5 wired the audit-flagged orphans
+ * (`ProviderReviewResponsePublished`, `ProviderConnectStripeNudge`).
  *
  * **Reserved-for-future-feature entries** (Phase 8 audit) — registered +
  * tested + loader-backed but no domain commit point today:
@@ -566,13 +565,6 @@ function makePayoutEventEntry(
   }
 }
 
-const providerPayoutScheduleConfirmed = makePayoutEventEntry(
-  NotificationType.ProviderPayoutScheduleConfirmed,
-  'provider.payouts.scheduleConfirmed',
-  'scheduleConfirmed',
-  ['in_app', 'email'],
-  'live'
-)
 const providerBalanceCollected = makePayoutEventEntry(
   NotificationType.ProviderBalanceCollected,
   'provider.payments.balanceCollected',
@@ -580,34 +572,6 @@ const providerBalanceCollected = makePayoutEventEntry(
   ['in_app', 'email'],
   'live',
   NotificationCategory.Payment
-)
-const providerPayoutReminder = makePayoutEventEntry(
-  NotificationType.ProviderPayoutReminder,
-  'provider.payouts.reminder',
-  'reminder',
-  ['email'],
-  'scheduled'
-)
-const providerPayoutReleased = makePayoutEventEntry(
-  NotificationType.ProviderPayoutReleased,
-  'provider.payouts.released',
-  'released',
-  ['in_app', 'email'],
-  'live'
-)
-const providerPayoutFailed = makePayoutEventEntry(
-  NotificationType.ProviderPayoutFailed,
-  'provider.payouts.failed',
-  'failed',
-  ['in_app', 'email'],
-  'live'
-)
-const providerPayoutDelayed = makePayoutEventEntry(
-  NotificationType.ProviderPayoutDelayed,
-  'provider.payouts.delayed',
-  'delayed',
-  ['in_app', 'email'],
-  'live'
 )
 
 // ============================================================================
@@ -1123,13 +1087,8 @@ export const providerCatalog: ReadonlyArray<CatalogEntry<unknown>> = [
   providerBookingCancelledNonPayment as unknown as CatalogEntry<unknown>,
   providerBookingRequestWithdrawn as unknown as CatalogEntry<unknown>,
   providerBookingModified as unknown as CatalogEntry<unknown>,
-  // Phase 8c — payments + payouts
-  providerPayoutScheduleConfirmed as unknown as CatalogEntry<unknown>,
+  // Phase 8c — payments (capture-when-non-refundable; payout engine removed)
   providerBalanceCollected as unknown as CatalogEntry<unknown>,
-  providerPayoutReminder as unknown as CatalogEntry<unknown>,
-  providerPayoutReleased as unknown as CatalogEntry<unknown>,
-  providerPayoutFailed as unknown as CatalogEntry<unknown>,
-  providerPayoutDelayed as unknown as CatalogEntry<unknown>,
   // Phase 8d — refunds + disputes
   providerRefundIssued as unknown as CatalogEntry<unknown>,
   providerRefundFailed as unknown as CatalogEntry<unknown>,

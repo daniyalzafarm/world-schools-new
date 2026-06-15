@@ -1335,16 +1335,15 @@ function buildProviderBookingEvent(
 function buildProviderPayoutEvent(
   kind: 'scheduleConfirmed' | 'balanceCollected' | 'reminder' | 'released' | 'failed' | 'delayed'
 ): PropLoader<ProviderPayoutEventProps | null> {
-  return async (prisma, { bookingGroupId, paymentId, payoutEventId, extra }) => {
-    // Provider header — derive from booking, payment, or payout event in
-    // priority order. Most kinds carry one or the other.
+  return async (prisma, { bookingGroupId, paymentId, extra }) => {
+    // Provider header — derive from booking or payment in priority order.
     let providerId: string | undefined
     let companyName = 'Your camp'
     let bookingRef: string | null = null
     let amountMajor = 0
     let currency = 'USD'
     const whenLabel: string | undefined = (extra?.['whenLabel'] as string | undefined) ?? undefined
-    let reason: string | undefined = (extra?.['reason'] as string | undefined) ?? undefined
+    const reason: string | undefined = (extra?.['reason'] as string | undefined) ?? undefined
 
     if (bookingGroupId) {
       const bg = await prisma.bookingGroup.findUnique({
@@ -1384,24 +1383,6 @@ function buildProviderPayoutEvent(
         bookingRef = payment.bookingGroup.bookingGroupNumber
         providerId = payment.bookingGroup.providerId
         companyName = payment.bookingGroup.provider.legalCompanyName ?? companyName
-      }
-    }
-    if (payoutEventId) {
-      const event = await prisma.payoutEvent.findUnique({
-        where: { id: payoutEventId },
-        select: {
-          amount: true,
-          currency: true,
-          failureMessage: true,
-          provider: { select: { id: true, legalCompanyName: true } },
-        },
-      })
-      if (event) {
-        amountMajor = toNumber(event.amount)
-        currency = event.currency.toUpperCase()
-        providerId = event.provider.id
-        companyName = event.provider.legalCompanyName ?? companyName
-        if (!reason && event.failureMessage) reason = event.failureMessage
       }
     }
     if (!providerId) return null
@@ -1755,15 +1736,11 @@ function buildSuperadminFinanceEvent(
   kind:
     | 'disputeFiled'
     | 'disputeResolved'
-    | 'payoutFailure'
     | 'payoutRecoveryNeeded'
     | 'fundsPendingTransfer'
     | 'bookingCancelledNonPayment'
 ): PropLoader<SuperadminFinanceEventProps | null> {
-  return async (
-    prisma,
-    { bookingGroupId, paymentId, refundId, disputeId, payoutEventId, providerId, extra }
-  ) => {
+  return async (prisma, { bookingGroupId, paymentId, refundId, disputeId, providerId, extra }) => {
     let resolvedProviderId = providerId
     let companyName = 'A camp'
     let bookingRef: string | null = null
@@ -1862,24 +1839,6 @@ function buildSuperadminFinanceEvent(
         if (!outcome && (dispute.outcome === 'won' || dispute.outcome === 'lost')) {
           outcome = dispute.outcome
         }
-      }
-    }
-    if (payoutEventId) {
-      const event = await prisma.payoutEvent.findUnique({
-        where: { id: payoutEventId },
-        select: {
-          amount: true,
-          currency: true,
-          failureMessage: true,
-          provider: { select: { id: true, legalCompanyName: true } },
-        },
-      })
-      if (event) {
-        amountMajor = toNumber(event.amount)
-        currency = event.currency.toUpperCase()
-        resolvedProviderId = resolvedProviderId ?? event.provider.id
-        companyName = event.provider.legalCompanyName ?? companyName
-        reason = reason ?? event.failureMessage ?? null
       }
     }
     if (!resolvedProviderId) return null
@@ -2057,13 +2016,8 @@ export const propLoaders = {
     buildProviderBookingEvent('cancelledNonPayment'),
   [NotificationType.ProviderBookingRequestWithdrawn]: buildProviderBookingEvent('requestWithdrawn'),
   [NotificationType.ProviderBookingModified]: buildProviderBookingEvent('modified'),
-  // Provider — payments / payouts
-  [NotificationType.ProviderPayoutScheduleConfirmed]: buildProviderPayoutEvent('scheduleConfirmed'),
+  // Provider — payments (capture-when-non-refundable; payout engine removed)
   [NotificationType.ProviderBalanceCollected]: buildProviderPayoutEvent('balanceCollected'),
-  [NotificationType.ProviderPayoutReminder]: buildProviderPayoutEvent('reminder'),
-  [NotificationType.ProviderPayoutReleased]: buildProviderPayoutEvent('released'),
-  [NotificationType.ProviderPayoutFailed]: buildProviderPayoutEvent('failed'),
-  [NotificationType.ProviderPayoutDelayed]: buildProviderPayoutEvent('delayed'),
   // Provider — refunds / disputes
   [NotificationType.ProviderRefundIssued]: buildProviderRefundEvent('issued'),
   [NotificationType.ProviderRefundFailed]: buildProviderRefundEvent('failed'),
@@ -2117,7 +2071,6 @@ export const propLoaders = {
   // Superadmin — payments / disputes
   [NotificationType.SuperadminDisputeFiled]: buildSuperadminFinanceEvent('disputeFiled'),
   [NotificationType.SuperadminDisputeResolved]: buildSuperadminFinanceEvent('disputeResolved'),
-  [NotificationType.SuperadminPayoutFailure]: buildSuperadminFinanceEvent('payoutFailure'),
   [NotificationType.SuperadminPayoutRecoveryNeeded]:
     buildSuperadminFinanceEvent('payoutRecoveryNeeded'),
   [NotificationType.SuperadminFundsPendingTransfer]:

@@ -1189,16 +1189,19 @@ export class CampsService {
         },
         _sum: { totalAmount: true },
       }),
-      // Disbursed funds: Stripe payouts that hit the provider's bank in
-      // the current month. Separate metric so providers can see what
-      // landed in their account vs. what's been earned but not yet paid.
-      this.prisma.payoutEvent.aggregate({
+      // Payments revamp (Spec v2.3): the payout engine is gone. Under Direct
+      // Charges, a SUCCEEDED capture lands directly in the provider's connected
+      // account (net of the platform fee), so "captured this month" is the new
+      // "disbursed this month". Sum gross captured + platform fee separately so
+      // we can report the net the provider actually received.
+      this.prisma.payment.aggregate({
         where: {
-          providerId,
-          status: 'paid',
-          arrivalDate: { gte: startOfMonth, lt: startOfNextMonth },
+          bookingGroup: { providerId },
+          status: 'succeeded',
+          kind: { in: ['deposit', 'balance'] },
+          succeededAt: { gte: startOfMonth, lt: startOfNextMonth },
         },
-        _sum: { amount: true },
+        _sum: { amount: true, applicationFeeAmount: true },
       }),
       this.prisma.bookingGroup.aggregate({
         where: {
@@ -1256,7 +1259,9 @@ export class CampsService {
       unrespondedReviews: reviewsWithResponseCount,
       revenueTotalPaid: Number(revenueTotalAgg._sum.paidAmount ?? 0),
       bookingsValueThisMonth: Number(bookingsValueThisMonthAgg._sum.totalAmount ?? 0),
-      payoutsThisMonth: Number(payoutsThisMonthAgg._sum.amount ?? 0),
+      payoutsThisMonth:
+        Number(payoutsThisMonthAgg._sum.amount ?? 0) -
+        Number(payoutsThisMonthAgg._sum.applicationFeeAmount ?? 0),
       revenueLastSeason: Number(revenueLastSeasonAgg._sum.paidAmount ?? 0),
       pendingRevenue: Number(pendingRevenueAgg._sum.totalAmount ?? 0),
       refundedTotal: Number(refundedAgg._sum.refundedAmount ?? 0),

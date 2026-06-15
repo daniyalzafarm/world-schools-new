@@ -116,17 +116,6 @@ describe('RefundsService', () => {
         findFirst: jest.fn(),
       },
       refund: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
-      bookingPayoutSchedule: {
-        // Default: no paid tranches — `resolveRequiresReimbursement` returns
-        // false. Tests that need to assert "post-payout refund" behavior
-        // override the count() mock to return >0.
-        count: jest.fn().mockResolvedValue(0),
-        aggregate: jest.fn().mockResolvedValue({ _sum: { releasedAmount: null } }),
-        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
-        findMany: jest.fn().mockResolvedValue([]),
-        findFirst: jest.fn().mockResolvedValue(null),
-        update: jest.fn(),
-      },
       $transaction: jest.fn(async (fn: any) => fn(prisma)),
     }
     stripe = {
@@ -579,7 +568,6 @@ describe('RefundsService', () => {
       prisma.payment.findMany.mockResolvedValueOnce([makePayment()])
       prisma.refund.findUnique.mockResolvedValue(null)
       stripe.client.refunds.create.mockResolvedValue({ id: 're_1', status: 'succeeded' })
-      prisma.bookingPayoutSchedule.count.mockResolvedValueOnce(0)
       prisma.refund.create.mockResolvedValue({
         id: 'r-1',
         requiresReimbursement: false,
@@ -713,9 +701,8 @@ describe('RefundsService', () => {
       })
       // No prior dispute Refund row exists.
       prisma.refund.findUnique.mockResolvedValueOnce(null)
-      // Phase 8: orphan-recovery uses tranche table to decide reimbursement.
-      // Pretend at least one tranche has paid so requiresReimbursement=true.
-      prisma.bookingPayoutSchedule.count.mockResolvedValueOnce(1)
+      // Payments revamp (Spec v2.3): the payout engine is gone — captured funds
+      // are immediately the provider's, so reimbursement is always false now.
       prisma.refund.create.mockResolvedValueOnce({
         id: 'r-recovered',
         bookingGroupId: 'bg-1',
@@ -724,8 +711,8 @@ describe('RefundsService', () => {
         reason: RefundReason.dispute,
         status: RefundStatus.pending,
         succeededAt: null,
-        requiresReimbursement: true,
-        reimbursementStatus: ReimbursementStatus.pending,
+        requiresReimbursement: false,
+        reimbursementStatus: null,
         payment: { currency: 'eur' },
       })
 

@@ -101,8 +101,6 @@ model User {
   // Billing / Payments Relations
   initiatedRefunds            Refund[]           @relation("RefundInitiatedBy")
   cancelledBookingGroups      BookingGroup[]     @relation("BookingGroupCancelledBy")
-  payoutOverrideApprovals     BookingGroup[]     @relation("BookingGroupPayoutOverrideAdmin")
-  providerPayoutModeApprovals ProviderSettings[] @relation("ProviderPayoutModeAdmin")
   providerAppFeeUpdates       Provider[]         @relation("ProviderAppFeeAdmin")
   reimbursementSettlements    Reimbursement[]    @relation("ReimbursementSettledBy")
 
@@ -313,7 +311,6 @@ model Provider {
   reviewResponses          CampReviewResponse[]
 
   // Billing / Payments Relations
-  payoutEvents             PayoutEvent[]
   providerConnectCustomers ProviderConnectCustomer[]
   adminReviewQueue         ProviderAdminReviewQueue[]
 
@@ -651,28 +648,10 @@ model ProviderSettings {
   /// capture schedule is derived from the cancellation-policy snapshot at booking.
   captureSchedule Json? @map("capture_schedule") @db.JsonB
 
-  /// Provider-level payout mode. Each booking accepted while this is set
-  /// snapshots its value into `BookingGroup.payoutMode` so post-acceptance
-  /// edits do not retroactively rewrite an in-flight schedule.
-  payoutMode PayoutMode @default(default_after_start) @map("payout_mode")
-
-  /// Required when `payoutMode == offset_days`. Number of days before
-  /// `session.startDate` to release the (single) payout. Validated 1..365 in
-  /// the controller DTO.
-  earlyPayoutOffsetDays Int? @map("early_payout_offset_days")
-
-  /// Audit trail for payout-mode changes. The note records the agreement
-  /// reference (contract id, email subject, etc.) — required by ops policy
-  /// for any non-default mode (parallel to the Phase-5 early-payout discipline).
-  payoutModeAgreementNote   String?   @map("payout_mode_agreement_note") @db.Text
-  payoutModeAgreedAt        DateTime? @map("payout_mode_agreed_at")
-  payoutModeAgreedByAdminId String?   @map("payout_mode_agreed_by_admin_id")
-
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  provider                Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  payoutModeAgreedByAdmin User?    @relation("ProviderPayoutModeAdmin", fields: [payoutModeAgreedByAdminId], references: [id])
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   @@map("provider_settings")
 }
@@ -1235,36 +1214,9 @@ model BookingGroup {
   paymentReviewResolvedAt        DateTime? @map("payment_review_resolved_at")
   paymentReviewResolvedByAdminId String?   @map("payment_review_resolved_by_admin_id")
 
-  /// Cached pointer to the **earliest pending tranche's** `releaseAt` — kept
-  /// for fast sorting / superadmin display. Source of truth is
-  /// `BookingPayoutSchedule`. Null when no pending tranches remain (fully
-  /// released or fully canceled).
-  transferDate DateTime? @map("transfer_date")
-
-  /// Snapshot of `ProviderSettings.payoutMode` at acceptance. Frozen so a
-  /// post-acceptance edit to the provider's mode does not retroactively
-  /// rewrite the in-flight schedule.
-  payoutMode PayoutMode @default(default_after_start) @map("payout_mode")
-
-  /// Snapshot of `ProviderSettings.earlyPayoutOffsetDays` at acceptance, when
-  /// `payoutMode == offset_days`. Null otherwise.
-  payoutOffsetDaysSnapshot Int? @map("payout_offset_days_snapshot")
-
-  /// Per-booking admin override audit (replaces the old `earlyPayoutAgreedAt`
-  /// fields). Set when superadmin uses `enablePerBookingOverride` to flip a
-  /// single booking's mode mid-flight (cancels pending tranches and
-  /// regenerates).
-  payoutOverrideAgreedAt        DateTime? @map("payout_override_agreed_at")
-  payoutOverrideAgreedByAdminId String?   @map("payout_override_agreed_by_admin_id")
-
   /// Set when accept transitions the group: respondedAt + 48h. Cached so refund
   /// eligibility checks don't recompute from base fields.
   gracePeriodEndsAt DateTime? @map("grace_period_ends_at")
-
-  /// Cached marker — populated when the **last** pending tranche releases.
-  /// Source of truth for "is this booking fully disbursed" is
-  /// `BookingPayoutSchedule.status` aggregation.
-  payoutReleasedAt DateTime? @map("payout_released_at")
 
   /// Cancellation provenance.
   cancelledAt       DateTime? @map("cancelled_at")
@@ -1311,13 +1263,11 @@ model BookingGroup {
   payments                    Payment[]
   refunds                     Refund[]
   disputes                    Dispute[]
-  reimbursements              Reimbursement[]
-  payoutSchedule              BookingPayoutSchedule[]
-  scheduledCaptures           BookingScheduledCapture[]
-  consentSnapshots            BookingConsentSnapshot[]
-  paymentAuditLog             BookingPaymentAuditLog[]
-  cancelledByUser             User?                   @relation("BookingGroupCancelledBy", fields: [cancelledByUserId], references: [id])
-  payoutOverrideAgreedByAdmin User?                   @relation("BookingGroupPayoutOverrideAdmin", fields: [payoutOverrideAgreedByAdminId], references: [id])
+  reimbursements    Reimbursement[]
+  scheduledCaptures BookingScheduledCapture[]
+  consentSnapshots  BookingConsentSnapshot[]
+  paymentAuditLog   BookingPaymentAuditLog[]
+  cancelledByUser   User?                     @relation("BookingGroupCancelledBy", fields: [cancelledByUserId], references: [id])
 
   @@index([parentId])
   @@index([sessionId])
@@ -1325,7 +1275,6 @@ model BookingGroup {
   @@index([providerId])
   @@index([createdAt])
   @@index([status])
-  @@index([transferDate])
   @@index([balanceDueAt])
   // Phase 14d composite indexes — back the notifications reconciliation cron.
   // `reconcileBookingRequestTiers` filters by (status='request', createdAt: range);
@@ -2773,75 +2722,6 @@ enum DisputeOutcome {
   other
 }
 
-/// Mirrors Stripe Payout status values (kept minimal to what we surface).
-enum PayoutStatus {
-  pending
-  in_transit
-  paid
-  failed
-  canceled
-}
-
-/// How the platform schedules payouts to a connected provider.
-///   - `default_after_start`: single payout on the first business day after
-///     session.startDate (provider-timezone aware). Funds for both deposit and
-///     balance are held in the connected account until then.
-///   - `offset_days`: single payout on `session.startDate - earlyPayoutOffsetDays`,
-///     regardless of cancellation policy. Releases the full net amount.
-///   - `policy_staged`: multiple payouts driven by deposit settings + cancellation
-///     policy tiers. The deposit releases at the 48h grace-period boundary; each
-///     subsequent tier breakpoint releases the increment that becomes
-///     non-refundable; any residual at session start releases via the default
-///     transfer date. See `BookingPayoutSchedule`.
-enum PayoutMode {
-  default_after_start
-  offset_days
-  policy_staged
-}
-
-/// Why a particular tranche row was scheduled. Used by ops dashboards and the
-/// cron logger to keep the audit trail readable without parsing math.
-enum PayoutTrancheReason {
-  /// `policy_staged` only — released at `BookingGroup.gracePeriodEndsAt` (T+48h
-  /// after acceptance) when the deposit becomes non-refundable.
-  deposit_grace
-  /// `policy_staged` only — released at `sessionStart - tier.daysBeforeStart`
-  /// when a cancellation policy tier flips an additional balance increment to
-  /// non-refundable.
-  tier_threshold
-  /// `policy_staged` only — residual balance not covered by tier breakpoints,
-  /// released at the default first-business-day-after-camp-start window.
-  /// Also the single tranche reason for `default_after_start` mode.
-  final_default
-  /// `offset_days` mode only — releases the full net amount X days before
-  /// session start.
-  offset_release
-  /// Generated by `recomputeRemainingTranches` when a partial release leaves a
-  /// residual that needs to fire on the next cron tick.
-  partial_residual
-}
-
-/// Per-tranche execution state. Distinct from `PayoutStatus` because that mirrors
-/// the live Stripe payout object; this tracks our local lifecycle.
-enum PayoutTrancheStatus {
-  /// Awaiting `releaseAt`.
-  pending
-  /// `stripe.payouts.create` returned successfully; awaiting `payout.paid` /
-  /// `payout.failed` webhook.
-  released
-  /// `payout.paid` webhook fired — funds disbursed to the camp's bank.
-  paid
-  /// `payout.failed` webhook fired — cron will retry on the NEXT pending
-  /// tranche under a fresh Stripe payout id (failed tranches are not relinked,
-  /// matching the existing `recordPayoutFailed` semantics).
-  failed
-  /// Refund / camp-cancel invalidated this tranche before it released.
-  canceled
-  /// Net amount available was zero at release time (e.g., over-refunded). The
-  /// row is closed out without a Stripe call so the cron stops re-trying.
-  skipped
-}
-
 // ============================================
 // Payments revamp (Spec v2.3) — capture engine, consent, audit enums
 // ============================================
@@ -3135,98 +3015,6 @@ model Dispute {
   @@index([bookingGroupId])
   @@index([outcome])
   @@map("disputes")
-}
-
-/// Audit row for payout.paid / payout.failed webhooks on connected accounts.
-/// Stripe payouts are batched on the connected account; not 1:1 with payments.
-model PayoutEvent {
-  id              String       @id @default(uuid())
-  providerId      String       @map("provider_id")
-  stripePayoutId  String       @unique @map("stripe_payout_id")
-  stripeAccountId String       @map("stripe_account_id")
-  amount          Decimal      @db.Decimal(12, 2)
-  currency        String       @db.VarChar(3)
-  arrivalDate     DateTime     @map("arrival_date")
-  status          PayoutStatus
-  failureCode     String?      @map("failure_code")
-  failureMessage  String?      @map("failure_message") @db.Text
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  provider Provider                @relation(fields: [providerId], references: [id], onDelete: Restrict)
-  tranches BookingPayoutSchedule[]
-
-  @@index([providerId])
-  @@index([arrivalDate])
-  @@index([status])
-  @@map("payout_events")
-}
-
-/// One row per scheduled payout tranche. Three modes write to this table; the
-/// payout-release cron processes a single query (`status=pending AND
-/// releaseAt<=now`) regardless of mode. See `PayoutMode` and
-/// `PayoutTrancheReason` for the semantic model.
-///
-/// Idempotency: `releasePendingTranche` uses the row id in the Stripe
-/// idempotency key so a re-run on the same row collapses to the same Stripe
-/// payout. A failed tranche stays linked to a `failed` PayoutEvent and a NEW
-/// pending tranche is generated for the residual (mirrors the
-/// `recordPayoutFailed` non-relink semantics).
-model BookingPayoutSchedule {
-  id             String @id @default(uuid())
-  bookingGroupId String @map("booking_group_id")
-
-  /// Why this tranche was scheduled (drives ops visibility + log shape).
-  reason PayoutTrancheReason
-
-  /// Earliest moment the cron may release this tranche. May be clamped forward
-  /// by the schedule generator when `tier_threshold` lands before
-  /// `gracePeriodEndsAt` or `balanceDueAt`.
-  releaseAt DateTime @map("release_at")
-
-  /// Amount the schedule generator computed for this tranche. Released amount
-  /// can be lower (partial-release fallback when funds haven't fully captured
-  /// yet) — that is recorded in `releasedAmount`.
-  plannedAmount Decimal @map("planned_amount") @db.Decimal(12, 2)
-  currency      String  @db.VarChar(3)
-
-  /// Set on `tier_threshold` rows: which cancellation-policy tier breakpoint
-  /// triggered this tranche. Null on other reasons.
-  tierDaysBeforeStart Int? @map("tier_days_before_start")
-  tierRefundPercent   Int? @map("tier_refund_percent")
-
-  status PayoutTrancheStatus @default(pending)
-
-  releasedAt     DateTime? @map("released_at")
-  releasedAmount Decimal?  @map("released_amount") @db.Decimal(12, 2)
-  stripePayoutId String?   @map("stripe_payout_id")
-  payoutEventId  String?   @map("payout_event_id")
-  /// Free-text reason for `canceled` / `skipped` rows so ops can reconstruct
-  /// "why didn't this fire" without re-running the math.
-  skipReason     String?   @map("skip_reason") @db.Text
-
-  /// Number of unsuccessful release attempts. Incremented when the cron
-  /// reschedules a tranche because Stripe rejects with `balance_insufficient`
-  /// (Direct Charges: connected account's available balance hasn't caught up
-  /// with pending charges yet). Drives exponential backoff for `releaseAt`
-  /// and varies the Stripe idempotency key so a retry doesn't replay the
-  /// previously cached error response. After 5 attempts the row is parked as
-  /// `skipped` with `skipReason = 'balance_insufficient_max_retries'` so ops
-  /// can investigate (provider's available balance is genuinely stuck).
-  releaseAttempts Int @default(0) @map("release_attempts")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  bookingGroup BookingGroup @relation(fields: [bookingGroupId], references: [id], onDelete: Cascade)
-  payoutEvent  PayoutEvent? @relation(fields: [payoutEventId], references: [id], onDelete: SetNull)
-
-  @@index([bookingGroupId])
-  @@index([releaseAt, status])
-  @@index([stripePayoutId])
-  @@index([payoutEventId])
-  @@map("booking_payout_schedules")
 }
 
 // ============================================

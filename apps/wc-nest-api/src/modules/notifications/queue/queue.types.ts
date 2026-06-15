@@ -31,8 +31,6 @@ export interface NotificationContext {
   conversationId?: string
   messageId?: string
   supportTicketId?: string
-  payoutEventId?: string
-  payoutScheduleId?: string
   reimbursementId?: string
   wishlistItemId?: string
   verificationDocumentId?: string

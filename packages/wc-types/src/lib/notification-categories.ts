@@ -98,13 +98,8 @@ export const NOTIFICATION_CATEGORY: Partial<Record<NotificationType, Notificatio
   [NotificationType.ProviderBookingRequestWithdrawn]: NotificationCategory.Booking,
   [NotificationType.ProviderBookingModified]: NotificationCategory.Booking,
 
-  // Provider payments / payouts
-  [NotificationType.ProviderPayoutScheduleConfirmed]: NotificationCategory.Payout,
+  // Provider payments (payout engine removed — Spec v2.3)
   [NotificationType.ProviderBalanceCollected]: NotificationCategory.Payment,
-  [NotificationType.ProviderPayoutReminder]: NotificationCategory.Payout,
-  [NotificationType.ProviderPayoutReleased]: NotificationCategory.Payout,
-  [NotificationType.ProviderPayoutFailed]: NotificationCategory.Payout,
-  [NotificationType.ProviderPayoutDelayed]: NotificationCategory.Payout,
 
   // Provider refunds / disputes
   [NotificationType.ProviderRefundIssued]: NotificationCategory.Refund,
@@ -153,7 +148,6 @@ export const NOTIFICATION_CATEGORY: Partial<Record<NotificationType, Notificatio
   // Superadmin payments / disputes
   [NotificationType.SuperadminDisputeFiled]: NotificationCategory.Dispute,
   [NotificationType.SuperadminDisputeResolved]: NotificationCategory.Dispute,
-  [NotificationType.SuperadminPayoutFailure]: NotificationCategory.Payout,
   [NotificationType.SuperadminPayoutRecoveryNeeded]: NotificationCategory.Payout,
   [NotificationType.SuperadminFundsPendingTransfer]: NotificationCategory.Payout,
 

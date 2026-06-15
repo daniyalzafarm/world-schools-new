@@ -231,13 +231,7 @@ export class SuperAdminProvidersService {
         appFeeUpdatedByAdmin: {
           select: { id: true, firstName: true, lastName: true, email: true },
         },
-        settings: {
-          include: {
-            payoutModeAgreedByAdmin: {
-              select: { id: true, firstName: true, lastName: true, email: true },
-            },
-          },
-        },
+        settings: true,
         verificationDocuments: true,
         camps: {
           include: {

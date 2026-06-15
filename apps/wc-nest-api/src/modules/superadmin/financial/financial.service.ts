@@ -412,14 +412,14 @@ export class FinancialService {
   }
 
   // -------------------------------------------------------------------------
-  // Upcoming payouts — DB-backed (our scheduling logic, not in Stripe)
+  // Upcoming captures — DB-backed (our scheduling logic, not in Stripe)
   // -------------------------------------------------------------------------
 
   async getUpcomingPayouts(query: FinancialRangeDto & { daysAhead?: number }) {
     const daysAhead = Math.max(1, Math.min(60, query.daysAhead ?? 7))
     const currency = query.currency?.toLowerCase()
     const cacheKey = this.cache.buildKey('financial', 'upcoming-payouts', {
-      v: 2,
+      v: 3,
       daysAhead,
       currency,
     })
@@ -428,18 +428,24 @@ export class FinancialService {
       const now = new Date()
       const horizon = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000)
 
-      const tranches = await this.prisma.bookingPayoutSchedule.findMany({
+      // Payments revamp (Spec v2.3): the payout engine is gone. The forward
+      // money-movement view is now upcoming SCHEDULED CAPTURES — under
+      // capture-when-non-refundable, each capture is immediately the provider's
+      // funds, so an upcoming capture is the closest analog to an upcoming
+      // payout. Only `scheduled` rows whose effective capture date falls inside
+      // the horizon are due to fire.
+      const captures = await this.prisma.bookingScheduledCapture.findMany({
         where: {
-          status: 'pending' as any,
-          releaseAt: { gte: now, lte: horizon },
+          status: 'scheduled',
+          effectiveCaptureDate: { gte: now, lte: horizon },
           ...(currency ? { currency } : {}),
         },
         select: {
           id: true,
-          plannedAmount: true,
+          amount: true,
           currency: true,
-          releaseAt: true,
-          reason: true,
+          effectiveCaptureDate: true,
+          sequence: true,
           bookingGroup: {
             select: {
               id: true,
@@ -447,14 +453,14 @@ export class FinancialService {
             },
           },
         },
-        orderBy: { releaseAt: 'asc' },
+        orderBy: { effectiveCaptureDate: 'asc' },
         take: 25,
       })
 
       const totalsMap = new Map<string, number>()
-      for (const t of tranches) {
-        const c = t.currency.toLowerCase()
-        totalsMap.set(c, (totalsMap.get(c) ?? 0) + Number(t.plannedAmount))
+      for (const c of captures) {
+        const cur = c.currency.toLowerCase()
+        totalsMap.set(cur, (totalsMap.get(cur) ?? 0) + Number(c.amount))
       }
       const totalsByCurrency = Array.from(totalsMap.entries())
         .map(([c, amount]) => ({ currency: c, amount }))
@@ -463,21 +469,21 @@ export class FinancialService {
       // Legacy totalAmount: only meaningful in single-currency mode. Set to 0
       // in All Currencies to avoid cross-currency garbage; frontend reads
       // `totalsByCurrency` instead.
-      const totalAmount = currency ? tranches.reduce((s, t) => s + Number(t.plannedAmount), 0) : 0
+      const totalAmount = currency ? captures.reduce((s, c) => s + Number(c.amount), 0) : 0
 
       return {
         totalAmount,
-        count: tranches.length,
+        count: captures.length,
         totalsByCurrency,
-        tranches: tranches.map(t => ({
-          id: t.id,
-          amount: Number(t.plannedAmount),
-          currency: t.currency.toLowerCase(),
-          releaseAt: t.releaseAt.toISOString(),
-          reason: t.reason,
-          bookingGroupId: t.bookingGroup.id,
-          providerId: t.bookingGroup.provider.id,
-          providerName: t.bookingGroup.provider.legalCompanyName ?? 'Unknown provider',
+        tranches: captures.map(c => ({
+          id: c.id,
+          amount: Number(c.amount),
+          currency: c.currency.toLowerCase(),
+          releaseAt: c.effectiveCaptureDate.toISOString(),
+          reason: c.sequence === 0 ? 'deposit' : `balance_capture_${c.sequence}`,
+          bookingGroupId: c.bookingGroup.id,
+          providerId: c.bookingGroup.provider.id,
+          providerName: c.bookingGroup.provider.legalCompanyName ?? 'Unknown provider',
         })),
       }
     })

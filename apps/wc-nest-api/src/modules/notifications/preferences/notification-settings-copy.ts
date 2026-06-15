@@ -280,26 +280,6 @@ export const NOTIFICATION_SETTINGS_COPY: Record<string, NotificationCopy> = {
     label: 'Balance collected',
     description: "A family's remaining balance was collected.",
   },
-  'provider.payouts.scheduleConfirmed': {
-    label: 'Payout schedule confirmed',
-    description: 'The payout schedule for a booking is set.',
-  },
-  'provider.payouts.reminder': {
-    label: 'Upcoming payout',
-    description: 'A reminder about an upcoming scheduled payout.',
-  },
-  'provider.payouts.released': {
-    label: 'Payout released',
-    description: 'A payout was released to your bank.',
-  },
-  'provider.payouts.failed': {
-    label: 'Payout failed',
-    description: 'A payout to your bank failed.',
-  },
-  'provider.payouts.delayed': {
-    label: 'Payout delayed',
-    description: 'A scheduled payout has been delayed.',
-  },
   'provider.refund.issued': {
     label: 'Refund issued',
     description: 'A refund was issued to a family.',
@@ -459,10 +439,6 @@ export const NOTIFICATION_SETTINGS_COPY: Record<string, NotificationCopy> = {
   'superadmin.dispute.resolved': {
     label: 'Dispute resolved',
     description: 'A payment dispute reached a resolution.',
-  },
-  'superadmin.payout.failure': {
-    label: 'Payout failure',
-    description: 'A payout to a camp failed.',
   },
   'superadmin.payout.recoveryNeeded': {
     label: 'Clawback recovery needed',

@@ -416,13 +416,6 @@ const superadminDisputeResolved = makeFinanceEntry(
   NotificationCategory.Dispute,
   ['in_app']
 )
-const superadminPayoutFailure = makeFinanceEntry(
-  NotificationType.SuperadminPayoutFailure,
-  'superadmin.payout.failure',
-  'payoutFailure',
-  NotificationCategory.Payout,
-  ['in_app', 'email']
-)
 const superadminPayoutRecoveryNeeded = makeFinanceEntry(
   NotificationType.SuperadminPayoutRecoveryNeeded,
   'superadmin.payout.recoveryNeeded',
@@ -528,7 +521,6 @@ export const superadminCatalog: ReadonlyArray<CatalogEntry<unknown>> = [
   // Payments / disputes
   superadminDisputeFiled as CatalogEntry<unknown>,
   superadminDisputeResolved as CatalogEntry<unknown>,
-  superadminPayoutFailure as CatalogEntry<unknown>,
   superadminPayoutRecoveryNeeded as CatalogEntry<unknown>,
   superadminFundsPendingTransfer as CatalogEntry<unknown>,
   // Platform health

@@ -103,7 +103,6 @@ function defaultDedupeKey(recipientUserId: string, ctx: NotificationContext): st
     ctx.conversationId ??
     ctx.messageId ??
     ctx.supportTicketId ??
-    ctx.payoutEventId ??
     ctx.reimbursementId ??
     ctx.wishlistItemId ??
     ctx.verificationDocumentId ??
