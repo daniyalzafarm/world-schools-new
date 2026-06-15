@@ -15,7 +15,6 @@ export {
   PaymentAuthorizationExpiredError,
 } from './intents/payment-intents.service'
 export { RefundsService } from './refunds/refunds.service'
-export { PayoutsService } from './payouts/payouts.service'
 export { DisputesService } from './disputes/disputes.service'
 export { ReimbursementsService } from './reimbursements/reimbursements.service'
 

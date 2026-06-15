@@ -13,7 +13,6 @@ import { PrismaService } from '../../../prisma/prisma.service'
 import { RedisService } from '../../redis/redis.service'
 import { StripeService } from '../../stripe/stripe.service'
 import { CancelCaptureService } from '../captures/cancel-capture.service'
-import { PayoutsService } from '../payouts/payouts.service'
 import { ReimbursementsService } from '../reimbursements/reimbursements.service'
 import { buildBookingPolicySnapshot } from '../shared/cancellation-policy.util'
 import { RefundsService } from './refunds.service'
@@ -33,7 +32,6 @@ describe('RefundsService', () => {
   let redis: any
   let redisClient: any
   let reimbursements: any
-  let payouts: any
   let cancelCapture: any
 
   function makeGroup(overrides: Partial<any> = {}) {
@@ -164,10 +162,6 @@ describe('RefundsService', () => {
       },
     }
     reimbursements = { createIfNeeded: jest.fn() }
-    payouts = {
-      cancelPendingTranches: jest.fn().mockResolvedValue({ canceledCount: 0 }),
-      recomputeRemainingTranches: jest.fn().mockResolvedValue({ canceledCount: 0 }),
-    }
     // Payments revamp (Spec v2.3): the shared cancel sink cancels scheduled
     // captures + removes their delayed jobs for every cancel path.
     cancelCapture = { cancelForBooking: jest.fn().mockResolvedValue(undefined) }
@@ -179,7 +173,6 @@ describe('RefundsService', () => {
         { provide: StripeService, useValue: stripe },
         { provide: RedisService, useValue: redis },
         { provide: ReimbursementsService, useValue: reimbursements },
-        { provide: PayoutsService, useValue: payouts },
         { provide: CancelCaptureService, useValue: cancelCapture },
         { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
@@ -582,12 +575,11 @@ describe('RefundsService', () => {
       expect(reimbursements.createIfNeeded).not.toHaveBeenCalled()
     })
 
-    it('Phase 8: cancelByCamp invokes payouts.cancelPendingTranches so the cron stops firing', async () => {
+    it('revamp Spec v2.3: cancelByCamp cancels the scheduled captures via the shared sink (no payout tranches)', async () => {
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(makeGroup())
       prisma.payment.findMany.mockResolvedValueOnce([makePayment()])
       prisma.refund.findUnique.mockResolvedValue(null)
       stripe.client.refunds.create.mockResolvedValue({ id: 're_1', status: 'succeeded' })
-      prisma.bookingPayoutSchedule.count.mockResolvedValueOnce(0)
       prisma.refund.create.mockResolvedValue({
         id: 'r-1',
         requiresReimbursement: false,
@@ -595,7 +587,8 @@ describe('RefundsService', () => {
 
       await service.processCampCancelRefund({ bookingGroupId: 'bg-1', adminUserId: 'u-1' })
 
-      expect(payouts.cancelPendingTranches).toHaveBeenCalledWith(
+      // The payout engine is gone; the cancel sink stops future captures instead.
+      expect(cancelCapture.cancelForBooking).toHaveBeenCalledWith(
         'bg-1',
         expect.stringContaining('camp_cancel')
       )

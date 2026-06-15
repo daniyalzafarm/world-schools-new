@@ -1,8 +1,8 @@
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Test, TestingModule } from '@nestjs/testing'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { DisputesService } from '../../billing/disputes/disputes.service'
 import { PaymentIntentsService } from '../../billing/intents/payment-intents.service'
-import { PayoutsService } from '../../billing/payouts/payouts.service'
 import { RefundsService } from '../../billing/refunds/refunds.service'
 import { StripeWebhookService } from './stripe-webhook.service'
 
@@ -14,7 +14,6 @@ describe('StripeWebhookService', () => {
   }
   let paymentIntentsService: { [k: string]: jest.Mock }
   let refundsService: { [k: string]: jest.Mock }
-  let payoutsService: { [k: string]: jest.Mock }
   let disputesService: { [k: string]: jest.Mock }
 
   const accountUpdatedEvent = {
@@ -58,10 +57,6 @@ describe('StripeWebhookService', () => {
       // H1 audit fix: the EFW handler auto-refunds actionable warnings.
       processFraudRefund: jest.fn().mockResolvedValue([]),
     }
-    payoutsService = {
-      recordPayoutPaid: jest.fn(),
-      recordPayoutFailed: jest.fn(),
-    }
     disputesService = {
       handleCreated: jest.fn(),
       handleClosed: jest.fn(),
@@ -73,8 +68,8 @@ describe('StripeWebhookService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: PaymentIntentsService, useValue: paymentIntentsService },
         { provide: RefundsService, useValue: refundsService },
-        { provide: PayoutsService, useValue: payoutsService },
         { provide: DisputesService, useValue: disputesService },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
 
@@ -211,6 +206,8 @@ describe('StripeWebhookService', () => {
           stripePayoutsEnabled: false,
           stripeDetailsSubmitted: false,
           stripeAttentionRequired: false,
+          stripeAccountDisconnectedAt: expect.any(Date),
+          stripeAccountDisconnectedReason: 'stripe_webhook_deauthorized',
         },
       })
       const data = prisma.provider.update.mock.calls[0][0].data
@@ -308,23 +305,14 @@ describe('StripeWebhookService', () => {
       expect(disputesService.handleClosed).toHaveBeenCalledWith({ id: 'dp_2' })
     })
 
-    it('routes payout.paid to recordPayoutPaid with the connected account id', async () => {
-      const ev = eventOf('payout.paid', { id: 'po_1' }, 'acct_123')
-      unprocessed(ev.id)
-      await service.processEvent(ev as never)
-      expect(payoutsService.recordPayoutPaid).toHaveBeenCalledWith({ id: 'po_1' }, 'acct_123')
-    })
+    it('handles payout.paid / payout.failed as log-only (revamp Spec v2.3: no payout tracking)', async () => {
+      const paid = eventOf('payout.paid', { id: 'po_1' }, 'acct_123')
+      unprocessed(paid.id)
+      await expect(service.processEvent(paid as never)).resolves.not.toThrow()
 
-    it('routes payout.failed to recordPayoutFailed and skips when no account is set', async () => {
-      const evWith = eventOf('payout.failed', { id: 'po_2' }, 'acct_abc')
-      unprocessed(evWith.id)
-      await service.processEvent(evWith as never)
-      expect(payoutsService.recordPayoutFailed).toHaveBeenCalledWith({ id: 'po_2' }, 'acct_abc')
-
-      const evWithout = eventOf('payout.failed', { id: 'po_3' }, undefined)
-      unprocessed(evWithout.id)
-      await service.processEvent(evWithout as never)
-      expect(payoutsService.recordPayoutFailed).toHaveBeenCalledTimes(1) // unchanged
+      const failed = eventOf('payout.failed', { id: 'po_2' }, 'acct_abc')
+      unprocessed(failed.id)
+      await expect(service.processEvent(failed as never)).resolves.not.toThrow()
     })
   })
 
@@ -432,8 +420,14 @@ describe('StripeWebhookService', () => {
       }
     )
 
-    it.each(['payout.created', 'payout.updated', 'payout.canceled'])(
-      'handles %s as an audit-log line (existing PayoutsService is not invoked)',
+    it.each([
+      'payout.created',
+      'payout.updated',
+      'payout.canceled',
+      'payout.paid',
+      'payout.failed',
+    ])(
+      'handles %s as a log-only line (revamp Spec v2.3: payouts are no longer tracked)',
       async type => {
         const ev = eventOf(type, { id: 'po_x', status: 'pending', amount: 1000 }, 'acct_po_1')
         unprocessed(ev.id)
@@ -441,8 +435,6 @@ describe('StripeWebhookService', () => {
 
         await service.processEvent(ev as never)
 
-        expect(payoutsService.recordPayoutPaid).not.toHaveBeenCalled()
-        expect(payoutsService.recordPayoutFailed).not.toHaveBeenCalled()
         expect(logSpy).toHaveBeenCalledWith(expect.stringContaining(`webhook.${type}`))
       }
     )

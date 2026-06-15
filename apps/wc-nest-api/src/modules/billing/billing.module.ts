@@ -8,7 +8,6 @@ import { StripeWebhookService } from '../stripe/webhook/stripe-webhook.service'
 import { CapturesModule } from './captures/captures.module'
 import { DisputesModule } from './disputes/disputes.module'
 import { PaymentIntentsModule } from './intents/payment-intents.module'
-import { PayoutsModule } from './payouts/payouts.module'
 import { RefundsModule } from './refunds/refunds.module'
 import { ReimbursementsModule } from './reimbursements/reimbursements.module'
 
@@ -41,7 +40,6 @@ import { ReimbursementsModule } from './reimbursements/reimbursements.module'
     PaymentIntentsModule,
     CapturesModule,
     RefundsModule,
-    PayoutsModule,
     DisputesModule,
     ReimbursementsModule,
   ],
@@ -51,7 +49,6 @@ import { ReimbursementsModule } from './reimbursements/reimbursements.module'
     PaymentIntentsModule,
     CapturesModule,
     RefundsModule,
-    PayoutsModule,
     DisputesModule,
     ReimbursementsModule,
   ],

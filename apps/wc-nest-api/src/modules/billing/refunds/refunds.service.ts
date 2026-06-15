@@ -22,7 +22,6 @@ import { PrismaService } from '../../../prisma/prisma.service'
 import { RedisService } from '../../redis/redis.service'
 import { StripeService } from '../../stripe/stripe.service'
 import { CancelCaptureService } from '../captures/cancel-capture.service'
-import { PayoutsService } from '../payouts/payouts.service'
 import { ReimbursementsService } from '../reimbursements/reimbursements.service'
 import { billingAudit } from '../shared/audit-log.util'
 import { NotificationType, type SpecialCircumstanceType } from '@world-schools/wc-types'
@@ -145,7 +144,6 @@ export class RefundsService {
     private readonly stripeService: StripeService,
     private readonly redis: RedisService,
     private readonly reimbursementsService: ReimbursementsService,
-    private readonly payoutsService: PayoutsService,
     private readonly cancelCaptureService: CancelCaptureService,
     private readonly eventEmitter: EventEmitter2
   ) {}
@@ -248,13 +246,9 @@ export class RefundsService {
     // No refunds means the policy gives 0% at this point in time — that's
     // a valid business outcome, but we still want to mark the group cancelled.
     await this.markGroupCancelled(group.id, 'policy_balance', input.initiatedByUserId)
-    // Phase 8: a policy refund may be partial (some funds still owed to the
-    // camp). Recompute pending tranches so the schedule reflects the new
-    // "still owed" amount. For policy_staged bookings whose deposit-grace
-    // tranche has already paid, this trims later tier_threshold tranches.
-    // For default_after_start / offset_days bookings, the single pending
-    // tranche is clipped to the remaining due.
-    await this.payoutsService.recomputeRemainingTranches(group.id)
+    // Payments revamp (Spec v2.3): no payout tranches to recompute — captured
+    // funds are already the provider's, and the cancel sink (in
+    // markGroupCancelled) has cancelled any future scheduled captures.
     return refunds
   }
 
@@ -1352,10 +1346,6 @@ export class RefundsService {
     // The engine's "PaymentIntent canceled = no-op" guard is the second line of
     // defence against a job that fires in the race window.
     await this.cancelCaptureService.cancelForBooking(bookingGroupId, `cancelled:${reason}`)
-
-    // Legacy payout-tranche cancellation (no-op for capture-engine bookings,
-    // which never create tranches). Removed in step 8 with the payout engine.
-    await this.payoutsService.cancelPendingTranches(bookingGroupId, `refund:${reason}`)
 
     // Phase 7.5 — when the cancellation was driven by a balance payment
     // failure (the balance-charge cron flips BookingGroup to `payment_failed`

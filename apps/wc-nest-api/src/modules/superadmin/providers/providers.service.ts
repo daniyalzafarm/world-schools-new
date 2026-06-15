@@ -17,9 +17,7 @@ import { GoogleBusinessService } from '../../provider/onboarding/services/google
 import { ProviderLogoService } from '../../provider/onboarding/services/provider-logo.service'
 import { CreateProviderDto } from './dto/create-provider.dto'
 import { UpdateAppFeeDto } from './dto/update-app-fee.dto'
-import { UpdatePayoutModeDto } from './dto/update-payout-mode.dto'
 import { UpdateProviderDto } from './dto/update-provider.dto'
-import { PayoutMode } from '../../../generated/client/enums'
 import { parseProviderCsvRow, validateProviderCsvRow } from './providers-csv.helpers'
 
 export interface ImportRowError {
@@ -214,79 +212,9 @@ export class SuperAdminProvidersService {
     return provider
   }
 
-  /**
-   * Phase 5 — set the per-provider early-payout configuration.
-   *
-   * When `enabled = true`, REQUIRES `offsetDays` and `agreementNote`. The
-   * agreement note records the off-platform written agreement (Part B.2 in
-   * PAYMENT_FLOW_REFERENCE) for audit. Audit fields stamp who agreed and when.
-   *
-   * Toggling off clears `offsetDays` but PRESERVES the note + agreedAt + agreedBy
-   * so the history of the prior agreement isn't lost.
-   *
-   * Future bookings only: existing bookings keep their original `transferDate`.
-   */
-  async setPayoutMode(providerId: string, dto: UpdatePayoutModeDto, adminUserId: string) {
-    if (dto.payoutMode === PayoutMode.offset_days) {
-      if (dto.offsetDays == null) {
-        throw new BadRequestException('offsetDays is required when payoutMode = offset_days')
-      }
-    }
-    if (dto.payoutMode !== PayoutMode.default_after_start) {
-      if (!dto.agreementNote?.trim()) {
-        throw new BadRequestException(
-          'agreementNote is required for any non-default payout mode (audit trail).'
-        )
-      }
-    }
-
-    await this.findOne(providerId)
-
-    // Phase 5 audit fix A8 (preserved): don't auto-create ProviderSettings.
-    // The currency + timezone defaults belong to onboarding (step 2).
-    const existingSettings = await this.prisma.providerSettings.findUnique({
-      where: { providerId },
-      select: { id: true },
-    })
-    if (!existingSettings) {
-      throw new BadRequestException(
-        'Provider must complete onboarding (currency + timezone) before payout mode can be configured.'
-      )
-    }
-
-    // Default mode clears the offset days but PRESERVES the audit note +
-    // timestamp so history of the prior agreement isn't lost.
-    const updateData =
-      dto.payoutMode === PayoutMode.default_after_start
-        ? {
-            payoutMode: PayoutMode.default_after_start,
-            earlyPayoutOffsetDays: null,
-          }
-        : {
-            payoutMode: dto.payoutMode,
-            earlyPayoutOffsetDays:
-              dto.payoutMode === PayoutMode.offset_days ? dto.offsetDays! : null,
-            payoutModeAgreementNote: dto.agreementNote!,
-            payoutModeAgreedAt: new Date(),
-            payoutModeAgreedByAdminId: adminUserId,
-          }
-
-    const settings = await this.prisma.providerSettings.update({
-      where: { providerId },
-      data: updateData,
-      include: {
-        payoutModeAgreedByAdmin: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-      },
-    })
-
-    this.logger.log(
-      `provider ${providerId} payout-mode set to ${dto.payoutMode} by admin ${adminUserId} (offset=${dto.offsetDays ?? 'n/a'})`
-    )
-
-    return settings
-  }
+  // Payments revamp (Spec v2.3): `setPayoutMode` is removed — the platform no
+  // longer schedules payouts. Providers receive Stripe automatic payouts and
+  // manage their own schedule in their Stripe dashboard.
 
   async getDetail(id: string) {
     const provider = await this.prisma.provider.findUnique({

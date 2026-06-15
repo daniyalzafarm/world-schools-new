@@ -15,7 +15,6 @@ import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagg
 import { SuperAdminProvidersService } from './providers.service'
 import { CreateProviderDto } from './dto/create-provider.dto'
 import { UpdateAppFeeDto } from './dto/update-app-fee.dto'
-import { UpdatePayoutModeDto } from './dto/update-payout-mode.dto'
 import { UpdateProviderDto } from './dto/update-provider.dto'
 import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
 import { Permissions } from '../../core/auth/decorators/permissions.decorator'
@@ -101,21 +100,9 @@ export class SuperAdminProvidersController {
     return ResponseUtil.success(provider)
   }
 
-  @Patch(':id/payout-mode')
-  @Permissions('providers.update')
-  @ApiOperation({
-    summary: 'Set per-provider payout mode',
-    description:
-      'Configure how this provider gets paid: `default_after_start` (single payout day-after-camp-start), `offset_days` (single payout X days before camp-start, requires offsetDays + agreementNote), or `policy_staged` (multi-tranche releases driven by deposit + cancellation policy, requires agreementNote). Only future bookings are affected; existing bookings keep their snapshotted mode.',
-  })
-  async setPayoutMode(
-    @Param('id') id: string,
-    @Body() dto: UpdatePayoutModeDto,
-    @CurrentUser() admin: any
-  ) {
-    const settings = await this.providersService.setPayoutMode(id, dto, admin.id)
-    return ResponseUtil.success(settings)
-  }
+  // Payments revamp (Spec v2.3): the per-provider payout-mode endpoint is
+  // removed — the platform no longer schedules payouts (Standard automatic
+  // payouts; providers manage their own schedule in their Stripe dashboard).
 
   // M3 audit fix: the superadmin Provider delete endpoint is removed.
   // Providers are not deletable once onboarding completes — they carry the

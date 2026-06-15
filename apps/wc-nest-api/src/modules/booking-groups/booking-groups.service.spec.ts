@@ -10,11 +10,7 @@ import { Prisma } from '../../generated/client/client'
 import { PaymentMode } from '../../generated/client/enums'
 import { ConfigService } from '../../config/config.service'
 import { PrismaService } from '../../prisma/prisma.service'
-import {
-  PaymentAuthorizationExpiredError,
-  PaymentIntentsService,
-} from '../billing/intents/payment-intents.service'
-import { PayoutsService } from '../billing/payouts/payouts.service'
+import { PaymentIntentsService } from '../billing/intents/payment-intents.service'
 import { CaptureSchedulerService } from '../billing/captures/capture-scheduler.service'
 import { RedisService } from '../redis/redis.service'
 import { RefundsService } from '../billing/refunds/refunds.service'
@@ -43,7 +39,6 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
   let service: BookingGroupsService
   let prisma: any
   let payments: any
-  let payouts: any
   let refunds: any
   let refundsNotifications: any
   let eventEmitter: any
@@ -160,12 +155,6 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       cancelForBookingGroup: jest.fn(),
       syncForBookingGroup: jest.fn(),
     }
-    payouts = {
-      computeDefaultTransferDate: jest.fn(
-        (start: Date) => new Date(start.getTime() + 24 * 60 * 60 * 1000)
-      ),
-      generateScheduleForBooking: jest.fn().mockResolvedValue({ trancheCount: 1 }),
-    }
     // Payments revamp (Spec v2.3): deposit acceptance materialises + dispatches
     // the capture schedule via this service instead of the payout engine.
     captureScheduler = { materializeForBooking: jest.fn().mockResolvedValue(undefined) }
@@ -198,7 +187,6 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         { provide: ProfilePhotoService, useValue: { generatePhotoUrl: jest.fn() } },
         { provide: EventEmitter2, useValue: eventEmitter },
         { provide: PaymentIntentsService, useValue: payments },
-        { provide: PayoutsService, useValue: payouts },
         { provide: RefundsService, useValue: refunds },
         { provide: RefundsNotificationsService, useValue: refundsNotifications },
         { provide: RedisService, useValue: redis },
@@ -252,7 +240,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       )
     })
 
-    it('writes app fee/deposit/balance/transferDate snapshots and authorizes a deposit PaymentIntent', async () => {
+    it('writes app fee/deposit/balance snapshots and authorizes a deposit PaymentIntent', async () => {
       prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
       prisma.bookingGroup.findFirst.mockResolvedValueOnce(makeBookingGroup())
       prisma.systemSettings.upsert.mockResolvedValueOnce({
@@ -289,12 +277,16 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
             }),
             paymentMode: PaymentMode.deposit_then_balance,
             balanceDueAt: expect.any(Date),
-            payoutMode: 'default_after_start',
-            payoutOffsetDaysSnapshot: null,
+            // Payments revamp (Spec v2.3): request-anchored grace; no payout snapshot.
+            graceDeadline: expect.any(Date),
             expiresAt: expect.any(Date),
           }),
         })
       )
+      // Revamp: payout-mode snapshot is gone (Standard automatic payouts).
+      const submitData = prisma.bookingGroup.updateMany.mock.calls[0][0].data
+      expect(submitData).not.toHaveProperty('payoutMode')
+      expect(submitData).not.toHaveProperty('transferDate')
 
       expect(payments.authorizeDeposit).toHaveBeenCalledWith('bg-1')
       expect(eventEmitter.emit).toHaveBeenCalled()
@@ -482,96 +474,8 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       )
     })
 
-    // ─── Phase 8: payout-mode snapshot at submit ───
-
-    it('Phase 8: snapshots payoutMode=offset_days + offset days when provider is on offset-days mode', async () => {
-      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
-      prisma.bookingGroup.findFirst.mockResolvedValueOnce(
-        makeBookingGroup({
-          provider: {
-            appFeeCustom: true,
-            appFeePercentage: new Prisma.Decimal('15'),
-            settings: {
-              depositRequired: true,
-              depositType: 'percentage',
-              depositPercentage: 30,
-              depositFixedAmount: null,
-              payoutMode: 'offset_days',
-              earlyPayoutOffsetDays: 7,
-              timezone: 'America/New_York',
-            },
-          },
-        })
-      )
-      prisma.systemSettings.upsert.mockResolvedValueOnce({
-        defaultAppFee: new Prisma.Decimal('10'),
-      })
-      payments.authorizeDeposit.mockResolvedValueOnce({
-        paymentId: 'pay-9',
-        paymentIntentId: 'pi_9',
-        clientSecret: 'secret_9',
-        amount: '600.00',
-        currency: 'eur',
-      })
-
-      await service.submitForParent('u-1', 'bg-1', CONSENT)
-
-      // Snapshotted on the booking — frozen so post-submit edits to provider
-      // settings don't retroactively shift this in-flight booking. C5 audit
-      // fix: forward transition is `updateMany`.
-      expect(prisma.bookingGroup.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'bg-1', status: 'draft' },
-          data: expect.objectContaining({
-            payoutMode: 'offset_days',
-            payoutOffsetDaysSnapshot: 7,
-          }),
-        })
-      )
-    })
-
-    it('Phase 8: snapshots payoutMode=policy_staged with no offset days when provider is policy-staged', async () => {
-      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
-      prisma.bookingGroup.findFirst.mockResolvedValueOnce(
-        makeBookingGroup({
-          provider: {
-            appFeeCustom: true,
-            appFeePercentage: new Prisma.Decimal('15'),
-            settings: {
-              depositRequired: true,
-              depositType: 'percentage',
-              depositPercentage: 30,
-              depositFixedAmount: null,
-              payoutMode: 'policy_staged',
-              earlyPayoutOffsetDays: null,
-              timezone: 'America/New_York',
-            },
-          },
-        })
-      )
-      prisma.systemSettings.upsert.mockResolvedValueOnce({
-        defaultAppFee: new Prisma.Decimal('10'),
-      })
-      payments.authorizeDeposit.mockResolvedValueOnce({
-        paymentId: 'pay-10',
-        paymentIntentId: 'pi_10',
-        clientSecret: 'secret_10',
-        amount: '600.00',
-        currency: 'eur',
-      })
-
-      await service.submitForParent('u-1', 'bg-1', CONSENT)
-
-      // C5 audit fix: forward transition is `updateMany`.
-      expect(prisma.bookingGroup.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            payoutMode: 'policy_staged',
-            payoutOffsetDaysSnapshot: null,
-          }),
-        })
-      )
-    })
+    // Payments revamp (Spec v2.3): the payout-mode snapshot at submit is removed
+    // (the platform no longer schedules payouts — Standard automatic payouts).
 
     // ─── C4 audit fix: session-capacity recheck at submit ───
 
@@ -767,13 +671,14 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
   })
 
   describe('acceptForProvider', () => {
-    it('captures the auth, sets gracePeriodEndsAt = +48h, and transitions to accepted', async () => {
+    it('flips first then materialises (revamp Spec v2.3: no capture-before-flip)', async () => {
       prisma.bookingGroup.findFirst.mockResolvedValueOnce({
         id: 'bg-1',
         status: 'request',
         bookingGroupNumber: 'BG-0001',
         parentId: 'p-1',
         totalAmount: new Prisma.Decimal('600.00'),
+        paymentMode: PaymentMode.deposit_then_balance,
         camp: { name: 'C' },
         parent: { userId: 'u-1' },
         session: {
@@ -782,11 +687,13 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         },
         provider: { settings: { currency: 'GBP' } },
       })
-      payments.captureForBookingGroup.mockResolvedValueOnce(['pay-1'])
 
       const result = await service.acceptForProvider('pr-1', 'bg-1')
 
-      expect(payments.captureForBookingGroup).toHaveBeenCalledWith('bg-1')
+      // Flip-first + accept-and-retry: the engine drives the capture, not a
+      // pre-flip capture call.
+      expect(payments.captureForBookingGroup).not.toHaveBeenCalled()
+      expect(captureScheduler.materializeForBooking).toHaveBeenCalledWith('bg-1', expect.any(Date))
       // Status-guarded transition (only flips from `request`).
       expect(prisma.bookingGroup.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -794,7 +701,6 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
           data: expect.objectContaining({
             status: 'accepted',
             respondedAt: expect.any(Date),
-            gracePeriodEndsAt: expect.any(Date),
           }),
         })
       )
@@ -825,7 +731,6 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       expect(payments.captureForBookingGroup).not.toHaveBeenCalled()
       // Engine materialisation replaces the legacy payout-schedule generation.
       expect(captureScheduler.materializeForBooking).toHaveBeenCalledWith('bg-1', expect.any(Date))
-      expect(payouts.generateScheduleForBooking).not.toHaveBeenCalled()
       expect(prisma.bookingGroup.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'bg-1', status: 'request' },
@@ -856,35 +761,12 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
 
       expect(payments.captureForBookingGroup).not.toHaveBeenCalled()
       expect(captureScheduler.materializeForBooking).toHaveBeenCalledWith('bg-1', expect.any(Date))
-      expect(payouts.generateScheduleForBooking).not.toHaveBeenCalled()
       expect(result).toEqual({ bookingGroupId: 'bg-1', status: 'accepted' })
     })
 
-    it('translates PaymentAuthorizationExpiredError into 412 and leaves status unchanged', async () => {
-      prisma.bookingGroup.findFirst.mockResolvedValueOnce({
-        id: 'bg-1',
-        status: 'request',
-        bookingGroupNumber: 'BG-0001',
-        parentId: 'p-1',
-        totalAmount: new Prisma.Decimal('600.00'),
-        camp: { name: 'C' },
-        parent: { userId: 'u-1' },
-        session: {
-          startDate: new Date('2026-08-01T00:00:00Z'),
-          endDate: new Date('2026-08-08T00:00:00Z'),
-        },
-        provider: { settings: { currency: 'GBP' } },
-      })
-      payments.captureForBookingGroup.mockRejectedValueOnce(
-        new PaymentAuthorizationExpiredError('pay-1')
-      )
-
-      await expect(service.acceptForProvider('pr-1', 'bg-1')).rejects.toBeInstanceOf(
-        PreconditionFailedException
-      )
-      // Status transition should NOT have been issued — booking stays in request.
-      expect(prisma.bookingGroup.updateMany).not.toHaveBeenCalled()
-    })
+    // Payments revamp (Spec v2.3): the capture-before-flip 412 stale-auth path is
+    // removed (flip-first + accept-and-retry). A stale auth surfaces as a failed
+    // scheduled capture with a 48h retry, not a blocked acceptance.
   })
 
   describe('syncPaymentForParent', () => {

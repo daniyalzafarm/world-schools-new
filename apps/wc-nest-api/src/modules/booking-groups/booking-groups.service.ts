@@ -42,11 +42,7 @@ import { BookingGroupStatus, PaymentMode, PaymentStatus } from '../../generated/
 import { Prisma } from '../../generated/client/client'
 import { PrismaService } from '../../prisma/prisma.service'
 import { ProfilePhotoService } from '../user/auth/services/profile-photo.service'
-import {
-  PaymentAuthorizationExpiredError,
-  PaymentIntentsService,
-} from '../billing/intents/payment-intents.service'
-import { PayoutsService } from '../billing/payouts/payouts.service'
+import { PaymentIntentsService } from '../billing/intents/payment-intents.service'
 import { RefundsService } from '../billing/refunds/refunds.service'
 import { RefundsNotificationsService } from '../billing/refunds/notifications/refunds-notifications.service'
 import { RedisService } from '../redis/redis.service'
@@ -99,7 +95,6 @@ export class BookingGroupsService {
     private readonly profilePhotoService: ProfilePhotoService,
     private readonly eventEmitter: EventEmitter2,
     private readonly paymentIntentsService: PaymentIntentsService,
-    private readonly payoutsService: PayoutsService,
     private readonly refundsService: RefundsService,
     private readonly refundsNotifications: RefundsNotificationsService,
     private readonly redis: RedisService,
@@ -2298,8 +2293,6 @@ export class BookingGroupsService {
             appFeePercentage: true,
             settings: {
               select: {
-                payoutMode: true,
-                earlyPayoutOffsetDays: true,
                 timezone: true,
                 cancellationPolicy: true,
                 cancellationPolicyCustom: true,
@@ -2430,14 +2423,9 @@ export class BookingGroupsService {
     })
 
     // Phase 8: snapshot the provider's payout mode (and offset days when in
-    // offset_days mode) at submission. The schedule itself is generated at
-    // acceptance, when `gracePeriodEndsAt` is known. Snapshotting here means
-    // post-submit edits to ProviderSettings.payoutMode don't retroactively
-    // shift in-flight bookings.
+    // Payments revamp (Spec v2.3): no payout-mode snapshot — the platform no
+    // longer schedules payouts (Standard automatic payouts).
     const settings = bookingGroup.provider.settings
-    const payoutMode = settings?.payoutMode ?? 'default_after_start'
-    const payoutOffsetDaysSnapshot =
-      payoutMode === 'offset_days' ? (settings?.earlyPayoutOffsetDays ?? null) : null
     const expiresAt = computeProviderResponseDeadline(now)
 
     // Payments revamp (Spec v2.3): the grace window is anchored to the booking
@@ -2534,8 +2522,6 @@ export class BookingGroupsService {
           balanceDueAt: snapshot.balanceDueAt,
           // Payments revamp (Spec v2.3): request-anchored grace deadline.
           graceDeadline,
-          payoutMode,
-          payoutOffsetDaysSnapshot,
           cancellationPolicySnapshot:
             cancellationPolicySnapshot as unknown as Prisma.InputJsonValue,
           eligibilityCheckSnapshot: eligibilityCheckSnapshot as unknown as Prisma.InputJsonValue,
@@ -2622,7 +2608,6 @@ export class BookingGroupsService {
           paymentMode: null,
           balanceDueAt: null,
           graceDeadline: null,
-          transferDate: null,
           cancellationPolicySnapshot: Prisma.JsonNull,
         },
       })
@@ -3196,35 +3181,12 @@ export class BookingGroupsService {
 
     const gracePeriodEndsAt = computeGracePeriodDeadline(now)
 
-    // Payments revamp (Spec v2.3): ALL bookings now run on the capture-schedule
-    // engine. Acceptance flips FIRST, then the engine drives the deposit
-    // capture-or-defer (deposit bookings) and/or the off-session balance captures
-    // (deposit + no-deposit) at their refund-tier boundaries. The legacy
-    // capture-before-flip + payout-schedule branch is retained only as a
-    // defensive fallback for a (malformed) booking with no paymentMode snapshot.
-    const usesCaptureEngine =
-      bookingGroup.paymentMode === PaymentMode.deposit_then_balance ||
-      bookingGroup.paymentMode === PaymentMode.full_at_due ||
-      bookingGroup.paymentMode === PaymentMode.full_at_booking
-
-    // Legacy flow only: capture before flipping status so a stale auth keeps the
-    // booking in `request`. The capture-engine path defers this to the engine
-    // (flip-first + accept-and-retry — confirmed approach).
-    if (!usesCaptureEngine) {
-      try {
-        await this.paymentIntentsService.captureForBookingGroup(bookingGroup.id)
-      } catch (err) {
-        if (err instanceof PaymentAuthorizationExpiredError) {
-          throw new PreconditionFailedException({
-            message:
-              "The parent's card authorization has expired. Ask them to re-enter their card before accepting.",
-            code: 'PAYMENT_AUTH_EXPIRED',
-            paymentId: err.paymentId,
-          })
-        }
-        throw err
-      }
-    }
+    // Payments revamp (Spec v2.3): ALL bookings run on the capture-schedule
+    // engine. Acceptance flips FIRST (flip-first + accept-and-retry — confirmed),
+    // then the engine drives the deposit capture-or-defer and the off-session
+    // balance captures at their refund-tier boundaries. There is no
+    // capture-before-flip and no platform payout schedule (Standard accounts pay
+    // out automatically).
 
     // Status-guarded transition (C2): only flip when still `request`, so a
     // concurrent accept/decline/expiry cannot double-apply side effects. The
@@ -3260,31 +3222,19 @@ export class BookingGroupsService {
       throw new ConflictException('This booking is no longer awaiting a response.')
     }
 
-    if (usesCaptureEngine) {
-      // Payments revamp (Spec v2.3): materialise the scheduled-capture rows now
-      // that `respondedAt` (acceptance time) is set, and dispatch them — the
-      // deposit captures now (grace expired) or defers to the grace deadline;
-      // balance increments enqueue at their refund-tier boundaries. Failure here
-      // MUST NOT roll back acceptance — the hourly reconciliation cron recovers
-      // un-materialised/undispatched captures from booking state.
-      try {
-        await this.captureScheduler.materializeForBooking(bookingGroup.id, now)
-      } catch (err) {
-        this.logger.error(
-          `acceptForProvider: failed to materialise capture schedule for ${bookingGroup.id}: ${(err as Error).message}`,
-          (err as Error).stack
-        )
-      }
-    } else {
-      // Legacy payout schedule (removed in step 8 once no-deposit is unified).
-      try {
-        await this.payoutsService.generateScheduleForBooking(bookingGroup.id)
-      } catch (err) {
-        this.logger.error(
-          `acceptForProvider: failed to generate payout schedule for ${bookingGroup.id}: ${(err as Error).message}`,
-          (err as Error).stack
-        )
-      }
+    // Payments revamp (Spec v2.3): materialise the scheduled-capture rows now
+    // that `respondedAt` (acceptance time) is set, and dispatch them — the
+    // deposit captures now (grace expired) or defers to the grace deadline;
+    // balance increments enqueue at their refund-tier boundaries. Failure here
+    // MUST NOT roll back acceptance — the hourly reconciliation cron recovers
+    // un-materialised/undispatched captures from booking state.
+    try {
+      await this.captureScheduler.materializeForBooking(bookingGroup.id, now)
+    } catch (err) {
+      this.logger.error(
+        `acceptForProvider: failed to materialise capture schedule for ${bookingGroup.id}: ${(err as Error).message}`,
+        (err as Error).stack
+      )
     }
 
     this.eventEmitter.emit(WsInternalEvent.BookingStatusChanged, {
@@ -3313,15 +3263,6 @@ export class BookingGroupsService {
     notify(this.eventEmitter, NotificationType.ProviderBookingAccepted, {
       bookingGroupId: bookingGroup.id,
       providerId,
-    })
-
-    // v28 Phase 8 — provider-owner finance notification confirming the
-    // payout schedule lives (post-`generateScheduleForBooking`). Fires
-    // once per booking-acceptance regardless of whether the generator
-    // succeeded — the schedule is recoverable by the payouts cron if
-    // it errored above.
-    notify(this.eventEmitter, NotificationType.ProviderPayoutScheduleConfirmed, {
-      bookingGroupId: bookingGroup.id,
     })
 
     // Phase 7.5 — pre-camp scheduled fan-out at startDate −14d / −7d / −1d.

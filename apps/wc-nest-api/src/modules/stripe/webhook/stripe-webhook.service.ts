@@ -6,7 +6,6 @@ import { Prisma } from '../../../generated/client/client'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { DisputesService } from '../../billing/disputes/disputes.service'
 import { PaymentIntentsService } from '../../billing/intents/payment-intents.service'
-import { PayoutsService } from '../../billing/payouts/payouts.service'
 import { RefundsService } from '../../billing/refunds/refunds.service'
 import { notify } from '../../notifications/dispatcher/notify'
 
@@ -77,7 +76,6 @@ export class StripeWebhookService {
     private readonly prisma: PrismaService,
     private readonly paymentIntentsService: PaymentIntentsService,
     private readonly refundsService: RefundsService,
-    private readonly payoutsService: PayoutsService,
     private readonly disputesService: DisputesService,
     private readonly eventEmitter: EventEmitter2
   ) {}
@@ -399,34 +397,15 @@ export class StripeWebhookService {
       }
 
       // ----- Payouts (connected-account funds → bank) ----------------------
-      case 'payout.paid': {
-        if (event.account) {
-          await this.payoutsService.recordPayoutPaid(
-            event.data.object as StripePayout,
-            event.account
-          )
-        }
-        return
-      }
-      case 'payout.failed': {
-        if (event.account) {
-          await this.payoutsService.recordPayoutFailed(
-            event.data.object as StripePayout,
-            event.account
-          )
-        }
-        return
-      }
+      // Payments revamp (Spec v2.3): the platform no longer schedules or tracks
+      // payouts — providers receive Stripe automatic payouts on their own
+      // schedule. All payout events are now LOG-ONLY (informational); there is no
+      // `PayoutEvent` row or `PayoutsService` to update.
+      case 'payout.paid':
+      case 'payout.failed':
       case 'payout.created':
       case 'payout.updated':
       case 'payout.canceled': {
-        // The platform creates payouts via `payouts.create({}, {stripeAccount})`
-        // from the payout-release cron and already has a `Payout` row at create
-        // time, so `payout.created` is informational. `updated` and `canceled`
-        // are similarly reconciled on the `paid` / `failed` terminal events
-        // today. Audit-log so cron-vs-webhook divergence is visible if it
-        // happens; route to a future `PayoutsService.recordPayoutCreated/
-        // Updated/Canceled` if/when we want eager state transitions.
         const payout = event.data.object as StripePayout
         this.logger.log(
           `webhook.${event.type} stripeAccountId=${JSON.stringify(event.account ?? null)} ` +
