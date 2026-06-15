@@ -185,6 +185,26 @@ New files under `billing/captures/`, mirroring existing patterns exactly:
 - **wc-provider:** deposit-toggle card on `camps/[campId]/edit/sessions` (autosave PATCH; explanatory state + link when no provider-level deposit); `onboarding/payment-policies` renders a derived charge-schedule preview (named tiers only; internal capture mode hidden); read-only "Payment & Schedule" on the provider booking detail.
 - **wc-superadmin:** new payment-review page (`PaymentReviewQueueTable`, `PaymentAuditLogDrawer`, `PaymentReviewResolutionModal`); FM bulk tool (date/provider/region + fee toggle); provider admin-review surface; remove `PayoutModeModal`/`transferDate` UI.
 
+### Step 8 remainder — payout schema M2 + financial-display re-sourcing (folded into step 10)
+
+The payout **engine** is deleted (service/module/cron/DTOs, webhook log-only, no
+manual schedule, Reimbursement retired). What remains is schema-coupled and ties
+to the superadmin financial UI, so it lands with step 10:
+
+- **Re-source the financial displays** that still read `PayoutEvent` /
+  `BookingPayoutSchedule`: provider earnings (`camps.service.ts`), superadmin
+  financial (`financial.service.ts`), application-review (`application-review.service.ts`),
+  and the `ProviderPayout*` notification prop-loaders (`prop-loaders.ts`) +
+  `provider-engagement.cron.ts`. Earnings now derive from **captured Payments**
+  (the provider's automatic Stripe payouts are no longer platform-tracked).
+- **Remove the `ProviderPayout*` `NotificationType`s** (wc-types + catalogs +
+  prop-loaders + settings copy) — dormant since the dispatch site was removed.
+- **Schema M2 (destructive):** once the reads above are gone, drop the
+  `BookingPayoutSchedule` + `PayoutEvent` models, the `PayoutMode`/`PayoutTrancheReason`/
+  `PayoutTrancheStatus`/`PayoutStatus` enums, and the payout fields on
+  `BookingGroup`/`ProviderSettings`; then
+  `npx nx prisma:migrate wc-nest-api --name payments_revamp_payout_engine_removal`.
+
 ### Step 7 remainder — provider-cancel + reschedule (folded into step 10)
 
 Net-new backend flows that surface in the wc-superadmin review-queue UI, so built
