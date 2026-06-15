@@ -19,7 +19,7 @@ export default function AudienceEditorPage() {
 
   const [formData, setFormData] = useState<AudienceFormData>({
     ageGroups: [{ min: 6, max: 12 }],
-    languages: ['english'],
+    languages: ['en'],
     gender: 'coed',
   })
   const [isLoaded, setIsLoaded] = useState(false)
@@ -44,7 +44,7 @@ export default function AudienceEditorPage() {
         languages:
           currentCamp.languages && currentCamp.languages.length > 0
             ? currentCamp.languages
-            : ['english'],
+            : ['en'],
         gender: currentCamp.gender || 'coed',
       })
       setIsLoaded(true)
