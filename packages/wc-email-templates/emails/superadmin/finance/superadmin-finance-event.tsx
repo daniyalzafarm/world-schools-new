@@ -11,6 +11,7 @@ export type SuperadminFinanceEventKind =
   | 'payoutFailure'
   | 'payoutRecoveryNeeded'
   | 'fundsPendingTransfer'
+  | 'paymentReviewNeeded'
   | 'bookingCancelledNonPayment'
 
 export interface SuperadminFinanceEventProps {
@@ -33,6 +34,7 @@ const HEADINGS: Record<SuperadminFinanceEventKind, string> = {
   payoutFailure: 'Payout to camp could not be processed.',
   payoutRecoveryNeeded: 'Clawback cannot be resolved automatically.',
   fundsPendingTransfer: 'Payment received — payout pending.',
+  paymentReviewNeeded: 'Payment needs review — capture failed.',
   bookingCancelledNonPayment: 'Booking auto-cancelled — non-payment.',
 }
 
@@ -47,6 +49,8 @@ const BODIES: Record<SuperadminFinanceEventKind, (props: SuperadminFinanceEventP
     `A refund clawback of ${p.amount ?? ''} is owed by ${p.companyName} for booking ${p.bookingRef ?? ''} but cannot be deducted from any upcoming payout. Manual recovery required.`,
   fundsPendingTransfer: p =>
     `A payment of ${p.amount ?? ''} has been received for booking ${p.bookingRef ?? ''} at ${p.companyName}. The payout has not yet been released to the camp.`,
+  paymentReviewNeeded: p =>
+    `A scheduled capture${p.amount ? ` of ${p.amount}` : ''} on booking ${p.bookingRef ?? ''} at ${p.companyName} stayed failed past its retry window, so the booking was routed to payment review (never auto-cancelled). Please triage — the parent's card is failing and the balance is uncollected.`,
   bookingCancelledNonPayment: p =>
     `Booking ${p.bookingRef ?? ''} at ${p.companyName} has been automatically cancelled after the balance-charge retries were exhausted. Informational — the deposit payout has already settled per policy.`,
 }

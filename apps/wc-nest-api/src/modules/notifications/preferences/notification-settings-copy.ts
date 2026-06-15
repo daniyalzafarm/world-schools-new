@@ -448,6 +448,10 @@ export const NOTIFICATION_SETTINGS_COPY: Record<string, NotificationCopy> = {
     label: 'Funds pending transfer',
     description: 'Collected funds are pending transfer to a camp.',
   },
+  'superadmin.payment.reviewNeeded': {
+    label: 'Payment review needed',
+    description: "A booking's scheduled capture failed past its retry window and needs triage.",
+  },
   'superadmin.camp.stripeDisconnected': {
     label: 'Camp Stripe disconnected',
     description: "A camp's Stripe account was disconnected.",

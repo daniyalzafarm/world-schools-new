@@ -346,7 +346,9 @@ function makeFinanceEntry(
                       ? `Clawback needs recovery — ${props.companyName}`
                       : kind === 'fundsPendingTransfer'
                         ? `Funds pending transfer — ${props.bookingRef ?? ''}`
-                        : `Booking cancelled (non-payment) — ${props.bookingRef ?? ''}`
+                        : kind === 'paymentReviewNeeded'
+                          ? `Payment review needed — ${props.bookingRef ?? ''}`
+                          : `Booking cancelled (non-payment) — ${props.bookingRef ?? ''}`
               : 'Finance update',
           includePlainText: true,
         }
@@ -364,7 +366,9 @@ function makeFinanceEntry(
                   ? `Clawback recovery: ${props.companyName}`
                   : kind === 'fundsPendingTransfer'
                     ? `Funds pending: ${props.bookingRef ?? ''}`
-                    : `Cancelled (non-payment): ${props.bookingRef ?? ''}`
+                    : kind === 'paymentReviewNeeded'
+                      ? `Payment review: ${props.bookingRef ?? ''}`
+                      : `Cancelled (non-payment): ${props.bookingRef ?? ''}`
           : 'Finance update',
       body: props =>
         props ? `${props.companyName}${props.amount ? ` · ${props.amount}` : ''}` : '',
@@ -429,6 +433,13 @@ const superadminFundsPendingTransfer = makeFinanceEntry(
   'fundsPendingTransfer',
   NotificationCategory.Payout,
   ['in_app']
+)
+const superadminPaymentReviewNeeded = makeFinanceEntry(
+  NotificationType.SuperadminPaymentReviewNeeded,
+  'superadmin.payment.reviewNeeded',
+  'paymentReviewNeeded',
+  NotificationCategory.Payment,
+  ['in_app', 'email']
 )
 
 // ============================================================================
@@ -523,6 +534,7 @@ export const superadminCatalog: ReadonlyArray<CatalogEntry<unknown>> = [
   superadminDisputeResolved as CatalogEntry<unknown>,
   superadminPayoutRecoveryNeeded as CatalogEntry<unknown>,
   superadminFundsPendingTransfer as CatalogEntry<unknown>,
+  superadminPaymentReviewNeeded as CatalogEntry<unknown>,
   // Platform health
   superadminCampStripeDisconnected as CatalogEntry<unknown>,
   superadminCampDeletionRequested as CatalogEntry<unknown>,

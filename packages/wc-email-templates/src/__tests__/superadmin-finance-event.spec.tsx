@@ -11,6 +11,7 @@ describe('SuperadminFinanceEvent', () => {
     'payoutFailure',
     'payoutRecoveryNeeded',
     'fundsPendingTransfer',
+    'paymentReviewNeeded',
     'bookingCancelledNonPayment',
   ] as const
 

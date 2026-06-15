@@ -21,8 +21,16 @@ function buildHarness(
   }
   const redis = { getClient: jest.fn() }
   const engine = { executeCapture: jest.fn() }
-  const cron = new ScheduledCaptureReconciliationCron(prisma as any, redis as any, engine as any)
-  return { cron, prisma, engine }
+  const eventEmitter = { emit: jest.fn() }
+  const paymentAuditLog = { append: jest.fn(), appendSafe: jest.fn().mockResolvedValue(undefined) }
+  const cron = new ScheduledCaptureReconciliationCron(
+    prisma as any,
+    redis as any,
+    engine as any,
+    eventEmitter as any,
+    paymentAuditLog as any
+  )
+  return { cron, prisma, engine, eventEmitter, paymentAuditLog }
 }
 
 describe('ScheduledCaptureReconciliationCron.runBatch', () => {
@@ -53,7 +61,10 @@ describe('ScheduledCaptureReconciliationCron.runBatch', () => {
   })
 
   it('escalates bookings whose capture stayed failed past the retry window to payment_review', async () => {
-    const { cron, prisma } = buildHarness([], [{ bookingGroupId: 'bg-9' }])
+    const { cron, prisma, eventEmitter, paymentAuditLog } = buildHarness(
+      [],
+      [{ bookingGroupId: 'bg-9' }]
+    )
     const result = await cron.runBatch(NOW)
 
     expect(result.escalated).toBe(1)
@@ -74,6 +85,16 @@ describe('ScheduledCaptureReconciliationCron.runBatch', () => {
     expect(stuckWhere.status).toBe('failed')
     expect(stuckWhere.retryDeadline).toEqual({ lte: NOW })
     expect(stuckWhere.bookingGroup.paymentReviewStatus).toBeNull()
+    // Spec v2.3: the escalation writes a 10-yr-retention audit row and alerts
+    // superadmins to triage (never auto-cancel).
+    expect(paymentAuditLog.appendSafe).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bookingGroupId: 'bg-9',
+        eventType: 'payment_review_flagged',
+        newStatus: 'payment_review',
+      })
+    )
+    expect(eventEmitter.emit).toHaveBeenCalled()
   })
 
   it('no-ops cleanly when nothing is due or stuck', async () => {

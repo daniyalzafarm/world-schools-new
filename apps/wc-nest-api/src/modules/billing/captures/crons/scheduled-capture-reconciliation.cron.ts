@@ -1,9 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Cron, CronExpression } from '@nestjs/schedule'
-import { BookingGroupStatus, ScheduledCaptureStatus } from '../../../../generated/client/enums'
+import { NotificationType } from '@world-schools/wc-types'
+import {
+  BookingGroupStatus,
+  PaymentAuditEventType,
+  ScheduledCaptureStatus,
+} from '../../../../generated/client/enums'
 import { PrismaService } from '../../../../prisma/prisma.service'
+import { notify } from '../../../notifications/dispatcher/notify'
 import { RedisService } from '../../../redis/redis.service'
 import { CAPTURE_ELIGIBLE_STATUSES } from '../../shared/capture-eligible-statuses'
+import { PaymentAuditLogService } from '../../shared/payment-audit-log.service'
 import { CaptureEngineService } from '../capture-engine.service'
 
 const LOCK_KEY = 'cron:lock:scheduled-captures'
@@ -29,7 +37,9 @@ export class ScheduledCaptureReconciliationCron {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
-    private readonly engine: CaptureEngineService
+    private readonly engine: CaptureEngineService,
+    private readonly eventEmitter: EventEmitter2,
+    private readonly paymentAuditLog: PaymentAuditLogService
   ) {}
 
   @Cron(CronExpression.EVERY_HOUR)
@@ -133,6 +143,20 @@ export class ScheduledCaptureReconciliationCron {
         this.logger.warn(
           `booking ${row.bookingGroupId} → payment_review: a scheduled capture stayed failed past its retry window`
         )
+        // Append-only audit (10-yr retention) + alert superadmins to triage.
+        // Both are best-effort: a logging/notify failure must not abort the
+        // batch (the status flip already committed above).
+        await this.paymentAuditLog.appendSafe({
+          actor: 'system',
+          eventType: PaymentAuditEventType.payment_review_flagged,
+          bookingGroupId: row.bookingGroupId,
+          priorStatus: null,
+          newStatus: BookingGroupStatus.payment_review,
+          reasonText: 'scheduled capture stayed failed past its retry window',
+        })
+        notify(this.eventEmitter, NotificationType.SuperadminPaymentReviewNeeded, {
+          bookingGroupId: row.bookingGroupId,
+        })
       }
     }
     return escalated

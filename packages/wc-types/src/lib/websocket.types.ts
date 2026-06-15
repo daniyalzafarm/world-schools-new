@@ -173,6 +173,9 @@ export enum NotificationType {
   // payout engine. RecoveryNeeded + FundsPendingTransfer are still emitted live.
   SuperadminPayoutRecoveryNeeded = 'superadmin.payout.recoveryNeeded',
   SuperadminFundsPendingTransfer = 'superadmin.payout.fundsPendingTransfer',
+  // Payments revamp (Spec v2.3): a scheduled capture exhausted its retries and
+  // the booking was routed to payment review — ops must triage (never auto-cancel).
+  SuperadminPaymentReviewNeeded = 'superadmin.payment.reviewNeeded',
 
   // ---- v28 catalog — superadmin : platform health (2) ----
   SuperadminCampStripeDisconnected = 'superadmin.camp.stripeDisconnected',

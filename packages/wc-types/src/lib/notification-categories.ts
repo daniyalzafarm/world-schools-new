@@ -150,6 +150,7 @@ export const NOTIFICATION_CATEGORY: Partial<Record<NotificationType, Notificatio
   [NotificationType.SuperadminDisputeResolved]: NotificationCategory.Dispute,
   [NotificationType.SuperadminPayoutRecoveryNeeded]: NotificationCategory.Payout,
   [NotificationType.SuperadminFundsPendingTransfer]: NotificationCategory.Payout,
+  [NotificationType.SuperadminPaymentReviewNeeded]: NotificationCategory.Payment,
 
   // Superadmin platform health
   [NotificationType.SuperadminCampStripeDisconnected]: NotificationCategory.System,

@@ -467,22 +467,30 @@ const parentPaymentDepositConfirmed: PropLoader<ParentPaymentDepositConfirmedPro
 function buildBalanceReminder(
   daysUntilDue: 14 | 7 | 3
 ): PropLoader<ParentPaymentBalanceReminderProps | null> {
-  return async (prisma, { paymentId, bookingGroupId }) => {
+  return async (prisma, { paymentId, bookingGroupId, extra }) => {
     const ctx = await loadPaymentContext(prisma, paymentId, bookingGroupId)
     if (!ctx) return null
     const bg = ctx.bookingGroup
+    // Payments revamp (Spec v2.3): the reminder cron carries the specific
+    // scheduled capture's amount + date via `extra`. Prefer those (the upcoming
+    // charge) over the whole remaining balance; fall back to total−deposit for
+    // any legacy caller that only passes the booking.
+    const captureAmount = extra?.['captureAmount'] as string | undefined
+    const captureCurrency = extra?.['captureCurrency'] as string | undefined
+    const captureDate = extra?.['captureDate'] as string | undefined
     const deposit = toNumber(bg.depositAmount)
     const total = toNumber(bg.totalAmount)
-    const balance = Math.max(0, total - deposit)
-    const currency = (ctx.currency ?? 'USD').toUpperCase()
+    const fallbackBalance = Math.max(0, total - deposit)
+    const amount = captureAmount != null ? Number(captureAmount) : fallbackBalance
+    const currency = (captureCurrency ?? ctx.currency ?? 'USD').toUpperCase()
     return {
       salutation: 'hi',
       firstName: bg.parent.user.firstName,
       childName: bg.bookings[0]?.child?.firstName ?? 'your child',
       campName: bg.camp.name,
       bookingRef: bg.bookingGroupNumber,
-      balanceAmount: formatCurrency(balance, currency),
-      balanceDueDate: formatDate(bg.balanceDueAt),
+      balanceAmount: formatCurrency(amount, currency),
+      balanceDueDate: formatDate(captureDate ? new Date(captureDate) : bg.balanceDueAt),
       daysUntilDue,
       bookingUrl: `${PARENT_APP_BASE_URL}/bookings/${bg.id}`,
     }
@@ -1738,6 +1746,7 @@ function buildSuperadminFinanceEvent(
     | 'disputeResolved'
     | 'payoutRecoveryNeeded'
     | 'fundsPendingTransfer'
+    | 'paymentReviewNeeded'
     | 'bookingCancelledNonPayment'
 ): PropLoader<SuperadminFinanceEventProps | null> {
   return async (prisma, { bookingGroupId, paymentId, refundId, disputeId, providerId, extra }) => {
@@ -2075,6 +2084,8 @@ export const propLoaders = {
     buildSuperadminFinanceEvent('payoutRecoveryNeeded'),
   [NotificationType.SuperadminFundsPendingTransfer]:
     buildSuperadminFinanceEvent('fundsPendingTransfer'),
+  [NotificationType.SuperadminPaymentReviewNeeded]:
+    buildSuperadminFinanceEvent('paymentReviewNeeded'),
   // Superadmin — platform health
   [NotificationType.SuperadminCampStripeDisconnected]:
     buildSuperadminCampHealth('stripeDisconnected'),
