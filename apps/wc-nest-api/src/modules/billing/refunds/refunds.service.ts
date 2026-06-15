@@ -12,8 +12,10 @@ import { notify } from '../../notifications/dispatcher/notify'
 import { Prisma } from '../../../generated/client/client'
 import {
   BookingGroupStatus,
+  PaymentAuditEventType,
   PaymentKind,
   PaymentStatus,
+  PlatformFeeDisposition,
   RefundReason,
   RefundStatus,
   ReimbursementStatus,
@@ -24,6 +26,7 @@ import { StripeService } from '../../stripe/stripe.service'
 import { CancelCaptureService } from '../captures/cancel-capture.service'
 import { ReimbursementsService } from '../reimbursements/reimbursements.service'
 import { billingAudit } from '../shared/audit-log.util'
+import { PaymentAuditLogService } from '../shared/payment-audit-log.service'
 import { NotificationType, type SpecialCircumstanceType } from '@world-schools/wc-types'
 import {
   evaluatePolicy as evaluatePolicySnapshot,
@@ -145,6 +148,7 @@ export class RefundsService {
     private readonly redis: RedisService,
     private readonly reimbursementsService: ReimbursementsService,
     private readonly cancelCaptureService: CancelCaptureService,
+    private readonly paymentAuditLog: PaymentAuditLogService,
     private readonly eventEmitter: EventEmitter2
   ) {}
 
@@ -1318,6 +1322,17 @@ export class RefundsService {
     }
   }
 
+  /** Maps a cancellation `reason` to the payment-audit event type. */
+  private cancellationAuditEventType(reason: string): PaymentAuditEventType {
+    if (reason.startsWith('force_majeure')) return PaymentAuditEventType.force_majeure_action
+    if (reason === 'grace_period') return PaymentAuditEventType.grace_refund_issued
+    if (reason.startsWith('provider') || reason.startsWith('camp_cancel')) {
+      return PaymentAuditEventType.provider_cancellation_refund
+    }
+    // policy_balance, parent_cancel_pre_capture, fraud, etc.
+    return PaymentAuditEventType.policy_refund_issued
+  }
+
   private async markGroupCancelled(
     bookingGroupId: string,
     reason: string,
@@ -1346,6 +1361,22 @@ export class RefundsService {
     // The engine's "PaymentIntent canceled = no-op" guard is the second line of
     // defence against a job that fires in the race window.
     await this.cancelCaptureService.cancelForBooking(bookingGroupId, `cancelled:${reason}`)
+
+    // Payments revamp (Spec v2.3 §Compliance): append an append-only audit row
+    // for the cancellation/refund event (10-year retention). Every cancel path
+    // funnels through here, so this is the single place that records the
+    // booking-cancellation in the payment audit trail.
+    await this.paymentAuditLog.appendSafe({
+      actor: cancelledByUserId ?? 'system',
+      eventType: this.cancellationAuditEventType(reason),
+      bookingGroupId,
+      priorStatus: prior?.status ?? null,
+      newStatus: 'cancelled',
+      reasonText: reason,
+      platformFeeDisposition: reason.startsWith('force_majeure')
+        ? PlatformFeeDisposition.retained
+        : null,
+    })
 
     // Phase 7.5 — when the cancellation was driven by a balance payment
     // failure (the balance-charge cron flips BookingGroup to `payment_failed`

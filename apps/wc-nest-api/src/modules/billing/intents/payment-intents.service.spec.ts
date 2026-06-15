@@ -4,7 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import Stripe from 'stripe'
 import { ConfigService } from '../../../config/config.service'
 import { Prisma } from '../../../generated/client/client'
-import { PaymentKind, PaymentStatus } from '../../../generated/client/enums'
+import { PaymentKind, PaymentStatus, ScheduledCaptureStatus } from '../../../generated/client/enums'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { StripeConnectService } from '../../provider/stripe-connect/stripe-connect.service'
 import { StripeService } from '../../stripe/stripe.service'
@@ -1093,6 +1093,56 @@ describe('PaymentIntentsService', () => {
             status: expect.objectContaining({
               in: expect.not.arrayContaining([PaymentStatus.succeeded]),
             }),
+          }),
+        })
+      )
+    })
+
+    it('revamp Spec v2.3: markFailed syncs the linked scheduled capture processing→failed with a 48h retry deadline', async () => {
+      prisma.payment.findUnique.mockResolvedValueOnce({
+        id: 'pay-bal-1',
+        status: PaymentStatus.requires_capture,
+      })
+      prisma.payment.updateMany.mockResolvedValueOnce({ count: 1 })
+
+      await service.markFailed({
+        id: 'pi_bal',
+        last_payment_error: { code: 'card_declined', message: 'Your card was declined' },
+      } as never)
+
+      // The async-failure webhook is the source of truth for an in-flight
+      // balance capture: only a `processing` row may flip to `failed`, and a
+      // 48h retry window is stamped for the balance-charge cron to pick up.
+      expect(prisma.bookingScheduledCapture.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { paymentId: 'pay-bal-1', status: ScheduledCaptureStatus.processing },
+          data: expect.objectContaining({
+            status: ScheduledCaptureStatus.failed,
+            failureCode: 'card_declined',
+            retryDeadline: expect.any(Date),
+          }),
+        })
+      )
+    })
+
+    it('revamp Spec v2.3: markCanceled cancels the linked scheduled capture (scheduled/processing→cancelled)', async () => {
+      prisma.payment.findUnique.mockResolvedValueOnce({
+        id: 'pay-bal-2',
+        status: PaymentStatus.requires_capture,
+      })
+      prisma.payment.updateMany.mockResolvedValueOnce({ count: 1 })
+
+      await service.markCanceled({ id: 'pi_bal2' } as never)
+
+      expect(prisma.bookingScheduledCapture.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            paymentId: 'pay-bal-2',
+            status: { in: [ScheduledCaptureStatus.scheduled, ScheduledCaptureStatus.processing] },
+          },
+          data: expect.objectContaining({
+            status: ScheduledCaptureStatus.cancelled,
+            cancelledReason: 'payment_intent_canceled',
           }),
         })
       )

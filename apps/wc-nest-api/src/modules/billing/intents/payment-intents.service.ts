@@ -1551,6 +1551,22 @@ export class PaymentIntentsService {
         // set `nextRetryAt` because they may arrive after a manual cancel.
       },
     })
+
+    // Payments revamp (Spec v2.3): sync the linked scheduled capture so the
+    // webhook is the source of truth for an ASYNC balance-capture failure (the
+    // charge appeared in-flight, then `payment_intent.payment_failed` arrives).
+    // Status-guarded to `processing` so a late failure can't roll a `completed`
+    // (out-of-order success) capture back to failed; the engine's own path
+    // already marks synchronous declines.
+    await this.prisma.bookingScheduledCapture.updateMany({
+      where: { paymentId: payment.id, status: ScheduledCaptureStatus.processing },
+      data: {
+        status: ScheduledCaptureStatus.failed,
+        failureCode: lastError?.code ?? null,
+        failureMessage: lastError?.message ? redactPii(lastError.message).slice(0, 500) : null,
+        retryDeadline: new Date(Date.now() + 48 * 60 * 60 * 1000),
+      },
+    })
   }
 
   /**
@@ -1586,6 +1602,21 @@ export class PaymentIntentsService {
         stripePaymentIntentId: intent.id,
         // H8: clear the in-flight marker on terminal cancellation.
         processingStartedAt: null,
+      },
+    })
+
+    // Payments revamp (Spec v2.3): a canceled PaymentIntent cancels its linked
+    // scheduled capture too (status-guarded so it never touches a completed one).
+    await this.prisma.bookingScheduledCapture.updateMany({
+      where: {
+        paymentId: payment.id,
+        status: {
+          in: [ScheduledCaptureStatus.scheduled, ScheduledCaptureStatus.processing],
+        },
+      },
+      data: {
+        status: ScheduledCaptureStatus.cancelled,
+        cancelledReason: 'payment_intent_canceled',
       },
     })
   }

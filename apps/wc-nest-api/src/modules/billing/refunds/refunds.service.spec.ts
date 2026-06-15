@@ -3,6 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Prisma } from '../../../generated/client/client'
 import {
+  PaymentAuditEventType,
   PaymentKind,
   PaymentStatus,
   RefundReason,
@@ -13,6 +14,7 @@ import { PrismaService } from '../../../prisma/prisma.service'
 import { RedisService } from '../../redis/redis.service'
 import { StripeService } from '../../stripe/stripe.service'
 import { CancelCaptureService } from '../captures/cancel-capture.service'
+import { PaymentAuditLogService } from '../shared/payment-audit-log.service'
 import { ReimbursementsService } from '../reimbursements/reimbursements.service'
 import { buildBookingPolicySnapshot } from '../shared/cancellation-policy.util'
 import { RefundsService } from './refunds.service'
@@ -33,6 +35,7 @@ describe('RefundsService', () => {
   let redisClient: any
   let reimbursements: any
   let cancelCapture: any
+  let paymentAuditLog: any
 
   function makeGroup(overrides: Partial<any> = {}) {
     // Default fixture populates `cancellationPolicySnapshot` so the existing
@@ -165,6 +168,7 @@ describe('RefundsService', () => {
     // Payments revamp (Spec v2.3): the shared cancel sink cancels scheduled
     // captures + removes their delayed jobs for every cancel path.
     cancelCapture = { cancelForBooking: jest.fn().mockResolvedValue(undefined) }
+    paymentAuditLog = { append: jest.fn(), appendSafe: jest.fn().mockResolvedValue(undefined) }
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -174,6 +178,7 @@ describe('RefundsService', () => {
         { provide: RedisService, useValue: redis },
         { provide: ReimbursementsService, useValue: reimbursements },
         { provide: CancelCaptureService, useValue: cancelCapture },
+        { provide: PaymentAuditLogService, useValue: paymentAuditLog },
         { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
@@ -219,6 +224,16 @@ describe('RefundsService', () => {
       // Payments revamp (Spec v2.3): the shared cancel sink cancels the booking's
       // scheduled captures + removes their delayed jobs (covers every cancel path).
       expect(cancelCapture.cancelForBooking).toHaveBeenCalledWith('bg-1', 'cancelled:grace_period')
+      // ...and appends a 10-year-retention audit row for the cancellation. A
+      // grace-period cancel maps to the `grace_refund_issued` event type.
+      expect(paymentAuditLog.appendSafe).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bookingGroupId: 'bg-1',
+          eventType: PaymentAuditEventType.grace_refund_issued,
+          newStatus: 'cancelled',
+          reasonText: 'grace_period',
+        })
+      )
     })
 
     it('rejects when grace period has ended', async () => {
