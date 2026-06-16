@@ -5,6 +5,7 @@ export interface ParentProfile {
   primaryNationality?: string | null
   secondaryNationality?: string | null
   languages?: string[] | null
+  profileCompletion?: number
 }
 
 export interface UserProfile {

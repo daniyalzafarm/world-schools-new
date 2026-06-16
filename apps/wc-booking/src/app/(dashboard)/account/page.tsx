@@ -17,14 +17,17 @@ import {
   Star,
   User,
   Users,
-  X,
 } from 'lucide-react'
-import { cn, getCountryName, useConfirmDialog, UserAvatar } from '@world-schools/ui-web'
+import {
+  cn,
+  getCountryName,
+  ProfileCompletionBanner,
+  useConfirmDialog,
+  UserAvatar,
+} from '@world-schools/ui-web'
 import { profileService, type UserProfile } from '@/services/profile.services'
 import { useAuthStore } from '@/stores/auth-store'
-import { Button } from '@heroui/react'
-
-const PROFILE_COMPLETE_BANNER_DISMISSED_KEY = 'wc_booking_account_profile_complete_banner_dismissed'
+import { useChildrenStore } from '@/stores/children-store'
 
 interface QuickLink {
   title: string
@@ -122,30 +125,96 @@ const quickLinkSections: QuickLinkSection[] = [
     ],
   },
 ]
+
+const quickActions: QuickLink[] = [
+  {
+    title: 'Personal info',
+    description: 'Name, photo',
+    href: '/account/profile/personal-info',
+    icon: <User size={22} />,
+  },
+  {
+    title: 'Contact details',
+    description: 'Email, phone, address',
+    href: '/account/profile/contact-details',
+    icon: <Phone size={22} />,
+  },
+  {
+    title: 'Notifications',
+    description: 'Email, push preferences',
+    href: '/account/settings/notifications',
+    icon: <Bell size={22} />,
+  },
+  {
+    title: 'Login & security',
+    description: 'Password, 2FA settings',
+    href: '/account/settings/security',
+    icon: <Shield size={22} />,
+  },
+]
+
 const AccountHub = () => {
   const router = useRouter()
   const [profileData, setProfileData] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [showProfileCompleteBanner, setShowProfileCompleteBanner] = useState(false)
   const { logout } = useAuthStore()
   const { confirm } = useConfirmDialog()
+  const { children, isLoading: childrenLoading, fetchChildren } = useChildrenStore()
 
   // Load profile data on mount
   useEffect(() => {
     void loadProfile()
   }, [])
 
-  // Default to hidden so SSR/first paint never flashes a dismissed banner.
+  // Children count feeds the "at least one child" completion factor.
   useEffect(() => {
-    if (localStorage.getItem(PROFILE_COMPLETE_BANNER_DISMISSED_KEY) !== 'true') {
-      setShowProfileCompleteBanner(true)
+    if (children.length === 0 && !childrenLoading) {
+      void fetchChildren()
     }
-  }, [])
+  }, [children.length, childrenLoading, fetchChildren])
 
-  const handleDismissProfileCompleteBanner = () => {
-    setShowProfileCompleteBanner(false)
-    localStorage.setItem(PROFILE_COMPLETE_BANNER_DISMISSED_KEY, 'true')
-  }
+  const profileCompletion = profileData?.parent?.profileCompletion ?? 0
+
+  // Mirrors ProfileCompletionService.recomputeForParent so the prompt below
+  // can tell the user which fields are missing and route them to the right page.
+  const completionItems = [
+    {
+      label: 'your name',
+      done: Boolean(profileData?.firstName && profileData?.lastName),
+      href: '/account/profile/personal-info',
+    },
+    {
+      label: 'profile photo',
+      done: Boolean(profileData?.profilePhotoUrl),
+      href: '/account/profile/personal-info',
+    },
+    {
+      label: 'nationality',
+      done: Boolean(profileData?.parent?.primaryNationality),
+      href: '/account/profile/personal-info',
+    },
+    {
+      label: 'the languages you speak',
+      done: Boolean(profileData?.parent?.languages?.length),
+      href: '/account/profile/personal-info',
+    },
+    {
+      label: 'phone',
+      done: Boolean(profileData?.phone),
+      href: '/account/profile/contact-details',
+    },
+    {
+      label: 'address',
+      done: Boolean(profileData?.address && profileData?.city && profileData?.country),
+      href: '/account/profile/contact-details',
+    },
+    {
+      label: "a child's profile",
+      done: children.length > 0,
+      href: '/account/children',
+    },
+  ]
+  const missingItems = completionItems.filter(item => !item.done)
 
   const loadProfile = async () => {
     try {
@@ -205,17 +274,6 @@ const AccountHub = () => {
             Manage your personal info, payments, and settings.
           </p>
         </div>
-        <Button
-          isIconOnly
-          variant="flat"
-          radius="full"
-          aria-label="Notifications"
-          onPress={() => handleNavigation('/notifications')}
-          className="relative w-10 h-10 min-w-10 bg-default-100 dark:bg-slate-800 text-slate-900 dark:text-white shrink-0"
-        >
-          <Bell size={20} />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-danger rounded-full border-1.5 border-white dark:border-slate-900" />
-        </Button>
       </div>
 
       {/* Profile Card */}
@@ -266,40 +324,41 @@ const AccountHub = () => {
       </div>
 
       {/* Profile Completion */}
-      {showProfileCompleteBanner && (
-        <div className="bg-primary-50 dark:bg-primary-900/20 rounded-xl p-5 mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <span className="font-semibold text-primary-900 dark:text-primary-300">
-              Profile completion
-            </span>
-            <div className="flex items-center gap-2">
-              <Button
-                isIconOnly
-                onPress={handleDismissProfileCompleteBanner}
-                aria-label="Dismiss"
-                size="sm"
-                variant="flat"
-                radius="full"
-                color="primary"
-              >
-                <X className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-              </Button>
-            </div>
-          </div>
-          <div className="h-2 bg-white/60 dark:bg-slate-800/60 rounded-full overflow-hidden mb-3">
-            <div
-              className="h-full bg-primary-700 dark:bg-primary-500 rounded-full transition-all"
-              style={{ width: '100%' }}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-primary-900 dark:text-primary-300">
-              Your account profile is complete
-            </p>
-            <span className="text-sm font-bold text-primary-900 dark:text-primary-300">100%</span>
-          </div>
-        </div>
+      {!isLoading && (
+        <ProfileCompletionBanner
+          completion={profileCompletion}
+          missingItems={missingItems}
+          onNavigate={router.push}
+          dismissStorageKey="wc_booking_account_profile_complete_banner_dismissed"
+        />
       )}
+
+      {/* Quick Actions — desktop only (mobile uses the full sections below) */}
+      <div className="hidden lg:block mb-6">
+        <div className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">
+          Quick actions
+        </div>
+        <div className="space-y-1">
+          {quickActions.map(link => (
+            <div
+              key={link.href}
+              onClick={() => handleNavigation(link.href)}
+              className="flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+            >
+              <div className="w-11 h-11 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center shrink-0 text-slate-900 dark:text-white">
+                {link.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-base font-medium text-slate-900 dark:text-white mb-0.5">
+                  {link.title}
+                </div>
+                <div className="text-sm text-slate-500 dark:text-slate-400">{link.description}</div>
+              </div>
+              <ChevronRight size={20} className="text-slate-400 shrink-0" />
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Quick Actions — mobile only (sidebar handles desktop) */}
       <div className="lg:hidden">
