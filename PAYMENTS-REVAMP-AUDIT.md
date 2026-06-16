@@ -57,19 +57,19 @@ and are listed here explicitly so nothing is silently dropped.
 ## Verdict
 
 The revamp is **architecturally complete and largely correct**. Build is clean, the payments
-test suites are **green (680 passed, 0 payment failures, no skipped/`.only` tests)**, the legacy
-payout engine is fully removed (code + schema), and the contractual invariants are mostly upheld.
+test suites are **green (715 passed after remediation, 0 payment failures, no skipped/`.only` tests)**,
+the legacy payout engine is fully removed (code + schema), and the contractual invariants are upheld.
 
-However, **4 correctness/compliance issues** and a set of robustness/UX/test gaps must close
-before a live, money-handling cutover. Two of the issues flagged during review were
-**misdiagnosed** on first pass and corrected here after reading the actual code — they are noted
-explicitly so the record is trustworthy.
+The **4 correctness/compliance blockers and the backend robustness/UX gaps are now FIXED with tests**;
+the remaining items are frontend display-transparency polish + one feature-scope decision (below).
+Two issues flagged during review were **misdiagnosed** on first pass and corrected here after reading
+the actual code — noted explicitly so the record is trustworthy.
 
 | Severity | Count | Status |
 | --- | --- | --- |
-| 🔴 Blocker (correctness / compliance) | 4 | being fixed |
-| 🟡 Should-fix (robustness / UX / coverage) | 11 | being fixed |
-| 🟢 Cleanup (nice-to-have) | 6 | being fixed |
+| 🔴 Blocker (correctness / compliance) | 4 | ✅ all fixed + tested |
+| 🟡 Should-fix (robustness / UX / coverage) | 12 (S1–S12) | ✅ S1–S7 + S11 fixed · ⏳ S8/S9/S10 scoped · ⏳ S12 feature decision |
+| 🟢 Cleanup (nice-to-have) | 6 | ✅ N1/N2/N5 done · N3/N4/N6 trivial, left as-is |
 | ⚪ Out of scope (external / deferred per decision) | 4 | documented only |
 
 ---
@@ -112,7 +112,7 @@ explicitly so the record is trustworthy.
 
 ## 🔴 Blockers
 
-### B1 — Split-brain grace deadline (refund path reads the wrong value)
+### B1 — Split-brain grace deadline (refund path reads the wrong value) — ✅ FIXED
 Two grace deadlines now exist on a booking and disagree:
 - The capture engine reads the **request-anchored** `graceDeadline` (`capture-scheduler.service.ts:64`).
 - `acceptForProvider` **recomputes** the legacy `gracePeriodEndsAt` as **48h-from-acceptance** using
@@ -127,80 +127,91 @@ grace" until 48h after acceptance. Violates invariants #2 and #7 and contradicts
 > **Correction to first-pass review:** two reviewers reported this as "breaks capture timing." That is
 > wrong — captures use `graceDeadline` and are unaffected. The real damage is on the **refund** path.
 
-**Fix:** delete the acceptance recompute + the `gracePeriodEndsAt` write, drop the deprecated import,
-and re-source the refund within-grace decision from the request-anchored `graceDeadline`.
+**Fix (applied):** deleted the acceptance recompute + the `gracePeriodEndsAt` write, dropped the
+deprecated import, and re-sourced the refund within-grace decision from the request-anchored
+`graceDeadline` (all 4 reader sites). Regression test asserts a stale legacy field can't flip the
+verdict either way.
 
-### B2 — `consent_captured` audit row never written
+### B2 — `consent_captured` audit row never written — ✅ FIXED
 Submit persists the consent snapshot (`booking-groups.service.ts:2534`) but emits no audit row.
 `PaymentAuditEventType.consent_captured` exists but is never appended. The 10-year compliance log has
 **no record that consent was acknowledged** — required by plan §4.7/§9.
 
-**Fix:** append a `consent_captured` row when consent is recorded (after Stripe authorize succeeds so a
-rolled-back submit leaves no phantom audit). Mirror on the consented-reschedule path.
+**Fix (applied):** `submitForParentLocked` appends a `consent_captured` row via `PaymentAuditLogService`
+after the Stripe authorize succeeds (a rolled-back submit leaves no phantom audit). Tests assert the row
+is written on success and NOT written when the authorize fails. (Reschedule mirror attaches to S12 once
+that flow exists.)
 
-### B3 — `reasonText` not enforced for admin / Force-Majeure events
+### B3 — `reasonText` not enforced for admin / Force-Majeure events — ✅ FIXED
 `PaymentAuditLogService.append()` (`payment-audit-log.service.ts:38`) writes `reasonText ?? null` with
 no validation. Plan §1 requires it **enforced in the service** for admin/FM events, so an admin
 override or FM action cannot be recorded without a reason.
 
-**Fix:** throw in `append()` when `eventType ∈ {admin_override, force_majeure_action}` and `reasonText`
-is empty.
+**Fix (applied):** `append()` (and `appendSafe()` before its try/catch, so contract violations aren't
+swallowed) throws when `eventType ∈ {admin_override, force_majeure_action}` and `reasonText` is empty/
+whitespace. New `payment-audit-log.service.spec.ts` covers it.
 
-### B4 — Force Majeure platform-fee toggle missing
+### B4 — Force Majeure platform-fee toggle missing — ✅ FIXED
 `force-majeure.service.ts:123` hardcodes `platformFeeRefunded: false`; the execute DTO has no field;
 the superadmin FM tool UI has no toggle. Plan §8 / invariant #6 require an admin toggle to optionally
 **also refund the platform fee** (default: retain).
 
-**Fix:** add `refundPlatformFee?: boolean` to the FM execute DTO; thread into `cancelByForceMajeure`
-to choose `KEEP_PLATFORM_FEE` vs `FULL_REFUND_AND_FEE`; set `platformFeeDisposition` +
-`force_majeure_events.platformFeeRefunded`; add the checkbox to the UI.
+**Fix (applied):** added `refundPlatformFee?: boolean` to the FM execute DTO → controller → service →
+`cancelByForceMajeure`, choosing `KEEP_PLATFORM_FEE` vs `FULL_REFUND_AND_FEE` and recording
+`platformFeeDisposition` (`retained`/`refunded`) + `force_majeure_events.platformFeeRefunded`. Added the
+"Also refund the platform fee" checkbox to the superadmin FM tool. Tests cover default-retain and
+toggle-on (fee reversed + audited).
 
 ---
 
 ## 🟡 Should-fix
 
-- **S1 — No recovery for captures stuck in `processing`.** The reconciliation cron queries only
-  `scheduled` and `failed` (`scheduled-capture-reconciliation.cron.ts:69, 113`). A worker that dies
-  after claiming `scheduled→processing` but before the Stripe call leaves the row stuck forever
-  (`attempts:1`, no BullMQ retry; a success webhook only rescues it if Stripe actually charged). Add a
-  reaper for stale `processing` rows that resets them to `scheduled` (idempotency key + status guard
-  make re-fire safe).
-- **S2 — `payment_review` not cleared on late success.** `markSucceeded` excludes `payment_review`
-  from `advanceableFromStatuses` and returns early (`payment-intents.service.ts:1382-1389`), so a late
-  success increments `paidAmount` but leaves the booking flagged and skips the capture-row→`completed`
-  sync (`:1435`). Plan §9 requires the late success to win and clear review (without double-counting —
-  the claim guard already protects `paidAmount`).
-- **S3 — Near-term no-deposit capture doesn't gate confirmation.** `acceptForProvider` flips to
-  `accepted` (`:3195`) before `materializeForBooking` fires the synchronous near-term capture
-  (`:3232`; `capture-scheduler.service.ts:111-117`), and a failed capture is only logged — committing a
-  slot on an unsecured card. Plan §5.5 / finding 8 require confirming only on capture success.
-- **S4 — Balance-reminder tiers + card-expiry warning.** Two parts:
+- **S1 — No recovery for captures stuck in `processing`. ✅ FIXED.** A worker that died after claiming
+  `scheduled→processing` left the row stuck forever (`attempts:1`, no retry). Added a `reapStuckProcessing`
+  pass to the reconciliation cron: stale-`processing` **deposits** reset to `scheduled` (re-capture is
+  idempotent), **balance** rows escalate to `payment_review` (an off-session re-charge forks the
+  idempotency key → double-charge risk; a late success webhook + S2 reconcile it instead). Tested.
+- **S2 — `payment_review` not cleared on late success. ✅ FIXED.** `markSucceeded` now syncs the linked
+  capture row to `completed` unconditionally and, when the booking is in `payment_review`, clears the
+  flag and resumes (`fully_paid`/`deposit_paid`) — `paidAmount` still incremented once under the claim
+  guard (no double-count). Tested.
+- **S3 — Near-term no-deposit capture doesn't gate confirmation. ✅ FIXED.** `materializeForBooking` now
+  returns `syncFailures`; if a capture due at acceptance fails, `acceptForProvider` routes the booking to
+  `payment_review` (status-guarded) + audits + alerts instead of confirming the slot on an unsecured
+  card. Tested.
+- **S4 — Balance-reminder tiers + card-expiry warning. ✅ FIXED.** Two parts:
   - *Tier cadence:* `balance-reminder.cron.ts` uses 14d/7d/3d, citing the v28 product spec
     ("For Parents" #10); the implementation plan's "30d + 7d" was a non-binding aside. **Resolution:
     keep the v28 14/7/3 cadence** (the authoritative product UX decision) — no code change.
   - *Card-expiry warning (FIXED):* the reminder now warns the parent when the card on file expires
     before the upcoming capture date, computed fresh at send time in the prop-loader (reschedule-safe)
     via a pure `cardExpiresBeforeDate` helper, and rendered as a banner in the email.
-- **S5 — SCA `authentication_required` not handled in `markFailed`.** `markFailed`
-  (`payment-intents.service.ts:~1513`) doesn't detect the SCA code, persist
-  `next_action.redirect_to_url.url` + a 48h deadline, or emit the parent "authentication required"
-  notification at failure time — it relies on a cron fetching a fresh `client_secret` (brittle).
-- **S6 — `markGroupCancelled` not atomic.** The status write and `cancelForBooking` run in separate
-  transactions (`refunds.service.ts:~1397-1429`). Mitigated by the engine's booking-status guard, but
-  plan §8 says same transaction; `cancelForBooking` already accepts a `tx`.
-- **S7 — Provider "Payment & Schedule" booking detail is "coming soon"**
-  (`booking-request-drawer.tsx:323`) — implement the read-only section from `booking_scheduled_captures`.
-- **S8 — wc-booking charge-schedule not shown to the parent.** Sidebars show only the deposit, not the
-  derived multi-capture schedule (data already in the consent snapshot's `chargeSchedule`).
-- **S9 — Provider deposit-toggle context + onboarding schedule preview** missing per plan §10
-  (`CampDepositToggleCard.tsx`; `onboarding/payment-policies`).
-- **S10 — Frontend vitest coverage missing:** charge-schedule derivation, consent construction +
-  checkbox gating, deposit-toggle PATCH (optimistic + rollback), review-queue fetch/filter,
-  audit-drawer read-only.
-- **S11 — Backend test gaps:** webhook out-of-order (late `succeeded` after `payment_review`),
-  near-term sync-gating, stuck-`processing` reaper, grace single-source regression, `consent_captured`
-  audit, FM fee toggle on/off, JPY onboarding/settlement happy-path.
-- **S12 — Provider reschedule flow not implemented (feature gap).** Plan §8 / §10-remainder specify a
+- **S5 — SCA `authentication_required` not handled in `markFailed`. ✅ FIXED.** `markFailed` now detects
+  the `authentication_required` code and parks the Payment in `requires_action` (the 3DS-recovery flow)
+  instead of a hard `failed`, and fires `notifyOffSessionRequiresAction` immediately so the parent is
+  prompted at failure time (the cron remains the backstop). A successful 3DS completion later finishes the
+  capture via `markSucceeded`. Tested (SCA → requires_action + prompt; hard decline → no prompt).
+- **S6 — `markGroupCancelled` not atomic. ✅ FIXED.** The status flip + `cancelForBooking` row
+  cancellation now run inside one `$transaction` (passing the `tx` through); BullMQ job removal stays
+  best-effort after. Existing cancel-sink tests updated for the new `tx` argument.
+- **S7 — Provider "Payment & Schedule" booking detail was "coming soon". ✅ FIXED.** `getForProvider`
+  now returns `scheduledCaptures` (deposit + balance increments, amounts/dates/status) and the
+  booking-request drawer renders a read-only "Payment & Schedule" panel (new `ScheduledCaptureView` type,
+  stale "coming soon" banner replaced). Build/typecheck-verified across wc-types/wc-provider/wc-nest-api.
+- **S8 — wc-booking charge-schedule not shown to the parent. ⏳ SCOPED.** Sidebars show the deposit + a
+  prose charge summary (`camp-booking-flow.tsx:1792-1808`), not the exact multi-band schedule. Showing the
+  exact bands needs the backend to expose the derived schedule to wc-booking (preview/quote field); the
+  consent snapshot already holds the exact bands, so the legal record is complete. Display polish.
+- **S9 — Provider deposit-toggle context + onboarding schedule preview. ⏳ SCOPED.** Plan §10
+  (`CampDepositToggleCard.tsx`; `onboarding/payment-policies`) — a provider convenience.
+- **S10 — Frontend vitest coverage. ⏳ SCOPED.** Needs a vitest component harness in wc-provider (none
+  exists today). The S7 change is covered by typecheck + build; the backend fixes have jest coverage.
+- **S11 — Backend test gaps. ✅ DONE (1 deferred).** Added: webhook late-success-after-`payment_review`
+  (S2), near-term sync-gating (S3), stuck-`processing` reaper (S1), grace single-source regression (B1),
+  `consent_captured` audit (B2), FM fee toggle on/off (B4), reasonText enforcement (B3), `cardExpiresBeforeDate`
+  (S4). Only the JPY end-to-end onboarding/settlement happy-path remains deferred (currency mechanics are
+  already covered by the money-util + drift tests).
+- **S12 — Provider reschedule flow not implemented (feature gap). ⏳ FEATURE-SCOPE DECISION.** Plan §8 / §10-remainder specify a
   provider reschedule: *with* customer consent → cancel existing rows/jobs, recompute schedule/bands
   against the new start date, re-capture the consent snapshot; *without* consent → the
   `cancelByProvider` full-refund flow. No `rescheduleForProvider` endpoint/method exists today
@@ -212,21 +223,24 @@ to choose `KEEP_PLATFORM_FEE` vs `FULL_REFUND_AND_FEE`; set `platformFeeDisposit
 
 ## 🟢 Cleanups
 
-- **N1 — Fail-loud tiers.** `resolveTiers()` silently returns Moderate for any unknown policy. Make it
-  throw/log on unknown values and keep `strict` out of `CANCELLATION_POLICY_VALUES`
-  (`cancellation-policy.types.ts:17`) until the Strict bands are locked (see Out-of-scope).
-- **N2 — `ProviderBalanceCollected` notification** was **repurposed** (dispatched on balance-capture
-  success, `payment-intents.service.ts:1494`) rather than removed as plan §10 suggested. This is a
-  reasonable improvement — keep it, but verify the email copy
-  (`provider-payout-event.tsx`) says "funds collected", not "payout released."
+- **N1 — Fail-loud tiers. ✅ FIXED.** `resolveTiers()` now throws for an unsupported policy name (incl.
+  `strict`/`super_strict`) instead of silently pricing as Moderate; empty/unset still resolves to the
+  Moderate onboarding default, and `custom` with missing data still falls back safely. `strict` stays out
+  of `CANCELLATION_POLICY_VALUES` until the bands are locked. Spec updated + tested.
+- **N2 — `ProviderBalanceCollected` notification. ✅ VERIFIED OK (no change).** Repurposed (dispatched on
+  balance-capture success, `payment-intents.service.ts:1494`) rather than removed; its email heading is
+  already "Balance payment collected." — accurate under the new model, not "payout released."
 - **N3 — `payout.*` webhook cases** are log-only no-ops (`stripe-webhook.service.ts:404-416`); plan §9
-  said drop `payout.created`. Harmless; optional tidy.
+  said drop `payout.created`. ⏳ Left as-is — harmless, zero functional impact (optional tidy).
 - **N4 — `balance-charge.cron` hardcoded status list** (`deposit_paid, accepted, request`) differs from
-  `CAPTURE_ELIGIBLE_STATUSES` (it guards `payment_failed` transitions — a different concern). Add a
-  clarifying comment or a named constant.
-- **N5 — Reimbursement table** is intentionally frozen; add a model comment explaining why.
+  `CAPTURE_ELIGIBLE_STATUSES` (it guards `payment_failed` transitions — a different concern). ⏳ Left
+  as-is — verified intentional; trivial comment-only follow-up.
+- **N5 — Reimbursement table frozen. ✅ DONE.** Added a model doc comment explaining it's frozen (not
+  dropped): `resolveRequiresReimbursement()` returns `false`, no rows created, retain to avoid a
+  destructive drop.
 - **N6 — Stale comments** referencing `PayoutsService`/`BookingPayoutSchedule` in
-  `booking-snapshot.util.ts`, `cancellation-policy.util.ts`, `refunds.service.ts`.
+  `booking-snapshot.util.ts`, `cancellation-policy.util.ts`, `refunds.service.ts`. ⏳ Left as-is —
+  cosmetic.
 
 ---
 
@@ -244,11 +258,15 @@ to choose `KEEP_PLATFORM_FEE` vs `FULL_REFUND_AND_FEE`; set `platformFeeDisposit
 
 ---
 
-## Verification performed during the audit
+## Verification (post-remediation)
 
 - `nx prisma:generate wc-nest-api` — clean.
-- `nx build wc-nest-api` — clean (no TS errors).
-- `nx test wc-nest-api` — 680 passed / 4 failed (the 4 are the unrelated messaging suites above).
+- `nx build` — clean (no TS errors) for **wc-nest-api, wc-superadmin, wc-provider** (wc-types is
+  type-only, validated transitively by the consumer builds).
+- `nx test wc-nest-api` — **715 passed** / 4 failed (the 4 are the unrelated `messaging` suites; +35
+  vs the pre-remediation 680, all new payment tests green).
 - `nx test wc-utils` — 120 passed / 0 failed.
+- `nx lint` — **0 errors** on wc-nest-api / wc-superadmin / wc-provider (pre-existing warnings only).
 - Grep — no `BookingPayoutSchedule` / `PayoutEvent` / `payoutMode` references in code (comments aside).
 - No `.skip` / `xit` / `.only` / `it.todo` in any payments test file.
+- Nothing committed — all changes are in the working tree.
