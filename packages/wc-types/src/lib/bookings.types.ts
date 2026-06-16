@@ -337,6 +337,21 @@ export interface ProviderBookingGroupBookingLine {
 }
 
 /** GET /provider/booking-groups/:id — provider detail (drawer) */
+/**
+ * A single derived capture in a booking's payment schedule (Payments revamp,
+ * Spec v2.3). Sequence 0 is the deposit; 1..n are balance increments at their
+ * refund-tier boundaries. `effectiveCaptureDate` is the acceptance-guarded date
+ * the charge actually fires at (`max(captureDate, graceDeadline, acceptanceTime)`).
+ */
+export interface ScheduledCaptureView {
+  sequence: number
+  amount: number
+  currency: string
+  captureDate: string
+  effectiveCaptureDate: string
+  status: 'scheduled' | 'processing' | 'completed' | 'failed' | 'cancelled'
+}
+
 export interface ProviderBookingGroupDetail {
   id: string
   bookingGroupNumber: string
@@ -353,6 +368,8 @@ export interface ProviderBookingGroupDetail {
   depositAmount: number | null
   paidAmount: number
   refundedAmount: number
+  /** Read-only derived capture schedule (deposit + balance increments). */
+  scheduledCaptures: ScheduledCaptureView[]
   requestedAt: string
   respondedAt: string | null
   expiresAt: string | null

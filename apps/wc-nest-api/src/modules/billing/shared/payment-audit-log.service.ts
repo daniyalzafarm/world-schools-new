@@ -28,14 +28,39 @@ export interface PaymentAuditEntry {
   platformFeeDisposition?: PlatformFeeDisposition | null
 }
 
+/**
+ * Event types that record a discretionary human decision (admin override or a
+ * Force Majeure action). For these, a `reasonText` is mandatory (Spec v2.3
+ * §Compliance / plan §1: "required for admin/FM, enforced in service") so the
+ * 10-year audit trail always carries the justification behind the decision.
+ */
+const REASON_REQUIRED_EVENT_TYPES: ReadonlySet<PaymentAuditEventType> = new Set([
+  PaymentAuditEventType.admin_override,
+  PaymentAuditEventType.force_majeure_action,
+])
+
 @Injectable()
 export class PaymentAuditLogService {
   private readonly logger = new Logger(PaymentAuditLogService.name)
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Enforce the reason-required contract for privileged events. Throws on a
+   * contract violation (a programmer error) — this is intentionally NOT
+   * swallowed by `appendSafe`, which only soft-fails on infrastructure errors.
+   */
+  private assertReasonProvided(entry: PaymentAuditEntry): void {
+    if (REASON_REQUIRED_EVENT_TYPES.has(entry.eventType) && !entry.reasonText?.trim()) {
+      throw new Error(
+        `PaymentAuditLog: reasonText is required for ${entry.eventType} events (booking ${entry.bookingGroupId})`
+      )
+    }
+  }
+
   /** Append one audit row. Append-only — never updates or deletes. */
   async append(entry: PaymentAuditEntry): Promise<void> {
+    this.assertReasonProvided(entry)
     await this.prisma.bookingPaymentAuditLog.create({
       data: {
         actor: entry.actor,
@@ -59,6 +84,10 @@ export class PaymentAuditLogService {
    * the surrounding operation (the row is reconstructable from Stripe + state).
    */
   async appendSafe(entry: PaymentAuditEntry): Promise<void> {
+    // Contract violations (missing reason for a privileged event) must surface
+    // loudly even on the best-effort path — only infrastructure failures below
+    // are swallowed.
+    this.assertReasonProvided(entry)
     try {
       await this.append(entry)
     } catch (err) {

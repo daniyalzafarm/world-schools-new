@@ -6,6 +6,7 @@ import {
   PaymentAuditEventType,
   PaymentKind,
   PaymentStatus,
+  PlatformFeeDisposition,
   RefundReason,
   RefundStatus,
   ReimbursementStatus,
@@ -51,7 +52,7 @@ describe('RefundsService', () => {
       id: 'bg-1',
       parentId: PARENT_ID,
       transferDate: null as Date | null,
-      gracePeriodEndsAt: new Date(Date.now() + 60 * 60 * 1000),
+      graceDeadline: new Date(Date.now() + 60 * 60 * 1000),
       session: { startDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) },
       cancellationPolicySnapshot: JSON.parse(JSON.stringify(policySnapshot)),
       provider: {
@@ -212,7 +213,11 @@ describe('RefundsService', () => {
       )
       // Payments revamp (Spec v2.3): the shared cancel sink cancels the booking's
       // scheduled captures + removes their delayed jobs (covers every cancel path).
-      expect(cancelCapture.cancelForBooking).toHaveBeenCalledWith('bg-1', 'cancelled:grace_period')
+      expect(cancelCapture.cancelForBooking).toHaveBeenCalledWith(
+        'bg-1',
+        'cancelled:grace_period',
+        expect.anything() // tx — atomic with the cancellation write (Spec v2.3 §8)
+      )
       // ...and appends a 10-year-retention audit row for the cancellation. A
       // grace-period cancel maps to the `grace_refund_issued` event type.
       expect(paymentAuditLog.appendSafe).toHaveBeenCalledWith(
@@ -227,7 +232,7 @@ describe('RefundsService', () => {
 
     it('rejects when grace period has ended', async () => {
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(
-        makeGroup({ gracePeriodEndsAt: new Date(Date.now() - 1000) })
+        makeGroup({ graceDeadline: new Date(Date.now() - 1000) })
       )
       await expect(
         service.processGracePeriodRefund({ bookingGroupId: 'bg-1' })
@@ -245,7 +250,7 @@ describe('RefundsService', () => {
     it('grace boundary: T-1ms succeeds, T+1ms rejects', async () => {
       const t = new Date()
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(
-        makeGroup({ gracePeriodEndsAt: new Date(t.getTime() + 1) })
+        makeGroup({ graceDeadline: new Date(t.getTime() + 1) })
       )
       prisma.payment.findMany.mockResolvedValueOnce([makePayment()])
       prisma.refund.findUnique.mockResolvedValue(null)
@@ -257,7 +262,7 @@ describe('RefundsService', () => {
       ).resolves.toBeDefined()
 
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(
-        makeGroup({ gracePeriodEndsAt: new Date(t.getTime() - 1) })
+        makeGroup({ graceDeadline: new Date(t.getTime() - 1) })
       )
       await expect(
         service.processGracePeriodRefund({ bookingGroupId: 'bg-1' })
@@ -269,7 +274,7 @@ describe('RefundsService', () => {
     it('refunds balance × tier% but skips deposit (deposit non-refundable post-grace)', async () => {
       // Moderate policy + 90 days before start → first matching tier is daysBeforeStart=60 → 100%? No: 90 ≥ 60, 100%.
       const group = makeGroup({
-        gracePeriodEndsAt: new Date(Date.now() - 1000),
+        graceDeadline: new Date(Date.now() - 1000),
         session: { startDate: new Date(Date.now() + 100 * 24 * 60 * 60 * 1000) },
       })
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(group)
@@ -298,7 +303,7 @@ describe('RefundsService', () => {
 
     it('30-49 days before start = 50% on moderate policy', async () => {
       const group = makeGroup({
-        gracePeriodEndsAt: new Date(Date.now() - 1000),
+        graceDeadline: new Date(Date.now() - 1000),
         session: { startDate: new Date(Date.now() + 35 * 24 * 60 * 60 * 1000) },
       })
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(group)
@@ -317,7 +322,7 @@ describe('RefundsService', () => {
 
     it('zero-tier match (last-minute cancellation) issues no refunds but still cancels the group', async () => {
       const group = makeGroup({
-        gracePeriodEndsAt: new Date(Date.now() - 1000),
+        graceDeadline: new Date(Date.now() - 1000),
         session: { startDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000) },
       })
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(group)
@@ -350,7 +355,7 @@ describe('RefundsService', () => {
         cancellationPolicySpecialCircumstances: null,
       })
       const group = makeGroup({
-        gracePeriodEndsAt: new Date(Date.now() - 1000),
+        graceDeadline: new Date(Date.now() - 1000),
         session: { startDate: new Date(Date.now() + 100 * 24 * 60 * 60 * 1000) },
         cancellationPolicySnapshot: JSON.parse(JSON.stringify(moderateSnapshot)),
         provider: {
@@ -388,7 +393,7 @@ describe('RefundsService', () => {
       })
       const group = makeGroup({
         status: 'accepted',
-        gracePeriodEndsAt: new Date(Date.now() - 1000),
+        graceDeadline: new Date(Date.now() - 1000),
         session: { startDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000) },
         cancellationPolicySnapshot: JSON.parse(JSON.stringify(snapshot)),
       })
@@ -444,7 +449,7 @@ describe('RefundsService', () => {
         })
         const group = makeGroup({
           status: 'accepted',
-          gracePeriodEndsAt: new Date(Date.now() - 1000),
+          graceDeadline: new Date(Date.now() - 1000),
           session: { startDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000) },
           cancellationPolicySnapshot: JSON.parse(JSON.stringify(snapshot)),
         })
@@ -488,7 +493,7 @@ describe('RefundsService', () => {
       })
       const group = makeGroup({
         status: 'accepted',
-        gracePeriodEndsAt: new Date(Date.now() - 1000),
+        graceDeadline: new Date(Date.now() - 1000),
         session: { startDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000) },
         cancellationPolicySnapshot: JSON.parse(JSON.stringify(snapshot)),
       })
@@ -518,7 +523,7 @@ describe('RefundsService', () => {
       // transfer to reverse on a Direct Charge); the platform's commercial
       // deterrent for parent-driven post-grace cancels is keeping the app fee.
       const group = makeGroup({
-        gracePeriodEndsAt: new Date(Date.now() - 1000),
+        graceDeadline: new Date(Date.now() - 1000),
         session: { startDate: new Date(Date.now() + 100 * 24 * 60 * 60 * 1000) },
       })
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(group)
@@ -593,7 +598,8 @@ describe('RefundsService', () => {
       // The payout engine is gone; the cancel sink stops future captures instead.
       expect(cancelCapture.cancelForBooking).toHaveBeenCalledWith(
         'bg-1',
-        expect.stringContaining('camp_cancel')
+        expect.stringContaining('camp_cancel'),
+        expect.anything() // tx
       )
     })
 
@@ -640,7 +646,8 @@ describe('RefundsService', () => {
       // provider reason (routes the audit to provider_cancellation_refund).
       expect(cancelCapture.cancelForBooking).toHaveBeenCalledWith(
         'bg-1',
-        'cancelled:provider_cancelled'
+        'cancelled:provider_cancelled',
+        expect.anything() // tx
       )
       expect(prisma.bookingGroup.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -823,7 +830,7 @@ describe('RefundsService', () => {
     it('returns mode=grace with 100% refund of every succeeded payment when within the 48h window', async () => {
       const group = makeGroup({
         status: 'deposit_paid',
-        gracePeriodEndsAt: new Date(Date.now() + 60 * 60 * 1000),
+        graceDeadline: new Date(Date.now() + 60 * 60 * 1000),
       })
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(group)
       prisma.payment.findMany.mockResolvedValueOnce([
@@ -849,11 +856,48 @@ describe('RefundsService', () => {
       )
     })
 
+    // Payments revamp (Spec v2.3) regression: the within-grace decision MUST use
+    // the request-anchored `graceDeadline`, never the legacy `gracePeriodEndsAt`.
+    // A stale legacy field must not flip the verdict either way (split-brain grace).
+    it('uses request-anchored graceDeadline, ignoring a stale legacy gracePeriodEndsAt', async () => {
+      // graceDeadline in the FUTURE (still in grace) but legacy field in the PAST.
+      const stillInGrace = makeGroup({
+        status: 'deposit_paid',
+        graceDeadline: new Date(Date.now() + 60 * 60 * 1000),
+        gracePeriodEndsAt: new Date(Date.now() - 60 * 60 * 1000),
+      })
+      prisma.bookingGroup.findUnique.mockResolvedValueOnce(stillInGrace)
+      prisma.payment.findMany.mockResolvedValueOnce([
+        makePayment({ kind: PaymentKind.deposit, amount: new Prisma.Decimal('600.00') }),
+      ])
+      const inGraceResult = await service.previewParentCancel('bg-1')
+      expect(inGraceResult.mode).toBe('grace')
+
+      // graceDeadline in the PAST (grace ended) but legacy field in the FUTURE —
+      // must resolve to the post-grace policy path, proving the legacy field is ignored.
+      const pastGrace = makeGroup({
+        status: 'deposit_paid',
+        graceDeadline: new Date(Date.now() - 60 * 60 * 1000),
+        gracePeriodEndsAt: new Date(Date.now() + 60 * 60 * 1000),
+        session: { startDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) },
+      })
+      prisma.bookingGroup.findUnique.mockResolvedValueOnce(pastGrace)
+      prisma.payment.findMany.mockResolvedValueOnce([
+        makePayment({ kind: PaymentKind.deposit, amount: new Prisma.Decimal('600.00') }),
+      ])
+      const postGraceResult = await service.previewParentCancel('bg-1')
+      expect(postGraceResult.mode).toBe('policy')
+      // Deposit stays non-refundable post-grace.
+      expect(
+        postGraceResult.items.find(i => i.kind === PaymentKind.deposit)?.refundAmountMajor
+      ).toBe('0.00')
+    })
+
     it('returns mode=policy with deposit non-refundable + balance × tier% post-grace', async () => {
       const group = makeGroup({
         status: 'deposit_paid',
         // Grace ended an hour ago.
-        gracePeriodEndsAt: new Date(Date.now() - 60 * 60 * 1000),
+        graceDeadline: new Date(Date.now() - 60 * 60 * 1000),
         // Session 90 days out → moderate policy 'first tier' returns 100%.
         session: { startDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) },
       })
@@ -883,7 +927,7 @@ describe('RefundsService', () => {
     it('returns mode=policy with 0% refund when past the strictest tier (last-minute cancellation)', async () => {
       const group = makeGroup({
         status: 'deposit_paid',
-        gracePeriodEndsAt: new Date(Date.now() - 60 * 60 * 1000),
+        graceDeadline: new Date(Date.now() - 60 * 60 * 1000),
         // Session 5 days out → moderate's last tier (>=0d, 0%) matches.
         session: { startDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000) },
       })
@@ -946,7 +990,7 @@ describe('RefundsService', () => {
     it('dispatches to grace when within the 48h window', async () => {
       const group = makeGroup({
         status: 'deposit_paid',
-        gracePeriodEndsAt: new Date(Date.now() + 60 * 60 * 1000),
+        graceDeadline: new Date(Date.now() + 60 * 60 * 1000),
       })
       // The dispatch path calls loadGroupOrThrow + succeededPayments twice
       // (outer cancelForParent + inner processGracePeriodRefundUnlocked).
@@ -973,7 +1017,7 @@ describe('RefundsService', () => {
     it('dispatches to policy when post-grace', async () => {
       const group = makeGroup({
         status: 'deposit_paid',
-        gracePeriodEndsAt: new Date(Date.now() - 60 * 60 * 1000),
+        graceDeadline: new Date(Date.now() - 60 * 60 * 1000),
         session: { startDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) },
       })
       prisma.bookingGroup.findUnique.mockResolvedValue(group)
@@ -1215,6 +1259,35 @@ describe('RefundsService', () => {
       expect(stripe.client.refunds.create).toHaveBeenCalledWith(
         expect.objectContaining({ refund_application_fee: false }),
         expect.objectContaining({ stripeAccount: STRIPE_ACCOUNT_ID })
+      )
+    })
+
+    it('cash mode + refundPlatformFee=true: reverses the app fee and audits disposition=refunded', async () => {
+      prisma.bookingGroup.findUnique.mockResolvedValue(makeGroup({ status: 'deposit_paid' }))
+      prisma.payment.findMany.mockResolvedValue([makePayment()])
+      prisma.refund.findUnique.mockResolvedValue(null)
+      stripe.client.refunds.create.mockResolvedValue({ id: 're_1', status: 'succeeded' })
+      prisma.refund.create.mockResolvedValue({ id: 'r-1', amount: new Prisma.Decimal('600.00') })
+
+      const result = await service.cancelByForceMajeure({
+        bookingGroupId: 'bg-1',
+        adminUserId: 'admin-1',
+        mode: 'cash',
+        refundPlatformFee: true,
+      })
+
+      expect(result.mode).toBe('force_majeure_cash')
+      // Fee reversed on the Stripe refund.
+      expect(stripe.client.refunds.create).toHaveBeenCalledWith(
+        expect.objectContaining({ refund_application_fee: true }),
+        expect.objectContaining({ stripeAccount: STRIPE_ACCOUNT_ID })
+      )
+      // Audit records the fee was refunded (not the default `retained`).
+      expect(paymentAuditLog.appendSafe).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: PaymentAuditEventType.force_majeure_action,
+          platformFeeDisposition: PlatformFeeDisposition.refunded,
+        })
       )
     })
 

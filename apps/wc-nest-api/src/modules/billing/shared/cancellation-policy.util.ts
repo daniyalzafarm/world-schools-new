@@ -118,10 +118,23 @@ export function resolveTiers(
         }))
         .filter(t => Number.isFinite(t.daysBeforeStart) && Number.isFinite(t.refundPercentage))
     }
+    // `custom` selected but the tier JSON is missing/malformed — fall back to the
+    // Moderate default rather than throwing (a legit policy with a data gap).
+    return MODERATE_POLICY_TIERS.map(t => ({ ...t }))
   }
-  // Default: 'moderate' (per onboarding default + fallback for any unknown
-  // policy name; legacy 'strict'/'super_strict' values land here too).
-  return MODERATE_POLICY_TIERS.map(t => ({ ...t }))
+  // `moderate` is the onboarding default; an empty/unset name also resolves to it.
+  if (policyName === 'moderate' || !policyName) {
+    return MODERATE_POLICY_TIERS.map(t => ({ ...t }))
+  }
+  // FAIL LOUD (Spec v2.3): any other policy name — including the not-yet-supported
+  // `strict` / `super_strict` whose preset bands are pending a product lock
+  // (Alex) — is a misconfiguration. Throw rather than SILENTLY pricing the refund
+  // as Moderate (which would understate the parent's non-refundable exposure).
+  // `strict` is intentionally absent from `CANCELLATION_POLICY_VALUES`, so the UI
+  // cannot select it; this guards a stray snapshot / direct DB write.
+  throw new Error(
+    `resolveTiers: unsupported cancellation policy "${policyName}" (strict preset bands are pending a product lock)`
+  )
 }
 
 /**

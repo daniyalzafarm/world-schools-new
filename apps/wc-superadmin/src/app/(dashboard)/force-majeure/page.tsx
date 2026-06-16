@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, Card, CardBody, Input, Textarea } from '@heroui/react'
+import { Button, Card, CardBody, Checkbox, Input, Textarea } from '@heroui/react'
 import { AlertTriangle } from 'lucide-react'
 import { PageSlot } from '@/components/layout/page-slot'
 import {
@@ -24,6 +24,7 @@ export default function ForceMajeurePage() {
   const [dateTo, setDateTo] = useState('')
   const [providerId, setProviderId] = useState('')
   const [region, setRegion] = useState('')
+  const [refundPlatformFee, setRefundPlatformFee] = useState(false)
 
   const [previewCount, setPreviewCount] = useState<number | null>(null)
   const [result, setResult] = useState<ForceMajeureExecuteResult | null>(null)
@@ -67,7 +68,11 @@ export default function ForceMajeurePage() {
     }
     setBusy(true)
     setError(null)
-    const res = await forceMajeureService.execute({ ...scope(), description: description.trim() })
+    const res = await forceMajeureService.execute({
+      ...scope(),
+      description: description.trim(),
+      refundPlatformFee,
+    })
     setBusy(false)
     if (!res.success) {
       setError((res.data as { message?: string })?.message ?? 'Execution failed')
@@ -130,6 +135,15 @@ export default function ForceMajeurePage() {
               onValueChange={setDescription}
               minRows={2}
             />
+
+            <Checkbox isSelected={refundPlatformFee} onValueChange={setRefundPlatformFee}>
+              <span className="text-sm">
+                Also refund the platform fee
+                <span className="block text-default-500">
+                  By default the platform fee is retained. Tick to reverse it on every refund too.
+                </span>
+              </span>
+            </Checkbox>
 
             {error ? (
               <div className="rounded-lg border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700">

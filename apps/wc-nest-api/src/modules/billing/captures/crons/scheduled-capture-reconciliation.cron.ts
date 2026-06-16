@@ -17,6 +17,12 @@ import { CaptureEngineService } from '../capture-engine.service'
 const LOCK_KEY = 'cron:lock:scheduled-captures'
 const LOCK_TTL_SECONDS = 600 // 10 min — comfortably longer than a worst-case batch
 const BATCH_SIZE = 200
+// A capture should move out of `processing` within seconds (a Stripe capture/
+// charge is sub-second). A row still `processing` this long after its last
+// write means the worker that claimed it died mid-fire — comfortably longer than
+// any real capture latency or webhook-delivery delay, so a genuine success has
+// already reconciled the row to `completed` and won't be seen here.
+const STUCK_PROCESSING_MS = 15 * 60 * 1000 // 15 min
 
 /**
  * Backstop for the delayed-job capture engine (Payments revamp, Spec v2.3).
@@ -61,9 +67,17 @@ export class ScheduledCaptureReconciliationCron {
    * Visible for testing — runs the batch without the Redis lock so specs can
    * drive it directly with a mocked Prisma + engine and a fixed `now`.
    */
-  async runBatch(
-    now: Date = new Date()
-  ): Promise<{ processed: number; completed: number; failed: number; escalated: number }> {
+  async runBatch(now: Date = new Date()): Promise<{
+    processed: number
+    completed: number
+    failed: number
+    escalated: number
+    reapedDeposits: number
+  }> {
+    // Recover captures stuck in `processing` (a worker died mid-fire) BEFORE the
+    // due-pickup, so a reset deposit becomes eligible again in this same run.
+    const reaped = await this.reapStuckProcessing(now)
+
     const due = await this.prisma.bookingScheduledCapture.findMany({
       where: {
         status: ScheduledCaptureStatus.scheduled,
@@ -88,12 +102,82 @@ export class ScheduledCaptureReconciliationCron {
 
     const escalated = await this.escalateStuckCaptures(now)
 
-    if (due.length > 0 || escalated > 0) {
+    if (
+      due.length > 0 ||
+      escalated > 0 ||
+      reaped.resetDeposits > 0 ||
+      reaped.escalatedBalance > 0
+    ) {
       this.logger.log(
-        `scheduled-capture reconciliation: processed=${due.length} completed=${completed} failed=${failed} escalated=${escalated}`
+        `scheduled-capture reconciliation: processed=${due.length} completed=${completed} ` +
+          `failed=${failed} escalated=${escalated + reaped.escalatedBalance} ` +
+          `reapedDeposits=${reaped.resetDeposits}`
       )
     }
-    return { processed: due.length, completed, failed, escalated }
+    return {
+      processed: due.length,
+      completed,
+      failed,
+      escalated: escalated + reaped.escalatedBalance,
+      reapedDeposits: reaped.resetDeposits,
+    }
+  }
+
+  /**
+   * Recovers captures stuck in `processing` — a worker claimed the row
+   * (`scheduled → processing`) then died before writing the terminal state, and
+   * `attempts:1` means the BullMQ job won't retry. The recovery diverges by kind
+   * because re-firing has different idempotency guarantees:
+   *
+   *   - DEPOSIT (sequence 0): reset to `scheduled`. Re-capturing the deposit
+   *     PaymentIntent is idempotent — Stripe rejects a double-capture and the
+   *     engine treats "already captured" as success — so an automatic retry is
+   *     safe even if the first attempt actually captured on Stripe.
+   *   - BALANCE (sequence > 0): escalate to `payment_review`, never auto-retry.
+   *     An off-session re-charge forks the Stripe idempotency key (it embeds the
+   *     incrementing `attempt`), so retrying a charge that may have already
+   *     succeeded on Stripe risks a DOUBLE CHARGE. A late `payment_intent.succeeded`
+   *     webhook reconciles the row to `completed` and clears the review instead.
+   */
+  private async reapStuckProcessing(
+    now: Date
+  ): Promise<{ resetDeposits: number; escalatedBalance: number }> {
+    const staleBefore = new Date(now.getTime() - STUCK_PROCESSING_MS)
+    const stuck = await this.prisma.bookingScheduledCapture.findMany({
+      where: {
+        status: ScheduledCaptureStatus.processing,
+        updatedAt: { lte: staleBefore },
+      },
+      select: { id: true, bookingGroupId: true, sequence: true },
+      take: BATCH_SIZE,
+    })
+
+    let resetDeposits = 0
+    let escalatedBalance = 0
+    for (const row of stuck) {
+      if (row.sequence === 0) {
+        // Status-guarded so a concurrent completion isn't clobbered.
+        const res = await this.prisma.bookingScheduledCapture.updateMany({
+          where: { id: row.id, status: ScheduledCaptureStatus.processing },
+          data: { status: ScheduledCaptureStatus.scheduled },
+        })
+        if (res.count > 0) {
+          resetDeposits++
+          this.logger.warn(
+            `capture ${row.bookingGroupId}/0 was stuck in processing — reset to scheduled for re-capture`
+          )
+        }
+      } else {
+        const flagged = await this.flagBookingForReview(
+          row.bookingGroupId,
+          now,
+          'stuck_processing',
+          'a scheduled balance capture stayed in processing past the stuck-window (worker died mid-fire)'
+        )
+        if (flagged) escalatedBalance++
+      }
+    }
+    return { resetDeposits, escalatedBalance }
   }
 
   /**
@@ -124,41 +208,59 @@ export class ScheduledCaptureReconciliationCron {
 
     let escalated = 0
     for (const row of stuck) {
-      // Status-guarded: only flag from a capture-eligible state, never overwrite
-      // an admin/cancelled/disputed status, and never re-escalate.
-      const res = await this.prisma.bookingGroup.updateMany({
-        where: {
-          id: row.bookingGroupId,
-          paymentReviewStatus: null,
-          status: { in: CAPTURE_ELIGIBLE_STATUSES },
-        },
-        data: {
-          status: BookingGroupStatus.payment_review,
-          paymentReviewStatus: 'capture_failed',
-          paymentReviewFlaggedAt: now,
-        },
-      })
-      if (res.count > 0) {
-        escalated++
-        this.logger.warn(
-          `booking ${row.bookingGroupId} → payment_review: a scheduled capture stayed failed past its retry window`
-        )
-        // Append-only audit (10-yr retention) + alert superadmins to triage.
-        // Both are best-effort: a logging/notify failure must not abort the
-        // batch (the status flip already committed above).
-        await this.paymentAuditLog.appendSafe({
-          actor: 'system',
-          eventType: PaymentAuditEventType.payment_review_flagged,
-          bookingGroupId: row.bookingGroupId,
-          priorStatus: null,
-          newStatus: BookingGroupStatus.payment_review,
-          reasonText: 'scheduled capture stayed failed past its retry window',
-        })
-        notify(this.eventEmitter, NotificationType.SuperadminPaymentReviewNeeded, {
-          bookingGroupId: row.bookingGroupId,
-        })
-      }
+      const flagged = await this.flagBookingForReview(
+        row.bookingGroupId,
+        now,
+        'capture_failed',
+        'scheduled capture stayed failed past its retry window'
+      )
+      if (flagged) escalated++
     }
     return escalated
+  }
+
+  /**
+   * Status-guarded flip of a booking to `payment_review` (NEVER auto-cancel —
+   * Spec v2.3 §7), with the append-only audit row + superadmin alert. Only flags
+   * from a capture-eligible state, so it never overwrites an admin/cancelled/
+   * disputed status and never re-escalates. Returns whether the flip happened.
+   * Shared by the failed-past-retry escalation and the stuck-`processing` reaper.
+   */
+  private async flagBookingForReview(
+    bookingGroupId: string,
+    now: Date,
+    paymentReviewStatus: string,
+    reasonText: string
+  ): Promise<boolean> {
+    const res = await this.prisma.bookingGroup.updateMany({
+      where: {
+        id: bookingGroupId,
+        paymentReviewStatus: null,
+        status: { in: CAPTURE_ELIGIBLE_STATUSES },
+      },
+      data: {
+        status: BookingGroupStatus.payment_review,
+        paymentReviewStatus,
+        paymentReviewFlaggedAt: now,
+      },
+    })
+    if (res.count === 0) return false
+
+    this.logger.warn(`booking ${bookingGroupId} → payment_review: ${reasonText}`)
+    // Append-only audit (10-yr retention) + alert superadmins to triage. Both
+    // are best-effort: a logging/notify failure must not abort the batch (the
+    // status flip already committed above).
+    await this.paymentAuditLog.appendSafe({
+      actor: 'system',
+      eventType: PaymentAuditEventType.payment_review_flagged,
+      bookingGroupId,
+      priorStatus: null,
+      newStatus: BookingGroupStatus.payment_review,
+      reasonText,
+    })
+    notify(this.eventEmitter, NotificationType.SuperadminPaymentReviewNeeded, {
+      bookingGroupId,
+    })
+    return true
   }
 }

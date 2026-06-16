@@ -25,7 +25,7 @@ export const forceMajeureService = {
   },
 
   async execute(
-    payload: ForceMajeureScopePayload & { description: string }
+    payload: ForceMajeureScopePayload & { description: string; refundPlatformFee?: boolean }
   ): Promise<ApiResult<ForceMajeureExecuteResult>> {
     return apiClient.post<ForceMajeureExecuteResult>('superadmin/force-majeure/execute', payload)
   },

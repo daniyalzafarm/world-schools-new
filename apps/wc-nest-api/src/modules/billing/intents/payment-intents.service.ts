@@ -17,6 +17,7 @@ import { PrismaService } from '../../../prisma/prisma.service'
 import { StripeConnectService } from '../../provider/stripe-connect/stripe-connect.service'
 import { StripeService } from '../../stripe/stripe.service'
 import { redactPii } from '../../stripe/stripe-error.util'
+import { BillingPaymentNotificationsService } from './notifications/billing-payment-notifications.service'
 import { billingAudit } from '../shared/audit-log.util'
 import { buildIdempotencyKey } from '../shared/idempotency.util'
 import {
@@ -153,7 +154,8 @@ export class PaymentIntentsService {
     private readonly stripeService: StripeService,
     private readonly stripeConnectService: StripeConnectService,
     private readonly configService: ConfigService,
-    private readonly eventEmitter: EventEmitter2
+    private readonly eventEmitter: EventEmitter2,
+    private readonly billingNotifications: BillingPaymentNotificationsService
   ) {}
 
   /**
@@ -1369,16 +1371,56 @@ export class PaymentIntentsService {
         },
       })
 
+      // Payments revamp (Spec v2.3): sync the linked scheduled capture to
+      // `completed` FIRST and UNCONDITIONALLY — the money for this capture
+      // arrived regardless of the booking's lifecycle status. Covers a
+      // SUCCESSFUL RETRY of a previously-failed / in-flight balance capture
+      // (the balance-charge cron re-charged the Payment row, and the engine that
+      // first fired it has moved on) — without this the capture row would stay
+      // `failed` and later escalate to payment_review even though the money was
+      // collected. Status-guarded so a webhook re-fire is idempotent. The legacy
+      // single balance Payment row that used to be minted here on deposit
+      // capture is REMOVED — balance is owned by `booking_scheduled_captures`.
+      await tx.bookingScheduledCapture.updateMany({
+        where: {
+          paymentId: payment.id,
+          status: { in: [ScheduledCaptureStatus.processing, ScheduledCaptureStatus.failed] },
+        },
+        data: {
+          status: ScheduledCaptureStatus.completed,
+          failureCode: null,
+          failureMessage: null,
+        },
+      })
+
+      const netPaid = updatedGroup.paidAmount.minus(updatedGroup.refundedAmount)
+
+      // Out-of-order tolerance (Spec v2.3 §9): a late `payment_intent.succeeded`
+      // arriving AFTER the booking was escalated to `payment_review` must WIN —
+      // clear the review and resume the booking so its remaining scheduled
+      // captures continue. `paidAmount` was already incremented under the claim
+      // guard above, so there is NO double-count. Resume to `fully_paid` when
+      // this completes the balance, else the generic capture-eligible
+      // `deposit_paid` (a partially-paid, captures-ongoing state).
+      if (updatedGroup.status === BookingGroupStatus.payment_review) {
+        await tx.bookingGroup.update({
+          where: { id: payment.bookingGroupId },
+          data: {
+            status: netPaid.greaterThanOrEqualTo(updatedGroup.totalAmount)
+              ? BookingGroupStatus.fully_paid
+              : BookingGroupStatus.deposit_paid,
+            paymentReviewStatus: null,
+            paymentReviewResolvedAt: new Date(),
+          },
+        })
+        return
+      }
+
       // Advance BookingGroup.status based on Payment.kind + new paidAmount.
       // Only transition from "intermediate" payment-flow states; never
       // overwrite cancelled/declined/expired/disputed (parent or admin
       // already moved the booking out of the happy path) and never roll
       // back from at_camp/completed (program lifecycle states).
-      // Only advance from "happy path payment-flow" statuses. Skip if the
-      // booking is already cancelled / declined / expired / disputed (an
-      // operator or counterparty moved it out of the flow) or if it has
-      // already progressed to at_camp / completed (program lifecycle states
-      // that should never be rolled back by a late webhook).
       const advanceableFromStatuses = new Set<BookingGroupStatus>([
         BookingGroupStatus.request,
         BookingGroupStatus.accepted,
@@ -1388,7 +1430,6 @@ export class PaymentIntentsService {
         return
       }
 
-      const netPaid = updatedGroup.paidAmount.minus(updatedGroup.refundedAmount)
       let nextStatus: BookingGroupStatus | null = null
       if (
         payment.kind === PaymentKind.balance ||
@@ -1416,33 +1457,6 @@ export class PaymentIntentsService {
           data: { status: nextStatus },
         })
       }
-
-      // Payments revamp (Spec v2.3): the legacy single balance Payment row that
-      // used to be minted here on deposit capture is REMOVED. Balance is now
-      // owned by `booking_scheduled_captures` — each refund-tier increment gets
-      // its own Payment row via `chargeScheduledBalanceCapture` when the capture
-      // engine fires it. Minting the old single row here would double-charge
-      // (old balance-charge cron pickup + new per-capture rows). The deposit
-      // capture's only job now is advancing `accepted → deposit_paid` above.
-
-      // Payments revamp (Spec v2.3): sync the linked scheduled capture to
-      // `completed`. This covers a SUCCESSFUL RETRY of a previously-failed
-      // balance capture (the balance-charge cron re-charged the Payment row, and
-      // the engine that first fired it has already moved on) — without this the
-      // scheduled-capture row would stay `failed` and later escalate to
-      // payment_review even though the money was collected. Status-guarded so a
-      // webhook re-fire is idempotent.
-      await tx.bookingScheduledCapture.updateMany({
-        where: {
-          paymentId: payment.id,
-          status: { in: [ScheduledCaptureStatus.processing, ScheduledCaptureStatus.failed] },
-        },
-        data: {
-          status: ScheduledCaptureStatus.completed,
-          failureCode: null,
-          failureMessage: null,
-        },
-      })
     })
 
     // Persist the saved PM (best-effort; failures here don't roll back the
@@ -1519,12 +1533,21 @@ export class PaymentIntentsService {
     if (payment.status === PaymentStatus.failed) return
 
     const lastError = intent.last_payment_error
+    // SCA (Spec v2.3 §7): an off-session charge that needs a 3DS step-up fails
+    // with `authentication_required`. This is NOT a hard decline — retrying
+    // off-session just fails the same way until the window exhausts and the
+    // parent is never prompted. Route it into the existing 3DS-recovery flow
+    // (persist `requires_action` + email the parent a recovery link now) so they
+    // can authenticate. A successful authentication later completes the linked
+    // capture via `markSucceeded`.
+    const requiresAuthentication = lastError?.code === 'authentication_required'
+
     // Status-guarded claim — never roll a row back from a terminal `succeeded`
     // or `canceled` state. A delayed `payment_intent.payment_failed` arriving
     // after a successful capture (or after an admin/webhook cancel) must be a
     // no-op; without this guard the row flips to `failed` while
     // `BookingGroup.paidAmount` stays incremented, leaving accounting wrong.
-    await this.prisma.payment.updateMany({
+    const claim = await this.prisma.payment.updateMany({
       where: {
         id: payment.id,
         status: {
@@ -1538,15 +1561,18 @@ export class PaymentIntentsService {
         },
       },
       data: {
-        status: PaymentStatus.failed,
+        status: requiresAuthentication ? PaymentStatus.requires_action : PaymentStatus.failed,
         stripePaymentIntentId: intent.id,
         failureCode: lastError?.code ?? null,
         // H6 audit fix: redact PII from failure messages. Stripe's
         // last_payment_error.message can include card BIN / last4 fragments;
         // this column renders into admin UIs.
         failureMessage: lastError?.message ? redactPii(lastError.message) : null,
-        // H8: failed is terminal for the cron's purposes; clear the marker.
-        processingStartedAt: null,
+        // For SCA keep `processingStartedAt` so the 48h step-up janitor can find
+        // it; for a hard failure clear it (terminal for the cron's purposes).
+        processingStartedAt: requiresAuthentication
+          ? (payment.processingStartedAt ?? new Date())
+          : null,
         // The cron decides whether to schedule a retry — webhooks should not
         // set `nextRetryAt` because they may arrive after a manual cancel.
       },
@@ -1567,6 +1593,14 @@ export class PaymentIntentsService {
         retryDeadline: new Date(Date.now() + 48 * 60 * 60 * 1000),
       },
     })
+
+    // SCA: prompt the parent to complete 3DS now (only if we actually claimed the
+    // row — not on a no-op late webhook). Best-effort: the notification service
+    // swallows its own send/Stripe errors, and the balance-charge cron's
+    // `requires_action` branch is the recurring backstop.
+    if (requiresAuthentication && claim.count > 0) {
+      await this.billingNotifications.notifyOffSessionRequiresAction(payment.id)
+    }
   }
 
   /**

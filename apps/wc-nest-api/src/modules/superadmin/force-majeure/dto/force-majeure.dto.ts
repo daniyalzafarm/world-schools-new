@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsDateString, IsOptional, IsString, MaxLength } from 'class-validator'
+import { IsBoolean, IsDateString, IsOptional, IsString, MaxLength } from 'class-validator'
 
 export class ForceMajeurePreviewDto {
   @ApiProperty({ description: 'Programme start-date window, inclusive lower bound (ISO).' })
@@ -27,4 +27,14 @@ export class ForceMajeureExecuteDto extends ForceMajeurePreviewDto {
   @IsString()
   @MaxLength(5000)
   description!: string
+
+  @ApiPropertyOptional({
+    description:
+      'When true, also refund the platform fee on every captured payment (admin discretion). ' +
+      'Defaults to false — FM retains the platform fee per Spec v2.3.',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  refundPlatformFee?: boolean
 }

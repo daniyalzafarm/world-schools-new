@@ -33,7 +33,16 @@ export class CaptureSchedulerService {
     private readonly enqueue: EnqueueCaptureService
   ) {}
 
-  async materializeForBooking(bookingGroupId: string, now: Date = new Date()): Promise<void> {
+  /**
+   * @returns `syncFailures` — how many captures that were due AT/BEFORE
+   * acceptance (deposit-if-grace-expired + near-term balance) fired synchronously
+   * and FAILED. The caller uses this to avoid confirming a slot on an unsecured
+   * card (Spec v2.3 §5 / near-term no-deposit gating).
+   */
+  async materializeForBooking(
+    bookingGroupId: string,
+    now: Date = new Date()
+  ): Promise<{ syncFailures: number }> {
     const booking = await this.prisma.bookingGroup.findUnique({
       where: { id: bookingGroupId },
       select: {
@@ -50,7 +59,7 @@ export class CaptureSchedulerService {
     })
     if (!booking) {
       this.logger.warn(`materializeForBooking: booking ${bookingGroupId} not found`)
-      return
+      return { syncFailures: 0 }
     }
 
     // Idempotency: never re-materialise (a second acceptance / retry must not
@@ -58,7 +67,7 @@ export class CaptureSchedulerService {
     const existing = await this.prisma.bookingScheduledCapture.count({
       where: { bookingGroupId },
     })
-    if (existing > 0) return
+    if (existing > 0) return { syncFailures: 0 }
 
     const acceptanceTime = booking.respondedAt ?? now
     const graceDeadline = booking.graceDeadline ?? acceptanceTime
@@ -81,7 +90,7 @@ export class CaptureSchedulerService {
       acceptanceTime,
     })
 
-    if (schedule.events.length === 0) return
+    if (schedule.events.length === 0) return { syncFailures: 0 }
 
     // Insert all rows + stamp the (internal) capture mode in one transaction.
     await this.prisma.$transaction(async tx => {
@@ -107,13 +116,18 @@ export class CaptureSchedulerService {
 
     // Dispatch: fire due captures synchronously (deposit-if-grace-expired +
     // near-term), enqueue delayed jobs for the rest. Firing is engine-guarded,
-    // so a row that isn't actually eligible is skipped harmlessly.
+    // so a row that isn't actually eligible is skipped harmlessly. A synchronous
+    // failure is counted so the caller can avoid confirming a slot on an
+    // unsecured card.
+    let syncFailures = 0
     for (const e of schedule.events) {
       if (e.effectiveCaptureDate.getTime() <= now.getTime()) {
-        await this.engine.executeCapture(bookingGroupId, e.sequence, now)
+        const outcome = await this.engine.executeCapture(bookingGroupId, e.sequence, now)
+        if (outcome.status === 'failed') syncFailures++
       } else {
         await this.enqueue.enqueue(bookingGroupId, e.sequence, e.effectiveCaptureDate, now)
       }
     }
+    return { syncFailures }
   }
 }

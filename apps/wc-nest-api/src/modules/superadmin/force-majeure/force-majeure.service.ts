@@ -62,7 +62,8 @@ export class ForceMajeureService {
   async execute(
     adminUserId: string,
     description: string,
-    scope: ForceMajeureScope
+    scope: ForceMajeureScope,
+    refundPlatformFee = false
   ): Promise<{
     eventId: string
     cancelled: number
@@ -96,6 +97,7 @@ export class ForceMajeureService {
           bookingGroupId: bg.id,
           adminUserId,
           mode: 'cash',
+          refundPlatformFee,
           voidAuthFn: id =>
             this.paymentIntents
               .cancelForBookingGroup(id, 'requested_by_customer')
@@ -118,9 +120,9 @@ export class ForceMajeureService {
       data: {
         affectedBookingCount: cancelled,
         totalRefundedAmount: totalRefunded,
-        // FM retains the platform fee by default (Spec v2.3). A fee-refund
-        // toggle is a follow-up that threads through cancelByForceMajeure.
-        platformFeeRefunded: false,
+        // FM retains the platform fee by default (Spec v2.3); the admin can opt
+        // to also refund it per event via `refundPlatformFee`.
+        platformFeeRefunded: refundPlatformFee,
       },
     })
 

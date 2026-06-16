@@ -38,7 +38,12 @@ import {
   generateBookingGroupNumber,
   generateNextBookingLineNumber,
 } from '../../common/utils/wc-reference.util'
-import { BookingGroupStatus, PaymentMode, PaymentStatus } from '../../generated/client/enums'
+import {
+  BookingGroupStatus,
+  PaymentAuditEventType,
+  PaymentMode,
+  PaymentStatus,
+} from '../../generated/client/enums'
 import { Prisma } from '../../generated/client/client'
 import { PrismaService } from '../../prisma/prisma.service'
 import { ProfilePhotoService } from '../user/auth/services/profile-photo.service'
@@ -48,11 +53,11 @@ import { RefundsNotificationsService } from '../billing/refunds/notifications/re
 import { RedisService } from '../redis/redis.service'
 import {
   computeBookingFinancialSnapshot,
-  computeGracePeriodDeadline,
   computeGracePeriodDeadlineFromRequest,
   computeProviderResponseDeadline,
 } from './booking-snapshot.util'
 import { buildBookingPolicySnapshot } from '../billing/shared/cancellation-policy.util'
+import { PaymentAuditLogService } from '../billing/shared/payment-audit-log.service'
 import {
   buildCaptureSchedule,
   resolveProgrammeLocationTimezone,
@@ -99,7 +104,8 @@ export class BookingGroupsService {
     private readonly refundsNotifications: RefundsNotificationsService,
     private readonly redis: RedisService,
     private readonly eligibilityService: EligibilityService,
-    private readonly captureScheduler: CaptureSchedulerService
+    private readonly captureScheduler: CaptureSchedulerService,
+    private readonly paymentAuditLog: PaymentAuditLogService
   ) {}
 
   /**
@@ -1939,6 +1945,19 @@ export class BookingGroupsService {
             },
           },
         },
+        // Payments revamp (Spec v2.3): the derived capture schedule, surfaced
+        // read-only on the provider booking detail ("Payment & Schedule").
+        scheduledCaptures: {
+          select: {
+            sequence: true,
+            amount: true,
+            currency: true,
+            captureDate: true,
+            effectiveCaptureDate: true,
+            status: true,
+          },
+          orderBy: { sequence: 'asc' },
+        },
       },
     })
     if (!bookingGroup) throw new NotFoundException('Booking group not found')
@@ -2013,6 +2032,17 @@ export class BookingGroupsService {
       depositAmount: bookingGroup.depositAmount != null ? Number(bookingGroup.depositAmount) : null,
       paidAmount: Number(bookingGroup.paidAmount ?? 0),
       refundedAmount: Number(bookingGroup.refundedAmount ?? 0),
+      // Payments revamp (Spec v2.3): read-only capture schedule for the provider
+      // "Payment & Schedule" panel. Sequence 0 is the deposit; 1..n are balance
+      // increments at their refund-tier boundaries.
+      scheduledCaptures: bookingGroup.scheduledCaptures.map(c => ({
+        sequence: c.sequence,
+        amount: Number(c.amount),
+        currency: c.currency,
+        captureDate: c.captureDate.toISOString(),
+        effectiveCaptureDate: c.effectiveCaptureDate.toISOString(),
+        status: c.status,
+      })),
       requestedAt: bookingGroup.requestedAt.toISOString(),
       respondedAt: bookingGroup.respondedAt?.toISOString() ?? null,
       expiresAt: bookingGroup.expiresAt?.toISOString() ?? null,
@@ -2614,6 +2644,20 @@ export class BookingGroupsService {
       throw err
     }
 
+    // Payments revamp (Spec v2.3 §Compliance): append the `consent_captured`
+    // event to the 10-year audit log. Emitted only after the Stripe authorize
+    // succeeds — a rolled-back submit (above) deletes the consent snapshot, so
+    // it must not leave a phantom consent audit row. Best-effort: a logging
+    // failure must not fail a submit the parent has already authorized (the
+    // consent snapshot itself is the primary legal record).
+    await this.paymentAuditLog.appendSafe({
+      actor: `user:${userId}`,
+      eventType: PaymentAuditEventType.consent_captured,
+      bookingGroupId: bookingGroup.id,
+      newStatus: 'request',
+      reasonText: 'Parent acknowledged the payment-schedule consent at submit',
+    })
+
     this.eventEmitter.emit(WsInternalEvent.BookingRequestSubmitted, {
       bookingGroupId: bookingGroup.id,
       bookingGroupNumber: bookingGroup.bookingGroupNumber,
@@ -3179,8 +3223,6 @@ export class BookingGroupsService {
       })
     }
 
-    const gracePeriodEndsAt = computeGracePeriodDeadline(now)
-
     // Payments revamp (Spec v2.3): ALL bookings run on the capture-schedule
     // engine. Acceptance flips FIRST (flip-first + accept-and-retry — confirmed),
     // then the engine drives the deposit capture-or-defer and the off-session
@@ -3198,7 +3240,11 @@ export class BookingGroupsService {
         data: {
           status: 'accepted',
           respondedAt: now,
-          gracePeriodEndsAt,
+          // Payments revamp (Spec v2.3): the grace deadline is request-anchored
+          // (`graceDeadline`, frozen at submit into the consent snapshot) and is
+          // NOT recomputed at acceptance. The legacy `gracePeriodEndsAt`
+          // (48h-from-acceptance) is no longer written — capture timing and
+          // refund within-grace decisions both read `graceDeadline`.
         },
       })
       if (res.count === 0) return false
@@ -3228,13 +3274,53 @@ export class BookingGroupsService {
     // balance increments enqueue at their refund-tier boundaries. Failure here
     // MUST NOT roll back acceptance — the hourly reconciliation cron recovers
     // un-materialised/undispatched captures from booking state.
+    let syncFailures = 0
     try {
-      await this.captureScheduler.materializeForBooking(bookingGroup.id, now)
+      const materialized = await this.captureScheduler.materializeForBooking(bookingGroup.id, now)
+      syncFailures = materialized.syncFailures
     } catch (err) {
       this.logger.error(
         `acceptForProvider: failed to materialise capture schedule for ${bookingGroup.id}: ${(err as Error).message}`,
         (err as Error).stack
       )
+    }
+
+    // Payments revamp (Spec v2.3 §5 / critique finding 8): NEVER confirm a slot
+    // on an unsecured card. For a near-term booking the first capture is due AT
+    // acceptance and fired synchronously above; if it (or an immediate deposit
+    // capture) FAILED, do not present the booking as confirmed — route it to the
+    // admin payment-review queue and skip the "accepted" confirmations. A
+    // status-guarded flip so a concurrent webhook/cron transition can't be
+    // clobbered. The card auth/SetupIntent stays in place for admin follow-up.
+    if (syncFailures > 0) {
+      const flipped = await this.prisma.bookingGroup.updateMany({
+        where: {
+          id: bookingGroup.id,
+          status: BookingGroupStatus.accepted,
+          paymentReviewStatus: null,
+        },
+        data: {
+          status: BookingGroupStatus.payment_review,
+          paymentReviewStatus: 'capture_failed_at_acceptance',
+          paymentReviewFlaggedAt: now,
+        },
+      })
+      if (flipped.count > 0) {
+        this.logger.warn(
+          `acceptForProvider: a capture due at acceptance failed for ${bookingGroup.id} — routed to payment_review (slot not confirmed)`
+        )
+        await this.paymentAuditLog.appendSafe({
+          actor: 'system',
+          eventType: PaymentAuditEventType.payment_review_flagged,
+          bookingGroupId: bookingGroup.id,
+          newStatus: BookingGroupStatus.payment_review,
+          reasonText: 'a capture due at acceptance failed; slot not confirmed on an unsecured card',
+        })
+        notify(this.eventEmitter, NotificationType.SuperadminPaymentReviewNeeded, {
+          bookingGroupId: bookingGroup.id,
+        })
+        return { bookingGroupId: bookingGroup.id, status: 'payment_review' }
+      }
     }
 
     this.eventEmitter.emit(WsInternalEvent.BookingStatusChanged, {

@@ -5,17 +5,25 @@ const NOW = new Date('2026-08-10T00:00:00.000Z')
 
 function buildHarness(
   dueRows: Array<{ bookingGroupId: string; sequence: number }>,
-  stuckRows: Array<{ bookingGroupId: string }> = []
+  stuckRows: Array<{ bookingGroupId: string }> = [],
+  processingRows: Array<{ id: string; bookingGroupId: string; sequence: number }> = []
 ) {
   const prisma: any = {
     bookingScheduledCapture: {
-      // The cron runs two queries against this table: due `scheduled` rows, then
-      // `failed` rows past their retry window. Differentiate by `where.status`.
-      findMany: jest
-        .fn()
-        .mockImplementation((args: any) =>
-          Promise.resolve(args.where.status === ScheduledCaptureStatus.failed ? stuckRows : dueRows)
-        ),
+      // The cron runs three queries against this table: stuck `processing` rows
+      // (reaper), due `scheduled` rows, then `failed` rows past retry.
+      // Differentiate by `where.status`.
+      findMany: jest.fn().mockImplementation((args: any) => {
+        switch (args.where.status) {
+          case ScheduledCaptureStatus.processing:
+            return Promise.resolve(processingRows)
+          case ScheduledCaptureStatus.failed:
+            return Promise.resolve(stuckRows)
+          default:
+            return Promise.resolve(dueRows)
+        }
+      }),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     bookingGroup: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
   }
@@ -33,6 +41,12 @@ function buildHarness(
   return { cron, prisma, engine, eventEmitter, paymentAuditLog }
 }
 
+/** Find the findMany call whose `where.status` matches the given status. */
+function whereForStatus(findMany: jest.Mock, status: ScheduledCaptureStatus) {
+  const call = findMany.mock.calls.find((c: any[]) => c[0].where.status === status)
+  return call?.[0].where
+}
+
 describe('ScheduledCaptureReconciliationCron.runBatch', () => {
   it('queries only due, capture-eligible rows and tallies engine outcomes', async () => {
     const { cron, prisma, engine } = buildHarness([
@@ -47,14 +61,22 @@ describe('ScheduledCaptureReconciliationCron.runBatch', () => {
 
     const result = await cron.runBatch(NOW)
 
-    expect(result).toEqual({ processed: 3, completed: 1, failed: 1, escalated: 0 })
+    expect(result).toEqual({
+      processed: 3,
+      completed: 1,
+      failed: 1,
+      escalated: 0,
+      reapedDeposits: 0,
+    })
     expect(engine.executeCapture).toHaveBeenCalledTimes(3)
     expect(engine.executeCapture).toHaveBeenCalledWith('bg-1', 0, NOW)
 
     // The eligibility query encodes the acceptance guard: scheduled + due +
     // booking in a capture-eligible status + respondedAt present.
-    const dueWhere = prisma.bookingScheduledCapture.findMany.mock.calls[0][0].where
-    expect(dueWhere.status).toBe('scheduled')
+    const dueWhere = whereForStatus(
+      prisma.bookingScheduledCapture.findMany,
+      ScheduledCaptureStatus.scheduled
+    )
     expect(dueWhere.effectiveCaptureDate).toEqual({ lte: NOW })
     expect(dueWhere.bookingGroup.respondedAt).toEqual({ not: null })
     expect(Array.isArray(dueWhere.bookingGroup.status.in)).toBe(true)
@@ -80,9 +102,10 @@ describe('ScheduledCaptureReconciliationCron.runBatch', () => {
         }),
       })
     )
-    // The escalation query targets failed rows past their retry deadline.
-    const stuckWhere = prisma.bookingScheduledCapture.findMany.mock.calls[1][0].where
-    expect(stuckWhere.status).toBe('failed')
+    const stuckWhere = whereForStatus(
+      prisma.bookingScheduledCapture.findMany,
+      ScheduledCaptureStatus.failed
+    )
     expect(stuckWhere.retryDeadline).toEqual({ lte: NOW })
     expect(stuckWhere.bookingGroup.paymentReviewStatus).toBeNull()
     // Spec v2.3: the escalation writes a 10-yr-retention audit row and alerts
@@ -97,15 +120,70 @@ describe('ScheduledCaptureReconciliationCron.runBatch', () => {
     expect(eventEmitter.emit).toHaveBeenCalled()
   })
 
-  it('no-ops cleanly when nothing is due or stuck', async () => {
-    const { cron, engine, prisma } = buildHarness([], [])
+  it('no-ops cleanly when nothing is due, stuck, or processing', async () => {
+    const { cron, engine, prisma } = buildHarness([], [], [])
     expect(await cron.runBatch(NOW)).toEqual({
       processed: 0,
       completed: 0,
       failed: 0,
       escalated: 0,
+      reapedDeposits: 0,
     })
     expect(engine.executeCapture).not.toHaveBeenCalled()
     expect(prisma.bookingGroup.updateMany).not.toHaveBeenCalled()
+  })
+
+  describe('stuck-processing reaper', () => {
+    it('resets a stuck DEPOSIT capture (seq 0) back to scheduled — idempotent re-capture is safe', async () => {
+      const { cron, prisma } = buildHarness(
+        [],
+        [],
+        [{ id: 'cap-d', bookingGroupId: 'bg-1', sequence: 0 }]
+      )
+
+      const result = await cron.runBatch(NOW)
+
+      expect(result.reapedDeposits).toBe(1)
+      // Status-guarded reset processing → scheduled (no booking flip).
+      expect(prisma.bookingScheduledCapture.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'cap-d', status: ScheduledCaptureStatus.processing },
+          data: { status: ScheduledCaptureStatus.scheduled },
+        })
+      )
+      expect(prisma.bookingGroup.updateMany).not.toHaveBeenCalled()
+      // The reaper query targets stale processing rows.
+      const procWhere = whereForStatus(
+        prisma.bookingScheduledCapture.findMany,
+        ScheduledCaptureStatus.processing
+      )
+      expect(procWhere.updatedAt.lte).toBeInstanceOf(Date)
+      expect(procWhere.updatedAt.lte.getTime()).toBeLessThan(NOW.getTime())
+    })
+
+    it('escalates a stuck BALANCE capture (seq > 0) to payment_review — never auto-re-charges', async () => {
+      const { cron, prisma, eventEmitter } = buildHarness(
+        [],
+        [],
+        [{ id: 'cap-b', bookingGroupId: 'bg-2', sequence: 1 }]
+      )
+
+      const result = await cron.runBatch(NOW)
+
+      expect(result.escalated).toBe(1)
+      expect(result.reapedDeposits).toBe(0)
+      // No scheduled-capture status reset for a balance row — only a booking flip.
+      expect(prisma.bookingScheduledCapture.updateMany).not.toHaveBeenCalled()
+      expect(prisma.bookingGroup.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: 'bg-2', paymentReviewStatus: null }),
+          data: expect.objectContaining({
+            status: 'payment_review',
+            paymentReviewStatus: 'stuck_processing',
+          }),
+        })
+      )
+      expect(eventEmitter.emit).toHaveBeenCalled()
+    })
   })
 })

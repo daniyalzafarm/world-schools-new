@@ -41,12 +41,17 @@ export class ForceMajeureController {
     summary: 'Cancel all matching bookings with a force-majeure cash refund (captured minus fee).',
   })
   async execute(@CurrentUser() user: CurrentUserPayload, @Body() dto: ForceMajeureExecuteDto) {
-    const result = await this.forceMajeureService.execute(user.id, dto.description, {
-      dateFrom: new Date(dto.dateFrom),
-      dateTo: new Date(dto.dateTo),
-      providerId: dto.providerId,
-      region: dto.region,
-    })
+    const result = await this.forceMajeureService.execute(
+      user.id,
+      dto.description,
+      {
+        dateFrom: new Date(dto.dateFrom),
+        dateTo: new Date(dto.dateTo),
+        providerId: dto.providerId,
+        region: dto.region,
+      },
+      dto.refundPlatformFee ?? false
+    )
     return ResponseUtil.success(result)
   }
 }

@@ -66,5 +66,32 @@ describe('ForceMajeureService', () => {
         })
       )
     })
+
+    it('defaults to retaining the platform fee (no toggle passed)', async () => {
+      prisma.bookingGroup.findMany.mockResolvedValueOnce([{ id: 'bg-1' }])
+      refunds.cancelByForceMajeure.mockResolvedValueOnce({ refunds: [{ amount: '600.00' }] })
+
+      await service.execute('admin-1', 'Storm', SCOPE)
+
+      expect(refunds.cancelByForceMajeure).toHaveBeenCalledWith(
+        expect.objectContaining({ refundPlatformFee: false })
+      )
+    })
+
+    it('threads refundPlatformFee=true through to the refund + records it on the event', async () => {
+      prisma.bookingGroup.findMany.mockResolvedValueOnce([{ id: 'bg-1' }])
+      refunds.cancelByForceMajeure.mockResolvedValueOnce({ refunds: [{ amount: '600.00' }] })
+
+      await service.execute('admin-1', 'Wildfire', SCOPE, true)
+
+      expect(refunds.cancelByForceMajeure).toHaveBeenCalledWith(
+        expect.objectContaining({ refundPlatformFee: true })
+      )
+      expect(prisma.forceMajeureEvent.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ platformFeeRefunded: true }),
+        })
+      )
+    })
   })
 })

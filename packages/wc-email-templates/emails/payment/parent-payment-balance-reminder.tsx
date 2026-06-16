@@ -16,6 +16,10 @@ export interface ParentPaymentBalanceReminderProps {
   /** Days remaining until the balance is charged (14 / 7 / 3). */
   daysUntilDue: number
   bookingUrl: string
+  /** True when the card on file expires before this charge date. */
+  cardExpiringBeforeCapture?: boolean
+  /** Last 4 of the card on file (only shown with the expiry warning). */
+  cardLast4?: string | null
 }
 
 /**
@@ -35,6 +39,8 @@ export default function ParentPaymentBalanceReminder({
   balanceDueDate,
   daysUntilDue,
   bookingUrl,
+  cardExpiringBeforeCapture,
+  cardLast4,
 }: ParentPaymentBalanceReminderProps) {
   const dayWord = daysUntilDue === 1 ? 'day' : 'days'
   return (
@@ -47,6 +53,12 @@ export default function ParentPaymentBalanceReminder({
         A quick heads-up — the balance for {childName}&apos;s place at {campName} will be charged
         automatically on {balanceDueDate} using the card we have on file.
       </Text>
+      {cardExpiringBeforeCapture ? (
+        <Text style={warningStyle}>
+          ⚠️ The card we have on file{cardLast4 ? ` (ending ${cardLast4})` : ''} expires before this
+          charge date. Please update it from your dashboard so your place isn&apos;t at risk.
+        </Text>
+      ) : null}
       <InfoPanel>
         <Text style={detailLine}>
           <strong>Booking reference:</strong> {bookingRef}
@@ -80,6 +92,16 @@ const paragraphStyle = {
   color: theme.colors.textPrimary,
   fontSize: '16px',
   lineHeight: '24px',
+  margin: '0 0 16px 0',
+}
+const warningStyle = {
+  color: theme.colors.textPrimary,
+  backgroundColor: '#FEF3C7',
+  border: '1px solid #F59E0B',
+  borderRadius: '8px',
+  padding: '12px 16px',
+  fontSize: '15px',
+  lineHeight: '22px',
   margin: '0 0 16px 0',
 }
 const detailLine = {

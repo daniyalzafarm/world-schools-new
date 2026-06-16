@@ -28,9 +28,15 @@ describe('resolveTiers (backend)', () => {
     ])
   })
 
-  it('falls back to MODERATE for legacy strict / super_strict policy names', () => {
-    expect(resolveTiers('strict', null)).toEqual(resolveTiers('moderate', null))
-    expect(resolveTiers('super_strict', null)).toEqual(resolveTiers('moderate', null))
+  it('resolves an empty/unset policy name to MODERATE (the onboarding default)', () => {
+    expect(resolveTiers('', null)).toEqual(resolveTiers('moderate', null))
+  })
+
+  it('FAILS LOUD for an unsupported policy name (strict bands pending a product lock)', () => {
+    // `strict` is intentionally NOT in CANCELLATION_POLICY_VALUES yet; resolving
+    // it must throw rather than silently price it as Moderate (Spec v2.3).
+    expect(() => resolveTiers('strict', null)).toThrow(/unsupported cancellation policy/)
+    expect(() => resolveTiers('super_strict', null)).toThrow(/unsupported cancellation policy/)
   })
 
   it('parses custom tier JSON in both `{tiers: []}` and bare-array form', () => {

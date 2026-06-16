@@ -320,7 +320,7 @@ export function BookingRequestDrawer({
       const d = daysUntil(detail.session.startDate)
       const sub =
         detail.status === 'deposit_paid'
-          ? 'Balance may be due · see payout schedule (coming soon)'
+          ? 'Deposit collected · balance captures on schedule below'
           : detail.status === 'fully_paid'
             ? 'All set for arrival'
             : 'Awaiting payment steps'
@@ -1000,6 +1000,48 @@ export function BookingRequestDrawer({
                     </div>
                   ) : null}
                 </div>
+
+                {detail.scheduledCaptures.length > 0 ? (
+                  <>
+                    <Divider className="bg-gray-200" />
+                    <div className="border-b border-gray-200 px-6 py-6">
+                      <div className="mb-1 text-base font-semibold text-secondary-500">
+                        Payment &amp; Schedule
+                      </div>
+                      <p className="mb-4 text-xs text-gray-400">
+                        Read-only. Amounts are captured automatically on these dates — the deposit
+                        after acceptance, the balance at each refund-tier boundary.
+                      </p>
+                      <div className="space-y-2">
+                        {detail.scheduledCaptures.map(c => (
+                          <div
+                            key={c.sequence}
+                            className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3 text-sm"
+                          >
+                            <div>
+                              <div className="font-medium text-secondary-500">
+                                {c.sequence === 0 ? 'Deposit' : `Balance ${c.sequence}`}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                {new Date(c.effectiveCaptureDate).toLocaleDateString(undefined, {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-semibold text-secondary-500">
+                                {formatCurrency(c.amount, c.currency)}
+                              </div>
+                              <div className="text-xs capitalize text-gray-400">{c.status}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : null}
 
                 {detail.specialRequest?.trim() ? (
                   <>

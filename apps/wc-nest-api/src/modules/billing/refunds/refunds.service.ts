@@ -171,7 +171,13 @@ export class RefundsService {
    */
   private async processGracePeriodRefundUnlocked(input: RefundInput) {
     const group = await this.loadGroupOrThrow(input.bookingGroupId)
-    if (!group.gracePeriodEndsAt || new Date() > group.gracePeriodEndsAt) {
+    // Payments revamp (Spec v2.3): the grace window is the request-anchored
+    // `graceDeadline` (the value frozen into the consent snapshot the parent
+    // agreed to) — NOT the legacy `gracePeriodEndsAt`. Reading the old field
+    // here would let a deposit that is already captured and non-refundable be
+    // fully refunded (split-brain grace). Capture engine + refunds now read the
+    // same single source.
+    if (!group.graceDeadline || new Date() > group.graceDeadline) {
       throw new BadRequestException('Grace period has ended; use the policy refund path instead')
     }
     const succeeded = await this.succeededPayments(group.id)
@@ -208,9 +214,9 @@ export class RefundsService {
   /** See note on `processGracePeriodRefundUnlocked` — same locking caveat. */
   private async processPolicyRefundUnlocked(input: RefundInput) {
     const group = await this.loadGroupOrThrow(input.bookingGroupId)
-    if (group.gracePeriodEndsAt && new Date() <= group.gracePeriodEndsAt) {
+    if (group.graceDeadline && new Date() <= group.graceDeadline) {
       throw new BadRequestException(
-        'Booking is still within the 48h grace period; use the grace-period refund instead'
+        'Booking is still within the grace period; use the grace-period refund instead'
       )
     }
     const succeeded = await this.succeededPayments(group.id)
@@ -481,13 +487,25 @@ export class RefundsService {
    * outside this service in a future doc-generation phase.
    */
   async processForceMajeureRefund(
-    input: RefundInput & { adminUserId: string; mode: 'cash' | 'credit_note' }
+    input: RefundInput & {
+      adminUserId: string
+      mode: 'cash' | 'credit_note'
+      refundPlatformFee?: boolean
+    }
   ) {
     return this.withLock(input.bookingGroupId, () => this.processForceMajeureRefundUnlocked(input))
   }
 
   private async processForceMajeureRefundUnlocked(
-    input: RefundInput & { adminUserId: string; mode: 'cash' | 'credit_note' }
+    input: RefundInput & {
+      adminUserId: string
+      mode: 'cash' | 'credit_note'
+      /**
+       * When true, also reverse the platform's application fee on every refund
+       * (admin discretion). Defaults to false — FM retains the fee (Spec v2.3).
+       */
+      refundPlatformFee?: boolean
+    }
   ) {
     if (input.mode === 'credit_note') {
       // Document generation lives outside this PR per plan scope. Mark the
@@ -507,10 +525,17 @@ export class RefundsService {
       group,
       payments: succeeded,
       reason: RefundReason.force_majeure,
-      ...REFUND_FLAGS_KEEP_PLATFORM_FEE,
+      ...(input.refundPlatformFee
+        ? REFUND_FLAGS_FULL_REFUND_AND_FEE
+        : REFUND_FLAGS_KEEP_PLATFORM_FEE),
       initiatedByUserId: input.adminUserId,
     })
-    await this.markGroupCancelled(group.id, 'force_majeure_cash', input.adminUserId)
+    await this.markGroupCancelled(
+      group.id,
+      'force_majeure_cash',
+      input.adminUserId,
+      input.refundPlatformFee ? PlatformFeeDisposition.refunded : PlatformFeeDisposition.retained
+    )
     return refunds
   }
 
@@ -525,6 +550,8 @@ export class RefundsService {
     bookingGroupId: string
     adminUserId: string
     mode: 'cash' | 'credit_note'
+    /** Admin discretion: also reverse the platform fee. Defaults to false. */
+    refundPlatformFee?: boolean
     voidAuthFn?: (bookingGroupId: string) => Promise<void>
   }) {
     return this.withLock(input.bookingGroupId, async () => {
@@ -556,6 +583,7 @@ export class RefundsService {
         bookingGroupId: group.id,
         adminUserId: input.adminUserId,
         mode: 'cash',
+        refundPlatformFee: input.refundPlatformFee,
       })
       return { mode: 'force_majeure_cash' as const, refunds }
     })
@@ -619,7 +647,7 @@ export class RefundsService {
       }
     }
 
-    const inGrace = !!group.gracePeriodEndsAt && new Date() <= group.gracePeriodEndsAt
+    const inGrace = !!group.graceDeadline && new Date() <= group.graceDeadline
 
     if (inGrace) {
       const items = succeeded.map(p => ({
@@ -631,7 +659,7 @@ export class RefundsService {
       return {
         mode: 'grace',
         currentStatus: group.status,
-        gracePeriodEndsAt: group.gracePeriodEndsAt!.toISOString(),
+        gracePeriodEndsAt: group.graceDeadline!.toISOString(),
         items,
         totalRefundMajor: sumDecimal(items.map(i => i.refundAmountMajor)).toFixed(2),
         currency,
@@ -714,7 +742,7 @@ export class RefundsService {
       // Captured payments exist — branch on grace window. We call the
       // *unlocked* variants because we already hold the booking-level
       // refund lock at this scope (re-acquiring would throw 409).
-      const inGrace = !!group.gracePeriodEndsAt && new Date() <= group.gracePeriodEndsAt
+      const inGrace = !!group.graceDeadline && new Date() <= group.graceDeadline
       if (inGrace) {
         const refunds = await this.processGracePeriodRefundUnlocked({
           bookingGroupId: group.id,
@@ -1386,7 +1414,8 @@ export class RefundsService {
   private async markGroupCancelled(
     bookingGroupId: string,
     reason: string,
-    cancelledByUserId?: string
+    cancelledByUserId?: string,
+    platformFeeDispositionOverride?: PlatformFeeDisposition
   ): Promise<void> {
     // Capture the pre-cancellation status before we flip it to `cancelled` —
     // BUG-178 gates the non-payment notification set on it (see below).
@@ -1394,23 +1423,27 @@ export class RefundsService {
       where: { id: bookingGroupId },
       select: { status: true },
     })
-    await this.prisma.bookingGroup.update({
-      where: { id: bookingGroupId },
-      data: {
-        status: 'cancelled',
-        cancelledAt: new Date(),
-        cancelledReason: reason,
-        cancelledByUserId: cancelledByUserId ?? null,
-      },
+    // Payments revamp (Spec v2.3 §8) — CRITICAL & ATOMIC: flip the booking to
+    // `cancelled` AND cancel its scheduled-capture rows in ONE transaction, so a
+    // partial failure can never leave a cancelled booking with live scheduled
+    // captures (or vice-versa). This is the SHARED cancellation sink so it covers
+    // EVERY cancel path (parent grace/post-grace, camp-cancel, provider-declined,
+    // fraud, expiry, Force Majeure) — the contractual invariant that no capture
+    // fires on a cancelled booking. `cancelForBooking` marks the rows on the same
+    // `tx`; BullMQ job removal inside it is best-effort, and the engine's
+    // "booking not capture-eligible / row cancelled" guard is the backstop.
+    await this.prisma.$transaction(async tx => {
+      await tx.bookingGroup.update({
+        where: { id: bookingGroupId },
+        data: {
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          cancelledReason: reason,
+          cancelledByUserId: cancelledByUserId ?? null,
+        },
+      })
+      await this.cancelCaptureService.cancelForBooking(bookingGroupId, `cancelled:${reason}`, tx)
     })
-    // Payments revamp (Spec v2.3) — CRITICAL: cancel the booking's scheduled
-    // captures and remove their delayed BullMQ jobs. This is wired into the
-    // SHARED cancellation sink so it covers EVERY cancel path (parent grace/
-    // post-grace, camp-cancel, provider-declined, fraud, expiry, Force Majeure) —
-    // the contractual invariant that no capture fires on a cancelled booking.
-    // The engine's "PaymentIntent canceled = no-op" guard is the second line of
-    // defence against a job that fires in the race window.
-    await this.cancelCaptureService.cancelForBooking(bookingGroupId, `cancelled:${reason}`)
 
     // Payments revamp (Spec v2.3 §Compliance): append an append-only audit row
     // for the cancellation/refund event (10-year retention). Every cancel path
@@ -1423,9 +1456,11 @@ export class RefundsService {
       priorStatus: prior?.status ?? null,
       newStatus: 'cancelled',
       reasonText: reason,
-      platformFeeDisposition: reason.startsWith('force_majeure')
-        ? PlatformFeeDisposition.retained
-        : null,
+      // Explicit override wins (Force Majeure with the fee-refund toggle on);
+      // otherwise an FM cancel defaults to `retained`, all others to null.
+      platformFeeDisposition:
+        platformFeeDispositionOverride ??
+        (reason.startsWith('force_majeure') ? PlatformFeeDisposition.retained : null),
     })
 
     // Phase 7.5 — when the cancellation was driven by a balance payment

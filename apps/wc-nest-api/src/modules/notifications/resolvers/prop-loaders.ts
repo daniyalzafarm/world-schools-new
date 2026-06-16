@@ -464,6 +464,18 @@ const parentPaymentDepositConfirmed: PropLoader<ParentPaymentDepositConfirmedPro
   }
 }
 
+/**
+ * A card expires at the END of its `expMonth/expYear`. Returns true when it is
+ * already expired by `byDate` — i.e. `byDate` falls on/after the first instant
+ * of the month AFTER the expiry month. `expMonth` is 1-12; `Date.UTC` is
+ * 0-indexed, so `Date.UTC(expYear, expMonth, 1)` is the 1st of the following
+ * month (and normalises Dec → next January).
+ */
+export function cardExpiresBeforeDate(expMonth: number, expYear: number, byDate: Date): boolean {
+  const firstOfMonthAfterExpiry = Date.UTC(expYear, expMonth, 1)
+  return byDate.getTime() >= firstOfMonthAfterExpiry
+}
+
 function buildBalanceReminder(
   daysUntilDue: 14 | 7 | 3
 ): PropLoader<ParentPaymentBalanceReminderProps | null> {
@@ -483,6 +495,36 @@ function buildBalanceReminder(
     const fallbackBalance = Math.max(0, total - deposit)
     const amount = captureAmount != null ? Number(captureAmount) : fallbackBalance
     const currency = (captureCurrency ?? ctx.currency ?? 'USD').toUpperCase()
+    const dueDateObj = captureDate ? new Date(captureDate) : bg.balanceDueAt
+
+    // Card-expiry warning (Spec v2.3 §7): if the card we'll charge expires before
+    // this capture date, tell the parent to update it now — re-hydrated fresh at
+    // send time (reschedule-safe). Best-effort: a lookup miss just omits the
+    // warning. Mirrors `chargeOffSession`'s default-card resolution.
+    let cardExpiringBeforeCapture = false
+    let cardLast4: string | undefined
+    if (dueDateObj) {
+      const pcc = await prisma.payment.findFirst({
+        where: { bookingGroupId: bg.id, providerConnectCustomerId: { not: null } },
+        select: { providerConnectCustomerId: true },
+        orderBy: { createdAt: 'asc' },
+      })
+      if (pcc?.providerConnectCustomerId) {
+        const card = await prisma.savedPaymentMethod.findFirst({
+          where: {
+            providerConnectCustomerId: pcc.providerConnectCustomerId,
+            isDefault: true,
+            archivedAt: null,
+          },
+          select: { expMonth: true, expYear: true, last4: true },
+        })
+        if (card && cardExpiresBeforeDate(card.expMonth, card.expYear, dueDateObj)) {
+          cardExpiringBeforeCapture = true
+          cardLast4 = card.last4
+        }
+      }
+    }
+
     return {
       salutation: 'hi',
       firstName: bg.parent.user.firstName,
@@ -490,9 +532,11 @@ function buildBalanceReminder(
       campName: bg.camp.name,
       bookingRef: bg.bookingGroupNumber,
       balanceAmount: formatCurrency(amount, currency),
-      balanceDueDate: formatDate(captureDate ? new Date(captureDate) : bg.balanceDueAt),
+      balanceDueDate: formatDate(dueDateObj),
       daysUntilDue,
       bookingUrl: `${PARENT_APP_BASE_URL}/bookings/${bg.id}`,
+      cardExpiringBeforeCapture,
+      cardLast4,
     }
   }
 }

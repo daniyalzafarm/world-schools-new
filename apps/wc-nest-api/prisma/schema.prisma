@@ -3182,6 +3182,13 @@ model ProviderAdminReviewQueue {
 /// Tracks a camp's debt to World Camps when a refund was issued after funds
 /// were already disbursed. Settled via deduction from next payout or direct
 /// bank transfer per spec Part D (Camp cancels — early payout already disbursed).
+///
+/// Payments revamp (Spec v2.3): FROZEN, not dropped. Under capture-when-non-
+/// refundable, captured funds are immediately the Provider's, so a refund can
+/// never out-run a disbursement — `resolveRequiresReimbursement()` now returns
+/// `false` and no new rows are created. The model/table is retained (no live
+/// rows) to avoid a destructive drop; remove in a later migration once any
+/// historical rows are archived.
 model Reimbursement {
   id             String              @id @default(uuid())
   bookingGroupId String              @map("booking_group_id")

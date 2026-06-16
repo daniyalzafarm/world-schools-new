@@ -7,11 +7,12 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Test, TestingModule } from '@nestjs/testing'
 import { Prisma } from '../../generated/client/client'
-import { PaymentMode } from '../../generated/client/enums'
+import { PaymentAuditEventType, PaymentMode } from '../../generated/client/enums'
 import { ConfigService } from '../../config/config.service'
 import { PrismaService } from '../../prisma/prisma.service'
 import { PaymentIntentsService } from '../billing/intents/payment-intents.service'
 import { CaptureSchedulerService } from '../billing/captures/capture-scheduler.service'
+import { PaymentAuditLogService } from '../billing/shared/payment-audit-log.service'
 import { RedisService } from '../redis/redis.service'
 import { RefundsService } from '../billing/refunds/refunds.service'
 import { RefundsNotificationsService } from '../billing/refunds/notifications/refunds-notifications.service'
@@ -44,6 +45,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
   let eventEmitter: any
   let eligibilityService: any
   let captureScheduler: any
+  let paymentAuditLog: any
 
   function makeBookingGroup(overrides: Partial<any> = {}) {
     return {
@@ -157,7 +159,12 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
     }
     // Payments revamp (Spec v2.3): deposit acceptance materialises + dispatches
     // the capture schedule via this service instead of the payout engine.
-    captureScheduler = { materializeForBooking: jest.fn().mockResolvedValue(undefined) }
+    captureScheduler = {
+      materializeForBooking: jest.fn().mockResolvedValue({ syncFailures: 0 }),
+    }
+    // Payments revamp (Spec v2.3 §Compliance): submit appends a `consent_captured`
+    // row to the append-only audit log.
+    paymentAuditLog = { append: jest.fn(), appendSafe: jest.fn().mockResolvedValue(undefined) }
     refunds = {
       previewParentCancel: jest.fn(),
       cancelForParent: jest.fn(),
@@ -192,6 +199,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         { provide: RedisService, useValue: redis },
         { provide: EligibilityService, useValue: eligibilityService },
         { provide: CaptureSchedulerService, useValue: captureScheduler },
+        { provide: PaymentAuditLogService, useValue: paymentAuditLog },
       ],
     }).compile()
     service = module.get(BookingGroupsService)
@@ -238,6 +246,38 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
           }),
         })
       )
+    })
+
+    it('appends a consent_captured audit row after the authorize succeeds', async () => {
+      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce(makeBookingGroup())
+      payments.authorizeDeposit.mockResolvedValueOnce({
+        paymentId: 'pay-1',
+        paymentIntentId: 'pi_1',
+        clientSecret: 'secret_1',
+        amount: '600.00',
+        currency: 'eur',
+      })
+
+      await service.submitForParent('u-1', 'bg-1', CONSENT)
+
+      expect(paymentAuditLog.appendSafe).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: PaymentAuditEventType.consent_captured,
+          bookingGroupId: 'bg-1',
+          actor: 'user:u-1',
+        })
+      )
+    })
+
+    it('does NOT append a consent_captured audit row when the authorize fails (rolled-back submit)', async () => {
+      prisma.parent.findUnique.mockResolvedValueOnce({ id: 'p-1' })
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce(makeBookingGroup())
+      payments.authorizeDeposit.mockRejectedValueOnce(new Error('stripe down'))
+
+      await expect(service.submitForParent('u-1', 'bg-1', CONSENT)).rejects.toThrow('stripe down')
+
+      expect(paymentAuditLog.appendSafe).not.toHaveBeenCalled()
     })
 
     it('writes app fee/deposit/balance snapshots and authorizes a deposit PaymentIntent', async () => {
@@ -762,6 +802,51 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       expect(payments.captureForBookingGroup).not.toHaveBeenCalled()
       expect(captureScheduler.materializeForBooking).toHaveBeenCalledWith('bg-1', expect.any(Date))
       expect(result).toEqual({ bookingGroupId: 'bg-1', status: 'accepted' })
+    })
+
+    it('near-term capture failure at acceptance → payment_review, NOT confirmed (Spec v2.3 §5)', async () => {
+      prisma.bookingGroup.findFirst.mockResolvedValueOnce({
+        id: 'bg-1',
+        status: 'request',
+        bookingGroupNumber: 'BG-0001',
+        parentId: 'p-1',
+        totalAmount: new Prisma.Decimal('1500.00'),
+        paymentMode: PaymentMode.full_at_due,
+        camp: { name: 'C' },
+        parent: { userId: 'u-1' },
+        session: {
+          startDate: new Date('2026-08-01T00:00:00Z'),
+          endDate: new Date('2026-08-08T00:00:00Z'),
+        },
+        provider: { settings: { currency: 'EUR' } },
+      })
+      // The first balance capture is due at acceptance and fails synchronously.
+      captureScheduler.materializeForBooking.mockResolvedValueOnce({ syncFailures: 1 })
+
+      const result = await service.acceptForProvider('pr-1', 'bg-1')
+
+      // Slot is NOT confirmed — routed to payment_review with a status guard.
+      expect(result).toEqual({ bookingGroupId: 'bg-1', status: 'payment_review' })
+      expect(prisma.bookingGroup.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: 'bg-1',
+            status: 'accepted',
+            paymentReviewStatus: null,
+          }),
+          data: expect.objectContaining({
+            status: 'payment_review',
+            paymentReviewStatus: 'capture_failed_at_acceptance',
+          }),
+        })
+      )
+      // The escalation is audited (10-yr retention).
+      expect(paymentAuditLog.appendSafe).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: PaymentAuditEventType.payment_review_flagged,
+          bookingGroupId: 'bg-1',
+        })
+      )
     })
 
     // Payments revamp (Spec v2.3): the capture-before-flip 412 stale-auth path is

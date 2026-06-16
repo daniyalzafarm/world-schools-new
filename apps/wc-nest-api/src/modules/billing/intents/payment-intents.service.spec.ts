@@ -8,6 +8,7 @@ import { PaymentKind, PaymentStatus, ScheduledCaptureStatus } from '../../../gen
 import { PrismaService } from '../../../prisma/prisma.service'
 import { StripeConnectService } from '../../provider/stripe-connect/stripe-connect.service'
 import { StripeService } from '../../stripe/stripe.service'
+import { BillingPaymentNotificationsService } from './notifications/billing-payment-notifications.service'
 import { PaymentAuthorizationExpiredError, PaymentIntentsService } from './payment-intents.service'
 
 describe('PaymentIntentsService', () => {
@@ -15,6 +16,7 @@ describe('PaymentIntentsService', () => {
   let prisma: any
   let stripe: any
   let stripeConnect: any
+  let billingNotifications: { notifyOffSessionRequiresAction: jest.Mock }
 
   function makeGroup(overrides: Partial<any> = {}) {
     return {
@@ -99,6 +101,10 @@ describe('PaymentIntentsService', () => {
       assertProviderPaymentReadyLive: jest.fn().mockResolvedValue(undefined),
     }
 
+    billingNotifications = {
+      notifyOffSessionRequiresAction: jest.fn().mockResolvedValue(undefined),
+    }
+
     const config = {
       billingConfig: {
         maxAttempts: 2,
@@ -118,6 +124,7 @@ describe('PaymentIntentsService', () => {
         { provide: StripeConnectService, useValue: stripeConnect },
         { provide: ConfigService, useValue: config },
         { provide: EventEmitter2, useValue: { emit: jest.fn() } },
+        { provide: BillingPaymentNotificationsService, useValue: billingNotifications },
       ],
     }).compile()
     service = module.get(PaymentIntentsService)
@@ -895,6 +902,59 @@ describe('PaymentIntentsService', () => {
       )
     })
 
+    it('markSucceeded after payment_review WINS — clears review, resumes, no double-count (revamp Spec v2.3 §9)', async () => {
+      prisma.payment.findUnique.mockResolvedValueOnce({
+        id: 'pay-balance-late',
+        bookingGroupId: 'bg-1',
+        kind: PaymentKind.balance,
+        amount: new Prisma.Decimal('700.00'),
+        status: PaymentStatus.processing, // a retry now succeeding via webhook
+        currency: 'eur',
+        providerConnectCustomerId: 'pcc-1',
+        stripeAccountId: 'acct_1',
+      })
+      // The increment returns the booking already escalated to payment_review,
+      // still short of fully paid.
+      prisma.bookingGroup.update.mockResolvedValueOnce({
+        status: 'payment_review',
+        totalAmount: new Prisma.Decimal('2000.00'),
+        paidAmount: new Prisma.Decimal('1300.00'),
+        refundedAmount: new Prisma.Decimal('0'),
+        balanceDueAt: null,
+        appFeePercentageSnapshot: new Prisma.Decimal('15'),
+      })
+
+      await service.markSucceeded({
+        id: 'pi_bal_late',
+        amount: 70000,
+        currency: 'eur',
+        metadata: { paymentId: 'pay-balance-late' },
+      } as never)
+
+      // The capture row is synced to completed even though the booking was flagged.
+      expect(prisma.bookingScheduledCapture.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ paymentId: 'pay-balance-late' }),
+          data: expect.objectContaining({ status: 'completed' }),
+        })
+      )
+      // payment_review is cleared and the booking resumes (not fully paid → deposit_paid).
+      expect(prisma.bookingGroup.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'deposit_paid',
+            paymentReviewStatus: null,
+            paymentReviewResolvedAt: expect.any(Date),
+          }),
+        })
+      )
+      // No double-count: paidAmount is incremented exactly once (the claim update).
+      const incrementCalls = prisma.bookingGroup.update.mock.calls.filter(
+        (c: any[]) => c[0]?.data?.paidAmount?.increment != null
+      )
+      expect(incrementCalls).toHaveLength(1)
+    })
+
     it('markSucceeded for deposit is idempotent on balance creation — re-fire skips when balance row already exists', async () => {
       prisma.payment.findUnique.mockResolvedValueOnce({
         id: 'pay-deposit',
@@ -1123,6 +1183,52 @@ describe('PaymentIntentsService', () => {
           }),
         })
       )
+      // A hard decline does NOT prompt for 3DS.
+      expect(billingNotifications.notifyOffSessionRequiresAction).not.toHaveBeenCalled()
+    })
+
+    it('SCA: markFailed with authentication_required routes to requires_action and prompts the parent (Spec v2.3 §7)', async () => {
+      prisma.payment.findUnique.mockResolvedValueOnce({
+        id: 'pay-sca',
+        status: PaymentStatus.processing,
+        processingStartedAt: null,
+      })
+      prisma.payment.updateMany.mockResolvedValueOnce({ count: 1 })
+
+      await service.markFailed({
+        id: 'pi_sca',
+        last_payment_error: {
+          code: 'authentication_required',
+          message: 'This payment requires authentication.',
+        },
+      } as never)
+
+      // The Payment is parked in requires_action (the recovery flow), NOT failed.
+      expect(prisma.payment.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: PaymentStatus.requires_action,
+            processingStartedAt: expect.any(Date),
+          }),
+        })
+      )
+      // The parent is emailed a 3DS recovery link immediately.
+      expect(billingNotifications.notifyOffSessionRequiresAction).toHaveBeenCalledWith('pay-sca')
+    })
+
+    it('SCA: markFailed does NOT prompt when the claim is a no-op (late webhook)', async () => {
+      prisma.payment.findUnique.mockResolvedValueOnce({
+        id: 'pay-sca-late',
+        status: PaymentStatus.succeeded,
+      })
+      prisma.payment.updateMany.mockResolvedValueOnce({ count: 0 })
+
+      await service.markFailed({
+        id: 'pi_sca_late',
+        last_payment_error: { code: 'authentication_required', message: 'auth' },
+      } as never)
+
+      expect(billingNotifications.notifyOffSessionRequiresAction).not.toHaveBeenCalled()
     })
 
     it('revamp Spec v2.3: markCanceled cancels the linked scheduled capture (scheduled/processing→cancelled)', async () => {
