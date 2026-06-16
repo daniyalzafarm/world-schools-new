@@ -78,8 +78,8 @@ export default function EditRolePage() {
     )
   }
 
-  // Prevent editing Super Admin system role
-  if (role.name === 'Super Admin' && role.isSystemRole) {
+  // Prevent editing system-managed roles (e.g. the "Admin" role)
+  if (role.isSystemRole) {
     return (
       <PageSlot>
         <div className="space-y-6">
@@ -87,9 +87,7 @@ export default function EditRolePage() {
           <Card>
             <CardBody className="p-6">
               <div className="text-center py-8">
-                <p className="text-danger font-medium">
-                  The Super Admin system role cannot be edited.
-                </p>
+                <p className="text-danger font-medium">This system role cannot be edited.</p>
                 <button
                   onClick={() => router.push('/roles')}
                   className="mt-4 text-primary hover:underline"

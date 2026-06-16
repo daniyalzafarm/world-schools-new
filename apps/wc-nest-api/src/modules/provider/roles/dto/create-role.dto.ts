@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator'
+import { IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator'
 
 export class CreateProviderRoleDto {
   @ApiProperty({
@@ -19,4 +19,14 @@ export class CreateProviderRoleDto {
   @IsString({ each: true })
   @IsOptional()
   permissionIds?: string[]
+
+  @ApiProperty({
+    description:
+      'Create an admin role with full access. When true, all provider-context permissions are assigned and permissionIds is ignored.',
+    example: false,
+    required: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isAdmin?: boolean
 }

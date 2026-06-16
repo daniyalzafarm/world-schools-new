@@ -58,14 +58,14 @@ export default function RolesPage() {
   }
 
   const handleEditRole = (role: Role) => {
-    if (role.name === 'Super Admin' && role.isSystemRole) {
+    if (role.isSystemRole) {
       return
     }
     router.push(`/roles/${role.id}/edit`)
   }
 
   const handleDeleteRole = async (role: Role) => {
-    if (role.name === 'Super Admin' && role.isSystemRole) {
+    if (role.isSystemRole) {
       return
     }
     const confirmed = await confirm({
@@ -81,7 +81,7 @@ export default function RolesPage() {
   }
 
   const isSystemRoleNonEditable = (role: Role) => {
-    return role.name === 'Super Admin' && role.isSystemRole
+    return role.isSystemRole
   }
 
   const formatDate = (dateString: string) => {

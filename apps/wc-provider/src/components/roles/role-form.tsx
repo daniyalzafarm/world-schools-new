@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Alert, Button, Checkbox, Input } from '@heroui/react'
+import { Alert, Button, Checkbox } from '@heroui/react'
+import { Input } from '@world-schools/ui-web'
 import { AlertTriangle } from 'lucide-react'
 import type { CreateRoleData, Role } from '@/types/roles'
 import { getPermissions, type PermissionGroup } from '@/services/permissions.services'
+import { getRoles } from '@/services/roles.services'
 import {
   getGroupKeyForPermission,
   getNavigationPermission,
@@ -40,6 +42,8 @@ export function RoleForm({
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([])
   const [isLoadingPermissions, setIsLoadingPermissions] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [adminRoleExists, setAdminRoleExists] = useState(false)
 
   // Fetch permissions on mount
   useEffect(() => {
@@ -59,6 +63,26 @@ export function RoleForm({
 
     void fetchPermissionsData()
   }, [])
+
+  // In create mode, hide the Admin preset if the provider already has an Admin role
+  useEffect(() => {
+    if (isEdit) {
+      return
+    }
+
+    const checkAdminRoleExists = async () => {
+      try {
+        const result = await getRoles({ search: 'Admin' })
+        if (result.success && result.data) {
+          setAdminRoleExists(result.data.some(r => r.name === 'Admin' && r.isSystemRole))
+        }
+      } catch (error) {
+        console.error('Failed to check for existing Admin role:', error)
+      }
+    }
+
+    void checkAdminRoleExists()
+  }, [isEdit])
 
   useEffect(() => {
     if (role && isEdit) {
@@ -211,7 +235,21 @@ export function RoleForm({
     return navigationErrors[groupKey] || null
   }
 
+  const handleAdminToggle = (checked: boolean) => {
+    setIsAdmin(checked)
+    if (errors.name) {
+      setErrors(prev => ({ ...prev, name: '' }))
+    }
+  }
+
   const handleSubmit = async () => {
+    // Admin preset: name and permissions are fixed server-side — the backend names it "Admin"
+    // and assigns all provider permissions.
+    if (isAdmin) {
+      await onSubmit({ name: 'Admin', isAdmin: true })
+      return
+    }
+
     if (!validateForm()) {
       return
     }
@@ -220,130 +258,149 @@ export function RoleForm({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-4">
+      {/* Admin role preset (create mode only, and only if no Admin role exists yet) */}
+      {!isEdit && !adminRoleExists && (
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <Checkbox isSelected={isAdmin} onValueChange={handleAdminToggle}>
+            <span className="font-medium">Create an Admin role</span>
+          </Checkbox>
+          <p className="ml-7 mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Creates a role named &quot;Admin&quot; with full access to all provider features.
+            Permissions are assigned automatically.
+          </p>
+        </div>
+      )}
+
       {/* Role Name */}
-      <div>
-        <Input
-          label="Role Name"
-          labelPlacement="outside"
-          placeholder="Enter role name"
-          value={formData.name}
-          onChange={e => {
-            setFormData(prev => ({ ...prev, name: e.target.value }))
-            if (errors.name) {
-              setErrors(prev => ({ ...prev, name: '' }))
-            }
-          }}
-          isInvalid={!!errors.name}
-          errorMessage={errors.name}
-          isRequired
-        />
-      </div>
+      {!isAdmin && (
+        <div>
+          <Input
+            label="Role Name"
+            labelPlacement="outside"
+            placeholder="Enter role name"
+            value={formData.name}
+            onChange={e => {
+              setFormData(prev => ({ ...prev, name: e.target.value }))
+              if (errors.name) {
+                setErrors(prev => ({ ...prev, name: '' }))
+              }
+            }}
+            isInvalid={!!errors.name}
+            errorMessage={errors.name}
+            isRequired
+          />
+        </div>
+      )}
 
       {/* Permissions */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Permissions</h3>
-        {errors.permissions && <p className="text-danger text-sm mb-4">{errors.permissions}</p>}
-        {errors.navigationPermissions && (
-          <Alert variant="bordered" color="danger" className="mb-4 text-xs sm:text-sm">
-            <div className="flex items-start gap-2">
-              <span className="text-danger font-semibold">⚠️ Navigation Permission Required</span>
-            </div>
-            <p className="mt-2 text-danger-700 dark:text-danger-300">
-              {errors.navigationPermissions}
-            </p>
-          </Alert>
-        )}
-        {isLoadingPermissions ? (
-          <p className="text-sm text-gray-500">Loading permissions...</p>
-        ) : (
-          <div className="space-y-4">
-            {permissionGroups.map(group => {
-              const hasNavPermissions = hasNavigationPermissions(group)
-              const groupKey = group.name.toLowerCase().replace(/\s+/g, '_')
-              const _navPermission = getNavigationPermission(groupKey)
-              const navError = getNavigationError(group)
+      {!isAdmin && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Permissions</h3>
+          {errors.permissions && <p className="text-danger text-sm mb-4">{errors.permissions}</p>}
+          {errors.navigationPermissions && (
+            <Alert variant="bordered" color="danger" className="mb-4 text-xs sm:text-sm">
+              <div className="flex items-start gap-2">
+                <span className="text-danger font-semibold">⚠️ Navigation Permission Required</span>
+              </div>
+              <p className="mt-2 text-danger-700 dark:text-danger-300">
+                {errors.navigationPermissions}
+              </p>
+            </Alert>
+          )}
+          {isLoadingPermissions ? (
+            <p className="text-sm text-gray-500">Loading permissions...</p>
+          ) : (
+            <div className="space-y-4">
+              {permissionGroups.map(group => {
+                const hasNavPermissions = hasNavigationPermissions(group)
+                const groupKey = group.name.toLowerCase().replace(/\s+/g, '_')
+                const _navPermission = getNavigationPermission(groupKey)
+                const navError = getNavigationError(group)
 
-              return (
-                <div
-                  key={group.name}
-                  className={`border rounded-lg p-4 ${
-                    navError
-                      ? 'border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-950/20'
-                      : 'border-gray-200 dark:border-gray-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <Checkbox
-                      isSelected={isGroupSelected(group)}
-                      isIndeterminate={isGroupIndeterminate(group)}
-                      onValueChange={checked => handleGroupCheckboxChange(group, checked)}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span
-                          className={`font-semibold ${
-                            navError
-                              ? 'text-danger-600 dark:text-danger-400'
-                              : hasNavPermissions
-                                ? 'text-green-600 dark:text-green-400'
-                                : 'text-gray-900 dark:text-white'
-                          }`}
-                        >
-                          {group.name}
-                        </span>
-                        {navError && (
-                          <AlertTriangle
-                            size={16}
-                            className="text-danger-600 dark:text-danger-400"
-                          />
-                        )}
-                      </span>
-                    </Checkbox>
-                    {hasNavPermissions && !navError && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                        ✓ Navigation
-                      </span>
-                    )}
-                    {navError && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-danger-100 text-danger-800 dark:bg-danger-900 dark:text-danger-200">
-                        ⚠ Missing Navigation
-                      </span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 ml-6">
-                    {group.permissions.map(permission => {
-                      const isNavPermission = isNavigationPermission(permission.id)
-
-                      return (
-                        <Checkbox
-                          key={permission.id}
-                          isSelected={selectedPermissions.has(permission.id)}
-                          onValueChange={checked => handlePermissionChange(permission.id, checked)}
-                          size="sm"
-                          classNames={{
-                            label: isNavPermission
-                              ? 'text-gray-900 dark:text-white font-medium'
-                              : 'text-gray-700 dark:text-gray-300',
-                          }}
-                        >
-                          <span className="flex items-center gap-2">
-                            {permission.name}
-                            {isNavPermission && (
-                              <span className="text-xs text-blue-600 dark:text-blue-400">
-                                (Navigation)
-                              </span>
-                            )}
+                return (
+                  <div
+                    key={group.name}
+                    className={`border rounded-lg p-4 ${
+                      navError
+                        ? 'border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-950/20'
+                        : 'border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <Checkbox
+                        isSelected={isGroupSelected(group)}
+                        isIndeterminate={isGroupIndeterminate(group)}
+                        onValueChange={checked => handleGroupCheckboxChange(group, checked)}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span
+                            className={`font-semibold ${
+                              navError
+                                ? 'text-danger-600 dark:text-danger-400'
+                                : hasNavPermissions
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : 'text-gray-900 dark:text-white'
+                            }`}
+                          >
+                            {group.name}
                           </span>
-                        </Checkbox>
-                      )
-                    })}
+                          {navError && (
+                            <AlertTriangle
+                              size={16}
+                              className="text-danger-600 dark:text-danger-400"
+                            />
+                          )}
+                        </span>
+                      </Checkbox>
+                      {hasNavPermissions && !navError && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                          ✓ Navigation
+                        </span>
+                      )}
+                      {navError && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-danger-100 text-danger-800 dark:bg-danger-900 dark:text-danger-200">
+                          ⚠ Missing Navigation
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 ml-6">
+                      {group.permissions.map(permission => {
+                        const isNavPermission = isNavigationPermission(permission.id)
+
+                        return (
+                          <Checkbox
+                            key={permission.id}
+                            isSelected={selectedPermissions.has(permission.id)}
+                            onValueChange={checked =>
+                              handlePermissionChange(permission.id, checked)
+                            }
+                            size="sm"
+                            classNames={{
+                              label: isNavPermission
+                                ? 'text-gray-900 dark:text-white font-medium'
+                                : 'text-gray-700 dark:text-gray-300',
+                            }}
+                          >
+                            <span className="flex items-center gap-2">
+                              {permission.name}
+                              {isNavPermission && (
+                                <span className="text-xs text-blue-600 dark:text-blue-400">
+                                  (Navigation)
+                                </span>
+                              )}
+                            </span>
+                          </Checkbox>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Error Messages */}
       {storeError && (

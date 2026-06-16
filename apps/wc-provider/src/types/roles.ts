@@ -29,6 +29,8 @@ export interface RolePermission {
 export interface CreateRoleData {
   name: string
   permissionIds?: string[]
+  /** When true, the backend assigns all provider-context permissions (admin role). */
+  isAdmin?: boolean
 }
 
 export interface UpdateRoleData {
