@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import type { Conversation } from '@world-schools/ui-web'
-import { conversationsService } from '@/stores/messaging-store'
+import { useMessagingStore } from '@/stores/messaging-store'
 
 interface ConversationStore {
   // User conversations
@@ -18,10 +18,8 @@ interface ConversationStore {
   toggleArchive: (conversationIds: string[]) => Promise<void>
   toggleFavorite: (conversationIds: string[]) => Promise<void>
   toggleMute: (conversationIds: string[]) => Promise<void>
-  markAsUnread: (conversationIds: string[]) => void
-  markAsRead: (conversationId: string) => void
-  deleteConversations: (conversationIds: string[]) => void
-  blockConversations: (conversationIds: string[]) => void
+  markAsUnread: (conversationIds: string[]) => Promise<void>
+  markAsRead: (conversationId: string) => Promise<void>
 }
 
 export const useConversationStore = create<ConversationStore>((set, get) => ({
@@ -38,151 +36,77 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
   },
 
   // Actions
+  // Flag toggles delegate to the messaging store, the single source of truth
+  // the sidebar derives from. It updates the current user's participant
+  // optimistically, persists, and rolls back on failure — so the change is not
+  // clobbered when the conversation list re-maps on the next store update.
   togglePin: async conversationIds => {
-    const prev = get().userConversations
-
-    set(state => ({
-      userConversations: state.userConversations.map(conv =>
-        conversationIds.includes(conv.id)
-          ? { ...conv, pinned: !conv.pinned, pinnedAt: !conv.pinned ? Date.now() : undefined }
-          : conv
-      ),
-    }))
-
     for (const id of conversationIds) {
       const conv = get().userConversations.find(c => c.id === id)
       try {
-        const result = await conversationsService.updateConversationSettings(id, {
-          conversationId: id,
-          userId: '',
-          pinned: conv?.pinned,
-        })
-        if (!result.success)
-          throw new Error(
-            (result.data as { message?: string })?.message ?? 'Failed to pin conversation'
-          )
+        await useMessagingStore.getState().setConversationFlags(id, { pinned: !conv?.pinned })
         set(state => ({ actionError: { ...state.actionError, [id]: null } }))
       } catch (err) {
-        set({ userConversations: prev, actionError: { ...get().actionError, [id]: String(err) } })
-        return
+        set(state => ({ actionError: { ...get().actionError, [id]: String(err) } }))
       }
     }
   },
 
   toggleArchive: async conversationIds => {
-    const prev = get().userConversations
-
-    set(state => ({
-      userConversations: state.userConversations.map(conv =>
-        conversationIds.includes(conv.id) ? { ...conv, archived: !conv.archived } : conv
-      ),
-    }))
-
     for (const id of conversationIds) {
       const conv = get().userConversations.find(c => c.id === id)
       try {
-        const result = await conversationsService.updateConversationSettings(id, {
-          conversationId: id,
-          userId: '',
-          archived: conv?.archived,
-        })
-        if (!result.success)
-          throw new Error(
-            (result.data as { message?: string })?.message ?? 'Failed to archive conversation'
-          )
+        await useMessagingStore.getState().setConversationFlags(id, { archived: !conv?.archived })
         set(state => ({ actionError: { ...state.actionError, [id]: null } }))
       } catch (err) {
-        set({ userConversations: prev, actionError: { ...get().actionError, [id]: String(err) } })
-        return
+        set(state => ({ actionError: { ...get().actionError, [id]: String(err) } }))
       }
     }
   },
 
   toggleFavorite: async conversationIds => {
-    const prev = get().userConversations
-
-    set(state => ({
-      userConversations: state.userConversations.map(conv =>
-        conversationIds.includes(conv.id) ? { ...conv, starred: !conv.starred } : conv
-      ),
-    }))
-
     for (const id of conversationIds) {
       const conv = get().userConversations.find(c => c.id === id)
       try {
-        const result = await conversationsService.updateConversationSettings(id, {
-          conversationId: id,
-          userId: '',
-          starred: conv?.starred,
-        })
-        if (!result.success)
-          throw new Error(
-            (result.data as { message?: string })?.message ?? 'Failed to update favorite'
-          )
+        await useMessagingStore.getState().setConversationFlags(id, { starred: !conv?.starred })
         set(state => ({ actionError: { ...state.actionError, [id]: null } }))
       } catch (err) {
-        set({ userConversations: prev, actionError: { ...get().actionError, [id]: String(err) } })
-        return
+        set(state => ({ actionError: { ...get().actionError, [id]: String(err) } }))
       }
     }
   },
 
   toggleMute: async conversationIds => {
-    const prev = get().userConversations
-
-    set(state => ({
-      userConversations: state.userConversations.map(conv =>
-        conversationIds.includes(conv.id) ? { ...conv, muted: !conv.muted } : conv
-      ),
-    }))
-
     for (const id of conversationIds) {
       const conv = get().userConversations.find(c => c.id === id)
       try {
-        const result = await conversationsService.updateConversationSettings(id, {
-          conversationId: id,
-          userId: '',
-          muted: conv?.muted,
-        })
-        if (!result.success)
-          throw new Error(
-            (result.data as { message?: string })?.message ?? 'Failed to mute conversation'
-          )
+        await useMessagingStore.getState().setConversationFlags(id, { muted: !conv?.muted })
         set(state => ({ actionError: { ...state.actionError, [id]: null } }))
       } catch (err) {
-        set({ userConversations: prev, actionError: { ...get().actionError, [id]: String(err) } })
-        return
+        set(state => ({ actionError: { ...get().actionError, [id]: String(err) } }))
       }
     }
   },
 
-  markAsUnread: conversationIds => {
-    set(state => ({
-      userConversations: state.userConversations.map(conv =>
-        conversationIds.includes(conv.id) ? { ...conv, unread: true } : conv
-      ),
-    }))
+  // Mark-as-unread/read persist through the messaging store (single source of
+  // truth), so they survive the sidebar re-map and a reload.
+  markAsUnread: async conversationIds => {
+    for (const id of conversationIds) {
+      try {
+        await useMessagingStore.getState().markConversationUnread(id)
+        set(state => ({ actionError: { ...state.actionError, [id]: null } }))
+      } catch (err) {
+        set(state => ({ actionError: { ...get().actionError, [id]: String(err) } }))
+      }
+    }
   },
 
-  markAsRead: conversationId => {
-    set(state => ({
-      userConversations: state.userConversations.map(conv =>
-        conv.id === conversationId ? { ...conv, unread: false, unreadCount: 0 } : conv
-      ),
-    }))
-  },
-
-  deleteConversations: conversationIds => {
-    set(state => ({
-      userConversations: state.userConversations.filter(conv => !conversationIds.includes(conv.id)),
-    }))
-  },
-
-  blockConversations: conversationIds => {
-    set(state => ({
-      userConversations: state.userConversations.map(conv =>
-        conversationIds.includes(conv.id) ? { ...conv, blocked: !conv.blocked } : conv
-      ),
-    }))
+  markAsRead: async conversationId => {
+    try {
+      await useMessagingStore.getState().markConversationRead(conversationId)
+      set(state => ({ actionError: { ...state.actionError, [conversationId]: null } }))
+    } catch (err) {
+      set(state => ({ actionError: { ...get().actionError, [conversationId]: String(err) } }))
+    }
   },
 }))

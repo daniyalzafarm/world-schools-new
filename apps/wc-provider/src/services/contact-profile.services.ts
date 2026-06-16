@@ -6,13 +6,13 @@ import apiClient from '@/utils/api-client'
  * `ProviderContactProfile` (provider-contact-profile.service.ts) — keep in sync.
  */
 export interface ProviderContactProfile {
-  inquirySummary: string | null
   campName: string | null
   isReturning: boolean
   user: {
     firstName: string | null
     lastName: string | null
     profilePhotoUrl: string | null
+    bio: string | null
     city: string | null
     /** ISO 3166-1 alpha-2 country code. */
     country: string | null

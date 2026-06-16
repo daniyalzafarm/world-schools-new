@@ -57,6 +57,32 @@ import { messageQueue } from '../message-queue'
 import type { MessagingStore } from './types'
 
 /**
+ * Add `delta` to the viewer's per-conversation unread count, creating the
+ * viewer's participant entry when it is missing.
+ *
+ * Provider-org viewers have no real `ConversationParticipant` row until they
+ * first reply, and a conversation that arrived via `conversation:new` carries no
+ * viewer-scoped virtual participant — so the per-conversation badge (read from
+ * the viewer's own participant) would otherwise never update in real time. The
+ * synthesized entry mirrors the backend virtual participant shape and is local
+ * only; the next `fetchConversations` replaces it with the server-computed value.
+ */
+export function addViewerUnread(
+  conversation: ConversationResponseDto,
+  currentUserId: string,
+  delta: number
+): void {
+  if (!conversation.participants) conversation.participants = []
+  let participant = conversation.participants.find(p => p.userId === currentUserId)
+  if (!participant) {
+    const providerId = (conversation.metadata as { providerId?: string } | null)?.providerId ?? null
+    participant = { userId: currentUserId, providerId, unreadCount: 0 } as any
+    conversation.participants.push(participant!)
+  }
+  participant!.unreadCount = (participant!.unreadCount ?? 0) + delta
+}
+
+/**
  * Configuration options for creating a messaging store instance
  */
 export interface MessagingStoreConfig {
@@ -501,13 +527,32 @@ export function createMessagingStore(config: MessagingStoreConfig) {
                 log('Received conversation:new via global WebSocket:', data.conversation?.id)
                 if (!data.conversation?.id) return
 
+                const currentUserId = getCurrentUserId?.() ?? null
+                const { activeConversationId } = get()
+
                 set(draft => {
                   // Deduplicate: only add if not already in the list
                   const exists = draft.conversations.some(c => c.id === data.conversation.id)
-                  if (!exists) {
-                    // Prepend so the new conversation appears at the top
-                    draft.conversations.unshift(data.conversation)
-                    log('Added new conversation to list:', data.conversation.id)
+                  if (exists) return
+
+                  // Prepend so the new conversation appears at the top
+                  draft.conversations.unshift(data.conversation)
+                  log('Added new conversation to list:', data.conversation.id)
+
+                  // Seed the unread badge for an incoming new conversation. The
+                  // inline initial message emits no `message:new`, so the
+                  // increment handler never fires for it — derive the badge from
+                  // the conversation's lastMessage instead.
+                  const conv = draft.conversations[0]
+                  const lastSenderId = (conv.lastMessage as { senderId?: string } | undefined)
+                    ?.senderId
+                  if (
+                    currentUserId &&
+                    conv.id !== activeConversationId &&
+                    lastSenderId &&
+                    lastSenderId !== currentUserId
+                  ) {
+                    addViewerUnread(conv, currentUserId, 1)
                   }
                 })
               }
@@ -536,7 +581,17 @@ export function createMessagingStore(config: MessagingStoreConfig) {
                 const { activeConversationId } = get()
                 const { conversationId, senderId, id: messageId } = data.message
 
-                // Only update unread count for incoming messages on non-active conversations
+                // Always bump conversation recency + last-message preview so the
+                // list reorders to the top for BOTH sent and received messages
+                // (the sidebar sorts by lastActivityAt). Idempotent on re-delivery.
+                set(draft => {
+                  const conversation = draft.conversations.find(c => c.id === conversationId)
+                  if (!conversation) return
+                  conversation.lastMessage = data.message as any
+                  conversation.lastActivityAt = data.message.sentAt as any
+                })
+
+                // Unread count only for incoming messages on non-active conversations.
                 if (
                   !currentUserId ||
                   senderId === currentUserId ||
@@ -566,17 +621,9 @@ export function createMessagingStore(config: MessagingStoreConfig) {
                   const conversation = draft.conversations.find(c => c.id === conversationId)
                   if (!conversation) return
 
-                  // Update last message preview in the sidebar
-                  conversation.lastMessage = data.message as any
-                  conversation.lastActivityAt = data.message.sentAt as any
-
                   // Increment unreadCount for the current user's participant
-                  const participant = conversation.participants?.find(
-                    p => p.userId === currentUserId
-                  )
-                  if (participant) {
-                    participant.unreadCount = (participant.unreadCount ?? 0) + 1
-                  }
+                  // (find-or-create — provider-org viewers have no real row).
+                  addViewerUnread(conversation, currentUserId, 1)
                 })
               }
             )
@@ -829,8 +876,10 @@ export function createMessagingStore(config: MessagingStoreConfig) {
               const conversation = draft.conversations.find(c => c.id === conversationId)
               if (conversation) {
                 const participant = conversation.participants?.find(p => p.userId === currentUserId)
-                if (participant && (participant.unreadCount ?? 0) > 0) {
+                if (participant) {
                   participant.unreadCount = 0
+                  // Opening clears a manual "mark as unread" too.
+                  ;(participant as any).manuallyUnread = false
                 }
               }
             })
@@ -856,6 +905,100 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             Object.assign(conversation, updates)
           }
         })
+      },
+
+      setConversationFlags: async (conversationId, flags) => {
+        const currentUserId = getCurrentUserId?.() ?? null
+        if (!currentUserId) return
+
+        // Optimistically update the current user's participant — the source the
+        // sidebar derives pin/star/mute/archive from — snapshotting for rollback.
+        const snapshot: Record<string, boolean | undefined> = {}
+        set(draft => {
+          const participant = draft.conversations
+            .find(c => c.id === conversationId)
+            ?.participants?.find(p => p.userId === currentUserId)
+          if (!participant) return
+          for (const key of Object.keys(flags)) {
+            snapshot[key] = (participant as any)[key]
+            ;(participant as any)[key] = (flags as any)[key]
+          }
+        })
+
+        try {
+          const res = await conversationsService.updateConversationSettings(conversationId, {
+            conversationId,
+            userId: currentUserId,
+            ...flags,
+          })
+          if (!res.success) {
+            throw new Error(
+              (res.data as { message?: string })?.message ?? 'Failed to update conversation'
+            )
+          }
+        } catch (error) {
+          // Roll the optimistic change back to the snapshotted values.
+          set(draft => {
+            const participant = draft.conversations
+              .find(c => c.id === conversationId)
+              ?.participants?.find(p => p.userId === currentUserId)
+            if (!participant) return
+            for (const key of Object.keys(snapshot)) {
+              ;(participant as any)[key] = snapshot[key]
+            }
+          })
+          throw error
+        }
+      },
+
+      markConversationUnread: async conversationId => {
+        const currentUserId = getCurrentUserId?.() ?? null
+        if (!currentUserId) return
+
+        // Optimistically flag the current user's participant as manually unread.
+        set(draft => {
+          const participant = draft.conversations
+            .find(c => c.id === conversationId)
+            ?.participants?.find(p => p.userId === currentUserId)
+          if (participant) (participant as any).manuallyUnread = true
+        })
+
+        try {
+          const res = await conversationsService.markConversationUnread(conversationId)
+          if (!res.success) {
+            throw new Error(
+              (res.data as { message?: string })?.message ?? 'Failed to mark conversation unread'
+            )
+          }
+        } catch (error) {
+          set(draft => {
+            const participant = draft.conversations
+              .find(c => c.id === conversationId)
+              ?.participants?.find(p => p.userId === currentUserId)
+            if (participant) (participant as any).manuallyUnread = false
+          })
+          throw error
+        }
+      },
+
+      markConversationRead: async conversationId => {
+        const currentUserId = getCurrentUserId?.() ?? null
+        if (!currentUserId) return
+
+        // Optimistically clear unread state for the current user's participant.
+        set(draft => {
+          const participant = draft.conversations
+            .find(c => c.id === conversationId)
+            ?.participants?.find(p => p.userId === currentUserId)
+          if (participant) {
+            participant.unreadCount = 0
+            ;(participant as any).manuallyUnread = false
+          }
+        })
+
+        // Persist via the existing mark-read endpoint. A failure self-corrects on
+        // the next fetch, so we don't roll the optimistic clear back.
+        await conversationsService.markAllAsRead(conversationId)
       },
 
       setDraftConversation: metadata => {
@@ -1045,6 +1188,16 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             optimisticMessage as unknown as MessageResponseDto
           )
           draft.pendingMessages.push(optimisticMessage)
+
+          // Bump conversation recency so the conversation reorders to the top of
+          // the list immediately on send (the sidebar sorts by lastActivityAt).
+          // The sender does not always receive their own message:new echo, so we
+          // cannot rely on it; the server reconciles on the next fetch.
+          const conversation = draft.conversations.find(c => c.id === dto.conversationId)
+          if (conversation) {
+            conversation.lastMessage = optimisticMessage as unknown as MessageResponseDto
+            conversation.lastActivityAt = optimisticMessage.sentAt as any
+          }
         })
 
         try {

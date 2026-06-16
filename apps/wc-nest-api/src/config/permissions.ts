@@ -107,6 +107,14 @@ const bookingsPermissions: PermissionGroup = {
   ],
 }
 
+const messagesPermissions: PermissionGroup = {
+  name: 'Messaging',
+  permissions: [
+    { id: 'messages.read', name: 'View and receive messages' },
+    { id: 'messages.write', name: 'Send and reply to messages' },
+  ],
+}
+
 const kbCategoriesPermissions: PermissionGroup = {
   name: 'Knowledge Base Categories',
   permissions: [
@@ -205,6 +213,7 @@ export const superadminContext: PermissionContext = {
     disputesPermissions,
     analyticsPermissions,
     financialPermissions,
+    messagesPermissions,
   ],
 }
 
@@ -216,6 +225,7 @@ export const providerContext: PermissionContext = {
     campsPermissions,
     addonsPermissions,
     bookingsPermissions,
+    messagesPermissions,
   ],
 }
 

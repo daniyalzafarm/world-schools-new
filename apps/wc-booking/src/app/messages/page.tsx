@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   addToast,
-  Avatar,
   Button,
   Checkbox,
   Dropdown,
@@ -24,6 +23,7 @@ import {
   MessageThread,
   type ReportReason,
   Textarea,
+  UserAvatar,
 } from '@world-schools/ui-web'
 import { ChevronLeft, MessageSquare, MoreVertical, PanelRight, Users } from 'lucide-react'
 import { useMessagingStore } from '@/stores/messaging-store'
@@ -35,6 +35,7 @@ import { PresenceIndicator } from '@/components/messages/PresenceIndicator'
 
 import { useTypingIndicator } from '@/hooks/useTypingIndicator'
 import {
+  ContextType,
   type EnhancedMessage,
   EnhancedMessageBubble,
   type MessageResponseDto,
@@ -173,18 +174,33 @@ export default function MessagesPage() {
   // open that existing thread instead of the empty "Select a conversation" /
   // compose state. Resolves as soon as conversations are loaded.
   useEffect(() => {
-    const providerId = draftConversation?.providerId
-    if (!providerId) return
+    if (!draftConversation?.providerId) return
+    const { providerId, contextType, contextId } = draftConversation
+    // Match the same key the backend dedups by — provider AND camp context —
+    // so a draft for a different camp from the same provider doesn't reopen the
+    // old camp's thread. Mirror the backend normalization: missing contextType
+    // → GENERAL, missing contextId → null.
+    const draftContextType = contextType ?? ContextType.GENERAL
+    const draftContextId = contextId ?? null
     const existing = conversations.find(
       c =>
         c.type === 'USER_PROVIDER' &&
-        (c.metadata as { providerId?: string } | null)?.providerId === providerId
+        (c.metadata as { providerId?: string } | null)?.providerId === providerId &&
+        (c.contextType ?? ContextType.GENERAL) === draftContextType &&
+        (c.contextId ?? null) === draftContextId
     )
     if (existing) {
       setActiveConversation(existing.id)
       clearDraftConversation()
     }
-  }, [draftConversation?.providerId, conversations, setActiveConversation, clearDraftConversation])
+  }, [
+    draftConversation?.providerId,
+    draftConversation?.contextType,
+    draftConversation?.contextId,
+    conversations,
+    setActiveConversation,
+    clearDraftConversation,
+  ])
 
   // Convert MessageResponseDto to EnhancedMessage type
   const convertToEnhancedMessage = (msg: MessageResponseDto): EnhancedMessage => {
@@ -197,6 +213,13 @@ export default function MessagesPage() {
       isTransferRequest: msg.type === 'TRANSFER_REQUEST',
       isTransferSummary: msg.type === 'TRANSFER_SUMMARY',
       isChatbot: msg.senderType === 'CHATBOT',
+      // Show the camp staff member's name on provider messages (the header shows
+      // the camp). First name shows by default; the last name slides in on hover.
+      // The parent's own messages carry no name label.
+      senderFirstName:
+        msg.senderType === 'PROVIDER' ? (msg.sender?.firstName ?? undefined) : undefined,
+      senderLastName:
+        msg.senderType === 'PROVIDER' ? (msg.sender?.lastName ?? undefined) : undefined,
       deliveredAt: msg.deliveredAt,
       readAt: msg.readAt,
       attachments: msg.attachments ?? null,
@@ -449,9 +472,11 @@ export default function MessagesPage() {
               <ChevronLeft size={20} />
             </Button>
             <div className="relative">
-              <Avatar
-                name={draftConversation.contextName || draftConversation.providerName}
-                size="md"
+              <UserAvatar
+                photoUrl={draftConversation.contextImageUrl}
+                fullName={draftConversation.contextName || draftConversation.providerName}
+                variant="flat"
+                className="w-10 h-10 text-base"
               />
             </div>
             <div>
@@ -527,7 +552,12 @@ export default function MessagesPage() {
               aria-label={isSuperadminConversation ? undefined : 'Open camp info'}
             >
               <div className="relative">
-                <Avatar src={avatarSrc} name={name} size="md" />
+                <UserAvatar
+                  photoUrl={avatarSrc}
+                  fullName={name}
+                  variant="flat"
+                  className="w-10 h-10 text-base"
+                />
                 {/* Presence indicator */}
                 <PresenceIndicator status={presenceStatus} position="bottom-right" />
               </div>

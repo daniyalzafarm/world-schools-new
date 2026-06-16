@@ -223,6 +223,7 @@ export function CampSidebar({
       contextType: ContextType.CAMP,
       contextId: camp.id,
       contextName: camp.name,
+      contextImageUrl: camp.photos?.find(p => p.isPrimary)?.url ?? camp.photos?.[0]?.url,
     })
     router.push('/messages')
   }

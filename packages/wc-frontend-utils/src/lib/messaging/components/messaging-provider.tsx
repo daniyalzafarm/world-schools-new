@@ -12,6 +12,7 @@ interface MessagingStoreShape {
     participants?: Array<{
       userId?: string | null
       providerId?: string | null
+      muted?: boolean
       user?: { firstName?: string | null } | null
     }>
   }>
@@ -125,6 +126,13 @@ export function createMessagingProvider({
           const entries = Array.from(notifiedMessageIds.current)
           notifiedMessageIds.current = new Set(entries.slice(-50))
         }
+
+        // Respect mute: the message is recorded as "seen" above, but we skip the
+        // sound + banner when the current user muted this conversation. Because
+        // `conversations` is an effect dependency, the muted flag is read fresh,
+        // so muting/unmuting takes effect on the very next message.
+        const myParticipant = conversation.participants?.find(p => p.userId === user.id)
+        if (myParticipant?.muted) return
 
         const senderName =
           conversation.participants?.find(

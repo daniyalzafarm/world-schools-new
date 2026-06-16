@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import {
   addToast,
-  Avatar,
   Button,
   Checkbox,
   Dropdown,
@@ -23,6 +22,7 @@ import {
   MessageThread,
   type ReportReason,
   Textarea,
+  UserAvatar,
 } from '@world-schools/ui-web'
 import { ChevronLeft, MessageSquare, MoreVertical, PanelRight } from 'lucide-react'
 import { ProtectedRoute } from '@/components/auth/protected-route'
@@ -200,12 +200,24 @@ export default function MessagesPage() {
     return {
       id: msg.id,
       text: msg.content,
-      isUser: msg.senderId === user?.id && msg.senderType !== 'USER',
+      // The whole provider team is one side of the conversation: every
+      // provider-sent message is "ours" (right-aligned), not just the current
+      // user's — a colleague's reply shows as sent, attributed by name below.
+      // Only the parent's (USER) messages are incoming.
+      isUser: msg.senderType === 'PROVIDER',
       timestamp: msg.sentAt,
       status: msg.status as MessageStatus,
       isTransferRequest: msg.type === 'TRANSFER_REQUEST',
       isTransferSummary: msg.type === 'TRANSFER_SUMMARY',
       isChatbot: msg.senderType === 'CHATBOT',
+      // Attribute provider/staff messages to the staff member who sent them so a
+      // shared inbox shows who replied. First name shows by default; the last
+      // name slides in on hover. Parent messages carry no name label — the
+      // conversation header already identifies the parent.
+      senderFirstName:
+        msg.senderType === 'PROVIDER' ? (msg.sender?.firstName ?? undefined) : undefined,
+      senderLastName:
+        msg.senderType === 'PROVIDER' ? (msg.sender?.lastName ?? undefined) : undefined,
       deliveredAt: msg.deliveredAt,
       readAt: msg.readAt,
       attachments: msg.attachments ?? null,
@@ -428,7 +440,12 @@ export default function MessagesPage() {
             aria-label={isParentConversation ? 'Open contact profile' : undefined}
           >
             <div className="relative">
-              <Avatar src={avatarSrc} name={name} size="md" />
+              <UserAvatar
+                photoUrl={avatarSrc}
+                fullName={name}
+                className="w-10 h-10 text-base"
+                variant="flat"
+              />
               {/* Presence indicator */}
               <PresenceIndicator status={presenceStatus} position="bottom-right" />
             </div>
@@ -641,7 +658,11 @@ export default function MessagesPage() {
 
   // Full-screen layout with TopNav and MessagesSidebar
   return (
-    <ProtectedRoute requireAuth requireProviderRole>
+    <ProtectedRoute
+      requireAuth
+      requireProviderRole
+      requiredPermissions={['messages.read', 'messages.write']}
+    >
       <div className="flex flex-col h-full bg-white dark:bg-gray-900">
         {/* Messages Content Area */}
         <div className="flex flex-1 overflow-hidden">

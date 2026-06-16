@@ -1,5 +1,6 @@
 export { cn } from './cn'
 export { getInitials } from './initials'
+export { sortConversations } from './sort-conversations'
 export { mergeClassNames } from './merge-class-names'
 export { selectFieldClassNames, selectFieldPortalStyles } from './react-select-styles'
 export {

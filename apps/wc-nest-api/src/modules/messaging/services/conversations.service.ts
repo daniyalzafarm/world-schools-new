@@ -5,10 +5,13 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { NotificationType } from '@world-schools/wc-types'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { RedisService } from '../../redis/redis.service'
 import { RedisPubSubService } from './redis-pub-sub.service'
 import { ConfigService } from '../../../config/config.service'
+import { notify } from '../../notifications/dispatcher/notify'
 import { AzureStorageService } from '@world-schools/wc-utils/backend'
 import {
   ContextType,
@@ -27,6 +30,21 @@ import {
   UpdateConversationStatusDto,
 } from '../interfaces/conversation.interface'
 
+/**
+ * Stable uniqueness key for a USER_PROVIDER conversation: one thread per
+ * (parent user, provider, camp context). Persisted to `Conversation.dedupeKey`
+ * (unique index) so duplicate threads are rejected at the DB level, and used by
+ * the migration backfill so existing rows produce identical keys.
+ */
+export function buildProviderConversationKey(
+  userId: string,
+  providerId: string,
+  contextType?: ContextType | null,
+  contextId?: string | null
+): string {
+  return `${userId}:${providerId}:${contextType ?? ContextType.GENERAL}:${contextId ?? ''}`
+}
+
 @Injectable()
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name)
@@ -39,7 +57,8 @@ export class ConversationsService {
     private prisma: PrismaService,
     private redis: RedisService,
     private redisPubSub: RedisPubSubService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private eventEmitter: EventEmitter2
   ) {}
 
   /**
@@ -72,8 +91,17 @@ export class ConversationsService {
         ? ConversationType.USER_PROVIDER
         : ConversationType.USER_SUPERADMIN
 
-    // Check if conversation already exists
-    const existing = await this.findExistingConversation(userId, participantId, participantType)
+    // Check if conversation already exists.
+    // For provider conversations the uniqueness key includes the camp context
+    // (contextType/contextId), so a parent gets a separate thread per camp even
+    // when several camps belong to the same provider.
+    const existing = await this.findExistingConversation(
+      userId,
+      participantId,
+      participantType,
+      contextType,
+      contextId
+    )
 
     if (existing) {
       this.logger.log(`Found existing conversation: ${existing.id}`)
@@ -92,6 +120,13 @@ export class ConversationsService {
       }
     }
 
+    // Stable per-(parent, provider, camp) key persisted with a unique index so
+    // the DB rejects accidental duplicate threads even under a race.
+    const dedupeKey =
+      participantType === 'provider'
+        ? buildProviderConversationKey(userId, participantId, contextType, contextId)
+        : null
+
     // Create new conversation
     // For USER_PROVIDER: Only create user participant, provider sees via organization
     // For USER_SUPERADMIN: Create both user and superadmin participants
@@ -102,6 +137,7 @@ export class ConversationsService {
         status: ConversationStatus.OPEN,
         contextType: contextType || ContextType.GENERAL,
         contextId,
+        dedupeKey,
         // Store provider ID in metadata for provider conversations
         // This allows provider users to find conversations for their organization
         metadata:
@@ -161,6 +197,7 @@ export class ConversationsService {
     })
 
     // Update lastMessageId for the initial message (inline create bypasses sendMessage())
+    let initialMessageId: string | undefined
     if (initialMessage) {
       const initialMsg = await this.prisma.message.findFirst({
         where: { conversationId: conversation.id },
@@ -168,9 +205,12 @@ export class ConversationsService {
         select: { id: true },
       })
       if (initialMsg) {
+        initialMessageId = initialMsg.id
         await this.prisma.conversation.update({
           where: { id: conversation.id },
-          data: { lastMessageId: initialMsg.id },
+          // Bump lastActivityAt like sendMessage() does, so the conversation
+          // sorts by its first message (lastActivityAt is the recency field).
+          data: { lastMessageId: initialMsg.id, lastActivityAt: new Date() },
         })
       }
     }
@@ -213,6 +253,20 @@ export class ConversationsService {
       this.logger.log(
         `[Real-time] Published conversations:new event for conversation ${conversation.id}`
       )
+
+      // Notify the provider side about the parent's first message. The inline
+      // initial message bypasses MessagesService.sendMessage(), which is where
+      // the per-message notification normally fires — so dispatch it here. The
+      // conversation is unclaimed (assignedToId = null), so the
+      // providerMessagingRecipients resolver fans out to every provider user
+      // who holds the Messaging permission.
+      if (contextType !== ContextType.SUPPORT_TICKET && initialMessageId) {
+        notify(this.eventEmitter, NotificationType.ProviderMessagingNewFromFamily, {
+          conversationId: conversation.id,
+          messageId: initialMessageId,
+          providerId: participantId,
+        })
+      }
     } else {
       // Broadcast to all replicas to invalidate participants' cache
       await this.redisPubSub.publishMessage('cache:invalidate:conversations', {
@@ -291,7 +345,8 @@ export class ConversationsService {
       userId,
       ...(filter === 'archived' && { archived: true }),
       ...(filter === 'starred' && { starred: true }),
-      ...(filter === 'unread' && { unreadCount: { gt: 0 } }),
+      // Unread = real unread messages OR a manual "mark as unread".
+      ...(filter === 'unread' && { OR: [{ unreadCount: { gt: 0 } }, { manuallyUnread: true }] }),
     }
 
     if (filter !== 'archived') {
@@ -355,49 +410,6 @@ export class ConversationsService {
     }
 
     return where
-  }
-
-  /**
-   * Get the number of conversations where the current user personally has unread
-   * messages, excluding support tickets.
-   *
-   * - Regular users: query ConversationParticipant directly (their unread lives on
-   *   participant.unreadCount), so provider-org fallback can never inflate the count.
-   * - Provider users: they have no participant row, so count their organisation's
-   *   USER_PROVIDER conversations that contain at least one message not sent by and
-   *   not yet read by them — consistent with the per-conversation badges built from
-   *   read receipts in getConversations().
-   */
-  async getPersonalUnreadConversationsCount(userId: string): Promise<number> {
-    const providerId = await this.getProviderIdForUser(userId)
-
-    if (providerId) {
-      const unreadConversations = await this.prisma.message.groupBy({
-        by: ['conversationId'],
-        where: {
-          senderId: { not: userId },
-          readReceipts: { none: { userId } },
-          conversation: {
-            type: ConversationType.USER_PROVIDER,
-            metadata: { path: ['providerId'], equals: providerId },
-            NOT: { contextType: ContextType.SUPPORT_TICKET },
-          },
-        },
-        _count: { _all: true },
-      })
-      return unreadConversations.length
-    }
-
-    return this.prisma.conversationParticipant.count({
-      where: {
-        userId,
-        unreadCount: { gt: 0 },
-        archived: false,
-        conversation: {
-          NOT: { contextType: ContextType.SUPPORT_TICKET },
-        },
-      },
-    })
   }
 
   /**
@@ -703,7 +715,9 @@ export class ConversationsService {
           include: { label: true },
         },
       },
-      orderBy: { updatedAt: 'desc' },
+      // Order by last message/activity (not updatedAt — that bumps on any row
+      // change like assignment/status). createdAt breaks ties deterministically.
+      orderBy: [{ lastActivityAt: 'desc' }, { createdAt: 'desc' }],
       take: limit,
       skip: offset,
     })
@@ -773,6 +787,7 @@ export class ConversationsService {
             archivedAt: null,
             lastReadAt: null,
             unreadCount: providerId ? (providerUnreadMap.get(conv.id) ?? 0) : 0,
+            manuallyUnread: false,
             joinedAt: conv.createdAt,
             leftAt: null,
             isRateLimited: false,
@@ -829,10 +844,21 @@ export class ConversationsService {
       throw new NotFoundException('Conversation not found')
     }
 
-    // Verify user is a participant
+    // Verify access: a direct participant, or — for USER_PROVIDER threads — any
+    // member of the provider org. A parent-initiated thread has no provider
+    // participant row until the provider first replies, so org-level access must
+    // be honored here too, the same way ConversationAccessGuard and the messages
+    // service already do.
     const isParticipant = conversation.participants.some(p => p.userId === userId)
     if (!isParticipant) {
-      throw new ForbiddenException('You are not a participant in this conversation')
+      const providerMetadata = conversation.metadata as { providerId?: string } | null
+      const userProviderId =
+        conversation.type === ConversationType.USER_PROVIDER && providerMetadata?.providerId
+          ? await this.getProviderIdForUser(userId)
+          : null
+      if (!userProviderId || userProviderId !== providerMetadata?.providerId) {
+        throw new ForbiddenException('You are not a participant in this conversation')
+      }
     }
 
     // Resolve participant avatars (SAS URLs) so the chat header shows real photos.
@@ -868,6 +894,7 @@ export class ConversationsService {
           archivedAt: null,
           lastReadAt: null,
           unreadCount: 0,
+          manuallyUnread: false,
           joinedAt: conversation.createdAt,
           leftAt: null,
           isRateLimited: false,
@@ -948,9 +975,18 @@ export class ConversationsService {
    */
   async markAllAsRead(conversationId: string, userId: string) {
     let markedCount = 0
+    let changed = false
 
     await this.prisma.$transaction(async tx => {
-      // Step 1: find all messages the user hasn't read yet (excluding their own)
+      // Was the conversation manually marked unread? Opening it must clear that
+      // even when there are no unread messages to read.
+      const participant = await tx.conversationParticipant.findFirst({
+        where: { conversationId, userId },
+        select: { manuallyUnread: true },
+      })
+      const hadManualUnread = participant?.manuallyUnread ?? false
+
+      // Find all messages the user hasn't read yet (excluding their own).
       const unreadMessages = await tx.message.findMany({
         where: {
           conversationId,
@@ -960,29 +996,27 @@ export class ConversationsService {
         select: { id: true },
       })
 
-      if (unreadMessages.length === 0) return
+      if (unreadMessages.length > 0) {
+        // Create read receipts atomically.
+        await tx.messageReadReceipt.createMany({
+          data: unreadMessages.map(msg => ({ messageId: msg.id, userId })),
+          skipDuplicates: true,
+        })
+        markedCount = unreadMessages.length
+      }
 
-      // Step 2: create read receipts atomically
-      await tx.messageReadReceipt.createMany({
-        data: unreadMessages.map(msg => ({ messageId: msg.id, userId })),
-        skipDuplicates: true,
-      })
-
-      // Step 3: reset participant unread counter atomically.
-      // updateMany (not update) so this never throws for users without a
-      // participant row (e.g. provider users, who see conversations via their
-      // organization). Previously `update` threw NotFound and rolled back the
-      // read receipts created above, so a provider's read state never persisted
-      // and the conversation stayed "unread" after opening/replying.
+      // Always reset the participant's unread counter AND clear the manual-unread
+      // flag. updateMany (not update) so this never throws for users without a
+      // participant row (e.g. provider-org users who view via their organization).
       await tx.conversationParticipant.updateMany({
         where: { conversationId, userId },
-        data: { unreadCount: 0 },
+        data: { unreadCount: 0, manuallyUnread: false },
       })
 
-      markedCount = unreadMessages.length
+      changed = markedCount > 0 || hadManualUnread
     })
 
-    if (markedCount === 0) {
+    if (!changed) {
       return { markedAsRead: 0 }
     }
 
@@ -996,6 +1030,30 @@ export class ConversationsService {
     }
 
     return { markedAsRead: markedCount }
+  }
+
+  /**
+   * Mark a conversation as unread for a user (manual, WhatsApp-style). Sets the
+   * per-user `manuallyUnread` flag so the conversation shows as unread even with
+   * zero unread messages; cleared on open via markAllAsRead. No-ops for users
+   * without a participant row (updateMany matches zero rows).
+   */
+  async markConversationUnread(conversationId: string, userId: string) {
+    const { count } = await this.prisma.conversationParticipant.updateMany({
+      where: { conversationId, userId },
+      data: { manuallyUnread: true },
+    })
+
+    if (count > 0) {
+      try {
+        await this.invalidateConversationCache(userId)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        this.logger.warn(`Cache invalidation failed after markConversationUnread: ${msg}`)
+      }
+    }
+
+    return { manuallyUnread: count > 0 }
   }
 
   /**
@@ -1183,7 +1241,9 @@ export class ConversationsService {
   private async findExistingConversation(
     userId: string,
     participantId: string,
-    participantType: 'provider' | 'superadmin'
+    participantType: 'provider' | 'superadmin',
+    contextType?: ContextType,
+    contextId?: string
   ) {
     const type =
       participantType === 'provider'
@@ -1192,7 +1252,9 @@ export class ConversationsService {
 
     if (participantType === 'provider') {
       // For provider conversations: find by user participant + metadata.providerId
-      // The provider ID is stored in metadata to enable organization-level visibility
+      // + camp context. The provider ID is stored in metadata to enable
+      // organization-level visibility; contextType/contextId scope the thread to
+      // a single camp so the same provider's other camps get their own threads.
       const conversation = await this.prisma.conversation.findFirst({
         where: {
           type: ConversationType.USER_PROVIDER,
@@ -1203,6 +1265,8 @@ export class ConversationsService {
             path: ['providerId'],
             equals: participantId,
           },
+          contextType: contextType ?? ContextType.GENERAL,
+          contextId: contextId ?? null,
         },
         include: {
           participants: {

@@ -3,7 +3,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Button, Input, ScrollShadow } from '@heroui/react'
-import { cn, type Conversation, ConversationItem, type FilterType } from '@world-schools/ui-web'
+import {
+  cn,
+  type Conversation,
+  ConversationItem,
+  type FilterType,
+  sortConversations,
+} from '@world-schools/ui-web'
 import { AlertCircle, ChevronLeft, Search, X } from 'lucide-react'
 import { ArchivedChatsButton } from '@/components/messages/archived-chats-button'
 import { useConversationStore } from '@/stores/conversation-store'
@@ -40,8 +46,6 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
     toggleMute,
     markAsUnread,
     markAsRead,
-    deleteConversations,
-    blockConversations,
   } = useConversationStore()
 
   // Use messaging store for real data
@@ -77,6 +81,10 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
       id: conv.id,
       name: isSuperadmin ? 'World Camps Support' : userName,
       lastMessage: conv.lastMessage?.content || '',
+      // Threads are camp-specific — show the camp as "Asks about: <camp>" so the
+      // provider sees which camp each parent is asking about. Falls back to the
+      // last-message/active line when there's no camp context (e.g. support).
+      contextLabel: isSuperadmin ? undefined : (conv.campName ?? undefined),
       time: getTimestamp(conv.lastActivityAt),
       lastSeen: getTimestamp(conv.lastActivityAt),
       // Parent's profile photo (SAS-resolved); ConversationItem falls back to
@@ -87,8 +95,14 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
       starred: currentUserParticipant?.starred ?? false,
       archived: currentUserParticipant?.archived ?? false,
       muted: currentUserParticipant?.muted ?? false,
-      unread: (currentUserParticipant?.unreadCount ?? 0) > 0,
+      unread:
+        (currentUserParticipant?.unreadCount ?? 0) > 0 || !!currentUserParticipant?.manuallyUnread,
       unreadCount: currentUserParticipant?.unreadCount ?? 0,
+      // Per-user settings (pin/star/mute/archive) require a real participant
+      // row. A provider-org viewer who hasn't replied only has the synthetic
+      // "virtual-" participant, so the backend would reject those toggles.
+      canManageSettings:
+        !!currentUserParticipant && !currentUserParticipant.id.startsWith('virtual-'),
     }
   }
 
@@ -133,22 +147,9 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
       )
     }
 
-    // Sort: pinned conversations first (superadmin always at top), then by time
-    return filtered.sort((a, b) => {
-      // Superadmin conversation always first
-      if (a.id === 'superadmin') return -1
-      if (b.id === 'superadmin') return 1
-
-      // Then other pinned conversations
-      if (a.pinned && b.pinned) {
-        return (b.pinnedAt ?? 0) - (a.pinnedAt ?? 0)
-      }
-      if (a.pinned && !b.pinned) return -1
-      if (!a.pinned && b.pinned) return 1
-
-      // Finally by time
-      return b.time - a.time
-    })
+    // Shared world-class ordering: pinned group first, then most recent
+    // activity, stable on ties.
+    return sortConversations(filtered)
   }, [userConversations, activeFilter, searchQuery, isArchivedPage])
 
   // Count for different filter types and archived conversations
@@ -160,20 +161,15 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
   const archivedCount = userConversations.filter(conv => conv.archived).length
 
   // Handle conversation press
-  const handleConversationPress = useCallback(
-    (conversation: Conversation) => {
-      // Mark conversation as read
-      markAsRead(conversation.id)
-
-      // Dispatch conversation selection event
-      window.dispatchEvent(
-        new CustomEvent('selectConversation', {
-          detail: conversation,
-        })
-      )
-    },
-    [markAsRead]
-  )
+  const handleConversationPress = useCallback((conversation: Conversation) => {
+    // Read-marking happens in setActiveConversation when the conversation opens
+    // (optimistic clear + persist), so we don't duplicate it here.
+    window.dispatchEvent(
+      new CustomEvent('selectConversation', {
+        detail: conversation,
+      })
+    )
+  }, [])
 
   return (
     <>
@@ -410,10 +406,9 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
                               onPress={handleConversationPress}
                               onPin={id => togglePin([id])}
                               onArchive={id => toggleArchive([id])}
-                              onDelete={id => deleteConversations([id])}
                               onMute={id => toggleMute([id])}
                               onMarkAsUnread={id => markAsUnread([id])}
-                              onBlock={id => blockConversations([id])}
+                              onMarkAsRead={id => markAsRead(id)}
                               onToggleFavorite={id => toggleFavorite([id])}
                               showActions={!isSuperadmin} // Disable actions for superadmin conversation
                             />

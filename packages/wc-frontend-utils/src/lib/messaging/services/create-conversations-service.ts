@@ -82,8 +82,10 @@ export interface ConversationsService {
   deleteLabel: (id: string) => Promise<ApiResult<SuccessResponseDto>>
   archiveConversation: (id: string) => Promise<ApiResult<ConversationResponseDto>>
   unarchiveConversation: (id: string) => Promise<ApiResult<ConversationResponseDto>>
-  getUnreadCount: () => Promise<ApiResult<{ count: number }>>
   markAllAsRead: (conversationId: string) => Promise<ApiResult<{ markedAsRead: number }>>
+  markConversationUnread: (
+    conversationId: string
+  ) => Promise<ApiResult<{ manuallyUnread: boolean }>>
 }
 
 /**
@@ -247,10 +249,6 @@ export function createConversationsService(
     })
   }
 
-  const getUnreadCount = async () => {
-    return await apiClient.get<{ count: number }>(`${endpointPrefix}/unread-count`)
-  }
-
   /**
    * Mark all messages in a conversation as read for the current user.
    * Resets the conversation's unreadCount to 0 in the database atomically.
@@ -258,6 +256,16 @@ export function createConversationsService(
   const markAllAsRead = async (conversationId: string) => {
     return await apiClient.post<{ markedAsRead: number }>(
       `${endpointPrefix}/${conversationId}/mark-read`,
+      {}
+    )
+  }
+
+  /**
+   * Mark a conversation as unread for the current user (manual, WhatsApp-style).
+   */
+  const markConversationUnread = async (conversationId: string) => {
+    return await apiClient.post<{ manuallyUnread: boolean }>(
+      `${endpointPrefix}/${conversationId}/mark-unread`,
       {}
     )
   }
@@ -278,7 +286,7 @@ export function createConversationsService(
     deleteLabel,
     archiveConversation,
     unarchiveConversation,
-    getUnreadCount,
     markAllAsRead,
+    markConversationUnread,
   }
 }

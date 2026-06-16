@@ -1,24 +1,24 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Avatar, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from '@heroui/react'
+import { Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from '@heroui/react'
 import {
   Archive,
   BadgeCheck,
-  Ban,
   Bell,
   BellOff,
+  Eye,
   EyeOff,
   MoreVertical,
   Pin,
   PinOff,
   Star,
-  Trash2,
 } from 'lucide-react'
 
 import { cn } from '../../utils/cn'
 import { formatShortRelativeTime, isUserOnline } from '../../utils/time-format'
 import type { Conversation } from '../../types/messages'
+import { UserAvatar } from '../user-avatar'
 
 // Avatar mapping - matching the mobile and Messages page implementation
 const avatarMap: Record<string, string> = {
@@ -35,10 +35,9 @@ interface ConversationItemProps {
   onPress?: (conversation: Conversation) => void
   onPin?: (conversationId: string) => void
   onArchive?: (conversationId: string) => void
-  onDelete?: (conversationId: string) => void
   onMute?: (conversationId: string) => void
   onMarkAsUnread?: (conversationId: string) => void
-  onBlock?: (conversationId: string) => void
+  onMarkAsRead?: (conversationId: string) => void
   onToggleFavorite?: (conversationId: string) => void
   showActions?: boolean
 }
@@ -49,10 +48,9 @@ export function ConversationItem({
   onPress,
   onPin,
   onArchive,
-  onDelete,
   onMute,
   onMarkAsUnread,
-  onBlock,
+  onMarkAsRead,
   onToggleFavorite,
   showActions = true,
 }: ConversationItemProps) {
@@ -91,11 +89,11 @@ export function ConversationItem({
     >
       <div className="flex items-center">
         {/* Avatar */}
-        <Avatar
-          src={avatarSrc}
-          name={conversation.name}
-          alt={conversation.name}
-          className="w-10 h-10 mr-3"
+        <UserAvatar
+          photoUrl={avatarSrc}
+          fullName={conversation.name}
+          className="w-10 h-10 mr-3 text-base"
+          variant="flat"
         />
 
         {/* Content */}
@@ -114,7 +112,14 @@ export function ConversationItem({
               )}
             </div>
           </div>
-          {conversation.unread ? (
+          {conversation.contextLabel ? (
+            <p className="text-sm text-secondary truncate">
+              Asks about:{' '}
+              <span className="font-semibold text-gray-900 dark:text-gray-100">
+                {conversation.contextLabel}
+              </span>
+            </p>
+          ) : conversation.unread ? (
             <div className="flex items-center gap-2 text-sm">
               <p className="truncate font-bold">{conversation.lastMessage}</p>
               <span className="text-xs text-gray-400">•</span>
@@ -138,10 +143,15 @@ export function ConversationItem({
             <BellOff size={16} className="text-secondary dark:text-gray-400" />
           )}
           {conversation.pinned && <Pin size={16} className="text-secondary dark:text-gray-400" />}
-          {(conversation.unreadCount ?? 0) > 0 && (
+          {(conversation.unreadCount ?? 0) > 0 ? (
             <span className="ml-auto bg-primary-500 text-white text-xs font-medium rounded-full px-1.5 py-0.5 min-w-5 text-center leading-none">
               {(conversation.unreadCount ?? 0) > 99 ? '99+' : conversation.unreadCount}
             </span>
+          ) : (
+            // Manually-marked-unread conversations have no count — show a dot.
+            conversation.unread && (
+              <span className="ml-auto w-2.5 h-2.5 rounded-full bg-primary-500" />
+            )
           )}
           {showActions && isHovered && (
             <Dropdown placement="bottom-end">
@@ -150,7 +160,14 @@ export function ConversationItem({
                   <MoreVertical size={16} />
                 </button>
               </DropdownTrigger>
-              <DropdownMenu aria-label="Conversation actions">
+              <DropdownMenu
+                aria-label="Conversation actions"
+                disabledKeys={
+                  conversation.canManageSettings === false
+                    ? ['favorite', 'pin', 'mute', 'archive', 'unread']
+                    : []
+                }
+              >
                 <DropdownItem
                   key="favorite"
                   startContent={
@@ -179,10 +196,14 @@ export function ConversationItem({
 
                 <DropdownItem
                   key="unread"
-                  startContent={<EyeOff size={16} />}
-                  onPress={() => onMarkAsUnread?.(conversation.id)}
+                  startContent={conversation.unread ? <Eye size={16} /> : <EyeOff size={16} />}
+                  onPress={() =>
+                    conversation.unread
+                      ? onMarkAsRead?.(conversation.id)
+                      : onMarkAsUnread?.(conversation.id)
+                  }
                 >
-                  Mark as Unread
+                  {conversation.unread ? 'Mark as Read' : 'Mark as Unread'}
                 </DropdownItem>
 
                 <DropdownItem
@@ -191,25 +212,6 @@ export function ConversationItem({
                   onPress={() => onArchive?.(conversation.id)}
                 >
                   {conversation.archived ? 'Unarchive' : 'Archive'}
-                </DropdownItem>
-
-                <DropdownItem
-                  key="block"
-                  startContent={<Ban size={16} />}
-                  onPress={() => onBlock?.(conversation.id)}
-                  className="text-orange-600"
-                >
-                  Block
-                </DropdownItem>
-
-                <DropdownItem
-                  key="delete"
-                  startContent={<Trash2 size={16} />}
-                  onPress={() => onDelete?.(conversation.id)}
-                  className="text-red-600"
-                  color="danger"
-                >
-                  Delete
                 </DropdownItem>
               </DropdownMenu>
             </Dropdown>

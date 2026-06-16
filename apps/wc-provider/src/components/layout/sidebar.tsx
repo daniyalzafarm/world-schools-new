@@ -103,7 +103,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: <MessageCircle size={20} />,
     type: 'regular',
     // badge: 5,
-    // No permission required - available to all authenticated users
+    permission: 'messages.read', // Only provider users with the Messaging permission
   },
   {
     name: 'Camps',

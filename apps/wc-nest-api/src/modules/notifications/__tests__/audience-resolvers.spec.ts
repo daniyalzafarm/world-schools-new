@@ -34,7 +34,7 @@ describe('recipient resolvers', () => {
   })
 
   describe('registry shape', () => {
-    it('exposes all 15 resolver keys as functions', () => {
+    it('exposes all 16 resolver keys as functions', () => {
       const expectedKeys = [
         'parentForBooking',
         'parentByUserId',
@@ -42,6 +42,7 @@ describe('recipient resolvers', () => {
         'parentForReview',
         'parentForConversation',
         'allProviderUsers',
+        'providerMessagingRecipients',
         'providerOwnerByProviderId',
         'providerOwnerForBooking',
         'providerOwnerForCamp',
@@ -154,6 +155,23 @@ describe('recipient resolvers', () => {
       expect(result).toEqual(['u-other-parent'])
     })
 
+    it('excludes participants who muted the conversation', async () => {
+      prisma.message.findUnique.mockResolvedValue({ senderId: 'u-sender' })
+      prisma.conversation.findUnique.mockResolvedValue({
+        participants: [
+          { userId: 'u-muted-parent', providerId: null, muted: true }, // excluded (muted)
+          { userId: 'u-other-parent', providerId: null, muted: false }, // included
+        ],
+      })
+
+      const result = await recipientResolvers.parentForConversation(ctx as never, {
+        conversationId: 'C-1',
+        messageId: 'M-1',
+      })
+
+      expect(result).toEqual(['u-other-parent'])
+    })
+
     it('returns [] when conversationId is missing', async () => {
       const result = await recipientResolvers.parentForConversation(ctx as never, {})
       expect(result).toEqual([])
@@ -187,6 +205,78 @@ describe('recipient resolvers', () => {
       const result = await recipientResolvers.allProviderUsers(ctx as never, {})
       expect(result).toEqual([])
       expect(prisma.user.findMany).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('providerMessagingRecipients', () => {
+    it('unclaimed thread → all provider users with the Messaging permission, minus the sender', async () => {
+      prisma.conversation.findUnique.mockResolvedValue({
+        assignedToId: null,
+        metadata: { providerId: 'prov-1' },
+        participants: [{ userId: 'u-parent', providerId: null }],
+      })
+      prisma.message.findUnique.mockResolvedValue({ senderId: 'u-parent' })
+      // Permission-filtered membership query (owner + staff holding messages.read)
+      prisma.user.findMany.mockResolvedValue([{ id: 'u-owner' }, { id: 'u-staff' }])
+
+      const result = await recipientResolvers.providerMessagingRecipients(ctx as never, {
+        conversationId: 'c-1',
+        messageId: 'm-1',
+        providerId: 'prov-1',
+      })
+
+      expect(result.sort()).toEqual(['u-owner', 'u-staff'])
+      // Resolved via the permission-aware membership query, not the open fan-out.
+      expect(prisma.user.findMany).toHaveBeenCalledTimes(1)
+    })
+
+    it('claimed thread → only provider participants (owner + replied staff), minus the sender', async () => {
+      prisma.conversation.findUnique.mockResolvedValue({
+        assignedToId: 'u-owner',
+        metadata: { providerId: 'prov-1' },
+        participants: [
+          { userId: 'u-parent', providerId: null }, // parent — excluded (not a provider participant)
+          { userId: 'u-owner', providerId: 'prov-1' }, // owner
+          { userId: 'u-staff', providerId: 'prov-1' }, // staff who replied
+        ],
+      })
+      prisma.message.findUnique.mockResolvedValue({ senderId: 'u-parent' })
+
+      const result = await recipientResolvers.providerMessagingRecipients(ctx as never, {
+        conversationId: 'c-1',
+        messageId: 'm-1',
+      })
+
+      expect(result.sort()).toEqual(['u-owner', 'u-staff'])
+      // Claimed branch reads participants off the conversation — no membership query.
+      expect(prisma.user.findMany).not.toHaveBeenCalled()
+    })
+
+    it('claimed thread → excludes provider participants who muted the conversation', async () => {
+      prisma.conversation.findUnique.mockResolvedValue({
+        assignedToId: 'u-owner',
+        metadata: { providerId: 'prov-1' },
+        participants: [
+          { userId: 'u-owner', providerId: 'prov-1', muted: false }, // included
+          { userId: 'u-staff', providerId: 'prov-1', muted: true }, // excluded (muted)
+        ],
+      })
+      prisma.message.findUnique.mockResolvedValue({ senderId: 'u-parent' })
+
+      const result = await recipientResolvers.providerMessagingRecipients(ctx as never, {
+        conversationId: 'c-1',
+        messageId: 'm-1',
+      })
+
+      expect(result).toEqual(['u-owner'])
+    })
+
+    it('returns [] when the conversation is missing', async () => {
+      prisma.conversation.findUnique.mockResolvedValue(null)
+      const result = await recipientResolvers.providerMessagingRecipients(ctx as never, {
+        conversationId: 'c-gone',
+      })
+      expect(result).toEqual([])
     })
   })
 

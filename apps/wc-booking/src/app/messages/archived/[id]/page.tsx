@@ -17,7 +17,6 @@ const mockConversations: Conversation[] = [
     avatar: 'school-1',
     verified: true,
     pinned: true,
-    pinnedAt: Date.now() - 1000 * 60 * 30, // Pinned 30 minutes ago
     unread: false,
   },
   // Regular provider conversations with various states
@@ -92,7 +91,6 @@ const mockConversations: Conversation[] = [
     lastSeen: Date.now() - 1000 * 60 * 60 * 8, // 8 hours ago
     avatar: 'school-2',
     pinned: true,
-    pinnedAt: Date.now() - 1000 * 60 * 60, // Pinned 1 hour ago
     verified: true,
   },
   {

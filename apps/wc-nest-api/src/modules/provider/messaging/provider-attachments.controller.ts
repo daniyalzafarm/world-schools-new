@@ -9,6 +9,7 @@ import {
   Post,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
@@ -23,6 +24,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
+import { Permissions } from '../../core/auth/decorators/permissions.decorator'
+import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
 import { AttachmentsService } from '../../messaging/services/attachments.service'
 import { validateFileUpload } from '../../messaging/validators/file-upload.validator'
 
@@ -36,6 +39,8 @@ import { validateFileUpload } from '../../messaging/validators/file-upload.valid
 @ApiTags('Provider Messaging - Attachments')
 @ApiBearerAuth()
 @Controller('provider/messaging/attachments')
+@UseGuards(RolesOrPermissionsGuard)
+@Permissions('messages.read', 'messages.write')
 export class ProviderAttachmentsController {
   private readonly logger = new Logger(ProviderAttachmentsController.name)
 

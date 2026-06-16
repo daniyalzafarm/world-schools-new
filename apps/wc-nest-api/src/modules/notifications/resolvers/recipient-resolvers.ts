@@ -21,6 +21,7 @@ export type ResolverKey =
   | 'parentForReview'
   | 'parentForConversation'
   | 'allProviderUsers'
+  | 'providerMessagingRecipients'
   | 'providerOwnerByProviderId'
   | 'providerOwnerForBooking'
   | 'providerOwnerForCamp'
@@ -177,13 +178,107 @@ async function parentForConversation(
   }
   const conv = await prisma.conversation.findUnique({
     where: { id: conversationId },
-    select: { participants: { select: { userId: true, providerId: true } } },
+    select: { participants: { select: { userId: true, providerId: true, muted: true } } },
   })
   if (!conv) return []
-  // Parent participants on a parent ↔ camp DM have `providerId = null`.
+  // Parent participants on a parent ↔ camp DM have `providerId = null`. Skip
+  // anyone who muted the conversation — mute suppresses notifications.
   return conv.participants
-    .filter(p => p.userId !== senderUserId && p.providerId == null)
+    .filter(p => p.userId !== senderUserId && p.providerId == null && !p.muted)
     .map(p => p.userId)
+}
+
+/** Permission id that grants a provider user access to messaging. */
+const MESSAGING_PERMISSION_ID = 'messages.read'
+
+/**
+ * Provider users for `providerId` who hold the Messaging permission:
+ *  - staff with a provider-scoped role (UserRole.role.providerId match), or the
+ *    provider owner (User.ownedProvider) — same membership set as allProviderUsers
+ *  - AND who hold a role granting `messages.read`
+ *
+ * Unlike allProviderUsers, the owner is NOT added unconditionally: they qualify
+ * only via their Provider Admin role (which carries messages.read after seed),
+ * so a provider that has explicitly revoked messaging from everyone notifies
+ * no one.
+ */
+async function providerUsersWithMessagingPermission(
+  { prisma }: ResolverContext,
+  providerId: string
+): Promise<string[]> {
+  const users = await prisma.user.findMany({
+    where: {
+      AND: [
+        {
+          OR: [
+            { roles: { some: { role: { providerId } } } },
+            { ownedProvider: { id: providerId } },
+          ],
+        },
+        {
+          roles: {
+            some: { role: { permissions: { some: { permissionId: MESSAGING_PERMISSION_ID } } } },
+          },
+        },
+      ],
+    },
+    select: { id: true },
+  })
+  return users.map(u => u.id)
+}
+
+/**
+ * Recipients for the provider-side "new message from family" trigger. The set
+ * depends on whether the conversation has been claimed (Conversation.assignedToId
+ * is set by the first provider reply — see MessagesService):
+ *
+ *  - Unclaimed (assignedToId null): every provider user with the Messaging
+ *    permission, so anyone can pick the thread up.
+ *  - Claimed (assignedToId set): only the conversation's provider participants
+ *    (the owner + any staff who have since replied). Other staff keep view
+ *    access org-wide but stop receiving notifications.
+ *
+ * The message sender is always excluded so a reply never re-notifies its author.
+ */
+async function providerMessagingRecipients(
+  ctx: ResolverContext,
+  payload: NotificationContext
+): Promise<string[]> {
+  const { conversationId, messageId } = payload
+  if (!conversationId) return []
+
+  const conv = await ctx.prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: {
+      assignedToId: true,
+      metadata: true,
+      participants: { select: { userId: true, providerId: true, muted: true } },
+    },
+  })
+  if (!conv) return []
+
+  let senderUserId: string | undefined
+  if (messageId) {
+    const msg = await ctx.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { senderId: true },
+    })
+    senderUserId = msg?.senderId
+  }
+
+  if (conv.assignedToId) {
+    // Claimed: notify the conversation's provider participants, minus the sender
+    // and anyone who muted it.
+    return conv.participants
+      .filter(p => p.providerId != null && p.userId !== senderUserId && !p.muted)
+      .map(p => p.userId)
+  }
+
+  const providerId =
+    payload.providerId ?? (conv.metadata as { providerId?: string } | null)?.providerId
+  if (!providerId) return []
+  const recipients = await providerUsersWithMessagingPermission(ctx, providerId)
+  return recipients.filter(id => id !== senderUserId)
 }
 
 /**
@@ -324,6 +419,7 @@ export const recipientResolvers = {
   parentForReview,
   parentForConversation,
   allProviderUsers,
+  providerMessagingRecipients,
   providerOwnerByProviderId,
   providerOwnerForBooking,
   providerOwnerForCamp,

@@ -1,10 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing'
-import { ConversationsService } from './conversations.service'
+import { ConversationsService, buildProviderConversationKey } from './conversations.service'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { RedisService } from '../../redis/redis.service'
 import { RedisPubSubService } from './redis-pub-sub.service'
 import { ConfigService } from '../../../config/config.service'
 import { NotFoundException, ForbiddenException } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { ConversationType, ConversationStatus, ContextType } from '../../../generated/client/client'
 
 describe('ConversationsService', () => {
@@ -103,6 +104,7 @@ describe('ConversationsService', () => {
       updateMany: jest.fn(),
       findFirst: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn(),
     },
     message: {
@@ -157,6 +159,10 @@ describe('ConversationsService', () => {
     azureStorageConfig: { accountName: 'acct', accountKey: 'key', containerName: 'container' },
   }
 
+  const mockEventEmitter = {
+    emit: jest.fn(),
+  }
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -165,6 +171,7 @@ describe('ConversationsService', () => {
         { provide: RedisService, useValue: mockRedisService },
         { provide: RedisPubSubService, useValue: mockRedisPubSubService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
     }).compile()
 
@@ -210,6 +217,78 @@ describe('ConversationsService', () => {
             type: ConversationType.USER_PROVIDER,
             contextType: dto.contextType,
             contextId: dto.contextId,
+          }),
+        })
+      )
+    })
+
+    it('scopes the existing-conversation lookup to the camp and sets a per-camp dedupeKey', async () => {
+      const dto = {
+        userId: mockUserId,
+        participantId: mockParticipantId,
+        participantType: 'provider' as const,
+        contextType: ContextType.CAMP,
+        contextId: 'camp-abc',
+        initialMessage: 'Is there availability?',
+      }
+
+      mockPrismaService.conversation.findFirst.mockResolvedValue(null)
+      mockPrismaService.conversation.findMany.mockResolvedValue([])
+      mockPrismaService.provider.findUnique.mockResolvedValue({
+        id: mockParticipantId,
+        legalCompanyName: 'Test Provider',
+        email: 'provider@example.com',
+      })
+      mockPrismaService.conversation.create.mockResolvedValue(mockConversation)
+      mockPrismaService.message.findFirst = jest.fn().mockResolvedValue({ id: 'msg-1' })
+
+      await service.createConversation(dto)
+
+      // Uniqueness lookup is keyed per (parent, provider, camp) — the camp
+      // context must be part of the findFirst where clause.
+      expect(prisma.conversation.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            contextType: ContextType.CAMP,
+            contextId: 'camp-abc',
+          }),
+        })
+      )
+
+      // The DB-level unique key is persisted on create.
+      expect(prisma.conversation.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            dedupeKey: buildProviderConversationKey(
+              mockUserId,
+              mockParticipantId,
+              ContextType.CAMP,
+              'camp-abc'
+            ),
+          }),
+        })
+      )
+
+      // The inline initial message bumps lastActivityAt (the recency field) so
+      // the new conversation sorts to the top, matching sendMessage().
+      expect(prisma.conversation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            lastMessageId: 'msg-1',
+            lastActivityAt: expect.any(Date),
+          }),
+        })
+      )
+
+      // The inline initial message fires the provider "new from family" notification
+      // (so all messaging-permitted staff are alerted on the first message).
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'notification.dispatch',
+        expect.objectContaining({
+          context: expect.objectContaining({
+            conversationId: mockConversationId,
+            messageId: 'msg-1',
+            providerId: mockParticipantId,
           }),
         })
       )
@@ -283,13 +362,14 @@ describe('ConversationsService', () => {
 
       await service.getConversations(dto)
 
+      // Unread = real unread messages OR a manual "mark as unread".
       expect(prisma.conversation.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             participants: expect.objectContaining({
               some: expect.objectContaining({
                 userId: mockUserId,
-                unreadCount: { gt: 0 },
+                OR: [{ unreadCount: { gt: 0 } }, { manuallyUnread: true }],
               }),
             }),
           }),
@@ -315,6 +395,28 @@ describe('ConversationsService', () => {
 
       expect(result).toEqual(cachedData)
       expect(prisma.conversation.findMany).not.toHaveBeenCalled()
+    })
+
+    it('orders by lastActivityAt desc with a deterministic createdAt tiebreak', async () => {
+      const dto = {
+        userId: mockUserId,
+        filter: 'all' as const,
+        limit: 50,
+        offset: 0,
+      }
+
+      mockPrismaService.conversation.findMany.mockResolvedValue([mockConversation])
+      mockRedisService.get.mockResolvedValue(null)
+
+      await service.getConversations(dto)
+
+      // Recency must come from lastActivityAt (the last-message field), not
+      // updatedAt (which bumps on assignment/status/etc.).
+      expect(prisma.conversation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ lastActivityAt: 'desc' }, { createdAt: 'desc' }],
+        })
+      )
     })
 
     it('should handle pagination correctly', async () => {
@@ -378,6 +480,47 @@ describe('ConversationsService', () => {
       await expect(service.getConversationById(mockConversationId, mockUserId)).rejects.toThrow(
         ForbiddenException
       )
+    })
+
+    it('grants access to a provider-org member who has no participant row yet (parent-initiated thread)', async () => {
+      const providerUserId = 'provider-user-id'
+      const providerOrgId = mockParticipantId
+      // Parent-initiated USER_PROVIDER thread: only the parent is a participant,
+      // the provider org is referenced via metadata.providerId.
+      const parentInitiatedConversation = {
+        ...mockConversation,
+        metadata: { providerId: providerOrgId },
+        participants: [mockConversation.participants[0]],
+      }
+      mockPrismaService.conversation.findUnique.mockResolvedValue(parentInitiatedConversation)
+      // getProviderIdForUser(providerUserId) → providerOrgId (provider-scoped role)
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: providerUserId,
+        roles: [{ role: { providerId: providerOrgId } }],
+      })
+
+      await expect(
+        service.getConversationById(mockConversationId, providerUserId)
+      ).resolves.toBeDefined()
+    })
+
+    it('throws ForbiddenException for a non-participant whose provider org does not match', async () => {
+      const otherProviderUserId = 'other-provider-user-id'
+      const parentInitiatedConversation = {
+        ...mockConversation,
+        metadata: { providerId: mockParticipantId },
+        participants: [mockConversation.participants[0]],
+      }
+      mockPrismaService.conversation.findUnique.mockResolvedValue(parentInitiatedConversation)
+      // getProviderIdForUser → a different provider org
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: otherProviderUserId,
+        roles: [{ role: { providerId: 'different-provider-org' } }],
+      })
+
+      await expect(
+        service.getConversationById(mockConversationId, otherProviderUserId)
+      ).rejects.toThrow(ForbiddenException)
     })
   })
 
@@ -471,6 +614,49 @@ describe('ConversationsService', () => {
       expect(result.markedAsRead).toBe(1)
       expect(prisma.messageReadReceipt.createMany).toHaveBeenCalled()
     })
+
+    it('clears a manual unread flag even when there are no unread messages', async () => {
+      // No unread messages, but the conversation was manually marked unread.
+      mockPrismaService.message.findMany.mockResolvedValue([])
+      mockPrismaService.conversationParticipant.findFirst.mockResolvedValue({
+        manuallyUnread: true,
+      })
+      mockPrismaService.conversationParticipant.updateMany.mockResolvedValue({ count: 1 })
+
+      const result = await service.markAllAsRead(mockConversationId, mockUserId)
+
+      expect(result.markedAsRead).toBe(0)
+      // No read receipts (nothing to read) ...
+      expect(prisma.messageReadReceipt.createMany).not.toHaveBeenCalled()
+      // ... but the participant is still reset so the manual-unread flag clears.
+      expect(prisma.conversationParticipant.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { unreadCount: 0, manuallyUnread: false },
+        })
+      )
+    })
+  })
+
+  describe('markConversationUnread', () => {
+    it('sets the manual unread flag for the user', async () => {
+      mockPrismaService.conversationParticipant.updateMany.mockResolvedValue({ count: 1 })
+
+      const result = await service.markConversationUnread(mockConversationId, mockUserId)
+
+      expect(result.manuallyUnread).toBe(true)
+      expect(prisma.conversationParticipant.updateMany).toHaveBeenCalledWith({
+        where: { conversationId: mockConversationId, userId: mockUserId },
+        data: { manuallyUnread: true },
+      })
+    })
+
+    it('no-ops when the user has no participant row', async () => {
+      mockPrismaService.conversationParticipant.updateMany.mockResolvedValue({ count: 0 })
+
+      const result = await service.markConversationUnread(mockConversationId, mockUserId)
+
+      expect(result.manuallyUnread).toBe(false)
+    })
   })
 
   describe('camp identity enrichment', () => {
@@ -552,29 +738,6 @@ describe('ConversationsService', () => {
       const ownParticipant = result[0].participants.find((p: any) => p.userId === providerUserId)
       expect(ownParticipant).toBeDefined()
       expect(ownParticipant.unreadCount).toBe(3)
-    })
-
-    it('counts unread conversations for a provider via read receipts in the badge total', async () => {
-      asProviderUser()
-      mockPrismaService.message.groupBy.mockResolvedValue([
-        { conversationId: 'c1', _count: { _all: 2 } },
-        { conversationId: 'c2', _count: { _all: 1 } },
-      ])
-
-      const count = await service.getPersonalUnreadConversationsCount(providerUserId)
-
-      expect(count).toBe(2)
-      expect(prisma.message.groupBy).toHaveBeenCalled()
-    })
-
-    it('counts unread via participant rows for a non-provider user', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(null) // not a provider
-      mockPrismaService.conversationParticipant.count.mockResolvedValue(4)
-
-      const count = await service.getPersonalUnreadConversationsCount(mockUserId)
-
-      expect(count).toBe(4)
-      expect(prisma.conversationParticipant.count).toHaveBeenCalled()
     })
   })
 

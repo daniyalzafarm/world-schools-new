@@ -787,7 +787,10 @@ function makeMessagingEntry(
     category: NotificationCategory.Message,
     channels,
     salutation: 'none',
-    resolver: 'allProviderUsers',
+    // Live "new message from family" narrows to the owner + replied staff once a
+    // conversation is claimed (and is gated on the Messaging permission while
+    // unclaimed). The scheduled unanswered-* reminders keep the full org fan-out.
+    resolver: kind === 'newFromFamily' ? 'providerMessagingRecipients' : 'allProviderUsers',
     transactional: false,
     trigger,
     loadProps: propLoaders[type] as never,
