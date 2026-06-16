@@ -109,6 +109,7 @@ export function BookingDetailSidebar({
       contextType: ContextType.CAMP,
       contextId: detail.camp.id,
       contextName: detail.camp.name,
+      contextImageUrl: detail.camp.coverImageUrl ?? undefined,
     })
     router.push('/messages')
   }

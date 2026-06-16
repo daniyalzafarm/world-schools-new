@@ -359,7 +359,13 @@ export const useCampsStore = create<CampsState>((set, get) => ({
       return
     }
     const camp = response.data.camp as Camp
-    set({ currentCamp: camp, isLoading: false })
+    // Section-update endpoints return the raw camp without `currency` (a
+    // provider-level, immutable value loaded once by the editor layout). Preserve
+    // it so currency-dependent UI (e.g. session pricing) doesn't break on save.
+    set(state => ({
+      currentCamp: { ...camp, currency: camp.currency || state.currentCamp?.currency || '' },
+      isLoading: false,
+    }))
     return camp
   },
 

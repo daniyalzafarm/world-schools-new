@@ -1,39 +1,28 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { conversationsService, messagingWebSocket } from '@/stores/messaging-store'
+import { useMemo } from 'react'
+import { useMessagingStore } from '@/stores/messaging-store'
 import { useAuthStore } from '@/stores/auth-store'
 
+/**
+ * Unread-conversation count for the nav "Messages" badge.
+ *
+ * Derived from the messaging store — the single source of truth, initialized
+ * app-wide via MessagingProvider — so it updates in real time: new messages,
+ * opening a thread, and manual mark-as-(un)read all reflect instantly with no
+ * extra request. Uses the same rule as the in-list "Unread" tab so the two
+ * always agree: a conversation counts when the current user's participant is
+ * not archived and has either real unread messages or a manual "mark as unread".
+ */
 export function useUnreadMessagesCount(): number {
-  const [count, setCount] = useState(0)
-  const user = useAuthStore(s => s.user)
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const userId = useAuthStore(s => s.user?.id)
+  const conversations = useMessagingStore(s => s.conversations)
 
-  const fetchCount = useCallback(async () => {
-    if (!user?.id) return
-    const result = await conversationsService.getUnreadCount()
-    if (result.success) {
-      setCount(result.data.count)
-    }
-  }, [user?.id])
-
-  const debouncedFetch = useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    timeoutRef.current = setTimeout(fetchCount, 1500)
-  }, [fetchCount])
-
-  useEffect(() => {
-    void fetchCount()
-
-    const unsubMessage = messagingWebSocket.onMessageNew(() => debouncedFetch())
-    const unsubRead = messagingWebSocket.onReadReceipt(() => debouncedFetch())
-    const unsubConversation = messagingWebSocket.onConversationNew(() => debouncedFetch())
-
-    return () => {
-      unsubMessage()
-      unsubRead()
-      unsubConversation()
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    }
-  }, [fetchCount, debouncedFetch])
-
-  return count
+  return useMemo(() => {
+    if (!userId) return 0
+    return conversations.reduce((total, conversation) => {
+      const me = conversation.participants?.find(p => p.userId === userId)
+      if (!me || me.archived) return total
+      const isUnread = (me.unreadCount ?? 0) > 0 || Boolean(me.manuallyUnread)
+      return isUnread ? total + 1 : total
+    }, 0)
+  }, [conversations, userId])
 }

@@ -3,7 +3,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Button, Input, ScrollShadow } from '@heroui/react'
-import { cn, type Conversation, ConversationItem, type FilterType } from '@world-schools/ui-web'
+import {
+  cn,
+  type Conversation,
+  ConversationItem,
+  type FilterType,
+  sortConversations,
+} from '@world-schools/ui-web'
 import { AlertCircle, ChevronLeft, Search, X } from 'lucide-react'
 import { ArchivedChatsButton } from '@/components/messages/archived-chats-button'
 import { useConversationStore } from '@/stores/conversation-store'
@@ -40,8 +46,6 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
     toggleMute,
     markAsUnread,
     markAsRead,
-    deleteConversations,
-    blockConversations,
   } = useConversationStore()
 
   // Use messaging store for real data
@@ -87,8 +91,13 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
       starred: currentUserParticipant?.starred ?? false,
       archived: currentUserParticipant?.archived ?? false,
       muted: currentUserParticipant?.muted ?? false,
-      unread: (currentUserParticipant?.unreadCount ?? 0) > 0,
+      unread:
+        (currentUserParticipant?.unreadCount ?? 0) > 0 || !!currentUserParticipant?.manuallyUnread,
       unreadCount: currentUserParticipant?.unreadCount ?? 0,
+      // Per-user settings (pin/star/mute/archive) require a real participant
+      // row. Parents always have one; kept here so both apps stay symmetric.
+      canManageSettings:
+        !!currentUserParticipant && !currentUserParticipant.id.startsWith('virtual-'),
     }
   }
 
@@ -133,22 +142,9 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
       )
     }
 
-    // Sort: pinned conversations first (superadmin always at top), then by time
-    return filtered.sort((a, b) => {
-      // Superadmin conversation always first
-      if (a.id === 'superadmin') return -1
-      if (b.id === 'superadmin') return 1
-
-      // Then other pinned conversations
-      if (a.pinned && b.pinned) {
-        return (b.pinnedAt ?? 0) - (a.pinnedAt ?? 0)
-      }
-      if (a.pinned && !b.pinned) return -1
-      if (!a.pinned && b.pinned) return 1
-
-      // Finally by time
-      return b.time - a.time
-    })
+    // Shared world-class ordering: pinned group first, then most recent
+    // activity, stable on ties.
+    return sortConversations(filtered)
   }, [userConversations, activeFilter, searchQuery, isArchivedPage])
 
   // Count for different filter types and archived conversations
@@ -162,9 +158,8 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
   // Handle conversation press
   const handleConversationPress = useCallback(
     (conversation: Conversation) => {
-      // Mark conversation as read
-      markAsRead(conversation.id)
-
+      // Read-marking happens in setActiveConversation when the conversation opens
+      // (optimistic clear + persist), so we don't duplicate it here.
       if (typeof window !== 'undefined' && window.innerWidth < 1024) {
         // Mobile: navigate via URL so the layout switches to conversation view
         router.push(`/messages/${conversation.id}`)
@@ -177,7 +172,7 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
         )
       }
     },
-    [markAsRead, router]
+    [router]
   )
 
   return (
@@ -415,10 +410,9 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
                               onPress={handleConversationPress}
                               onPin={id => togglePin([id])}
                               onArchive={id => toggleArchive([id])}
-                              onDelete={id => deleteConversations([id])}
                               onMute={id => toggleMute([id])}
                               onMarkAsUnread={id => markAsUnread([id])}
-                              onBlock={id => blockConversations([id])}
+                              onMarkAsRead={id => markAsRead(id)}
                               onToggleFavorite={id => toggleFavorite([id])}
                               showActions={!isSuperadmin} // Disable actions for superadmin conversation
                             />

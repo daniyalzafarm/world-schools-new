@@ -159,22 +159,6 @@ export class UserConversationsController {
   }
 
   /**
-   * Get unread conversation count (excluding support tickets)
-   */
-  @Get('unread-count')
-  @ApiOperation({
-    summary: 'Get unread conversation count',
-    description:
-      'Returns the number of conversations with unread messages, excluding support ticket conversations.',
-  })
-  @ApiResponse({ status: 200, description: 'Unread conversation count retrieved successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getUnreadConversationsCount(@CurrentUser('id') currentUserId: string) {
-    const count = await this.conversationsService.getPersonalUnreadConversationsCount(currentUserId)
-    return { success: true, data: { count } }
-  }
-
-  /**
    * Get a single conversation by ID
    */
   @Get(':id')
@@ -280,6 +264,33 @@ export class UserConversationsController {
     return {
       success: true,
       message: 'All messages marked as read successfully',
+    }
+  }
+
+  @Post(':id/mark-unread')
+  @UseGuards(ConversationAccessGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Mark a conversation as unread',
+    description:
+      'Marks the conversation as unread for the current user (shows as unread even with no unread messages). User must be a participant.',
+  })
+  @ApiParam({ name: 'id', description: 'Conversation ID', type: String })
+  @ApiResponse({ status: 200, description: 'Conversation marked as unread successfully' })
+  @ApiResponse({ status: 404, description: 'Conversation not found' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Not a participant' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async markConversationAsUnread(
+    @Param('id') conversationId: string,
+    @CurrentUser('id') currentUserId: string
+  ) {
+    this.logger.log(`Marking conversation ${conversationId} as unread`)
+
+    await this.conversationsService.markConversationUnread(conversationId, currentUserId)
+
+    return {
+      success: true,
+      message: 'Conversation marked as unread successfully',
     }
   }
 

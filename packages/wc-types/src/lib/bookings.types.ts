@@ -42,7 +42,7 @@ export const BOOKING_DECLINE_REASON_LABELS: Record<BookingDeclineReason, string>
   [BookingDeclineReason.EligibilityCriteriaNotMet]: 'Enrollment requirements not met',
   [BookingDeclineReason.OperationalInability]: 'Unable to accommodate specific needs',
   [BookingDeclineReason.IncompleteInformation]: 'Incomplete or missing information',
-  [BookingDeclineReason.SafeguardingConcerns]: 'Safety concern',
+  [BookingDeclineReason.SafeguardingConcerns]: 'Safety or safeguarding concern',
   [BookingDeclineReason.Other]: 'Other',
 }
 

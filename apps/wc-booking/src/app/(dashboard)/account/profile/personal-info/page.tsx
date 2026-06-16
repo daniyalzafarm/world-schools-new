@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { addToast } from '@heroui/react'
-import { BackButton, getCountryDemonym } from '@world-schools/ui-web'
+import { BackButton, getCountryDemonym, getLanguageName } from '@world-schools/ui-web'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { profileService } from '@/services/profile.services'
 import { ProfilePhotoSection } from '@/components/account/profile-photo-section'
@@ -142,7 +142,7 @@ const ProfilePage = () => {
   const getLanguagesDisplay = () => {
     const languages = profileData?.parent?.languages
     if (languages && languages.length > 0) {
-      return languages.join(', ')
+      return languages.map(getLanguageName).join(', ')
     }
     return 'Not specified'
   }

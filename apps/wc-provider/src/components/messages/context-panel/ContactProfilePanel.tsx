@@ -51,7 +51,7 @@ export function ContactProfilePanel({ overlay = false }: { overlay?: boolean }) 
 
   const inner = (
     <div className="flex h-full flex-col bg-white dark:bg-gray-900">
-      <header className="flex items-start justify-between gap-3 border-b border-default-200 px-6 py-4 dark:border-slate-700">
+      <header className="h-20 flex items-start justify-between gap-3 border-b border-default-200 px-6 py-4 dark:border-slate-700">
         <div className="min-w-0">
           <p className="text-base font-semibold text-secondary">Inquiry</p>
           {campName ? <p className="truncate text-sm text-default-500">{campName}</p> : null}

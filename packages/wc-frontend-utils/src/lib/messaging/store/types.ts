@@ -122,6 +122,8 @@ export interface MessagingState {
     contextType?: string
     contextId?: string
     contextName?: string
+    /** Camp/brand image shown in the draft conversation header (initials fallback). */
+    contextImageUrl?: string
   } | null
 }
 
@@ -170,6 +172,31 @@ export interface MessagingActions {
   updateConversation: (conversationId: string, updates: Partial<ConversationResponseDto>) => void
 
   /**
+   * Toggle per-participant conversation flags (pin/star/mute/archive) for the
+   * current user. Optimistically updates the current user's participant on the
+   * conversation (the single source of truth the sidebar derives from),
+   * persists via the API, and rolls back on failure.
+   */
+  setConversationFlags: (
+    conversationId: string,
+    flags: { pinned?: boolean; starred?: boolean; muted?: boolean; archived?: boolean }
+  ) => Promise<void>
+
+  /**
+   * Manually mark a conversation unread for the current user (WhatsApp-style).
+   * Optimistically sets the current user's participant `manuallyUnread`,
+   * persists, and rolls back on failure.
+   */
+  markConversationUnread: (conversationId: string) => Promise<void>
+
+  /**
+   * Mark a conversation read for the current user: optimistically clears the
+   * current user's `unreadCount` + `manuallyUnread`, then persists via the
+   * mark-read endpoint.
+   */
+  markConversationRead: (conversationId: string) => Promise<void>
+
+  /**
    * Set draft conversation metadata (WhatsApp Web pattern)
    * Called when user clicks "Message" button before sending first message
    */
@@ -180,6 +207,7 @@ export interface MessagingActions {
     contextType?: string
     contextId?: string
     contextName?: string
+    contextImageUrl?: string
   }) => void
 
   /**

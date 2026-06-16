@@ -20,6 +20,12 @@ interface ProtectedRouteProps {
   requireAuth?: boolean
   requireProviderAdmin?: boolean
   requireProviderRole?: boolean
+  /**
+   * Require the user to hold at least one of these permission ids (in addition
+   * to any role requirement). Used to gate feature pages such as Messaging.
+   * Impersonated superadmin sessions bypass the permission check.
+   */
+  requiredPermissions?: string[]
 }
 
 export function ProtectedRoute({
@@ -27,6 +33,7 @@ export function ProtectedRoute({
   requireAuth = false,
   requireProviderAdmin = false,
   requireProviderRole = false,
+  requiredPermissions,
 }: ProtectedRouteProps) {
   // Determine which role check to use
   let checkRoleFn: ((user: any) => boolean) | undefined
@@ -40,6 +47,18 @@ export function ProtectedRoute({
     // via a server-issued JWT. This handles admin-created providers that may have no DB roles.
     checkRoleFn = user => isAuthorizedProviderUser(user) || !!(user as any)?.isImpersonated
     requireRoleValue = 'provider-role'
+  }
+
+  // Layer a permission requirement on top of the role check, if requested.
+  if (requiredPermissions?.length) {
+    const baseRoleCheck = checkRoleFn
+    checkRoleFn = user => {
+      if ((user as any)?.isImpersonated) return true
+      const roleOk = baseRoleCheck ? baseRoleCheck(user) : true
+      const perms: string[] = (user as any)?.permissions ?? []
+      return roleOk && requiredPermissions.some(p => perms.includes(p))
+    }
+    requireRoleValue = requireRoleValue ?? 'permission'
   }
 
   return (

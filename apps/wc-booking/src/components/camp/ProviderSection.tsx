@@ -103,6 +103,7 @@ export function ProviderSection({ provider, campId, campSlug, campTitle }: Provi
       contextType: campId ? ContextType.CAMP : undefined,
       contextId: campId,
       contextName: campTitle,
+      contextImageUrl: provider.logoUrl ?? undefined,
     })
     router.push('/messages')
   }

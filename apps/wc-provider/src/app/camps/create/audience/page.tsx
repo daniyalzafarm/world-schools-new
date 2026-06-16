@@ -18,7 +18,7 @@ export default function AudiencePage() {
 
   const [formData, setFormData] = useState<AudienceFormData>({
     ageGroups: [{ min: 6, max: 12 }],
-    languages: ['english'],
+    languages: ['en'],
     gender: 'coed',
   })
   const [localHasUnsavedChanges, setLocalHasUnsavedChanges] = useState(false)
@@ -51,9 +51,7 @@ export default function AudiencePage() {
             ? (wizardCamp.ageGroups as AgeGroup[])
             : [{ min: 6, max: 12 }],
         languages:
-          wizardCamp.languages && wizardCamp.languages.length > 0
-            ? wizardCamp.languages
-            : ['english'],
+          wizardCamp.languages && wizardCamp.languages.length > 0 ? wizardCamp.languages : ['en'],
         gender: wizardCamp.gender || 'coed',
       })
     }
@@ -76,7 +74,7 @@ export default function AudiencePage() {
       autoSavedRef.current = true
       void updateCampAudience(campId, {
         ageGroups: [{ min: 6, max: 12 }],
-        languages: ['english'],
+        languages: ['en'],
         gender: 'coed',
       }).then(() => {
         if (useCampsStore.getState().error) autoSavedRef.current = false

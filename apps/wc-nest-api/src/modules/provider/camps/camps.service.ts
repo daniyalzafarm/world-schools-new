@@ -201,7 +201,8 @@ export class CampsService {
       },
     })
 
-    return camp
+    const currency = await this.requireProviderCurrency(providerId)
+    return { ...camp, currency }
   }
 
   /**
@@ -221,7 +222,8 @@ export class CampsService {
       },
     })
 
-    return camp
+    const currency = await this.requireProviderCurrency(providerId)
+    return { ...camp, currency }
   }
 
   /**
@@ -292,13 +294,15 @@ export class CampsService {
       },
     })
 
+    const currency = await this.requireProviderCurrency(providerId)
+
     // Generate SAS URLs for photos before returning (same as getCamp)
     if (camp.photos && Array.isArray(camp.photos) && camp.photos.length > 0) {
       const photosWithUrls = await this.photoUploadService.generatePhotoUrls(camp.photos as any[])
-      return { ...camp, photos: photosWithUrls }
+      return { ...camp, photos: photosWithUrls, currency }
     }
 
-    return camp
+    return { ...camp, currency }
   }
 
   /**
@@ -561,7 +565,8 @@ export class CampsService {
       data: updateData,
     })
 
-    return camp
+    const currency = await this.requireProviderCurrency(providerId)
+    return { ...camp, currency }
   }
 
   /**
