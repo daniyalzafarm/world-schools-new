@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Button, Input, Select, SelectItem } from '@heroui/react'
+import { Button } from '@heroui/react'
+import { Input, SelectField } from '@world-schools/ui-web'
 import { Eye, EyeOff } from 'lucide-react'
 import type { CreateUserData, User } from '@/types/users'
 import { useRolesStore } from '@/stores/roles-store'
@@ -187,23 +188,16 @@ export function UserForm({
           errorMessage={errors.email}
           isRequired
         />
-        <Select
+        <SelectField
           label="Role"
-          labelPlacement="outside"
           placeholder="Select a role"
-          selectedKeys={selectedRole ? [selectedRole] : []}
-          onSelectionChange={keys => {
-            const selected = Array.from(keys)[0] as string
-            handleRoleChange(selected)
-          }}
+          value={selectedRole}
+          onChange={handleRoleChange}
+          options={roles.map(role => ({ value: role.id, label: role.name }))}
           isInvalid={!!errors.role}
           errorMessage={errors.role}
           isRequired
-        >
-          {roles.map(role => (
-            <SelectItem key={role.id}>{role.name}</SelectItem>
-          ))}
-        </Select>
+        />
       </div>
 
       {/* Row 3: Password and Confirm Password */}

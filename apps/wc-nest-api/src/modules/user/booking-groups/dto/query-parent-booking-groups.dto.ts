@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
-import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator'
+import { IsIn, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator'
 import { BookingGroupStatus } from '../../../../generated/client/enums'
 
 export const PARENT_BOOKING_TABS = ['drafts', 'upcoming', 'past', 'cancelled'] as const
@@ -48,6 +48,11 @@ export class QueryParentBookingGroupsDto {
   @IsOptional()
   @IsIn(Object.values(BookingGroupStatus))
   status?: BookingGroupStatus
+
+  @ApiPropertyOptional({ description: 'Filter to booking groups that include this child' })
+  @IsOptional()
+  @IsUUID()
+  childId?: string
 
   @ApiPropertyOptional({
     description: 'Sort field',

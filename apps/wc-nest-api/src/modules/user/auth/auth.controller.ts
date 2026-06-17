@@ -697,6 +697,7 @@ export class UserAuthController {
             primaryNationality: true,
             secondaryNationality: true,
             languages: true,
+            profileCompletion: true,
           },
         },
       },

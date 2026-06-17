@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Alert, Button, Checkbox, Input } from '@heroui/react'
+import { Alert, Button, Checkbox } from '@heroui/react'
+import { Input } from '@world-schools/ui-web'
 import { AlertTriangle } from 'lucide-react'
 import type { CreateRoleData, Role } from '@/types/roles'
 import { getPermissions, type PermissionGroup } from '@/services/permissions.services'

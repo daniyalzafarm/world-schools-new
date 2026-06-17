@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { useWishlistsStore } from '@/stores/wishlists-store'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAuthModalStore } from '@/stores/auth-modal-store'
 
 interface WishlistHeartButtonProps {
   campId: string
@@ -20,6 +21,7 @@ export function WishlistHeartButton({
   className = '',
 }: WishlistHeartButtonProps) {
   const { isAuthenticated } = useAuthStore()
+  const openAuthModal = useAuthModalStore(state => state.open)
   const { myWishlists, isLoadingList, fetchMyWishlists, openAddToWishlistModal } =
     useWishlistsStore()
 
@@ -36,12 +38,22 @@ export function WishlistHeartButton({
 
   const isSaved = myWishlists.some(w => w.campIds.includes(campId))
 
+  const handleClick = () => {
+    const addToWishlist = () =>
+      openAddToWishlistModal(campId, { name: campName, thumbnail, location: locationName })
+
+    if (!isAuthenticated) {
+      openAuthModal({ context: 'save', onSuccess: addToWishlist })
+      return
+    }
+
+    addToWishlist()
+  }
+
   return (
     <button
       className={`cursor-pointer flex items-center justify-center gap-2 h-9 w-9 sm:w-auto sm:px-4 bg-white rounded-full border border-gray-200 transition-transform hover:scale-105 shrink-0 ${className}`}
-      onClick={() =>
-        openAddToWishlistModal(campId, { name: campName, thumbnail, location: locationName })
-      }
+      onClick={handleClick}
       title={isSaved ? 'Update wishlist' : 'Add to wishlist'}
     >
       {isSaved ? (

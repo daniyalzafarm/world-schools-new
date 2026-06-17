@@ -1,14 +1,17 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { wishlistsService } from '@/services/wishlists.services'
 import type { WishlistDetail } from '@/types/wishlists'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAuthModalStore } from '@/stores/auth-modal-store'
+import { useWishlistsStore } from '@/stores/wishlists-store'
 import { WishlistDetailHeader } from '@/components/wishlists/wishlist-detail-header'
 import { WishlistCampCard } from '@/components/wishlists/wishlist-camp-card'
 import { WishlistEmptyState } from '@/components/wishlists/wishlist-empty-state'
 import { WishlistMapPanel } from '@/components/wishlists/wishlist-map-panel'
+import { AddToWishlistModal } from '@/components/wishlists/modals/add-to-wishlist-modal'
 
 function LoadingSkeleton() {
   return (
@@ -51,10 +54,16 @@ export default function SharedWishlistTokenPage() {
   const token = params.token
   const router = useRouter()
   const { isInitialized, isAuthenticated } = useAuthStore()
+  const openAuthModal = useAuthModalStore(state => state.open)
+  const openAddToWishlistModal = useWishlistsStore(state => state.openAddToWishlistModal)
 
   const [wishlist, setWishlist] = useState<WishlistDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Set when a logged-out viewer authenticates in order to save a camp — keeps them on
+  // this page (instead of redirecting to the owner's wishlist) so the save can complete.
+  const pendingSaveRef = useRef(false)
 
   useEffect(() => {
     async function load() {
@@ -70,14 +79,18 @@ export default function SharedWishlistTokenPage() {
     void load()
   }, [token])
 
-  // Authenticated users go straight to the real wishlist detail page
+  // Authenticated users go straight to the real wishlist detail page — unless they just
+  // authenticated to save a camp, in which case keep them here to finish saving.
   useEffect(() => {
+    if (pendingSaveRef.current) return
     if (isInitialized && isAuthenticated && wishlist) {
       router.replace(`/wishlists/${wishlist.id}`)
     }
   }, [isInitialized, isAuthenticated, wishlist, router])
 
-  if (!isInitialized || isLoading || (isAuthenticated && wishlist)) {
+  // While redirecting authenticated users away, show the skeleton — but not when a save is
+  // pending (the viewer stays here to finish saving via the auth + add-to-wishlist modals).
+  if (!isInitialized || isLoading || (isAuthenticated && wishlist && !pendingSaveRef.current)) {
     return <LoadingSkeleton />
   }
 
@@ -107,9 +120,30 @@ export default function SharedWishlistTokenPage() {
             <WishlistEmptyState type="detail" />
           ) : (
             <div className="grid grid-cols-3 gap-5 max-w-full">
-              {wishlist.items.map(item => (
-                <WishlistCampCard key={item.id} item={item} readOnly />
-              ))}
+              {wishlist.items.map(item => {
+                const firstPhoto = item.camp?.photos?.[0]
+                const thumbnail =
+                  typeof firstPhoto === 'string' ? firstPhoto : (firstPhoto?.url ?? null)
+                return (
+                  <WishlistCampCard
+                    key={item.id}
+                    item={item}
+                    readOnly
+                    onSave={() => {
+                      pendingSaveRef.current = true
+                      openAuthModal({
+                        context: 'save',
+                        onSuccess: () =>
+                          openAddToWishlistModal(item.campId, {
+                            name: item.camp?.name ?? '',
+                            thumbnail,
+                            location: item.camp?.locationName ?? null,
+                          }),
+                      })
+                    }}
+                  />
+                )
+              })}
             </div>
           )}
         </div>
@@ -119,6 +153,8 @@ export default function SharedWishlistTokenPage() {
           <WishlistMapPanel items={wishlist.items ?? []} />
         </div>
       </div>
+
+      <AddToWishlistModal skipSuccessView />
     </div>
   )
 }

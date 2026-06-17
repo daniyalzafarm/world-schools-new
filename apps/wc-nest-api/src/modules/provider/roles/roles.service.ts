@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { PrismaService } from '../../../prisma/prisma.service'
+import { getContextPermissionIds, providerContext } from '../../../config/permissions'
 import { CreateProviderRoleDto } from './dto/create-role.dto'
 import { UpdateProviderRoleDto } from './dto/update-role.dto'
 
@@ -13,13 +14,18 @@ export class ProviderRolesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(providerId: string, createRoleDto: CreateProviderRoleDto) {
-    const { permissionIds, ...roleData } = createRoleDto
+    const { permissionIds, isAdmin, ...roleData } = createRoleDto
+
+    // Admin roles are system-managed: name is fixed to "Admin" and they get the full
+    // provider-context permission set (same source as the seeder), ignoring client-sent permissionIds.
+    const name = isAdmin ? 'Admin' : roleData.name
+    const resolvedPermissionIds = isAdmin ? getContextPermissionIds(providerContext) : permissionIds
 
     // Check if role with same name already exists for this provider
     const existingRole = await this.prisma.role.findUnique({
       where: {
         name_providerId: {
-          name: roleData.name,
+          name: name,
           providerId: providerId,
         },
       },
@@ -27,7 +33,9 @@ export class ProviderRolesService {
 
     if (existingRole) {
       throw new ConflictException(
-        `Role with name '${roleData.name}' already exists for this provider`
+        isAdmin
+          ? 'An Admin role already exists for this provider'
+          : `Role with name '${name}' already exists for this provider`
       )
     }
 
@@ -35,7 +43,8 @@ export class ProviderRolesService {
     const role = await this.prisma.role.create({
       data: {
         ...roleData,
-        isSystemRole: false,
+        name: name,
+        isSystemRole: isAdmin ?? false,
         providerId: providerId,
       },
       include: {
@@ -48,8 +57,8 @@ export class ProviderRolesService {
     })
 
     // Assign permissions if provided
-    if (permissionIds && permissionIds.length > 0) {
-      await this.assignPermissions(role.id, permissionIds)
+    if (resolvedPermissionIds && resolvedPermissionIds.length > 0) {
+      await this.assignPermissions(role.id, resolvedPermissionIds)
     }
 
     return this.findOne(providerId, role.id)
@@ -160,7 +169,12 @@ export class ProviderRolesService {
     const { permissionIds, ...roleData } = updateRoleDto
 
     // Verify role exists and belongs to provider
-    await this.findOne(providerId, id)
+    const existing = await this.findOne(providerId, id)
+
+    // System-managed roles (e.g. the "Admin" role) cannot be edited
+    if (existing.isSystemRole) {
+      throw new ForbiddenException('System roles cannot be edited')
+    }
 
     // Check if new name conflicts with existing role
     if (roleData.name) {
@@ -196,6 +210,11 @@ export class ProviderRolesService {
   async remove(providerId: string, id: string) {
     // Verify role exists and belongs to provider
     const role = await this.findOne(providerId, id)
+
+    // System-managed roles (e.g. the "Admin" role) cannot be deleted
+    if (role.isSystemRole) {
+      throw new ForbiddenException('System roles cannot be deleted')
+    }
 
     // Check if role is assigned to any users
     const userCount = await this.prisma.userRole.count({

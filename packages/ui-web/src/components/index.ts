@@ -44,6 +44,7 @@ export { DocumentDropzone } from './document-dropzone'
 export { TagSelectField } from './tag-select-field'
 export { IconTagSelectField, type IconTagItem } from './icon-tag-select-field'
 export { UserAvatar, type UserAvatarProps, type UserAvatarVariant } from './user-avatar'
+export { ProfileCompletionBanner } from './profile-completion-banner'
 
 // Notification components
 export {

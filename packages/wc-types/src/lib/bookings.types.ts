@@ -244,6 +244,8 @@ export interface ParentBookingGroupsQuery {
   tab?: ParentBookingTab
   /** Narrow to one status within the current tab group */
   status?: BookingGroupStatus
+  /** Filter to booking groups that include this child */
+  childId?: string
   sortBy?: ParentBookingSortField
   sortOrder?: 'asc' | 'desc'
   page?: number

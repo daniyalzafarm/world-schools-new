@@ -22,6 +22,7 @@ export const bookingGroupsService = {
     const sp = new URLSearchParams()
     if (params?.tab) sp.set('tab', params.tab)
     if (params?.status) sp.set('status', params.status)
+    if (params?.childId) sp.set('childId', params.childId)
     if (params?.sortBy) sp.set('sortBy', params.sortBy)
     if (params?.sortOrder) sp.set('sortOrder', params.sortOrder)
     if (params?.page != null) sp.set('page', String(params.page))

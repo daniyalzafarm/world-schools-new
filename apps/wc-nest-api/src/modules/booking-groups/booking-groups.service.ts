@@ -1239,9 +1239,17 @@ export class BookingGroupsService {
       throw new BadRequestException('Status does not match the selected tab')
     }
 
+    // Optional filter to groups that include a specific child (used by the
+    // per-child detail pages). Applied to both the page query and the tab-count
+    // aggregation so the counts reflect the filtered set.
+    const childFilter: Prisma.BookingGroupWhereInput = query.childId
+      ? { bookings: { some: { childId: query.childId } } }
+      : {}
+
     const where: Prisma.BookingGroupWhereInput = {
       parentId: parent.id,
       status: query.status ?? { in: allowedStatuses },
+      ...childFilter,
     }
 
     let orderBy: Prisma.BookingGroupOrderByWithRelationInput
@@ -1263,7 +1271,7 @@ export class BookingGroupsService {
       this.prisma.bookingGroup.count({ where }),
       this.prisma.bookingGroup.groupBy({
         by: ['status'],
-        where: { parentId: parent.id },
+        where: { parentId: parent.id, ...childFilter },
         _count: { id: true },
       }),
       this.prisma.bookingGroup.findMany({

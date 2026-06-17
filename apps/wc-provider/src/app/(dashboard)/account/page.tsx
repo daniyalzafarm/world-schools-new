@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  Bell,
   Building2,
   ChevronRight,
   CreditCard,
@@ -20,7 +21,13 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
-import { cn, getCountryName, useConfirmDialog, UserAvatar } from '@world-schools/ui-web'
+import {
+  cn,
+  getCountryName,
+  ProfileCompletionBanner,
+  useConfirmDialog,
+  UserAvatar,
+} from '@world-schools/ui-web'
 import { profileService, type UserProfile } from '@/services/profile.services'
 import { useAuth } from '@/hooks/use-auth'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -76,6 +83,33 @@ const baseQuickLinkSections: QuickLinkSection[] = [
         icon: <Lock size={22} />,
       },
     ],
+  },
+]
+
+const quickActions: QuickLink[] = [
+  {
+    title: 'Personal info',
+    description: 'Name, photo',
+    href: '/account/profile/personal-info',
+    icon: <User size={22} />,
+  },
+  {
+    title: 'Contact details',
+    description: 'Email, phone, address',
+    href: '/account/profile/contact-details',
+    icon: <Phone size={22} />,
+  },
+  {
+    title: 'Notifications',
+    description: 'Email, push preferences',
+    href: '/account/settings/notifications',
+    icon: <Bell size={22} />,
+  },
+  {
+    title: 'Login & security',
+    description: 'Password, 2FA settings',
+    href: '/account/settings/security',
+    icon: <Shield size={22} />,
   },
 ]
 
@@ -163,6 +197,34 @@ export default function AccountHubPage() {
     return city || country || 'Location not set'
   }
 
+  // Personal profile completeness — the fields the user manages on the
+  // personal-info and contact-details pages (same basis as wc-booking).
+  const completionItems = [
+    {
+      label: 'your name',
+      done: Boolean(profileData?.firstName && profileData?.lastName),
+      href: '/account/profile/personal-info',
+    },
+    {
+      label: 'profile photo',
+      done: Boolean(profileData?.profilePhotoUrl),
+      href: '/account/profile/personal-info',
+    },
+    {
+      label: 'phone',
+      done: Boolean(profileData?.phone),
+      href: '/account/profile/contact-details',
+    },
+    {
+      label: 'address',
+      done: Boolean(profileData?.address && profileData?.city && profileData?.country),
+      href: '/account/profile/contact-details',
+    },
+  ]
+  const completedCount = completionItems.filter(item => item.done).length
+  const profileCompletion = Math.round((completedCount / completionItems.length) * 100)
+  const missingItems = completionItems.filter(item => !item.done)
+
   const moreItems = [
     {
       title: 'Add-ons',
@@ -239,6 +301,42 @@ export default function AccountHubPage() {
             </div>
           </>
         )}
+      </div>
+
+      {!isLoading && (
+        <ProfileCompletionBanner
+          completion={profileCompletion}
+          missingItems={missingItems}
+          onNavigate={router.push}
+          dismissStorageKey="wc_provider_account_profile_complete_banner_dismissed"
+        />
+      )}
+
+      {/* Quick Actions — desktop only (mobile uses the full sections below) */}
+      <div className="hidden lg:block mb-6">
+        <div className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">
+          Quick actions
+        </div>
+        <div className="space-y-1">
+          {quickActions.map(link => (
+            <div
+              key={link.href}
+              onClick={() => handleNavigation(link.href)}
+              className="flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+            >
+              <div className="w-11 h-11 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center shrink-0 text-slate-900 dark:text-white">
+                {link.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-base font-medium text-slate-900 dark:text-white mb-0.5">
+                  {link.title}
+                </div>
+                <div className="text-sm text-slate-500 dark:text-slate-400">{link.description}</div>
+              </div>
+              <ChevronRight size={20} className="text-slate-400 shrink-0" />
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Quick Actions — mobile only (AccountSidebar handles desktop navigation) */}

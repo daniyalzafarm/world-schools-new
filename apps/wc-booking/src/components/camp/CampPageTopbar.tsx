@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { Button } from '@heroui/react'
 import { Menu } from 'lucide-react'
 import { cn } from '@world-schools/ui-web'
@@ -9,6 +8,7 @@ import { cn } from '@world-schools/ui-web'
 import { CampNavDrawer } from '@/components/camp/CampNavDrawer'
 import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAuthModalStore } from '@/stores/auth-modal-store'
 import { WishlistHeartButton } from '@/components/wishlists/WishlistHeartButton'
 
 type WishlistCampInfo = {
@@ -27,6 +27,7 @@ type CampPageTopbarProps = {
 export function CampPageTopbar({ suppressed = false, camp }: CampPageTopbarProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const { isAuthenticated, isInitialized } = useAuthStore()
+  const openAuthModal = useAuthModalStore(state => state.open)
 
   return (
     <>
@@ -55,24 +56,27 @@ export function CampPageTopbar({ suppressed = false, camp }: CampPageTopbarProps
           </Button>
           <Logo showText={false} className="min-w-0 flex-1 sm:hidden" />
           <Logo className="hidden min-w-0 sm:flex sm:flex-none" />
-          {isInitialized && !isAuthenticated ? (
+          {isInitialized ? (
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              <Button as={Link} href="/auth/signin" variant="light">
-                Log in
-              </Button>
-              <Button as={Link} href="/auth/signup" color="secondary">
-                Sign up
-              </Button>
+              {camp ? (
+                <WishlistHeartButton
+                  campId={camp.id}
+                  campName={camp.name}
+                  thumbnail={camp.thumbnail}
+                  locationName={camp.locationName}
+                />
+              ) : null}
+              {!isAuthenticated ? (
+                <>
+                  <Button variant="light" onPress={() => openAuthModal({ view: 'signin' })}>
+                    Log in
+                  </Button>
+                  <Button color="secondary" onPress={() => openAuthModal({ view: 'signup' })}>
+                    Sign up
+                  </Button>
+                </>
+              ) : null}
             </div>
-          ) : null}
-          {isInitialized && isAuthenticated && camp ? (
-            <WishlistHeartButton
-              className="ml-auto"
-              campId={camp.id}
-              campName={camp.name}
-              thumbnail={camp.thumbnail}
-              locationName={camp.locationName}
-            />
           ) : null}
         </div>
       </header>
