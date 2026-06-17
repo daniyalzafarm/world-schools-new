@@ -1,5 +1,3 @@
-import apiClient, { type ApiResult } from '@/utils/api-client'
-
 export type ProviderReviewStatus = 'draft' | 'pending' | 'published' | 'rejected'
 
 export interface ProviderReviewSummary {
@@ -26,20 +24,4 @@ export interface ProviderReviewSummary {
 export interface ProviderReviewsListMeta {
   total: number
   unresponded: number
-}
-
-interface ListParams {
-  status?: ProviderReviewStatus
-  limit?: number
-}
-
-export const providerReviewsService = {
-  async list(params: ListParams = {}): Promise<ApiResult<ProviderReviewSummary[]>> {
-    const search = new URLSearchParams()
-    if (params.status) search.set('status', params.status)
-    if (params.limit != null) search.set('limit', String(params.limit))
-    const q = search.toString()
-    const url = q ? `/provider/reviews?${q}` : '/provider/reviews'
-    return apiClient.get<ProviderReviewSummary[]>(url)
-  },
 }

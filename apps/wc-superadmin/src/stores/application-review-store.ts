@@ -57,7 +57,7 @@ interface ApplicationReviewStore extends ApplicationReviewState {
   reviewDocument: (documentId: string, data: ReviewDocumentRequest) => Promise<void>
   fetchPendingDocuments: () => Promise<void>
   fetchUnderReviewCount: () => Promise<void>
-  fetchTabCounts: () => Promise<void>
+  fetchTabCounts: (statuses?: ApprovalStatus[]) => Promise<void>
   setPage: (page: number) => void
   setLimit: (limit: number) => void
   setFilters: (filters: Partial<ApplicationFilters>) => void
@@ -317,30 +317,31 @@ export const useApplicationReviewStore = create<ApplicationReviewStore>()(
         }
       },
 
-      fetchTabCounts: async () => {
-        try {
-          const baseQuery = { page: 1, limit: 1, sortBy: 'createdAt', sortOrder: 'desc' as const }
-          const [allRes, pendingRes, approvedRes, rejectedRes, suspendedRes] = await Promise.all([
-            applicationReviewService.getApplications(baseQuery),
-            applicationReviewService.getApplications({ ...baseQuery, status: 'under_review' }),
-            applicationReviewService.getApplications({ ...baseQuery, status: 'approved' }),
-            applicationReviewService.getApplications({ ...baseQuery, status: 'rejected' }),
-            applicationReviewService.getApplications({ ...baseQuery, status: 'suspended' }),
-          ])
+      fetchTabCounts: async (statuses?: ApprovalStatus[]) => {
+        // Count only the requested tab statuses (the caller passes the ones the user can see, so a
+        // per-status 403 can't happen) and use allSettled so one failure can't zero the rest.
+        const wanted = statuses ?? ['under_review', 'approved', 'rejected', 'suspended']
+        const baseQuery = { page: 1, limit: 1, sortBy: 'createdAt', sortOrder: 'desc' as const }
+        const results = await Promise.allSettled(
+          wanted.map(status => applicationReviewService.getApplications({ ...baseQuery, status }))
+        )
 
-          set(draft => {
-            draft.tabCounts = {
-              all: allRes.total,
-              pendingReview: pendingRes.total,
-              approved: approvedRes.total,
-              rejected: rejectedRes.total,
-              suspended: suspendedRes.total,
-            }
-          })
-        } catch (error: any) {
-          // Silently fail — tab counts are non-critical
-          console.error('Failed to fetch tab counts:', error)
+        const countKeyByStatus: Partial<
+          Record<ApprovalStatus, 'pendingReview' | 'approved' | 'rejected' | 'suspended'>
+        > = {
+          under_review: 'pendingReview',
+          approved: 'approved',
+          rejected: 'rejected',
+          suspended: 'suspended',
         }
+
+        set(draft => {
+          wanted.forEach((status, i) => {
+            const key = countKeyByStatus[status]
+            const result = results[i]
+            if (key) draft.tabCounts[key] = result.status === 'fulfilled' ? result.value.total : 0
+          })
+        })
       },
 
       setPage: (page: number) => {

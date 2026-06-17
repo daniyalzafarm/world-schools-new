@@ -412,9 +412,16 @@ export class AuthService {
       permissions,
     }
 
-    // Include provider ID if user owns a provider
+    // Include provider ID. Owners get it from their owned provider; members (sub-users) get it
+    // from their provider-scoped role, so role-based provider users resolve the same providerId
+    // as the owner and can use the provider portal.
     if (user.ownedProvider) {
       response.providerId = user.ownedProvider.id
+    } else {
+      const providerRole = roles.find((r: any) => r.providerId)
+      if (providerRole) {
+        response.providerId = providerRole.providerId
+      }
     }
 
     // Include parent profile (nationality, languages only - Parent-specific)
@@ -517,15 +524,19 @@ export class AuthService {
     }
   }
 
-  async getProviderAdminPermissions(providerId: string): Promise<string[]> {
+  /**
+   * Full provider-admin permission set — the permission ids held by the seeded 'Provider Admin'
+   * system role (kept in sync with the entire provider context). Used to grant an impersonating
+   * superadmin complete provider-app access regardless of the impersonated owner's own role
+   * configuration. Provider scoping comes from the impersonated user being the provider owner.
+   */
+  async getProviderAdminPermissions(): Promise<string[]> {
     const role = await this.prisma.role.findFirst({
-      where: { providerId, isSystemRole: true, name: 'Provider Admin' },
+      where: { name: 'Provider Admin', isSystemRole: true, providerId: null },
       include: {
-        permissions: {
-          include: { permission: true },
-        },
+        permissions: { select: { permissionId: true } },
       },
     })
-    return role?.permissions.map((p: any) => p.permission.name) ?? []
+    return role?.permissions.map(rp => rp.permissionId) ?? []
   }
 }

@@ -20,6 +20,7 @@ import {
 } from '@heroui/react'
 import { Check, Slash } from 'lucide-react'
 import { PageSlot } from '@/components/layout/page-slot'
+import { Can } from '@/components/auth/can'
 import {
   type ListReimbursementsResponse,
   type ReimbursementRow,
@@ -284,27 +285,32 @@ function ReimbursementRowView({
       </TableCell>
       <TableCell>
         {isPending ? (
-          <div className="flex justify-end gap-2">
-            <Button
-              size="sm"
-              color="success"
-              variant="flat"
-              isLoading={pending}
-              startContent={pending ? null : <Check className="h-4 w-4" />}
-              onPress={onSettle}
-            >
-              Settle
-            </Button>
-            <Button
-              size="sm"
-              variant="flat"
-              isLoading={pending}
-              startContent={pending ? null : <Slash className="h-4 w-4" />}
-              onPress={onWriteOff}
-            >
-              Write off
-            </Button>
-          </div>
+          <Can
+            permission="billing.write"
+            fallback={<span className="text-xs text-default-400">—</span>}
+          >
+            <div className="flex justify-end gap-2">
+              <Button
+                size="sm"
+                color="success"
+                variant="flat"
+                isLoading={pending}
+                startContent={pending ? null : <Check className="h-4 w-4" />}
+                onPress={onSettle}
+              >
+                Settle
+              </Button>
+              <Button
+                size="sm"
+                variant="flat"
+                isLoading={pending}
+                startContent={pending ? null : <Slash className="h-4 w-4" />}
+                onPress={onWriteOff}
+              >
+                Write off
+              </Button>
+            </div>
+          </Can>
         ) : (
           <span className="text-xs text-default-400">—</span>
         )}

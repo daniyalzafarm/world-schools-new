@@ -1,60 +1,53 @@
 /**
  * Navigation Utilities
  *
- * Helper functions for navigation and route authorization
+ * Single source of truth for "dashboard section -> required permission". This config is consumed
+ * by BOTH the sidebar (to decide which items are visible) and the RouteGuard (to decide which
+ * routes a user may access), so the two can never drift.
+ *
+ * Matching is longest-prefix based, so `/users` also covers `/users/create` and
+ * `/users/[id]/edit`. Create/edit pages that need a stricter permission than the section's read
+ * permission additionally self-guard at the page level (see the relevant create/edit pages).
+ *
+ * RouteGuard is DENY-BY-DEFAULT for dashboard routes: a route must either declare a `permission`
+ * or be explicitly marked `public`. A new dashboard route with no entry here is treated as
+ * inaccessible (fail closed) rather than silently exposed.
  */
 
-/**
- * Route configuration with permission requirements
- */
 interface RouteConfig {
   path: string
+  /** Required permission to access this route (and its children). */
   permission?: string
+  /** Accessible to any authenticated user, no permission required. */
+  public?: boolean
   label: string
 }
 
 /**
- * Define all routes in priority order
- * Routes without permissions are accessible to all authenticated users
- * Routes with permissions require the user to have that specific permission
+ * All dashboard routes in priority order (first accessible one is the post-login landing).
  */
 export const ROUTES: RouteConfig[] = [
-  {
-    path: '/dashboard',
-    label: 'Dashboard',
-    // No permission required - available to all
-  },
-  {
-    path: '/bookings',
-    label: 'Bookings',
-    // No permission required - available to all
-  },
-  {
-    path: '/camps',
-    label: 'Camps',
-    // No permission required - available to all
-  },
-  {
-    path: '/add-ons',
-    label: 'Add-ons',
-    // No permission required - available to all
-  },
-  {
-    path: '/users',
-    permission: 'users.read',
-    label: 'Users',
-  },
-  {
-    path: '/roles',
-    permission: 'roles.read',
-    label: 'Roles',
-  },
-  {
-    path: '/notifications',
-    label: 'Notifications',
-    // No permission required - available to all
-  },
+  { path: '/dashboard', label: 'Dashboard', permission: 'provider_dashboard.read' },
+  { path: '/bookings', label: 'Bookings', permission: 'bookings.read' },
+  { path: '/messages', label: 'Messages', permission: 'messages.read' },
+  { path: '/camps', label: 'Camps', permission: 'camps.read' },
+  { path: '/add-ons', label: 'Add-ons', permission: 'addons.read' },
+  { path: '/users', label: 'Users', permission: 'users.read' },
+  { path: '/roles', label: 'Roles', permission: 'roles.read' },
+  { path: '/notifications', label: 'Notifications', public: true },
+  { path: '/help', label: 'Help', public: true },
+  { path: '/support', label: 'Support', public: true },
+  { path: '/account', label: 'Account', public: true },
 ]
+
+/**
+ * Find the most specific (longest-prefix) route config for a pathname.
+ */
+export function matchRoute(pathname: string): RouteConfig | null {
+  const matches = ROUTES.filter(r => pathname === r.path || pathname.startsWith(`${r.path}/`))
+  if (matches.length === 0) return null
+  return matches.reduce((best, r) => (r.path.length > best.path.length ? r : best))
+}
 
 /**
  * Get the first accessible route for a user based on their permissions
@@ -63,11 +56,9 @@ export const ROUTES: RouteConfig[] = [
  */
 export function getFirstAccessibleRoute(userPermissions: string[]): string | null {
   for (const route of ROUTES) {
-    // If route has no permission requirement, it's accessible
-    if (!route.permission) {
+    if (route.public || !route.permission) {
       return route.path
     }
-    // Check if user has the required permission
     if (userPermissions.includes(route.permission)) {
       return route.path
     }
@@ -76,22 +67,21 @@ export function getFirstAccessibleRoute(userPermissions: string[]): string | nul
 }
 
 /**
- * Check if a user has access to a specific route
- * @param routePath - The route path to check
+ * Check if a user has access to a specific route.
+ * Deny-by-default: routes not present in the config are treated as inaccessible.
+ * @param pathname - The route path to check
  * @param userPermissions - Array of permission IDs the user has
  * @returns true if user has access, false otherwise
  */
-export function hasRouteAccess(routePath: string, userPermissions: string[]): boolean {
-  const route = ROUTES.find(r => r.path === routePath)
+export function hasRouteAccess(pathname: string, userPermissions: string[]): boolean {
+  const route = matchRoute(pathname)
   if (!route) {
-    // Route not found in config - allow access (might be a dynamic route)
+    // Fail closed: an unrecognised dashboard route is not accessible.
+    return false
+  }
+  if (route.public || !route.permission) {
     return true
   }
-  // If route has no permission requirement, it's accessible
-  if (!route.permission) {
-    return true
-  }
-  // Check if user has the required permission
   return userPermissions.includes(route.permission)
 }
 
@@ -102,7 +92,7 @@ export function hasRouteAccess(routePath: string, userPermissions: string[]): bo
  */
 export function getAccessibleRoutes(userPermissions: string[]): string[] {
   return ROUTES.filter(route => {
-    if (!route.permission) return true
+    if (route.public || !route.permission) return true
     return userPermissions.includes(route.permission)
   }).map(route => route.path)
 }

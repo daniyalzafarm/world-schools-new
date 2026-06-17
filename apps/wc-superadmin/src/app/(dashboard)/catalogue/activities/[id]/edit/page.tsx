@@ -11,6 +11,7 @@ import {
   type ScaleWithUsage,
   type UpdateActivityPayload,
 } from '@/services/catalogue.services'
+import { usePermissions } from '@/hooks/use-permissions'
 
 function getApiErrorMessage(result: unknown, fallback: string) {
   const maybe: any = result
@@ -19,8 +20,15 @@ function getApiErrorMessage(result: unknown, fallback: string) {
 
 export default function EditCatalogueActivityPage() {
   const router = useRouter()
+  const { hasPermission } = usePermissions()
   const params = useParams()
   const activityId = params.id as string
+
+  useEffect(() => {
+    if (!hasPermission('catalogue.update')) {
+      router.push('/catalogue')
+    }
+  }, [hasPermission, router])
 
   const [categories, setCategories] = useState<AdminCategory[] | null>(null)
   const [scales, setScales] = useState<ScaleWithUsage[]>([])

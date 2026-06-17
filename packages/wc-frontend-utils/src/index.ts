@@ -12,6 +12,9 @@ export * from './lib/protected-route'
 // Auth state management
 export * from './lib/create-auth-store'
 
+// RBAC navigation-permission helpers
+export * from './lib/navigation-permissions'
+
 // Theme configuration
 export * from './lib/theme-config'
 

@@ -31,6 +31,7 @@ import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
 import { eventBus } from '@world-schools/wc-utils'
 import { usePermissions } from '@/hooks/use-permissions'
+import { hasRouteAccess } from '@/utils/navigation'
 import { disputesService } from '@/services/disputes.services'
 import { supportTicketsService } from '@/services/support-tickets.services'
 import { useUnreadNotificationsCount } from '@/hooks/use-unread-notifications-count'
@@ -85,7 +86,6 @@ interface NavItem {
   badge?: number
   children?: NavItem[]
   type?: string
-  permission?: string // Required permission to view this item
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -94,49 +94,42 @@ const NAV_ITEMS: NavItem[] = [
     href: '/analytics-dashboard',
     icon: <House size={20} />,
     type: 'regular',
-    permission: 'analytics.read',
   },
   {
     name: 'Financial Dashboard',
     href: '/financial-dashboard',
     icon: <Banknote size={20} />,
     type: 'regular',
-    permission: 'financial.read',
   },
   {
     name: 'Reimbursements',
     href: '/reimbursements',
     icon: <Receipt size={20} />,
     type: 'regular',
-    permission: 'billing.read',
   },
   {
     name: 'Disputes',
     href: '/disputes',
     icon: <Gavel size={20} />,
     type: 'regular',
-    permission: 'disputes.read',
   },
   {
     name: 'All Providers',
     href: '/providers',
     icon: <Building size={20} />,
     type: 'regular',
-    permission: 'providers.read',
   },
   {
     name: 'Camps',
     href: '/camps',
     icon: <Tent size={20} />,
     type: 'regular',
-    permission: 'camps.read',
   },
   {
     name: 'Parents',
     href: '/parents',
     icon: <Users size={20} />,
     type: 'regular',
-    permission: 'parents.read',
   },
   {
     name: 'Activity Catalogue',
@@ -148,21 +141,18 @@ const NAV_ITEMS: NavItem[] = [
     name: 'Knowledge Base',
     icon: <Notebook size={20} />,
     type: 'collapsible',
-    permission: 'kb.articles.read',
     children: [
       {
         name: 'Articles',
         href: '/kb/articles',
         icon: <List size={20} />,
         type: 'regular',
-        permission: 'kb.articles.read',
       },
       {
         name: 'Categories',
         href: '/kb/categories',
         icon: <LayoutGrid size={20} />,
         type: 'regular',
-        permission: 'kb.categories.read',
       },
     ],
   },
@@ -171,21 +161,18 @@ const NAV_ITEMS: NavItem[] = [
     href: '/users',
     icon: <User size={20} />,
     type: 'regular',
-    permission: 'users.read',
   },
   {
     name: 'Roles',
     href: '/roles',
     icon: <ShieldCheck size={20} />,
     type: 'regular',
-    permission: 'roles.read',
   },
   {
     name: 'Notifications',
     href: '/notifications',
     icon: <Bell size={20} />,
     type: 'regular',
-    // No permission required - available to all authenticated users
   },
   {
     name: 'Help',
@@ -198,7 +185,6 @@ const NAV_ITEMS: NavItem[] = [
     href: '/support',
     icon: <Headphones size={20} />,
     type: 'regular',
-    permission: 'support_tickets.read',
   },
 ]
 
@@ -408,24 +394,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   )
 
   /**
-   * Check if a navigation item should be visible based on user permissions
-   */
-  const isNavItemVisible = React.useCallback(
-    (item: NavItem): boolean => {
-      // If no permission is required, item is always visible
-      if (!item.permission) return true
-      // Check if user has the required permission
-      return hasPermission(item.permission)
-    },
-    [hasPermission]
-  )
-
-  /**
-   * Filter navigation items based on user permissions
+   * Filter navigation items (and their children) based on user permissions.
+   * Visibility is derived from the shared ROUTES config (single source of truth) so the
+   * sidebar and the RouteGuard can never disagree about what a user may access. A collapsible
+   * parent with no destination is visible if any of its children are accessible.
    */
   const visibleNavItems = React.useMemo(() => {
-    return NAV_ITEMS.filter(isNavItemVisible)
-  }, [isNavItemVisible])
+    const userPermissions = user?.permissions ?? []
+    const isVisible = (item: NavItem): boolean => {
+      if (item.href) return hasRouteAccess(item.href, userPermissions)
+      if (item.children?.length) return item.children.some(isVisible)
+      return true
+    }
+    return NAV_ITEMS.filter(isVisible).map(item =>
+      item.children?.length ? { ...item, children: item.children.filter(isVisible) } : item
+    )
+  }, [user])
 
   const userFullName = user?.firstName ? `${user.firstName} ${user.lastName}`.trim() : 'Superadmin'
 

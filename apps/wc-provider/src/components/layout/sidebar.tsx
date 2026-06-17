@@ -24,7 +24,8 @@ import { cn, getInitials, UserAvatar } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
 import { eventBus } from '@world-schools/wc-utils'
-import { usePermissions } from '@/hooks/use-permissions'
+import { hasRouteAccess } from '@/utils/navigation'
+import { isProviderAdmin } from '@/utils/auth'
 import { useUnreadMessagesCount } from '@/hooks/use-unread-messages-count'
 import { useUnreadNotificationsCount } from '@/hooks/use-unread-notifications-count'
 import { useUnreadBookingsCount } from '@/hooks/use-unread-bookings-count'
@@ -79,7 +80,6 @@ interface NavItem {
   badge?: number
   children?: NavItem[]
   type?: string
-  permission?: string // Required permission to view this item
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -103,7 +103,6 @@ const NAV_ITEMS: NavItem[] = [
     icon: <MessageCircle size={20} />,
     type: 'regular',
     // badge: 5,
-    permission: 'messages.read', // Only provider users with the Messaging permission
   },
   {
     name: 'Camps',
@@ -124,14 +123,12 @@ const NAV_ITEMS: NavItem[] = [
     href: '/users',
     icon: <User size={20} />,
     type: 'regular',
-    permission: 'users.read',
   },
   {
     name: 'Roles',
     href: '/roles',
     icon: <ShieldCheck size={20} />,
     type: 'regular',
-    permission: 'roles.read',
   },
   {
     name: 'Notifications',
@@ -159,7 +156,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   const router = useRouter()
   const pathname = usePathname()
   const { user } = useAuthStore()
-  const { hasPermission } = usePermissions()
   const unreadCount = useUnreadMessagesCount()
   const unreadNotificationsCount = useUnreadNotificationsCount()
   const unreadBookingsCount = useUnreadBookingsCount()
@@ -343,16 +339,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   )
 
   /**
-   * Check if a navigation item should be visible based on user permissions
+   * Check if a navigation item should be visible based on user permissions.
+   * Visibility is derived from the shared ROUTES config (single source of truth) so the
+   * sidebar and the RouteGuard can never disagree about what a user may access.
    */
   const isNavItemVisible = React.useCallback(
     (item: NavItem): boolean => {
-      // If no permission is required, item is always visible
-      if (!item.permission) return true
-      // Check if user has the required permission
-      return hasPermission(item.permission)
+      // Items without a destination (e.g. collapsible parents) are always rendered.
+      if (!item.href) return true
+      return hasRouteAccess(item.href, user?.permissions ?? [])
     },
-    [hasPermission]
+    [user]
   )
 
   /**
@@ -369,6 +366,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   }, [isNavItemVisible, unreadCount, unreadNotificationsCount, unreadBookingsCount])
 
   const userFullName = user?.firstName ? `${user.firstName} ${user.lastName}`.trim() : 'Provider'
+  // Business settings (company details, deposit/payment/stripe) are provider-admin only, so the
+  // provider tile only navigates there for admins; other roles see it as a non-clickable label.
+  const canOpenBusinessSettings = isProviderAdmin(user)
 
   return (
     <>
@@ -522,8 +522,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
 
           {/* Provider Profile Card */}
           <div
-            className="cursor-pointer border-t hover:bg-default-100 border-default-200 dark:border-gray-700 shadow-[0_-24px_16px_-2px_rgba(249,249,249,0.8)] dark:shadow-[0_-24px_16px_-2px_rgba(17,24,39,0.8)]"
-            onClick={() => router.push('/account/business/company-details')}
+            className={cn(
+              'border-t border-default-200 dark:border-gray-700 shadow-[0_-24px_16px_-2px_rgba(249,249,249,0.8)] dark:shadow-[0_-24px_16px_-2px_rgba(17,24,39,0.8)]',
+              canOpenBusinessSettings && 'cursor-pointer hover:bg-default-100'
+            )}
+            onClick={
+              canOpenBusinessSettings
+                ? () => router.push('/account/business/company-details')
+                : undefined
+            }
           >
             {isCollapsed ? (
               <Tooltip content={providerName} placement="right" delay={500} closeDelay={0}>
@@ -542,9 +549,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                 )}
               </Tooltip>
             ) : (
-              <div className="p-4 pl-6 flex items-center gap-2 cursor-pointer  whitespace-nowrap overflow-hidden">
+              <div
+                className={cn(
+                  'p-4 pl-6 flex items-center gap-2 whitespace-nowrap overflow-hidden',
+                  canOpenBusinessSettings && 'cursor-pointer'
+                )}
+              >
                 {providerLogoUrl ? (
-                  <div className="w-8 h-8 rounded-full border border-default-200 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
+                  <div
+                    className={cn(
+                      'w-8 h-8 rounded-full border border-default-200 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden flex items-center justify-center transition-opacity',
+                      canOpenBusinessSettings && 'cursor-pointer hover:opacity-80'
+                    )}
+                  >
                     <img
                       src={providerLogoUrl}
                       alt="Provider logo"

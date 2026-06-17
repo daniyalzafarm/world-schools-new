@@ -5,16 +5,9 @@
  */
 
 import apiClient, { type ApiResult } from '@/utils/api-client'
+import type { Permission, PermissionGroup } from '@world-schools/wc-types'
 
-export interface Permission {
-  id: string
-  name: string
-}
-
-export interface PermissionGroup {
-  name: string
-  permissions: Permission[]
-}
+export type { Permission, PermissionGroup }
 
 /**
  * Get all permissions grouped by resource

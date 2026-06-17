@@ -7,6 +7,7 @@ import { formatCurrency } from '@world-schools/wc-utils'
 import { useConfirmDialog } from '@world-schools/ui-web'
 import { ADD_ON_TYPE_BADGES, type AddOn, formatPricingUnit } from '@/types/add-ons'
 import { useAddOnsStore } from '@/stores/add-ons.store'
+import { Can } from '@/components/auth/can'
 
 interface AddOnCardProps {
   addOn: AddOn
@@ -81,26 +82,30 @@ export function AddOnCard({ addOn, currency, onEdit }: AddOnCardProps) {
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
-        <Button
-          isIconOnly
-          size="sm"
-          variant="light"
-          onPress={onEdit}
-          aria-label={`Edit ${addOn.name}`}
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button
-          isIconOnly
-          size="sm"
-          variant="light"
-          color="danger"
-          onPress={handleDelete}
-          isLoading={isDeleting}
-          aria-label={`Delete ${addOn.name}`}
-        >
-          {!isDeleting && <Trash className="h-4 w-4" />}
-        </Button>
+        <Can permission="addons.update">
+          <Button
+            isIconOnly
+            size="sm"
+            variant="light"
+            onPress={onEdit}
+            aria-label={`Edit ${addOn.name}`}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+        </Can>
+        <Can permission="addons.delete">
+          <Button
+            isIconOnly
+            size="sm"
+            variant="light"
+            color="danger"
+            onPress={handleDelete}
+            isLoading={isDeleting}
+            aria-label={`Delete ${addOn.name}`}
+          >
+            {!isDeleting && <Trash className="h-4 w-4" />}
+          </Button>
+        </Can>
       </div>
     </div>
   )

@@ -12,6 +12,7 @@ import { ProviderMessagingModule } from './messaging/provider-messaging.module'
 import { ProviderBookingGroupsModule } from './booking-groups/booking-groups.module'
 import { ProviderReviewsModule } from './reviews/provider-reviews.module'
 import { StripeConnectModule } from './stripe-connect/stripe-connect.module'
+import { ProviderDashboardModule } from './dashboard/dashboard.module'
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { StripeConnectModule } from './stripe-connect/stripe-connect.module'
     ProviderMessagingModule,
     ProviderReviewsModule,
     StripeConnectModule,
+    ProviderDashboardModule,
   ],
 })
 export class ProviderModule {}

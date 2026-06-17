@@ -1,12 +1,18 @@
 import type { User } from '@/types/auth'
 
 /**
- * Check if user is a Provider Admin (system role)
- * Provider Admins have full access to their provider's data
+ * Check if user is a provider admin with full access to the provider's data — either the provider
+ * owner (system 'Provider Admin' role) or a per-provider full-access "Admin" role
+ * (provider-scoped system role). Mirrors the backend `ProviderAccessGuard` 'admin' tier.
  */
 export function isProviderAdmin(user: User | null): boolean {
   if (!user) return false
-  return user.roles?.some(role => role.name === 'Provider Admin') ?? false
+  return (
+    user.roles?.some(
+      role =>
+        role.name === 'Provider Admin' || (role.providerId != null && role.isSystemRole === true)
+    ) ?? false
+  )
 }
 
 /**

@@ -97,7 +97,7 @@ export class JwtPayload {
   app?: 'superadmin' | 'provider' | 'user' // app-specific claim for token isolation
   sessionId?: string // session ID for session management
   impersonatedBy?: { id: string; email: string; name: string } // set when a superadmin impersonates
-  impersonationProviderId?: string // used to look up Provider Admin permissions when impersonating
+  impersonationProviderId?: string // marks a provider impersonation: gates the provider-admin permission override and scopes the impersonated session to this provider
   iat?: number
   exp?: number
 }
