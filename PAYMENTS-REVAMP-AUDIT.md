@@ -70,7 +70,7 @@ the actual code — noted explicitly so the record is trustworthy.
 | 🔴 Blocker (correctness / compliance) | 4 | ✅ all fixed + tested |
 | 🟡 Should-fix (robustness / UX / coverage) | 12 (S1–S12) | ✅ S1–S7 + S11 fixed · ⏳ S8/S9/S10 scoped · ⏳ S12 feature decision |
 | 🟢 Cleanup (nice-to-have) | 6 | ✅ N1/N2/N5 done · N3/N4/N6 trivial, left as-is |
-| ⚪ Out of scope (external / deferred per decision) | 4 | documented only |
+| ⚪ Out of scope (external / deferred per decision) | 3 | documented only (Strict bands since locked + wired — 2026-06-17) |
 
 ---
 
@@ -223,10 +223,11 @@ toggle-on (fee reversed + audited).
 
 ## 🟢 Cleanups
 
-- **N1 — Fail-loud tiers. ✅ FIXED.** `resolveTiers()` now throws for an unsupported policy name (incl.
-  `strict`/`super_strict`) instead of silently pricing as Moderate; empty/unset still resolves to the
-  Moderate onboarding default, and `custom` with missing data still falls back safely. `strict` stays out
-  of `CANCELLATION_POLICY_VALUES` until the bands are locked. Spec updated + tested.
+- **N1 — Fail-loud tiers. ✅ FIXED.** `resolveTiers()` throws for an unsupported policy name instead of
+  silently pricing as Moderate; empty/unset still resolves to the Moderate onboarding default, and
+  `custom` with missing data still falls back safely. **Update (2026-06-17):** `strict` is now a fully
+  wired named policy (bands locked, see below) — it resolves to `STRICT_POLICY_TIERS`; the fail-loud guard
+  now only catches genuinely-unknown names (e.g. `super_strict`/`bogus`). Spec updated + tested.
 - **N2 — `ProviderBalanceCollected` notification. ✅ VERIFIED OK (no change).** Repurposed (dispatched on
   balance-capture success, `payment-intents.service.ts:1494`) rather than removed; its email heading is
   already "Balance payment collected." — accurate under the new model, not "payout released."
@@ -246,7 +247,14 @@ toggle-on (fee reversed + audited).
 
 ## ⚪ Out of scope (external / deferred by decision)
 
-- **Strict policy band percentages** — pending Alex's product lock. Defensively gated by N1.
+- **Strict policy band percentages** — ✅ **LOCKED & WIRED 2026-06-17 (Alex):** Strict = 100% until 90d,
+  50% until 60d, 0% after (Flexible/Moderate already matched). `strict` added to
+  `CANCELLATION_POLICY_VALUES`/labels + `STRICT_POLICY_TIERS`; wired through `resolveTiers` (backend +
+  wc-utils), the capture engine (two-stage, tested), provider onboarding + dashboard policy pages, the
+  parent-facing policy section, and trust score (Strict = 1 pt). **DB:** `cancellation_policy` is a
+  `String` (no Prisma enum), but a CHECK constraint restricted it to flexible/moderate/custom — widened
+  to include `strict` via migration `20260617120000_provider_settings_allow_strict_cancellation_policy`
+  (pending apply on the local dev DB). No longer out of scope.
 - **Quarterly cold-archival cron + append-only DB UPDATE/DELETE-reject trigger** — deferred to
   post-launch by decision (the application layer is already append-only and the retention cron
   excludes both compliance tables).

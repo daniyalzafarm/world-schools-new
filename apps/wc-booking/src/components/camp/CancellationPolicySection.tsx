@@ -6,12 +6,14 @@ import type { Session } from '../../types/sessions'
 const BADGE_CLASSES: Record<string, string> = {
   flexible: 'bg-green-100 text-green-700',
   moderate: 'bg-amber-100 text-amber-700',
+  strict: 'bg-red-100 text-red-700',
   custom: 'bg-gray-100 text-gray-600',
 }
 
 const POLICY_DESCRIPTIONS: Record<string, string> = {
   flexible: '100% refund until 30 days before start, 0% after.',
   moderate: '100% refund until 60 days before, 50% until 30 days, 0% after.',
+  strict: '100% refund until 90 days before, 50% until 60 days, 0% after.',
 }
 
 interface CancellationPolicySectionProps {

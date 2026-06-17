@@ -76,6 +76,13 @@ const POLICY_TEMPLATES = [
     badge: null,
   },
   {
+    value: 'strict' as CancellationPolicy,
+    icon: '🔒',
+    title: 'Strict',
+    description: '100% until 90 days, 50% until 60 days, 0% after',
+    badge: null,
+  },
+  {
     value: 'custom' as CancellationPolicy,
     icon: '⚙️',
     title: 'Custom',
@@ -212,7 +219,7 @@ export default function OnboardingStep6CancellationPolicyPage() {
         // Defensive: any policy name we don't recognise (typo, future
         // option, etc.) falls back to the safe default. Currently the only
         // valid options are flexible / moderate / custom.
-        const displayPolicies: CancellationPolicy[] = ['flexible', 'moderate', 'custom']
+        const displayPolicies: CancellationPolicy[] = ['flexible', 'moderate', 'strict', 'custom']
         const loadedPolicy = displayPolicies.includes(
           saved.cancellationPolicy as CancellationPolicy
         )

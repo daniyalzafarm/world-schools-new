@@ -215,6 +215,7 @@ export class TrustScoreService {
       // Cancellation policy: up to 5 points
       // Flexible policy (most customer-friendly) = 5 pts
       // Moderate policy = 3 pts
+      // Strict policy (least customer-friendly named preset) = 1 pt (Alex, 2026-06-17)
       // Custom = 0 pts (provider-defined; not awarded)
       if (settings.cancellationPolicy) {
         let policyScore = 0
@@ -222,6 +223,8 @@ export class TrustScoreService {
           policyScore = 5
         } else if (settings.cancellationPolicy === 'moderate') {
           policyScore = 3
+        } else if (settings.cancellationPolicy === 'strict') {
+          policyScore = 1
         }
         policiesScore += policyScore
         breakdown.cancellationPolicy = policyScore

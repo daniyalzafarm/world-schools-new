@@ -3,6 +3,7 @@ import {
   DEFAULT_CUSTOM_POLICY_TIERS,
   FLEXIBLE_POLICY_TIERS,
   MODERATE_POLICY_TIERS,
+  STRICT_POLICY_TIERS,
 } from '@world-schools/wc-types'
 import {
   buildCancellationPolicyRows,
@@ -23,8 +24,11 @@ describe('resolveTiers', () => {
     expect(resolveTiers('moderate', null)).toEqual(MODERATE_POLICY_TIERS)
   })
 
-  it('falls back to MODERATE for unknown policy names (legacy strict, etc.)', () => {
-    expect(resolveTiers('strict', null)).toEqual(MODERATE_POLICY_TIERS)
+  it('returns strict tiers for the strict policy', () => {
+    expect(resolveTiers('strict', null)).toEqual(STRICT_POLICY_TIERS)
+  })
+
+  it('falls back to MODERATE for genuinely unknown policy names', () => {
     expect(resolveTiers('super_strict', null)).toEqual(MODERATE_POLICY_TIERS)
     expect(resolveTiers('totally_unknown', null)).toEqual(MODERATE_POLICY_TIERS)
   })
@@ -99,12 +103,13 @@ describe('getCancellationPolicyLabel', () => {
   it('returns the human-readable label for known policies', () => {
     expect(getCancellationPolicyLabel('flexible')).toBe('Flexible')
     expect(getCancellationPolicyLabel('moderate')).toBe('Moderate')
+    expect(getCancellationPolicyLabel('strict')).toBe('Strict')
     expect(getCancellationPolicyLabel('custom')).toBe('Custom')
   })
 
   it('returns Custom for unknown / missing policies', () => {
     expect(getCancellationPolicyLabel(null)).toBe('Custom')
-    expect(getCancellationPolicyLabel('strict')).toBe('Custom')
+    expect(getCancellationPolicyLabel('bogus')).toBe('Custom')
   })
 })
 

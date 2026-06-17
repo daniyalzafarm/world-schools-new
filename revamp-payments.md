@@ -156,7 +156,10 @@ effective_capture_date = max(capture_date, grace_deadline, acceptance_time)
 
 ## Open Dependency
 
-The actual bands/percentages behind the Flexible / Moderate / Strict presets are pending a product/commercial lock (Alex driving). **Build the engine + Custom policy builder now; presets drop in afterwards.**
+The bands/percentages behind the named presets are **LOCKED (Alex, 2026-06-17)** and wired:
+**Flexible** 100% until 30d before, 0% after · **Moderate** 100% until 60d, 50% until 30d, 0% after ·
+**Strict** 100% until 90d, 50% until 60d, 0% after · **Custom** camp-defined. Strict earns 1 provider
+trust point (Flexible 5, Moderate 3, Custom 0).
 
 ---
 
@@ -385,7 +388,7 @@ Because funds are only captured after they become non-refundable:
 
 # Open Dependencies (non-blocking for the engine build)
 
-1. Flexible / Moderate / Strict preset bands & percentages — product/commercial lock pending (Alex driving). Build engine + Custom builder now.
+1. Flexible / Moderate / Strict preset bands & percentages — **LOCKED 2026-06-17 (Alex)** and wired (Flexible 100%→30d, Moderate 100%→60d/50%→30d, Strict 100%→90d/50%→60d; Custom camp-defined). No longer an open dependency.
 2. Commercial confirmation of the no-deposit "cost-free until first capture" exposure.
 3. Stripe follow-up: negative-balance recovery mechanics per launch country (gates country expansion only); Standard-account-specific SCA caveats (non-blocking).
 

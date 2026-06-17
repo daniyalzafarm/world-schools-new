@@ -16,6 +16,12 @@ const MODERATE: PolicyTier[] = [
   { daysBeforeStart: 30, refundPercentage: 50 },
   { daysBeforeStart: 0, refundPercentage: 0 },
 ]
+// Strict (Alex's locked bands): 100% until 90d, 50% until 60d, 0% after — two drops.
+const STRICT: PolicyTier[] = [
+  { daysBeforeStart: 90, refundPercentage: 100 },
+  { daysBeforeStart: 60, refundPercentage: 50 },
+  { daysBeforeStart: 0, refundPercentage: 0 },
+]
 // 3 distinct drops → custom mode.
 const CUSTOM_3: PolicyTier[] = [
   { daysBeforeStart: 90, refundPercentage: 100 },
@@ -152,6 +158,27 @@ describe('buildCaptureSchedule', () => {
     expect(events[2]).toMatchObject({ sequence: 2, kind: 'balance', amount: 400 })
     expect(events[2].captureDate.toISOString()).toBe('2026-08-10T00:00:00.000Z') // 0d
     // Balance events sum exactly to the balance (deposit excluded from the walk).
+    expect(sum(events.filter(e => e.kind === 'balance'))).toBe(800)
+  })
+
+  it('Strict with deposit → deposit seq 0 at grace + two 50% balance captures (90/60/0)', () => {
+    const { events, captureMode } = buildCaptureSchedule({
+      tiers: STRICT,
+      depositAmount: 200,
+      balanceAmount: 800,
+      sessionStart: SESSION_START,
+      timezone: 'UTC',
+      graceDeadline: GRACE,
+    })
+    // 100→100 @90d (no event), 100→50 @60d (400), 50→0 @0d (400) = two drops.
+    expect(captureMode).toBe('two_stage')
+    expect(events).toHaveLength(3)
+    expect(events[0]).toMatchObject({ sequence: 0, kind: 'deposit', amount: 200 })
+    expect(events[0].captureDate.toISOString()).toBe(GRACE.toISOString())
+    expect(events[1]).toMatchObject({ sequence: 1, kind: 'balance', amount: 400 })
+    expect(events[1].captureDate.toISOString()).toBe('2026-06-11T00:00:00.000Z') // 60d before
+    expect(events[2]).toMatchObject({ sequence: 2, kind: 'balance', amount: 400 })
+    expect(events[2].captureDate.toISOString()).toBe('2026-08-10T00:00:00.000Z') // 0d
     expect(sum(events.filter(e => e.kind === 'balance'))).toBe(800)
   })
 

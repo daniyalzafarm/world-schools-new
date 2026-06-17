@@ -638,7 +638,7 @@ model ProviderSettings {
   depositFixedAmount Decimal? @map("deposit_fixed_amount") @db.Decimal(10, 2)
 
   // Cancellation Policy
-  cancellationPolicy                     String    @default("moderate") @map("cancellation_policy") // 'flexible' | 'moderate' | 'custom' (DB CHECK-constrained)
+  cancellationPolicy                     String    @default("moderate") @map("cancellation_policy") // 'flexible' | 'moderate' | 'strict' | 'custom' (DB CHECK-constrained)
   cancellationPolicyCustom               Json?     @map("cancellation_policy_custom") @db.JsonB
   cancellationPolicySpecialCircumstances Json?     @map("cancellation_policy_special_circumstances") @db.JsonB
   cancellationPolicyAgreedAt             DateTime? @map("cancellation_policy_agreed_at")

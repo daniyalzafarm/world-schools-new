@@ -14,13 +14,14 @@
  * choose during onboarding (see Provider/Onboarding step 5 design). 'custom'
  * means the provider supplies their own tiers via `cancellationPolicyCustom`.
  */
-export const CANCELLATION_POLICY_VALUES = ['flexible', 'moderate', 'custom'] as const
+export const CANCELLATION_POLICY_VALUES = ['flexible', 'moderate', 'strict', 'custom'] as const
 export type CancellationPolicy = (typeof CANCELLATION_POLICY_VALUES)[number]
 
 /** Human-readable labels for each policy identifier (used by UIs and admin views). */
 export const CANCELLATION_POLICY_LABELS: Record<CancellationPolicy, string> = {
   flexible: 'Flexible',
   moderate: 'Moderate',
+  strict: 'Strict',
   custom: 'Custom',
 }
 
@@ -112,6 +113,16 @@ export const FLEXIBLE_POLICY_TIERS: readonly CancellationPolicyTier[] = [
 export const MODERATE_POLICY_TIERS: readonly CancellationPolicyTier[] = [
   { daysBeforeStart: 60, refundPercentage: 100 },
   { daysBeforeStart: 30, refundPercentage: 50 },
+  { daysBeforeStart: 0, refundPercentage: 0 },
+] as const
+
+/**
+ * Strict policy: full refund until 90 days, 50% until 60 days, no refund after.
+ * Least customer-friendly named preset — earns 1 trust score point (Alex, 2026-06-17).
+ */
+export const STRICT_POLICY_TIERS: readonly CancellationPolicyTier[] = [
+  { daysBeforeStart: 90, refundPercentage: 100 },
+  { daysBeforeStart: 60, refundPercentage: 50 },
   { daysBeforeStart: 0, refundPercentage: 0 },
 ] as const
 

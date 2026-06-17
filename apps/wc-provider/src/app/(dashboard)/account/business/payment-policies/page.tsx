@@ -9,6 +9,7 @@ import {
   FLEXIBLE_POLICY_TIERS,
   MODERATE_POLICY_TIERS,
   type SpecialCircumstanceType,
+  STRICT_POLICY_TIERS,
 } from '@world-schools/wc-types'
 import { onboardingService } from '@/services/onboarding.services'
 import { useAuth } from '@/hooks/use-auth'
@@ -35,6 +36,11 @@ const POLICY_TEMPLATES: Record<
     icon: '⚖️',
     title: 'Moderate',
     description: '100% until 60 days, 50% until 30 days, 0% after',
+  },
+  strict: {
+    icon: '🔒',
+    title: 'Strict',
+    description: '100% until 90 days, 50% until 60 days, 0% after',
   },
   custom: {
     icon: '⚙️',
@@ -82,6 +88,7 @@ function resolveTiers(
 ): readonly CancellationPolicyTier[] {
   if (policy === 'flexible') return FLEXIBLE_POLICY_TIERS
   if (policy === 'moderate') return MODERATE_POLICY_TIERS
+  if (policy === 'strict') return STRICT_POLICY_TIERS
   if (policy === 'custom' && custom) {
     try {
       const parsed =

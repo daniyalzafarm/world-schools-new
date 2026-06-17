@@ -28,15 +28,24 @@ describe('resolveTiers (backend)', () => {
     ])
   })
 
+  it('returns strict tiers matching the locked product bands (90/60/0)', () => {
+    expect(resolveTiers('strict', null)).toEqual([
+      { daysBeforeStart: 90, refundPercentage: 100 },
+      { daysBeforeStart: 60, refundPercentage: 50 },
+      { daysBeforeStart: 0, refundPercentage: 0 },
+    ])
+  })
+
   it('resolves an empty/unset policy name to MODERATE (the onboarding default)', () => {
     expect(resolveTiers('', null)).toEqual(resolveTiers('moderate', null))
   })
 
-  it('FAILS LOUD for an unsupported policy name (strict bands pending a product lock)', () => {
-    // `strict` is intentionally NOT in CANCELLATION_POLICY_VALUES yet; resolving
-    // it must throw rather than silently price it as Moderate (Spec v2.3).
-    expect(() => resolveTiers('strict', null)).toThrow(/unsupported cancellation policy/)
+  it('FAILS LOUD for a genuinely unsupported policy name', () => {
+    // The four valid presets are flexible/moderate/strict/custom; anything else
+    // (e.g. a legacy `super_strict` or a stray DB write) must throw rather than
+    // silently price the refund as Moderate (Spec v2.3).
     expect(() => resolveTiers('super_strict', null)).toThrow(/unsupported cancellation policy/)
+    expect(() => resolveTiers('bogus', null)).toThrow(/unsupported cancellation policy/)
   })
 
   it('parses custom tier JSON in both `{tiers: []}` and bare-array form', () => {

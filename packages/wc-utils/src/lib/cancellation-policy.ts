@@ -5,12 +5,13 @@ import {
   type CancellationPolicyTier,
   FLEXIBLE_POLICY_TIERS,
   MODERATE_POLICY_TIERS,
+  STRICT_POLICY_TIERS,
 } from '@world-schools/wc-types'
 
 export type CancellationPolicyInput = CancellationPolicy | string | null | undefined
 
 function isKnownPolicy(value: CancellationPolicyInput): value is CancellationPolicy {
-  return value === 'flexible' || value === 'moderate' || value === 'custom'
+  return value === 'flexible' || value === 'moderate' || value === 'strict' || value === 'custom'
 }
 
 /**
@@ -22,6 +23,7 @@ export function resolveTiers(
   customTiers: CancellationPolicyCustomData | null | undefined
 ): readonly CancellationPolicyTier[] {
   if (policy === 'flexible') return FLEXIBLE_POLICY_TIERS
+  if (policy === 'strict') return STRICT_POLICY_TIERS
   if (policy === 'custom' && customTiers?.tiers?.length) return customTiers.tiers
   return MODERATE_POLICY_TIERS
 }

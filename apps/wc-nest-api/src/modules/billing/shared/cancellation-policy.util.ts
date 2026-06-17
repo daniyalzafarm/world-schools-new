@@ -3,6 +3,7 @@ import {
   FLEXIBLE_POLICY_TIERS,
   MODERATE_POLICY_TIERS,
   type SpecialCircumstanceType,
+  STRICT_POLICY_TIERS,
 } from '@world-schools/wc-types'
 import type { Prisma } from '../../../generated/client/client'
 
@@ -101,6 +102,9 @@ export function resolveTiers(
   if (policyName === 'flexible') {
     return FLEXIBLE_POLICY_TIERS.map(t => ({ ...t }))
   }
+  if (policyName === 'strict') {
+    return STRICT_POLICY_TIERS.map(t => ({ ...t }))
+  }
   if (policyName === 'custom') {
     // Custom data is stored as `{ tiers: [...] }` (validated by the DTO) but
     // older / direct DB writes may have stored a bare array. Best-effort
@@ -126,15 +130,12 @@ export function resolveTiers(
   if (policyName === 'moderate' || !policyName) {
     return MODERATE_POLICY_TIERS.map(t => ({ ...t }))
   }
-  // FAIL LOUD (Spec v2.3): any other policy name — including the not-yet-supported
-  // `strict` / `super_strict` whose preset bands are pending a product lock
-  // (Alex) — is a misconfiguration. Throw rather than SILENTLY pricing the refund
-  // as Moderate (which would understate the parent's non-refundable exposure).
-  // `strict` is intentionally absent from `CANCELLATION_POLICY_VALUES`, so the UI
-  // cannot select it; this guards a stray snapshot / direct DB write.
-  throw new Error(
-    `resolveTiers: unsupported cancellation policy "${policyName}" (strict preset bands are pending a product lock)`
-  )
+  // FAIL LOUD (Spec v2.3): any other policy name is a misconfiguration. Throw
+  // rather than SILENTLY pricing the refund as Moderate (which would understate
+  // the parent's non-refundable exposure). The four valid presets are
+  // flexible/moderate/strict/custom; anything else (e.g. a legacy `super_strict`
+  // or a stray direct DB write) must surface.
+  throw new Error(`resolveTiers: unsupported cancellation policy "${policyName}"`)
 }
 
 /**
