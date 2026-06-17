@@ -6,6 +6,7 @@ import { ConfirmDialogProvider } from '@world-schools/ui-web'
 import { WebSocketProvider } from '@world-schools/wc-frontend-utils'
 
 import { AuthProvider } from '@/components/auth/auth-provider'
+import { AuthModal } from '@/components/auth/auth-modal'
 import { MessagingProvider } from '@/components/messaging/messaging-provider'
 import { useAuthStore } from '@/stores/auth-store'
 import { globalWsService } from '@/lib/websocket-instance'
@@ -31,6 +32,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
               isAuthenticated={isAuthenticated}
             >
               <MessagingProvider>{children}</MessagingProvider>
+              <AuthModal />
             </WebSocketProvider>
           </AuthProvider>
         </ConfirmDialogProvider>

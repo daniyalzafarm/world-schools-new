@@ -1,11 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button, Chip, Progress } from '@heroui/react'
 import { PenLine, Star } from 'lucide-react'
 import { getCountryName, getInitials, StarRating } from '@world-schools/ui-web'
 import { REVIEW_TAG_CONFIG } from '@world-schools/wc-types'
 import { getCampReviews } from '@/services/camps.services'
+import { useAuthStore } from '@/stores/auth-store'
+import { useAuthModalStore } from '@/stores/auth-modal-store'
 import type { CampReviewsData, PublicCampReview } from '@/types/reviews'
 import { formatRating } from '@/utils/rating-format'
 import { ExpandableText } from '@/components/camp/ExpandableText'
@@ -152,9 +155,21 @@ export function ReviewsSection({
   externalOpen,
   onExternalClose,
 }: ReviewsSectionProps) {
+  const router = useRouter()
+  const { isAuthenticated } = useAuthStore()
+  const openAuthModal = useAuthModalStore(state => state.open)
   const [data, setData] = useState<CampReviewsData | null>(initialData ?? null)
   const [loaded, setLoaded] = useState(initialData != null)
   const [isOpen, setIsOpen] = useState(false)
+
+  const handleWriteReview = () => {
+    const go = () => router.push('/reviews/write')
+    if (!isAuthenticated) {
+      openAuthModal({ context: 'review', onSuccess: go })
+      return
+    }
+    go()
+  }
 
   useEffect(() => {
     if (initialData != null) return
@@ -274,8 +289,7 @@ export function ReviewsSection({
             </p>
           </div>
           <Button
-            as="a"
-            href="/reviews/write"
+            onPress={handleWriteReview}
             variant="flat"
             startContent={<PenLine size={15} />}
             className="mt-1 rounded-xl border-2 border-primary bg-primary/10 text-secondary font-bold hover:bg-primary/20"
