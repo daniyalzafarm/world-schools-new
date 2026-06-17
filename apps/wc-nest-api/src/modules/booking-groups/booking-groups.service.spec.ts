@@ -13,6 +13,7 @@ import { PrismaService } from '../../prisma/prisma.service'
 import { PaymentIntentsService } from '../billing/intents/payment-intents.service'
 import { CaptureSchedulerService } from '../billing/captures/capture-scheduler.service'
 import { PaymentAuditLogService } from '../billing/shared/payment-audit-log.service'
+import { RescheduleService } from '../billing/reschedule/reschedule.service'
 import { RedisService } from '../redis/redis.service'
 import { RefundsService } from '../billing/refunds/refunds.service'
 import { RefundsNotificationsService } from '../billing/refunds/notifications/refunds-notifications.service'
@@ -200,6 +201,15 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         { provide: EligibilityService, useValue: eligibilityService },
         { provide: CaptureSchedulerService, useValue: captureScheduler },
         { provide: PaymentAuditLogService, useValue: paymentAuditLog },
+        {
+          provide: RescheduleService,
+          useValue: {
+            propose: jest.fn(),
+            getPending: jest.fn(),
+            consent: jest.fn(),
+            decline: jest.fn(),
+          },
+        },
       ],
     }).compile()
     service = module.get(BookingGroupsService)

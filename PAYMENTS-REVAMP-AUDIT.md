@@ -35,7 +35,7 @@ correctness gaps.
 | S7 provider "Payment & Schedule" panel | ✅ fixed (backend + type + drawer; build-verified) |
 | S8 parent multi-band schedule, S9 deposit-toggle context / onboarding preview | ⏳ scoped — see below |
 | S10 frontend vitest | ⏳ scoped — wc-provider has no component-test harness yet |
-| S12 provider reschedule | ⏳ feature-scope decision (see below) |
+| S12 provider reschedule | ✅ implemented (Spec v2.5 §9.7) — propose/consent/decline + recompute + re-snapshot + audit |
 
 **Remaining frontend scope (transparency polish, not correctness):**
 - **S7 — DONE.** The provider booking detail now renders a read-only "Payment & Schedule" panel
@@ -68,7 +68,7 @@ the actual code — noted explicitly so the record is trustworthy.
 | Severity | Count | Status |
 | --- | --- | --- |
 | 🔴 Blocker (correctness / compliance) | 4 | ✅ all fixed + tested |
-| 🟡 Should-fix (robustness / UX / coverage) | 12 (S1–S12) | ✅ S1–S7 + S11 fixed · ⏳ S8/S9/S10 scoped · ⏳ S12 feature decision |
+| 🟡 Should-fix (robustness / UX / coverage) | 12 (S1–S12) | ✅ S1–S7 + S11 fixed · ✅ S12 implemented (§9.7 reschedule) · ⏳ S8/S9/S10 scoped |
 | 🟢 Cleanup (nice-to-have) | 6 | ✅ N1/N2/N5 done · N3/N4/N6 trivial, left as-is |
 | ⚪ Out of scope (external / deferred per decision) | 3 | documented only (Strict bands since locked + wired — 2026-06-17) |
 
@@ -211,13 +211,20 @@ toggle-on (fee reversed + audited).
   `consent_captured` audit (B2), FM fee toggle on/off (B4), reasonText enforcement (B3), `cardExpiresBeforeDate`
   (S4). Only the JPY end-to-end onboarding/settlement happy-path remains deferred (currency mechanics are
   already covered by the money-util + drift tests).
-- **S12 — Provider reschedule flow not implemented (feature gap). ⏳ FEATURE-SCOPE DECISION.** Plan §8 / §10-remainder specify a
-  provider reschedule: *with* customer consent → cancel existing rows/jobs, recompute schedule/bands
-  against the new start date, re-capture the consent snapshot; *without* consent → the
-  `cancelByProvider` full-refund flow. No `rescheduleForProvider` endpoint/method exists today
-  (`cancelByProvider` does). This is a **new feature**, not a bug — flagged for a launch-scope decision
-  (providers can currently cancel + rebook). If reschedule is a launch requirement it must be built;
-  the `consent_captured` mirror (B2) attaches to it once it exists.
+- **S12 — Provider reschedule flow (Spec v2.5 §9.7). ✅ IMPLEMENTED (2026-06-17).** Provider PROPOSES a
+  new start (`POST /provider/booking-groups/:id/reschedule` → a pending `RescheduleProposal`); the
+  customer consents (`/user/.../reschedule/consent`) or declines. **On consent**, one transaction:
+  `CaptureSchedulerService.planReschedule` → `writeRescheduleRows` cancels the not-yet-fired rows + inserts
+  the recomputed remainder against the new start with **sequences above the current max** (collision +
+  BullMQ jobId-reuse safe), sets `bookingGroup.rescheduledStartDate`, supersedes + re-inserts the consent
+  snapshot, closes the proposal; post-commit dispatches jobs + appends a `reschedule_recompute` audit row.
+  Refund-band evaluation (`evaluatePolicy`) now prices on `rescheduledStartDate ?? session.startDate`.
+  Recompute is **guarded** against in-flight/failed captures. **Without consent** (decline / no response):
+  the original dates + schedule stand; the provider separately honours or cancels via `cancelByProvider`
+  (§9.5). Schema: additive `reschedule_recompute` enum value + `RescheduleProposal` table +
+  `BookingGroup.rescheduledStartDate` (migration `20260617130000_payments_revamp_programme_reschedule`).
+  Tests: `capture-scheduler.service.spec` (rematerialize), `reschedule.service.spec`, `refunds.service.spec`
+  (rescheduled-start band). Frontends: provider propose modal + customer consent modal.
 
 ---
 

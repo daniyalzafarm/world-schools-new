@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@heroui/react'
 import { ChevronRight } from 'lucide-react'
@@ -17,7 +17,9 @@ import {
 import { formatCurrency } from '@/utils/currency'
 import type { ParentBookingGroupDetail, ParentBookingGroupStatus } from '@/types/camp-booking'
 import { useMessagingStore } from '@/stores/messaging-store'
+import { bookingGroupsService } from '@/services/booking-groups.services'
 import { CancelBookingModal } from './cancel-booking-modal'
+import { RescheduleConsentModal } from './reschedule-consent-modal'
 
 /**
  * Statuses where the parent's "Cancel booking" CTA is shown. Mirrors the
@@ -74,6 +76,8 @@ export function BookingDetailSidebar({
   onCancelled?: () => void
 }) {
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false)
+  const [hasPendingReschedule, setHasPendingReschedule] = useState(false)
   const router = useRouter()
   const { setDraftConversation } = useMessagingStore()
   const status = detail.status as ParentBookingGroupStatus
@@ -97,6 +101,19 @@ export function BookingDetailSidebar({
   const campSlug = detail.camp.slug
   const campProfileHref = `/camps/${encodeURIComponent(campSlug)}`
   const campusHref = `${campProfileHref}#campus`
+
+  // Surface a pending provider reschedule (Spec v2.5 §9.7) awaiting the
+  // customer's consent. Best-effort fetch; a failure simply hides the banner.
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const res = await bookingGroupsService.getPendingReschedule(detail.id)
+      if (!cancelled && res.success) setHasPendingReschedule(res.data.pending != null)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [detail.id])
 
   // Open the conversation with this camp's provider. The messages page resolves
   // this draft to the existing thread when one exists (deep-link); otherwise it
@@ -305,6 +322,26 @@ export function BookingDetailSidebar({
         </p>
       </section>
 
+      {hasPendingReschedule ? (
+        <section className="border-t border-default-200 pt-6 dark:border-slate-700">
+          <div className="rounded-xl border border-warning-200 bg-warning-50 p-4">
+            <h3 className="mb-1 text-base font-semibold text-warning-800">Date change requested</h3>
+            <p className="mb-3 text-sm text-warning-800">
+              The camp has proposed new programme dates. Review the new dates and updated payment
+              schedule, then agree or decline.
+            </p>
+            <Button
+              color="warning"
+              variant="flat"
+              size="sm"
+              onPress={() => setRescheduleModalOpen(true)}
+            >
+              Review date change
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
       {showCancelButton ? (
         <section className="border-t border-default-200 pt-6 dark:border-slate-700">
           <h3 className="mb-2 text-lg font-semibold text-secondary">Cancel booking</h3>
@@ -324,6 +361,18 @@ export function BookingDetailSidebar({
         onClose={() => setCancelModalOpen(false)}
         onCancelled={() => {
           setCancelModalOpen(false)
+          onCancelled?.()
+        }}
+      />
+
+      <RescheduleConsentModal
+        bookingGroupId={detail.id}
+        currency={currency}
+        isOpen={rescheduleModalOpen}
+        onClose={() => setRescheduleModalOpen(false)}
+        onResolved={() => {
+          setRescheduleModalOpen(false)
+          setHasPendingReschedule(false)
           onCancelled?.()
         }}
       />

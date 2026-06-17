@@ -13,6 +13,7 @@ import {
   getRefundLabel,
   getRefundPercentage,
   resolveTiers,
+  suggestStandardTier,
 } from './cancellation-policy'
 
 describe('resolveTiers', () => {
@@ -110,6 +111,27 @@ describe('getCancellationPolicyLabel', () => {
   it('returns Custom for unknown / missing policies', () => {
     expect(getCancellationPolicyLabel(null)).toBe('Custom')
     expect(getCancellationPolicyLabel('bogus')).toBe('Custom')
+  })
+})
+
+describe('suggestStandardTier (§3.1 onboarding suggestion)', () => {
+  it('maps camp type to the suggested standard tier', () => {
+    expect(suggestStandardTier(['day'])).toBe('flexible')
+    expect(suggestStandardTier(['residential'])).toBe('moderate')
+    expect(suggestStandardTier(['overnight'])).toBe('moderate')
+    expect(suggestStandardTier(['premium'])).toBe('strict')
+    expect(suggestStandardTier(['international'])).toBe('strict')
+  })
+
+  it('residential/premium win over day when both are present', () => {
+    expect(suggestStandardTier(['day', 'residential'])).toBe('moderate')
+    expect(suggestStandardTier(['day', 'premium'])).toBe('strict')
+  })
+
+  it('falls back to moderate for empty / unknown', () => {
+    expect(suggestStandardTier([])).toBe('moderate')
+    expect(suggestStandardTier(null)).toBe('moderate')
+    expect(suggestStandardTier(['mystery'])).toBe('moderate')
   })
 })
 

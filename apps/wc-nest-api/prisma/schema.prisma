@@ -1191,6 +1191,11 @@ model BookingGroup {
   /// retained for back-compat during the cutover.
   graceDeadline DateTime? @map("grace_deadline")
 
+  /// Payments revamp (Spec v2.5 §9.7): the agreed new programme start after a
+  /// Provider reschedule the Customer consented to. Null ⇒ use `session.startDate`.
+  /// Authoritative for capture recompute, refund-band evaluation, and display once set.
+  rescheduledStartDate DateTime? @map("rescheduled_start_date")
+
   /// Internal capture mechanics derived from the cancellation policy. Never shown
   /// to users (they see the named tiers Flexible/Moderate/Strict/Custom).
   captureMode CaptureMode? @map("capture_mode")
@@ -1264,9 +1269,10 @@ model BookingGroup {
   refunds                     Refund[]
   disputes                    Dispute[]
   reimbursements    Reimbursement[]
-  scheduledCaptures BookingScheduledCapture[]
-  consentSnapshots  BookingConsentSnapshot[]
-  paymentAuditLog   BookingPaymentAuditLog[]
+  scheduledCaptures   BookingScheduledCapture[]
+  consentSnapshots    BookingConsentSnapshot[]
+  paymentAuditLog     BookingPaymentAuditLog[]
+  rescheduleProposals RescheduleProposal[]
   cancelledByUser   User?                     @relation("BookingGroupCancelledBy", fields: [cancelledByUserId], references: [id])
 
   @@index([parentId])
@@ -2765,6 +2771,16 @@ enum PaymentAuditEventType {
   payment_review_flagged
   admin_override
   consent_captured
+  reschedule_recompute
+}
+
+/// Lifecycle of a Provider-initiated Programme reschedule that awaits the
+/// affected Customer's consent (Payments revamp, Spec v2.5 §9.7).
+enum RescheduleProposalStatus {
+  pending
+  consented
+  declined
+  expired
 }
 
 enum PlatformFeeDisposition {
@@ -3177,6 +3193,33 @@ model ProviderAdminReviewQueue {
   @@index([providerId])
   @@index([status])
   @@map("provider_admin_review_queue")
+}
+
+/// A Provider-initiated Programme reschedule awaiting the affected Customer's
+/// consent (Payments revamp, Spec v2.5 §9.7). A Provider may not unilaterally
+/// move Programme dates after acceptance (PT §5.3): on consent the capture
+/// schedule + cancellation bands are recomputed against `proposedStartDate` and
+/// the consent snapshot is re-captured; on decline/expiry the original dates
+/// stand (the Provider separately honours them or cancels via §9.5).
+model RescheduleProposal {
+  id                String                   @id @default(uuid())
+  bookingGroupId    String                   @map("booking_group_id")
+  proposedByUserId  String                   @map("proposed_by_user_id")
+  originalStartDate DateTime                 @map("original_start_date")
+  proposedStartDate DateTime                 @map("proposed_start_date")
+  status            RescheduleProposalStatus @default(pending)
+  reasonText        String?                  @map("reason_text") @db.Text
+
+  respondedByUserId String?   @map("responded_by_user_id")
+  respondedAt       DateTime? @map("responded_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bookingGroup BookingGroup @relation(fields: [bookingGroupId], references: [id], onDelete: Restrict)
+
+  @@index([bookingGroupId, status])
+  @@map("reschedule_proposals")
 }
 
 /// Tracks a camp's debt to World Camps when a refund was issued after funds

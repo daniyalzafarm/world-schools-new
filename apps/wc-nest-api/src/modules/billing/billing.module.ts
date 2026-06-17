@@ -10,6 +10,7 @@ import { DisputesModule } from './disputes/disputes.module'
 import { PaymentIntentsModule } from './intents/payment-intents.module'
 import { RefundsModule } from './refunds/refunds.module'
 import { ReimbursementsModule } from './reimbursements/reimbursements.module'
+import { RescheduleModule } from './reschedule/reschedule.module'
 
 /**
  * Umbrella for all billing/payments domain submodules.
@@ -42,6 +43,7 @@ import { ReimbursementsModule } from './reimbursements/reimbursements.module'
     RefundsModule,
     DisputesModule,
     ReimbursementsModule,
+    RescheduleModule,
   ],
   controllers: [StripeWebhookController],
   providers: [StripeWebhookService, WebhookEventRetentionCron],
@@ -51,6 +53,7 @@ import { ReimbursementsModule } from './reimbursements/reimbursements.module'
     RefundsModule,
     DisputesModule,
     ReimbursementsModule,
+    RescheduleModule,
   ],
 })
 export class BillingModule {}

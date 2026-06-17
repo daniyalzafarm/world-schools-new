@@ -95,6 +95,29 @@ export function getCancellationPolicyLabel(policy: CancellationPolicyInput): str
 }
 
 /**
+ * Onboarding suggestion (Spec v2.5 §3.1): map a provider's camp type(s) to a
+ * SUGGESTED standard tier (always editable — the provider can pick any tier or
+ * build a Custom policy). Day → Flexible, residential/overnight → Moderate,
+ * premium/international → Strict. Region (from the settlement currency) refines
+ * the deposit default elsewhere in onboarding, not the tier. Unknown/empty falls
+ * back to Moderate (the platform default).
+ *
+ * NOTE: the data model's camp type is `day | residential` (region is inferred
+ * from currency, and there is no distinct "premium" type), so this is an
+ * approximation of the §3.1 matrix on the available taxonomy.
+ */
+export function suggestStandardTier(
+  campTypes: readonly string[] | null | undefined
+): CancellationPolicy {
+  const types = (campTypes ?? []).map(t => t.toLowerCase())
+  if (types.length === 0) return 'moderate'
+  if (types.some(t => t.includes('premium') || t.includes('international'))) return 'strict'
+  if (types.some(t => t.includes('residential') || t.includes('overnight'))) return 'moderate'
+  if (types.some(t => t.includes('day'))) return 'flexible'
+  return 'moderate'
+}
+
+/**
  * One row in a tier-schedule display (camp-detail section, modal, FAQ).
  *
  * The shape is intentionally generic — the calling component decides how to

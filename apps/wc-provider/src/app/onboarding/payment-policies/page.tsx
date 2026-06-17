@@ -17,6 +17,7 @@ import {
   getCurrencySymbol,
   getRefundAmount,
   resolveTiers,
+  suggestStandardTier,
 } from '@world-schools/wc-utils'
 import { useOnboardingStore } from '../../../stores/onboarding-store'
 import { OnboardingPageLayout } from '../../../components/onboarding/OnboardingPageLayout'
@@ -265,8 +266,17 @@ export default function OnboardingStep6CancellationPolicyPage() {
           termsAgreed: agreed,
         })
       } else {
+        // No saved policy yet — pre-populate a SUGGESTED tier from the camp type
+        // (Spec v2.5 §3.1). Always editable; the provider can pick any tier or
+        // build a Custom policy. Best-effort: a fetch miss leaves the default.
+        let suggested: CancellationPolicy = 'moderate'
+        const campInfo = await onboardingService.getCampInfo()
+        if (campInfo.success && campInfo.data) {
+          suggested = suggestStandardTier(campInfo.data.campTypes)
+        }
+        setSelectedPolicy(suggested)
         setOriginalData({
-          policy: 'moderate',
+          policy: suggested,
           customTiers: DEFAULT_CUSTOM_POLICY_TIERS.map(t => ({ ...t })),
           specialCircumstances: defaultSpecialCircumstances(),
           termsAgreed: false,

@@ -93,4 +93,19 @@ export const providerBookingGroupsService = {
       {}
     )
   },
+
+  /**
+   * Propose new programme dates for an accepted booking (Spec v2.5 §9.7). Creates
+   * a pending proposal that awaits the customer's consent; the schedule only
+   * recomputes once they agree.
+   */
+  async reschedule(
+    id: string,
+    body: { proposedStartDate: string; reasonText?: string }
+  ): Promise<ApiResult<{ proposalId: string }>> {
+    return apiClient.post<{ proposalId: string }>(
+      `/provider/booking-groups/${encodeURIComponent(id)}/reschedule`,
+      body
+    )
+  },
 }

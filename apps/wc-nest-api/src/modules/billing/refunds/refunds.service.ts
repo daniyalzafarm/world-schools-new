@@ -1363,6 +1363,9 @@ export class RefundsService {
   private evaluatePolicy(
     group: {
       cancellationPolicySnapshot: Prisma.JsonValue | null
+      // Payments revamp (Spec v2.5 §9.7): a consented reschedule overrides the
+      // session start, so refund bands price on the agreed new date.
+      rescheduledStartDate: Date | null
       session: { startDate: Date }
       provider: {
         settings: {
@@ -1381,7 +1384,7 @@ export class RefundsService {
         group.provider.settings?.cancellationPolicySpecialCircumstances ?? null,
       bookingPolicySnapshot: group.cancellationPolicySnapshot,
       circumstance: circumstance ?? null,
-      sessionStartDate: group.session.startDate,
+      sessionStartDate: group.rescheduledStartDate ?? group.session.startDate,
     })
   }
 

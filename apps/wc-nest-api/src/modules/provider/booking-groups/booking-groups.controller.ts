@@ -9,6 +9,7 @@ import { PatchProviderBookingGroupDto } from './dto/patch-provider-booking-group
 import { QueryProviderBookingGroupsDto } from './dto/query-provider-booking-groups.dto'
 import { RespondBookingGroupDto } from './dto/respond-booking-group.dto'
 import { DeclineBookingGroupDto } from './dto/decline-booking-group.dto'
+import { ProposeRescheduleDto } from './dto/propose-reschedule.dto'
 
 @ApiTags('Provider Booking Groups')
 @ApiBearerAuth()
@@ -53,6 +54,25 @@ export class ProviderBookingGroupsController {
       user.providerId,
       id,
       dto.providerNote
+    )
+    return ResponseUtil.success(result)
+  }
+
+  @Post(':id/reschedule')
+  @Permissions('bookings.write')
+  @ApiOperation({
+    summary: 'Propose new programme dates for an accepted booking (awaits customer consent).',
+  })
+  async reschedule(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: ProposeRescheduleDto
+  ) {
+    const result = await this.bookingGroupsService.proposeRescheduleForProvider(
+      user.providerId,
+      user.id,
+      id,
+      { proposedStartDate: new Date(dto.proposedStartDate), reasonText: dto.reasonText }
     )
     return ResponseUtil.success(result)
   }

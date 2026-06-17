@@ -3,6 +3,7 @@ import type {
   ChildBookingRange,
   EligibilityResult,
   ParentBookingGroupsQuery,
+  ReschedulePendingResponse,
   SpecialCircumstanceType,
 } from '@world-schools/wc-types'
 import type {
@@ -191,5 +192,38 @@ export const bookingGroupsService = {
       mode: ParentCancelMode
       refundCount: number
     }>(`/user/booking-groups/${bookingGroupId}/cancel`, body)
+  },
+
+  // ─── Programme reschedule (Spec v2.5 §9.7) ─────────────────────────────────
+
+  /** The pending provider reschedule proposal + a preview of the new schedule. */
+  async getPendingReschedule(
+    bookingGroupId: string
+  ): Promise<ApiResult<ReschedulePendingResponse>> {
+    return apiClient.get<ReschedulePendingResponse>(
+      `/user/booking-groups/${bookingGroupId}/reschedule/pending`
+    )
+  },
+
+  /** Consent to the proposed new dates — recomputes the schedule + re-snapshots. */
+  async consentReschedule(
+    bookingGroupId: string,
+    body: { proposalId: string; policyTextShown?: string; schemaVersion?: number }
+  ): Promise<ApiResult<{ status: 'consented' }>> {
+    return apiClient.post<{ status: 'consented' }>(
+      `/user/booking-groups/${bookingGroupId}/reschedule/consent`,
+      body
+    )
+  },
+
+  /** Decline the proposed new dates — the original schedule stands. */
+  async declineReschedule(
+    bookingGroupId: string,
+    body: { proposalId: string }
+  ): Promise<ApiResult<{ status: 'declined' }>> {
+    return apiClient.post<{ status: 'declined' }>(
+      `/user/booking-groups/${bookingGroupId}/reschedule/decline`,
+      body
+    )
   },
 }

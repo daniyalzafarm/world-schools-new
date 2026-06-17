@@ -10,6 +10,15 @@ Because there are **no production bookings or providers**, this is a **clean rep
 
 Where this plan and the contracts conflict, the contracts (Parent Terms v1.4 / Provider Terms v1.7) prevail.
 
+> **Spec conformance (2026-06-17): brought to v2.5.** v2.4 (the 2026-06-12 reconciliation this build
+> targeted) and v2.5 have landed. v2.5 carries all v2.4 payment mechanics forward unchanged; its net
+> changes are the locked standard-tier schedules + 90/60/30 lattice (§2.2 — matches the
+> `FLEXIBLE/MODERATE/STRICT_POLICY_TIERS` constants exactly), the §3.1 onboarding recast (camp type
+> pre-populates a suggested tier + deposit default — **implemented** via `suggestStandardTier`), and §15
+> copy. **§9.7 Programme reschedule is implemented** (see §8). **Currency:** all 15 currencies retained
+> end-to-end — an approved deviation from v2.5 §4.1's "launch 4 + gate expansion" (deliberate product
+> decision; per item 8 below).
+
 ---
 
 ## Contractual invariants (must hold everywhere)
@@ -23,7 +32,7 @@ These are tested as first-class assertions, not assumed:
 5. **Consent snapshot + append-only payment audit log, 10-year retention** (Swiss CO Art. 958f).
 6. **Force Majeure** refunds captured amounts **minus the platform fee** (admin toggle to also refund the fee), and cancels future captures.
 7. **Post-grace customer cancel**: platform fee non-refundable; balance-% refund still issued when the matched tier > 0% (only skip the Stripe call when it computes to 0).
-8. **Currency**: all 15 `SUPPORTED_CURRENCIES` supported end-to-end (per-Listing settlement). Per-country negative-balance recovery + the platform-account FX config (below) are operational items to confirm, not code gates.
+8. **Currency**: all 15 `SUPPORTED_CURRENCIES` supported end-to-end (per-Listing settlement). **This is an approved deviation from Spec v2.5 §4.1**, which locks launch to USD/GBP/EUR/CHF and gates onboarding-country expansion until per-country negative-balance recovery is confirmed — the platform deliberately enables all 15 (the connect allow-list + drift test pin this). Per-country negative-balance recovery + the platform-account FX-to-CHF config (below) remain operational items to confirm, not code gates.
 
 ---
 
@@ -161,7 +170,7 @@ New files under `billing/captures/`, mirroring existing patterns exactly:
 - **Customer cancel within grace:** cancel jobs + rows + the deposit PI (existing `voidAuthFn`/`cancelForBookingGroup`); **no refund call**; audit.
 - **Customer cancel after grace (critique finding 10):** run `evaluatePolicy` on the **balance**; if matched tier % > 0, issue a balance-only refund with `KEEP_PLATFORM_FEE` (deposit + platform fee non-refundable); skip the Stripe call only when computed refund is 0. Cancel remaining rows/jobs.
 - **Provider cancel (programme cancellation):** new `cancelByProvider()`; full refund of all captures (`refund_application_fee:true`); cancel all rows; **no auto-suspend** → insert `provider_admin_review_queue` row (default `precautionary`) + notify.
-- **Provider reschedule:** with consent → **cancel existing rows+jobs first**, then recompute schedule/bands vs new start + new consent snapshot (coverage gap 1); without consent → provider-cancellation flow.
+- **Provider reschedule (Spec v2.5 §9.7 — ✅ IMPLEMENTED):** provider PROPOSES a new start (`POST /provider/booking-groups/:id/reschedule` → pending `RescheduleProposal`); the customer consents (`/user/booking-groups/:id/reschedule/consent`) or declines. On consent, ONE transaction: `CaptureSchedulerService.planReschedule` → `writeRescheduleRows` cancels the not-yet-fired rows + inserts the recomputed remainder against the new start with **sequences above the current max** (collision/jobId-reuse safe), sets `bookingGroup.rescheduledStartDate`, supersedes + re-inserts the consent snapshot, closes the proposal; post-commit dispatches jobs + appends a `reschedule_recompute` audit row. Refund-band evaluation now prices on `rescheduledStartDate ?? session.startDate`. Recompute is guarded against in-flight/failed captures. Without consent → original dates stand; provider separately honours or cancels (§9.5).
 - **Force Majeure bulk:** superadmin endpoint selects by date/provider/region, creates `force_majeure_events`, **calls `cancelForBooking` per affected booking** AND refunds captured **minus platform fee** (`KEEP_PLATFORM_FEE`, default `retained`), with an admin toggle to also refund the fee; run via BullMQ for scale; full audit with `platformFeeDisposition` (critique finding 5).
 
 **Reimbursement retirement (critique blocker 3 — pre-M2):** under capture-when-non-refundable, captured funds are immediately the provider's, so `requiresReimbursement` is always false. In the same PR that removes payout code, short-circuit `resolveRequiresReimbursement` to `false` and stop creating `Reimbursement` rows **before** M2 drops `BookingPayoutSchedule` (it currently queries that table on every refund). Decide explicitly: drop or freeze the `Reimbursement` table.

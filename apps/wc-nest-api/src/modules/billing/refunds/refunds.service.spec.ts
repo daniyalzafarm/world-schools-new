@@ -53,6 +53,7 @@ describe('RefundsService', () => {
       parentId: PARENT_ID,
       transferDate: null as Date | null,
       graceDeadline: new Date(Date.now() + 60 * 60 * 1000),
+      rescheduledStartDate: null as Date | null,
       session: { startDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) },
       cancellationPolicySnapshot: JSON.parse(JSON.stringify(policySnapshot)),
       provider: {
@@ -891,6 +892,27 @@ describe('RefundsService', () => {
       expect(
         postGraceResult.items.find(i => i.kind === PaymentKind.deposit)?.refundAmountMajor
       ).toBe('0.00')
+    })
+
+    it('prices refund bands on the rescheduled start date when set (Spec v2.5 §9.7)', async () => {
+      // Session is 90 days out (Moderate → 100%), but the booking was rescheduled
+      // to ~10 days out (Moderate → 0%). The refund must price on the new date.
+      const group = makeGroup({
+        status: 'deposit_paid',
+        graceDeadline: new Date(Date.now() - 60 * 60 * 1000), // past grace
+        session: { startDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) },
+        rescheduledStartDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+      })
+      prisma.bookingGroup.findUnique.mockResolvedValueOnce(group)
+      prisma.payment.findMany.mockResolvedValueOnce([
+        makePayment({ kind: PaymentKind.balance, amount: new Prisma.Decimal('1400.00') }),
+      ])
+
+      const result = await service.previewParentCancel('bg-1')
+
+      // 10 days out under Moderate → 0% (would be 100% on the original 90-day date).
+      expect(result.mode).toBe('policy')
+      expect(result.items.find(i => i.kind === PaymentKind.balance)?.refundAmountMajor).toBe('0.00')
     })
 
     it('returns mode=policy with deposit non-refundable + balance × tier% post-grace', async () => {

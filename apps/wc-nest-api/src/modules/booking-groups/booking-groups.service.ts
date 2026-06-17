@@ -57,7 +57,12 @@ import {
   computeProviderResponseDeadline,
 } from './booking-snapshot.util'
 import { buildBookingPolicySnapshot } from '../billing/shared/cancellation-policy.util'
+import {
+  buildConsentChargeSchedule,
+  buildConsentDepositInfo,
+} from '../billing/shared/consent-snapshot.util'
 import { PaymentAuditLogService } from '../billing/shared/payment-audit-log.service'
+import { RescheduleService } from '../billing/reschedule/reschedule.service'
 import {
   buildCaptureSchedule,
   resolveProgrammeLocationTimezone,
@@ -105,8 +110,48 @@ export class BookingGroupsService {
     private readonly redis: RedisService,
     private readonly eligibilityService: EligibilityService,
     private readonly captureScheduler: CaptureSchedulerService,
-    private readonly paymentAuditLog: PaymentAuditLogService
+    private readonly paymentAuditLog: PaymentAuditLogService,
+    private readonly rescheduleService: RescheduleService
   ) {}
+
+  // ─── Programme reschedule (Spec v2.5 §9.7) — thin pass-throughs to
+  // RescheduleService; ownership/guards live there. ───────────────────────────
+  proposeRescheduleForProvider(
+    providerId: string,
+    providerUserId: string,
+    bookingGroupId: string,
+    args: { proposedStartDate: Date; reasonText?: string | null }
+  ) {
+    return this.rescheduleService.propose({
+      providerId,
+      proposedByUserId: providerUserId,
+      bookingGroupId,
+      proposedStartDate: args.proposedStartDate,
+      reasonText: args.reasonText,
+    })
+  }
+
+  getPendingReschedule(bookingGroupId: string, parentUserId: string) {
+    return this.rescheduleService.getPending(bookingGroupId, parentUserId)
+  }
+
+  consentReschedule(
+    bookingGroupId: string,
+    parentUserId: string,
+    args: {
+      proposalId: string
+      ipAddress?: string | null
+      userAgent?: string | null
+      policyTextShown?: string | null
+      schemaVersion?: number | null
+    }
+  ) {
+    return this.rescheduleService.consent({ bookingGroupId, parentUserId, ...args })
+  }
+
+  declineReschedule(bookingGroupId: string, parentUserId: string, proposalId: string) {
+    return this.rescheduleService.decline({ bookingGroupId, parentUserId, proposalId })
+  }
 
   /**
    * Statuses that count toward a session's used capacity (a child holding a
@@ -2501,22 +2546,11 @@ export class BookingGroupsService {
       graceDeadline,
       acceptanceTime: null,
     })
-    const chargeScheduleJson = {
-      graceDeadline: graceDeadline.toISOString(),
-      captureMode: captureSchedule.captureMode,
-      events: captureSchedule.events.map(e => ({
-        sequence: e.sequence,
-        kind: e.kind,
-        amount: e.amount,
-        captureDate: e.captureDate.toISOString(),
-      })),
-    }
-    const depositInfoJson = {
-      applies: snapshot.depositAmount != null,
-      amount: snapshot.depositAmount ? snapshot.depositAmount.toFixed(2) : null,
-      gracePeriodHours: 24,
+    const chargeScheduleJson = buildConsentChargeSchedule(captureSchedule, graceDeadline)
+    const depositInfoJson = buildConsentDepositInfo({
+      depositAmountMajor: snapshot.depositAmount ? snapshot.depositAmount.toNumber() : null,
       campDepositEnabled: bookingGroup.camp.depositEnabled,
-    }
+    })
 
     // C5 + capacity audit fix: do the capacity recount and the status-guarded
     // draft → request transition ATOMICALLY. A `SELECT … FOR UPDATE` on the

@@ -43,6 +43,7 @@ import { useMessagingStore } from '@/stores/messaging-store'
 import { providerBookingGroupsService } from '@/services/provider-booking-groups.services'
 import { AcceptBookingConfirmationModal } from './accept-booking-confirmation-modal'
 import { DeclineBookingModal, type DeclinePayload } from './decline-booking-modal'
+import { ProposeRescheduleModal } from './propose-reschedule-modal'
 
 export interface BookingRequestDrawerProps {
   isOpen: boolean
@@ -150,6 +151,7 @@ export function BookingRequestDrawer({
   const [declineModalOpen, setDeclineModalOpen] = React.useState(false)
   const [cancelModalOpen, setCancelModalOpen] = React.useState(false)
   const [cancelLoading, setCancelLoading] = React.useState(false)
+  const [proposeRescheduleOpen, setProposeRescheduleOpen] = React.useState(false)
 
   React.useEffect(() => {
     if (isOpen) {
@@ -1126,6 +1128,20 @@ export function BookingRequestDrawer({
                         </span>
                       </Button>
                     ) : null}
+                    {detail.status !== 'at_camp' ? (
+                      <Button
+                        fullWidth
+                        variant="light"
+                        radius="none"
+                        className="flex h-auto min-h-0 justify-between border-b border-gray-100 px-6 py-4 hover:bg-gray-50"
+                        endContent={<span className="text-lg text-gray-400">›</span>}
+                        onPress={() => setProposeRescheduleOpen(true)}
+                      >
+                        <span className="text-sm font-medium text-secondary-500">
+                          Propose new dates
+                        </span>
+                      </Button>
+                    ) : null}
                     <Button
                       fullWidth
                       variant="light"
@@ -1200,6 +1216,27 @@ export function BookingRequestDrawer({
               </ModalFooter>
             </ModalContent>
           </Modal>
+
+          <ProposeRescheduleModal
+            isOpen={proposeRescheduleOpen}
+            onClose={() => setProposeRescheduleOpen(false)}
+            onProposed={() => {
+              setProposeRescheduleOpen(false)
+              addToast({
+                title: 'Date change proposed · the family has been asked to review',
+                color: 'success',
+              })
+              onDetailRefresh?.()
+            }}
+            proposeReschedule={async body => {
+              if (!detail) return { ok: false, message: 'No booking loaded' }
+              const res = await providerBookingGroupsService.reschedule(detail.id, body)
+              return {
+                ok: res.success,
+                message: res.success ? undefined : (res.data as { message?: string })?.message,
+              }
+            }}
+          />
 
           <Modal isOpen={moreTimeOpen} onOpenChange={setMoreTimeOpen} placement="center">
             <ModalContent className="text-secondary-500">

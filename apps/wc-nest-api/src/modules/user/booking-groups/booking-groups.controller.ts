@@ -20,6 +20,7 @@ import { CancelBookingGroupDto } from './dto/cancel-booking-group.dto'
 import { CheckEligibilityDto } from './dto/check-eligibility.dto'
 import { CreateDraftBookingGroupDto } from './dto/create-draft-booking-group.dto'
 import { QueryParentBookingGroupsDto } from './dto/query-parent-booking-groups.dto'
+import { RescheduleConsentDto, RescheduleDeclineDto } from './dto/reschedule-consent.dto'
 import { SaveBookingGroupAddOnsDto } from './dto/save-booking-group-addons.dto'
 import { SubmitBookingGroupDto } from './dto/submit-booking-group.dto'
 import { UpdateDraftBookingGroupDto } from './dto/update-draft-booking-group.dto'
@@ -185,6 +186,47 @@ export class UserBookingGroupsController {
     const result = await this.bookingGroupsService.previewParentCancel(user.id, id, {
       circumstance: query.circumstance ?? null,
     })
+    return ResponseUtil.success(result)
+  }
+
+  @Get(':id/reschedule/pending')
+  @ApiOperation({
+    summary: 'The pending provider reschedule proposal + a preview of the recomputed schedule.',
+  })
+  async pendingReschedule(@CurrentUser() user: any, @Param('id') id: string) {
+    const result = await this.bookingGroupsService.getPendingReschedule(id, user.id)
+    return ResponseUtil.success(result)
+  }
+
+  @Post(':id/reschedule/consent')
+  @ApiOperation({
+    summary: 'Consent to a provider reschedule — recomputes the capture schedule + re-snapshots.',
+  })
+  async consentReschedule(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: RescheduleConsentDto,
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent: string
+  ) {
+    const result = await this.bookingGroupsService.consentReschedule(id, user.id, {
+      proposalId: dto.proposalId,
+      policyTextShown: dto.policyTextShown ?? null,
+      schemaVersion: dto.schemaVersion ?? 1,
+      ipAddress: ip ?? null,
+      userAgent: userAgent ?? null,
+    })
+    return ResponseUtil.success(result)
+  }
+
+  @Post(':id/reschedule/decline')
+  @ApiOperation({ summary: 'Decline a provider reschedule — the original dates stand.' })
+  async declineReschedule(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: RescheduleDeclineDto
+  ) {
+    const result = await this.bookingGroupsService.declineReschedule(id, user.id, dto.proposalId)
     return ResponseUtil.success(result)
   }
 

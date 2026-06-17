@@ -354,6 +354,26 @@ export interface ScheduledCaptureView {
   status: 'scheduled' | 'processing' | 'completed' | 'failed' | 'cancelled'
 }
 
+/**
+ * A pending Provider-proposed reschedule + a preview of the recomputed capture
+ * schedule the customer would be consenting to (Payments revamp, Spec v2.5 §9.7).
+ * `pending` is null when no proposal awaits the customer.
+ */
+export interface ReschedulePendingResponse {
+  pending: {
+    proposalId: string
+    originalStartDate: string
+    proposedStartDate: string
+    reasonText: string | null
+    newSchedule: {
+      sequence: number
+      kind: 'deposit' | 'balance'
+      amount: number
+      captureDate: string
+    }[]
+  } | null
+}
+
 export interface ProviderBookingGroupDetail {
   id: string
   bookingGroupNumber: string

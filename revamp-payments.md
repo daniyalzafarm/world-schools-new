@@ -1,6 +1,6 @@
 # Booking Deposit Capture & Payment Flow Redesign
 
-> Aligned with Payments and Payouts Spec v2.3 and Alex's reconciliation answers (2026-06-12). Where this doc and the contracts conflict, the contracts (Parent Terms v1.4 / Provider Terms v1.7) prevail.
+> Aligned with Payments and Payouts Spec **v2.5** (2026-06-17) — built against v2.3 + Alex's 2026-06-12 reconciliation (≈ v2.4), then conformed to v2.5. v2.5 carries all v2.4 payment mechanics forward unchanged; its net changes are: the standard-tier schedules + 90/60/30 lattice **locked** (§2.2 — matches the `FLEXIBLE/MODERATE/STRICT_POLICY_TIERS` constants exactly), the §3.1 onboarding recast (camp type pre-populates a suggested tier + deposit default — implemented), and §15 customer copy. The §9.7 Programme-reschedule flow is implemented. **Currency:** all 15 `SUPPORTED_CURRENCIES` are supported end-to-end — an approved deviation from v2.5 §4.1's "launch 4 + gate expansion" (deliberate product decision; the FX-to-CHF default-currency config remains an operational prerequisite). Where this doc and the contracts conflict, the contracts (Parent Terms v1.4 / Provider Terms v1.7) prevail.
 
 ## Objective
 
@@ -331,11 +331,11 @@ At provider acceptance:
 * Suspension scope default = the affected Listing; escalate to account-wide for safeguarding/fraud/pattern.
 * Existing confirmed bookings: suspension always blocks new bookings; under precautionary suspension camps run and captures continue; under safeguarding/fraud/insolvency, pause captures and triage each booking.
 
-## Provider Reschedule
+## Provider Reschedule (Spec v2.5 §9.7 — implemented)
 
-* No unilateral reschedule post-acceptance (PT v1.7 §5.3).
-* **With customer consent**: recompute the capture schedule and bands against the new start date and re-capture the consent snapshot.
-* **Without consent**: treat as a Provider cancellation (full refund flow above).
+* No unilateral reschedule post-acceptance (PT v1.7 §5.3). The provider PROPOSES a new start (`POST /provider/booking-groups/:id/reschedule` → a pending `RescheduleProposal`); the customer reviews it on their booking and consents or declines.
+* **With customer consent** (`POST /user/booking-groups/:id/reschedule/consent`): in one transaction, recompute the capture schedule + bands against the new start (`rescheduledStartDate`), regenerate the not-yet-fired captures (old scheduled rows cancelled; new rows take sequences above the current max), supersede + re-capture the consent snapshot, and append a `reschedule_recompute` audit row. Amounts already captured are untouched. (Recompute is blocked while a capture is in-flight/failed — resolve it first.)
+* **Without consent** (decline or no response): the original dates + schedule stand; the provider separately honours them or cancels via the §9.5 provider-cancellation full-refund flow.
 
 ## Force Majeure (admin bulk action)
 
