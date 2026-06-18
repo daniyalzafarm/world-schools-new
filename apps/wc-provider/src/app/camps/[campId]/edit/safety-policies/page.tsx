@@ -118,6 +118,7 @@ export default function SafetyPoliciesEditorPage() {
 
   useAutosave(autosavePayload, {
     enabled: isLoaded && allRatiosValid,
+    ready: isLoaded,
     save: async ({ safetyData: safety, screenEnabled: enabled, screenDescription: desc }) => {
       const screenPayload = enabled && desc.trim() ? { description: desc } : null
       await updateSection(campId, 'safety-policies', {

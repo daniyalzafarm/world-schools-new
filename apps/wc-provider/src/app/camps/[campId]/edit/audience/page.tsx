@@ -59,6 +59,7 @@ export default function AudienceEditorPage() {
 
   useAutosave(formData, {
     enabled: autosaveEnabled,
+    ready: isLoaded,
     save: async data => {
       await updateCampAudience(campId, data)
       if (!useCampsStore.getState().error) {

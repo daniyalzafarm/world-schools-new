@@ -112,6 +112,7 @@ export default function SkillRequirementsPage() {
 
   useAutosave(items, {
     enabled: !loading,
+    ready: !loading,
     debounceMs: 750,
     save: async nextItems => {
       const normalized = normalizeItemsForSave(nextItems)

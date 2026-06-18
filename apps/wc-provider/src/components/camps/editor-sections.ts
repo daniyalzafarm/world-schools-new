@@ -237,7 +237,7 @@ export function getSectionProgress(
       return { completed: c, total: 3 }
     }
     case 'programs':
-      return { completed: (camp.activities?.length ?? 0) > 0 ? 1 : 0, total: 1 }
+      return { completed: 1, total: 1 }
     case 'photos': {
       const count = Math.min(camp.photos?.length ?? 0, 5)
       return { completed: count, total: 5 }
