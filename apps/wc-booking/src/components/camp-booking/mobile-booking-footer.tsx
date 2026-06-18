@@ -93,6 +93,7 @@ export function MobileBookingFooter({ paymentPending, onSubmitPayment }: MobileB
   const childBookingRanges = useCampBookingStore(state => state.childBookingRanges)
   const selectedChildIds = useCampBookingStore(state => state.selectedChildIds)
   const guardianConsent = useCampBookingStore(state => state.guardianConsent)
+  const skillGateFailuresByChildId = useCampBookingStore(state => state.skillGateFailuresByChildId)
   const addOns = useCampBookingStore(state => state.addOns)
   const addOnSelectionsById = useCampBookingStore(state => state.addOnSelectionsById)
 
@@ -112,8 +113,22 @@ export function MobileBookingFooter({ paymentPending, onSubmitPayment }: MobileB
   // child — matches the desktop gate and the store's auto-select.
   const hasValidChildSelection = useMemo(
     () =>
-      hasEligibleSelection(camp, selectedSession, children, selectedChildIds, childBookingRanges),
-    [camp, selectedSession, children, selectedChildIds, childBookingRanges]
+      hasEligibleSelection(
+        camp,
+        selectedSession,
+        children,
+        selectedChildIds,
+        childBookingRanges,
+        skillGateFailuresByChildId
+      ),
+    [
+      camp,
+      selectedSession,
+      children,
+      selectedChildIds,
+      childBookingRanges,
+      skillGateFailuresByChildId,
+    ]
   )
 
   const sessionPrice = getSessionPrice(selectedSession)

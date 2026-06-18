@@ -537,6 +537,10 @@ function ChildrenStep() {
 
   const children = useCampBookingStore(state => state.children)
   const childBookingRanges = useCampBookingStore(state => state.childBookingRanges)
+  const skillGateFailuresByChildId = useCampBookingStore(state => state.skillGateFailuresByChildId)
+  const refreshSkillGateEligibility = useCampBookingStore(
+    state => state.refreshSkillGateEligibility
+  )
   const selectedChildIds = useCampBookingStore(state => state.selectedChildIds)
   const toggleChild = useCampBookingStore(state => state.toggleChild)
   const guardianConsent = useCampBookingStore(state => state.guardianConsent)
@@ -547,9 +551,23 @@ function ChildrenStep() {
   const currency = useCampBookingStore(state => getCampCurrency(state.camp, 'camp-booking-flow'))
   const [isAddingChild, setIsAddingChild] = useState(false)
 
+  // Pre-validate skill GATEs up front (the FE can't evaluate them on its own) so
+  // a skill-gated child is greyed out inline rather than only failing at Continue.
+  useEffect(() => {
+    if (!camp?.id || !session) return
+    void refreshSkillGateEligibility()
+  }, [camp?.id, session, children, refreshSkillGateEligibility])
+
   const eligibleChildren = useMemo(
-    () => getChildrenEligibility(camp, session, children, childBookingRanges),
-    [children, camp, session, childBookingRanges]
+    () =>
+      getChildrenEligibility(
+        camp,
+        session,
+        children,
+        childBookingRanges,
+        skillGateFailuresByChildId
+      ),
+    [children, camp, session, childBookingRanges, skillGateFailuresByChildId]
   )
 
   // Continue is only valid when at least one *eligible* child is selected.

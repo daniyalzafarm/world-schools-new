@@ -5,7 +5,7 @@ import { getCampBySlug, getCampReviews } from '@/services/camps.services'
 import { campSessionsService } from '@/services/camp-sessions.services'
 import { campAddOnsService } from '@/services/camp-addons.services'
 import { bookingGroupsService } from '@/services/booking-groups.services'
-import type { ChildBookingRange } from '@world-schools/wc-types'
+import type { ChildBookingRange, EligibilityFailure } from '@world-schools/wc-types'
 import type { Camp } from '@/types/camps'
 import type { Child } from '@/types/child'
 import type { CampReviewsData } from '@/types/reviews'
@@ -32,6 +32,13 @@ interface CampBookingState {
   /// out a child whose dates overlap the selected session (mirrors the backend
   /// `existing_booking_same_dates` gate). Best-effort: empty on fetch failure.
   childBookingRanges: ChildBookingRange[]
+  /// Per-child skill-GATE failures (e.g. "Requires Football level of
+  /// 'Intermediate' or higher."), fetched up front from the authoritative
+  /// eligibility-check endpoint. The FE can't evaluate skill gates on its own,
+  /// so these are merged into the step-2 per-child guardrails to grey out a
+  /// skill-gated child inline instead of only failing late at Continue. Keyed by
+  /// child id; absent key = no skill-gate blocker.
+  skillGateFailuresByChildId: Record<string, EligibilityFailure[]>
   addOns: CampBookingAddOn[]
   selectedSessionId: string | null
   selectedChildIds: string[]
@@ -62,6 +69,14 @@ interface CampBookingActions {
   toggleChild: (childId: string) => void
   setGuardianConsent: (value: boolean) => void
   autoSelectEligibleChildren: () => void
+  /**
+   * Background pre-validation of every child against the camp's GATE skill
+   * requirements via the authoritative eligibility-check endpoint. Populates
+   * `skillGateFailuresByChildId` so the step-2 UI can show the skill blocker
+   * inline. Silent/advisory: never toggles `isLoading`/`error`; on failure the
+   * map stays empty and the submit gate remains authoritative.
+   */
+  refreshSkillGateEligibility: () => Promise<void>
   addChild: (child: {
     firstName: string
     lastName?: string
@@ -110,6 +125,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
     sessions: [],
     children: [],
     childBookingRanges: [],
+    skillGateFailuresByChildId: {},
     addOns: [],
     selectedSessionId: null,
     selectedChildIds: [],
@@ -179,6 +195,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
           state.sessions = sessionsResponse.data
           state.children = childrenResponse.data
           state.childBookingRanges = bookingRanges
+          state.skillGateFailuresByChildId = {}
           state.addOns = addOnsResponse.data
           state.currentStep = START_STEP
           state.bookingGroupId = null
@@ -375,10 +392,49 @@ export const useCampBookingStore = create<CampBookingStore>()(
           state.camp,
           session,
           state.children,
-          state.childBookingRanges
+          state.childBookingRanges,
+          state.skillGateFailuresByChildId
         )
         state.selectedChildIds = maxSpots !== null ? eligibleIds.slice(0, maxSpots) : eligibleIds
       })
+    },
+
+    refreshSkillGateEligibility: async () => {
+      const state = get()
+      const campId = state.camp?.id
+      const sessionId = state.selectedSessionId
+      const childIds = state.children.map(c => c.id)
+      if (!campId || !sessionId || childIds.length === 0) return
+
+      try {
+        const eligibility = await bookingGroupsService.checkEligibility({
+          campId,
+          sessionId,
+          childIds,
+        })
+        if (!eligibility.success) return
+
+        const byChild: Record<string, EligibilityFailure[]> = {}
+        for (const result of eligibility.data?.results ?? []) {
+          const skillFailures = result.failures.filter(f => f.code === 'skill_gate_not_met')
+          if (skillFailures.length > 0) byChild[result.childId] = skillFailures
+        }
+
+        set(draft => {
+          draft.skillGateFailuresByChildId = byChild
+          // Drop any selected child that just turned out to be skill-gated so the
+          // price total and guardian-consent copy don't include a now-ineligible
+          // child. Re-confirm guardianship if the selection changed (mirrors
+          // toggleChild).
+          const pruned = draft.selectedChildIds.filter(id => !byChild[id])
+          if (pruned.length !== draft.selectedChildIds.length) {
+            draft.selectedChildIds = pruned
+            draft.guardianConsent = false
+          }
+        })
+      } catch {
+        // Advisory background check — leave the map empty; submit gate enforces.
+      }
     },
 
     addChild: async childData => {
@@ -719,6 +775,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
         state.draftPreviews = []
         state.selectedSessionId = null
         state.selectedChildIds = []
+        state.skillGateFailuresByChildId = {}
         state.guardianConsent = false
         state.addOnSelectionsById = {}
         state.specialRequest = ''
