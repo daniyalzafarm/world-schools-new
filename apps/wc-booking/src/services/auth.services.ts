@@ -66,10 +66,20 @@ export async function resetPassword(data: { token: string; newPassword: string }
 }
 
 /**
- * Google Sign-In
+ * Set an initial password for a passwordless (e.g. Google OAuth) account.
+ * No current password is required; rejected by the backend if one already exists.
  */
-export async function googleSignIn(data: { token: string }) {
-  return apiClient.post('user/auth/google-signin', data)
+export async function setPassword(data: { newPassword: string }) {
+  return apiClient.post('user/auth/set-password', data)
+}
+
+/**
+ * Google Sign-In — exchanges a Google ID-token credential for an authenticated
+ * session. `true` attaches response headers so tokens can be read in
+ * request-based auth mode (mirrors the shared login service).
+ */
+export async function googleSignIn(data: { credential: string }) {
+  return apiClient.post('user/auth/google-signin', data, undefined, true)
 }
 
 // Export legacy method names for backward compatibility

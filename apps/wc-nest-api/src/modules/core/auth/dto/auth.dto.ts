@@ -50,6 +50,13 @@ export class ChangePasswordDto {
   newPassword: string
 }
 
+export class SetPasswordDto {
+  @ApiProperty({ example: 'NewSecurePassword123!' })
+  @IsString()
+  @IsStrongPassword()
+  newPassword: string
+}
+
 export class ForgotPasswordDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()

@@ -1,3 +1,4 @@
+import { BadRequestException, NotFoundException } from '@nestjs/common'
 import { AuthService } from './auth.service'
 
 /**
@@ -72,5 +73,52 @@ describe('AuthService.getProviderAdminPermissions', () => {
       undefined as any
     )
     expect(await service.getProviderAdminPermissions()).toEqual([])
+  })
+})
+
+/**
+ * `setPassword` lets a passwordless (OAuth) user set an INITIAL password without an old
+ * password, but must never overwrite an existing one.
+ */
+describe('AuthService.setPassword', () => {
+  const makeService = (user: any, update = jest.fn().mockResolvedValue({})) => {
+    const prisma = { user: { findUnique: jest.fn().mockResolvedValue(user), update } }
+    const configService = { jwtConfig: { bcryptSaltRounds: 4 } }
+    const service = new AuthService(prisma as any, undefined as any, configService as any)
+    return { service, update }
+  }
+
+  it('sets an initial password (hashed) for a passwordless user', async () => {
+    const { service, update } = makeService({ id: 'u1', passwordHash: null })
+
+    const result = await service.setPassword('u1', 'StrongPass123!')
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'u1' },
+        data: expect.objectContaining({ passwordChangedAt: expect.any(Date) }),
+      })
+    )
+    const data = update.mock.calls[0][0].data
+    expect(typeof data.passwordHash).toBe('string')
+    expect(data.passwordHash).not.toBe('StrongPass123!') // stored hashed, not plaintext
+    expect(result.passwordChangedAt).toBeInstanceOf(Date)
+  })
+
+  it('rejects when a password already exists (use change-password instead)', async () => {
+    const { service, update } = makeService({ id: 'u1', passwordHash: 'existing-hash' })
+
+    await expect(service.setPassword('u1', 'StrongPass123!')).rejects.toBeInstanceOf(
+      BadRequestException
+    )
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it('throws when the user does not exist', async () => {
+    const { service } = makeService(null)
+
+    await expect(service.setPassword('missing', 'StrongPass123!')).rejects.toBeInstanceOf(
+      NotFoundException
+    )
   })
 })

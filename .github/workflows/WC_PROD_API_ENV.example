@@ -50,6 +50,10 @@ JWT_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 BCRYPT_SALT_ROUNDS=12
 
+# Google OAuth client ID — audience for verifying booking "Sign in with Google" ID
+# tokens. Same public value as the booking app's GOOGLE_OAUTH_CLIENT_ID (non-secret).
+GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
+
 HELMET_ENABLED=true
 TRUST_PROXY=1
 

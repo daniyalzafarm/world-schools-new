@@ -301,6 +301,43 @@ export class AuthService {
     return { passwordChangedAt }
   }
 
+  /**
+   * Set an INITIAL password for a passwordless (e.g. Google OAuth) user.
+   * Unlike changePassword there is no old password to verify because none exists —
+   * the caller is already authenticated and their email is provider-verified. Gated
+   * to `passwordHash === null` so it can never overwrite an existing password (that
+   * still requires changePassword with the old one).
+   */
+  async setPassword(userId: string, newPassword: string): Promise<{ passwordChangedAt: Date }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    })
+
+    if (!user) {
+      throw new NotFoundException('User not found')
+    }
+
+    if (user.passwordHash) {
+      throw new BadRequestException('Password already set. Use change password instead.')
+    }
+
+    const passwordHash = await bcrypt.hash(
+      newPassword,
+      this.configService.jwtConfig.bcryptSaltRounds
+    )
+
+    const passwordChangedAt = new Date()
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash,
+        passwordChangedAt,
+      },
+    })
+
+    return { passwordChangedAt }
+  }
+
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string }> {
     const { email } = forgotPasswordDto
 

@@ -2,7 +2,10 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "../../tsconfig.nestjs.spec.json",
   "compilerOptions": {
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    // Match the build's ambient types (tsconfig.nestjs.json) so specs that import
+    // controllers typed with `Express.Multer.File` type-check the same way the app does.
+    "types": ["jest", "node", "multer"]
   },
   "include": [
     "jest.config.ts",

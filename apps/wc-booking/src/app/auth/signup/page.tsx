@@ -20,6 +20,7 @@ export default function SignUpPage() {
               onSuccess={email =>
                 router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)
               }
+              onGoogleSuccess={() => router.replace('/')}
               onSignIn={() => router.push('/auth/signin')}
             />
           </div>

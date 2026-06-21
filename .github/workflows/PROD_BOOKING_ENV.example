@@ -20,6 +20,7 @@ API_BASE_URL=https://api.world-camps.org
 WS_URL=https://api.world-camps.org
 AUTH_USING_REQUEST=false
 GOOGLE_MAPS_API_KEY=<prod-google-maps-browser-key>
+GOOGLE_OAUTH_CLIENT_ID=xxxxx.apps.googleusercontent.com
 STRIPE_PUBLISHABLE_KEY=pk_live_xxx
 ENABLE_WEBSOCKET_MESSAGES=true
 WEBSOCKET_FALLBACK_HTTP=true

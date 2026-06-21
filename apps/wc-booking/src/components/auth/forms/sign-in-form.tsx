@@ -7,6 +7,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { Input } from '@world-schools/ui-web'
 import { useAuthStore } from '@/stores/auth-store'
 import { AuthFormShell } from '@/components/auth/forms/auth-form-shell'
+import { GoogleAuthButton } from '@/components/auth/google-auth-button'
 
 interface SignInFormProps {
   /** Optional heading override (e.g. "Log in to book"). Defaults to "Welcome back". */
@@ -29,8 +30,12 @@ export function SignInForm({
   const { login, isLoading, error, clearError } = useAuthStore()
 
   const [showPassword, setShowPassword] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [formData, setFormData] = useState({ email: '', password: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Disable the email form while a sign-in (email or Google) is in flight.
+  const isBusy = isLoading || googleLoading
 
   // Clear any auth errors when the form mounts
   useEffect(() => {
@@ -117,30 +122,31 @@ export function SignInForm({
       description={title ? undefined : 'Sign in to your account'}
       onSubmit={handleSubmit}
       footer={
-        <>
+        <div className="mx-auto flex w-full max-w-100 flex-col gap-3">
           <Button
             type="submit"
-            size="lg"
             radius="full"
             color="primary"
-            className="w-full font-semibold"
             isLoading={isLoading}
-            isDisabled={isLoading}
+            isDisabled={isBusy}
           >
             {isLoading ? 'Authenticating…' : 'Sign in'}
           </Button>
+
+          <GoogleAuthButton onSuccess={onSuccess} onLoadingChange={setGoogleLoading} />
 
           <div className="text-center text-sm text-gray-500">
             Don&apos;t have an account?{' '}
             <button
               type="button"
               onClick={onSignUp}
-              className="text-secondary-500 hover:text-secondary-600 font-medium cursor-pointer"
+              disabled={isBusy}
+              className="text-secondary-500 hover:text-secondary-600 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Sign up
             </button>
           </div>
-        </>
+        </div>
       }
     >
       {error && (
@@ -157,6 +163,7 @@ export function SignInForm({
           onValueChange={value => handleInputChange('email', value)}
           isInvalid={!!errors.email}
           errorMessage={errors.email}
+          isDisabled={isBusy}
           variant="bordered"
           radius="lg"
           size="lg"
@@ -179,6 +186,7 @@ export function SignInForm({
           }
           isInvalid={!!errors.password}
           errorMessage={errors.password}
+          isDisabled={isBusy}
           variant="bordered"
           radius="lg"
           size="lg"
@@ -188,7 +196,8 @@ export function SignInForm({
           <button
             type="button"
             onClick={onForgotPassword}
-            className="text-gray-500 hover:text-gray-700 cursor-pointer"
+            disabled={isBusy}
+            className="text-gray-500 hover:text-gray-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Forgot password?
           </button>
