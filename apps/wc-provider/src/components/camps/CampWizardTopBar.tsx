@@ -55,6 +55,7 @@ export function CampWizardTopBar({ currentStep, campId }: CampWizardTopBarProps)
       title: 'Success',
       description: 'Camp published successfully!',
       color: 'success',
+      timeout: 3000,
     })
     router.push('/camps')
   }

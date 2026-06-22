@@ -55,6 +55,7 @@ export function ColumnChart({
         />
         <Tooltip
           cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+          labelFormatter={formatXTick ? label => formatXTick(String(label)) : undefined}
           formatter={(value: any) => (formatValue ? formatValue(Number(value)) : value)}
           contentStyle={{
             borderRadius: 8,

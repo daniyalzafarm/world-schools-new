@@ -65,6 +65,17 @@ interface CampBookingActions {
   initByCampSlug: (campSlug: string) => Promise<void>
   hydrateFromBookingGroupId: (bookingGroupId: string) => Promise<void>
   setStep: (step: BookingFlowStep) => void
+  /**
+   * Rehydrate the in-memory selection from a persisted incomplete-booking
+   * snapshot (set directly — not via `toggleChild`, which would clear
+   * `guardianConsent` per toggle). Runs after `initByCampSlug` so it overrides
+   * the init-reset `currentStep`, restoring the parent to the step they left.
+   */
+  restoreSelection: (selection: {
+    sessionId: string | null
+    childIds: string[]
+    step: BookingFlowStep
+  }) => void
   selectSession: (sessionId: string | null) => void
   toggleChild: (childId: string) => void
   setGuardianConsent: (value: boolean) => void
@@ -342,6 +353,14 @@ export const useCampBookingStore = create<CampBookingStore>()(
 
     setStep: step => {
       set(state => {
+        state.currentStep = step
+      })
+    },
+
+    restoreSelection: ({ sessionId, childIds, step }) => {
+      set(state => {
+        state.selectedSessionId = sessionId
+        state.selectedChildIds = childIds
         state.currentStep = step
       })
     },

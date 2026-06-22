@@ -18,6 +18,7 @@ export interface AnalyticsOverview {
   platformRevenue: KpiMetric
   bookings: KpiMetric
   activeParents: KpiMetric
+  activeProviders: KpiMetric
   conversionRate: KpiMetric
 }
 
@@ -53,12 +54,20 @@ export interface GeographicDistribution {
   countries: GeographicCountry[]
 }
 
+export interface FunnelLostReason {
+  reason: string
+  label: string
+  count: number
+}
+
 export interface FunnelStep {
   key: string
   label: string
   count: number
   dropoffPctFromPrev: number
   conversionPctFromTop: number
+  lostFromPrev: number
+  lostBreakdown: FunnelLostReason[]
 }
 
 export interface ConversionFunnel {

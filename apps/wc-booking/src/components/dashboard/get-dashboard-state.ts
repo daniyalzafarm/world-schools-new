@@ -58,10 +58,10 @@ export function getDashboardState(snapshot: DashboardSnapshot): DashboardState {
   const hasDraftBooking = bookings.some(b => b.status === 'draft')
   if (wishlists.length > 0 || hasDraftBooking) return 'browsing'
 
-  // 7. Profile-ready — at least one mostly-complete child
-  const profileReady = children.some(c => c.profileCompletion >= 75)
-  if (profileReady) return 'profile-ready'
+  // 7. Profile-ready — has at least one child profile (regardless of how
+  // complete). Any existing child means this is not a first-time setup.
+  if (children.length > 0) return 'profile-ready'
 
-  // 8. Fresh start fallback
+  // 8. Fresh start fallback — no children yet
   return 'fresh-start'
 }

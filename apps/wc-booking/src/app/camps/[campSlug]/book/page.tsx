@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { isSessionBookable } from '@world-schools/wc-utils'
 import { CampBookingFlow } from '@/components/camp-booking/camp-booking-flow'
 import { useCampBookingStore } from '@/stores/camp-booking-store'
+import { isSnapshotActive, useIncompleteBookingStore } from '@/stores/incomplete-booking-store'
 
 export default function CampBookingPage() {
   const params = useParams()
@@ -20,6 +21,18 @@ export default function CampBookingPage() {
   const selectSession = useCampBookingStore(state => state.selectSession)
   const setStep = useCampBookingStore(state => state.setStep)
   const autoSelectEligibleChildren = useCampBookingStore(state => state.autoSelectEligibleChildren)
+  const restoreSelection = useCampBookingStore(state => state.restoreSelection)
+
+  // In-progress snapshot sync: persist the pre-draft selection so the parent
+  // can return via the app-wide "Incomplete booking" banner after navigating
+  // out of the flow (e.g. to add a missing emergency contact).
+  const camp = useCampBookingStore(state => state.camp)
+  const selectedSessionId = useCampBookingStore(state => state.selectedSessionId)
+  const selectedChildIds = useCampBookingStore(state => state.selectedChildIds)
+  const currentStep = useCampBookingStore(state => state.currentStep)
+  const hasSubmitted = useCampBookingStore(state => state.hasSubmitted)
+  const saveSnapshot = useIncompleteBookingStore(state => state.save)
+  const clearSnapshot = useIncompleteBookingStore(state => state.clear)
 
   // Init runs once per campSlug. The URL-cleanup effect below strips `sessionId`
   // from the URL after init, which would otherwise re-trigger this effect and
@@ -59,9 +72,20 @@ export default function CampBookingPage() {
           return
         }
       } else {
-        // Fresh booking: pre-select all eligible children. The store guards
-        // against overwriting any existing selection.
-        autoSelectEligibleChildren()
+        // Returning to an in-progress booking: restore the session + children
+        // selection and the step the parent left from (covers a full reload and
+        // the init-driven step reset on client-side nav). Otherwise it's a fresh
+        // booking — pre-select all eligible children.
+        const { snapshot } = useIncompleteBookingStore.getState()
+        if (snapshot?.campSlug === campSlug && isSnapshotActive(snapshot)) {
+          restoreSelection({
+            sessionId: snapshot.sessionId,
+            childIds: snapshot.childIds,
+            step: snapshot.step,
+          })
+        } else {
+          autoSelectEligibleChildren()
+        }
       }
     }
 
@@ -75,7 +99,37 @@ export default function CampBookingPage() {
     selectSession,
     setStep,
     autoSelectEligibleChildren,
+    restoreSelection,
     router,
+  ])
+
+  // Keep the persisted snapshot in sync with the in-progress selection, and
+  // clear it once the booking is submitted.
+  useEffect(() => {
+    if (hasSubmitted) {
+      clearSnapshot()
+      return
+    }
+    const hasProgress = !!selectedSessionId && currentStep !== 'sessions'
+    if (!camp || !hasProgress) return
+    saveSnapshot({
+      campSlug,
+      campName: camp.name,
+      sessionId: selectedSessionId,
+      childIds: selectedChildIds,
+      step: currentStep,
+      bookingGroupId: currentBookingGroupId,
+    })
+  }, [
+    camp,
+    campSlug,
+    selectedSessionId,
+    selectedChildIds,
+    currentStep,
+    currentBookingGroupId,
+    hasSubmitted,
+    saveSnapshot,
+    clearSnapshot,
   ])
 
   useEffect(() => {

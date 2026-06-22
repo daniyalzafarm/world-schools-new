@@ -857,6 +857,19 @@ function AddonsStep() {
     const existing = addOnSelectionsById[addOnId]
     const mode = existing?.mode ?? inferMode(addon)
 
+    // With a single child there's nothing to confirm in a per_child add-on:
+    // toggleAddOn seeds the selection with all selected children, so toggling
+    // directly adds/removes the add-on for that one child without a modal.
+    // (Ineligible children still open the modal so the reason is shown.)
+    if (
+      mode === 'per_child' &&
+      selectedChildren.length === 1 &&
+      isChildAddOnEligible(selectedChildren[0], addon)
+    ) {
+      toggleAddOn(addOnId)
+      return
+    }
+
     if (existing) {
       setSheetDraft({
         mode: existing.mode,
@@ -2045,7 +2058,7 @@ function ReviewStep({
         </p>
 
         <div className="hidden lg:block rounded-xl bg-gray-50 p-3 text-center text-xs leading-5 text-gray-500">
-          By clicking the button &quot;Request to book&quot;, you agree to the{' '}
+          By clicking the button &quot;Authorize and submit request&quot;, you agree to the{' '}
           <button
             type="button"
             onClick={() => setIsCampRulesOpen(true)}
@@ -2073,7 +2086,7 @@ function ReviewStep({
         </div>
 
         <div className="lg:hidden rounded-xl bg-gray-50 px-4 py-3 text-center text-xs leading-5 text-gray-500">
-          By clicking the button &quot;Request to book&quot;, you agree to the{' '}
+          By clicking the button &quot;Authorize and submit request&quot;, you agree to the{' '}
           <button
             type="button"
             onClick={() => setIsCampRulesOpen(true)}

@@ -3,6 +3,7 @@
 import { ChartCard } from '../shared/chart-card'
 import { ProgressRow } from '../shared/progress-row'
 import { formatStatusLabel } from '@/lib/chart-theme'
+import { pluralize } from '@/lib/format'
 import { formatAmount, useCurrencyFormat } from '@/hooks/use-currency-format'
 import { useFinancialStore } from '@/stores/financial-store'
 
@@ -38,9 +39,9 @@ export function RefundsSummary() {
     if (!refunds) return 'Refund breakdown by reason'
     if (isAllCurrencies) {
       const distinct = refunds.byCurrency?.length ?? 0
-      return `${refunds.totalCount} refunds across ${distinct} ${distinct === 1 ? 'currency' : 'currencies'}`
+      return `${refunds.totalCount} ${pluralize(refunds.totalCount, 'refund')} across ${distinct} ${pluralize(distinct, 'currency', 'currencies')}`
     }
-    return `${refunds.totalCount} refunds · ${fmtMoney(refunds.totalAmount)} total`
+    return `${refunds.totalCount} ${pluralize(refunds.totalCount, 'refund')} · ${fmtMoney(refunds.totalAmount)} total`
   })()
 
   return (

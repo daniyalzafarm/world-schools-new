@@ -55,16 +55,27 @@ export function BottomNav() {
             )}
           >
             {item.name === 'Account' ? (
-              <div
-                className={cn(
-                  'w-[26px] h-[26px] rounded-full flex items-center justify-center text-[10px] font-bold',
-                  isActive
-                    ? 'bg-primary-100 text-primary-700 border-2 border-primary dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-400'
-                    : 'bg-default-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                )}
-              >
-                {userInitials}
-              </div>
+              user?.profilePhotoUrl ? (
+                <img
+                  src={user.profilePhotoUrl}
+                  alt="Account"
+                  className={cn(
+                    'w-[26px] h-[26px] rounded-full object-cover',
+                    isActive && 'border-2 border-primary dark:border-primary-400'
+                  )}
+                />
+              ) : (
+                <div
+                  className={cn(
+                    'w-[26px] h-[26px] rounded-full flex items-center justify-center text-[10px] font-bold',
+                    isActive
+                      ? 'bg-primary-100 text-primary-700 border-2 border-primary dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-400'
+                      : 'bg-default-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                  )}
+                >
+                  {userInitials}
+                </div>
+              )
             ) : item.name === 'Messages' && unreadCount ? (
               <Badge
                 color="primary"

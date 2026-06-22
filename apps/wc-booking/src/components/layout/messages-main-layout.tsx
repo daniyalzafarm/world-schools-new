@@ -1,11 +1,11 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import { usePathname } from 'next/navigation'
 import { BottomNav } from './bottom-nav'
 import { Sidebar } from './sidebar'
 import { MessagesSidebar } from './messages-sidebar'
 import { MessageContextPanel } from '@/components/messages/context-panel/MessageContextPanel'
+import { useMessagingStore } from '@/stores/messaging-store'
 
 interface MessagesMainLayoutProps {
   children: React.ReactNode
@@ -16,9 +16,10 @@ interface MessagesMainLayoutProps {
 const PANEL_OVERLAY_THRESHOLD = 860
 
 export function MessagesMainLayout({ children }: MessagesMainLayoutProps) {
-  const pathname = usePathname()
+  const activeConversationId = useMessagingStore(state => state.activeConversationId)
   const [messagesSidebarOpen, setMessagesSidebarOpen] = useState(false)
-  const isListView = pathname === '/messages' || pathname === '/messages/archived'
+  // List view (and the bottom nav) whenever no conversation is open.
+  const isListView = !activeConversationId
 
   // Measure the chat-area region (chat + panel) so the panel can switch between
   // a side column and a full-cover overlay based on its own available width —
@@ -37,24 +38,26 @@ export function MessagesMainLayout({ children }: MessagesMainLayoutProps) {
     return () => observer.disconnect()
   }, [])
 
+  // On mobile, switch list↔chat from the active conversation (state-based, like
+  // wc-provider) instead of the route — so opening a chat stays on /messages.
   useEffect(() => {
     const updateSidebarVisibility = () => {
       if (window.innerWidth >= 1024) {
         // Desktop: MessagesSidebar is lg:static — state not relevant
         setMessagesSidebarOpen(false)
-      } else if (pathname === '/messages' || pathname === '/messages/archived') {
-        // Mobile list view: show conversation list full-screen
-        setMessagesSidebarOpen(true)
-      } else if (pathname.startsWith('/messages/')) {
+      } else if (activeConversationId) {
         // Mobile conversation view: hide sidebar, show chat
         setMessagesSidebarOpen(false)
+      } else {
+        // Mobile list view: show conversation list full-screen
+        setMessagesSidebarOpen(true)
       }
     }
 
     updateSidebarVisibility()
     window.addEventListener('resize', updateSidebarVisibility)
     return () => window.removeEventListener('resize', updateSidebarVisibility)
-  }, [pathname])
+  }, [activeConversationId])
 
   return (
     <div className="flex h-screen bg-white dark:bg-gray-900">

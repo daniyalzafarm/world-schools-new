@@ -3,6 +3,7 @@
 import { Activity, Banknote, Coins, Globe, ShieldAlert, Wallet } from 'lucide-react'
 import { KpiCard } from '../shared/kpi-card'
 import { CHART_COLORS } from '@/lib/chart-theme'
+import { pluralize } from '@/lib/format'
 import { useCurrencyFormat } from '@/hooks/use-currency-format'
 import { useFinancialStore } from '@/stores/financial-store'
 
@@ -64,7 +65,8 @@ export function FinancialOverviewKpis() {
           footer={
             disputes ? (
               <p className="text-xs text-default-500">
-                {disputes.totalDisputes} disputes · {disputes.urgent.length} urgent
+                {disputes.totalDisputes} {pluralize(disputes.totalDisputes, 'dispute')} ·{' '}
+                {disputes.urgent.length} urgent
               </p>
             ) : null
           }

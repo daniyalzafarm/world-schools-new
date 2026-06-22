@@ -140,6 +140,18 @@ export default function CampPage() {
       .catch(() => {})
   }, [camp?.id])
 
+  // Honor a #section hash from the URL (e.g. "Getting there" deep-links to
+  // #location). Native hash scrolling fires before the camp data loads, so the
+  // target section doesn't exist yet — scroll once it's rendered. The sections
+  // carry `scroll-mt-*` so scrollIntoView clears the sticky header.
+  useEffect(() => {
+    if (!camp) return
+    const hash = window.location.hash
+    if (!hash) return
+    const el = document.querySelector(hash)
+    if (el) el.scrollIntoView()
+  }, [camp])
+
   // Camp profile: after gallery clears the top of the viewport, inner nav replaces main topbar (model B).
   useEffect(() => {
     if (!camp) {

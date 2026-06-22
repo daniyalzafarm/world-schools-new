@@ -123,10 +123,23 @@ export function useAutosave<T>(
         clearTimeout(timerRef.current)
         timerRef.current = null
       }
+      // Validation is blocking the save: nothing can be persisted right now, but if the
+      // payload diverges from the last saved baseline there ARE unsaved changes. Surface
+      // that so navigation/publish guards can warn before the edits are discarded.
+      useCampsStore.setState({
+        hasPendingAutoSave: false,
+        hasUnsavedChanges: serialized !== baselineRef.current,
+      })
       return
     }
 
-    if (serialized === baselineRef.current) return
+    if (serialized === baselineRef.current) {
+      // Edits were reverted back to the persisted baseline — no unsaved changes remain.
+      if (useCampsStore.getState().hasUnsavedChanges) {
+        useCampsStore.setState({ hasUnsavedChanges: false, hasPendingAutoSave: false })
+      }
+      return
+    }
 
     pendingPayloadRef.current = payload
     useCampsStore.setState({ hasPendingAutoSave: true, hasUnsavedChanges: true })

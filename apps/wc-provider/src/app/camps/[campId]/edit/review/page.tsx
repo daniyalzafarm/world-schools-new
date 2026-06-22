@@ -258,6 +258,7 @@ export default function ReviewPublishPage() {
       title: 'Success',
       description: 'Camp published successfully!',
       color: 'success',
+      timeout: 3000,
     })
     router.push('/camps')
   }

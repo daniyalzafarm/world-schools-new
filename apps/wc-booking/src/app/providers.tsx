@@ -9,6 +9,10 @@ import { WebSocketProvider } from '@world-schools/wc-frontend-utils'
 import { AuthProvider } from '@/components/auth/auth-provider'
 import { AuthModal } from '@/components/auth/auth-modal'
 import { GoogleOneTap } from '@/components/auth/google-one-tap'
+import {
+  IncompleteBookingBanner,
+  useIncompleteBookingVisible,
+} from '@/components/layout/incomplete-booking-banner'
 import { MessagingProvider } from '@/components/messaging/messaging-provider'
 import { useAuthStore } from '@/stores/auth-store'
 import { globalWsService } from '@/lib/websocket-instance'
@@ -17,6 +21,9 @@ import config from '@/config/config'
 export function Providers({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated } = useAuthStore()
   const googleClientId = config.google.oauthClientId
+  // Push toasts below the fixed "Incomplete booking" banner when it's showing,
+  // so they don't render behind it.
+  const bannerVisible = useIncompleteBookingVisible()
 
   const tree = (
     <HeroUIProvider>
@@ -27,7 +34,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         disableTransitionOnChange
         storageKey="wc-booking-theme"
       >
-        <ToastProvider placement="top-right" toastOffset={10} />
+        <ToastProvider placement="top-right" toastOffset={bannerVisible ? 60 : 10} />
         <ConfirmDialogProvider>
           <AuthProvider>
             <WebSocketProvider
@@ -38,6 +45,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
               <MessagingProvider>{children}</MessagingProvider>
               <AuthModal />
               {googleClientId ? <GoogleOneTap /> : null}
+              <IncompleteBookingBanner />
             </WebSocketProvider>
           </AuthProvider>
         </ConfirmDialogProvider>

@@ -1,17 +1,9 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
 import { Button, Input, ScrollShadow } from '@heroui/react'
-import {
-  cn,
-  type Conversation,
-  ConversationItem,
-  type FilterType,
-  sortConversations,
-} from '@world-schools/ui-web'
+import { cn, type Conversation, ConversationItem, sortConversations } from '@world-schools/ui-web'
 import { AlertCircle, ChevronLeft, Search, X } from 'lucide-react'
-import { ArchivedChatsButton } from '@/components/messages/archived-chats-button'
 import { useConversationStore } from '@/stores/conversation-store'
 import { useMessagingStore } from '@/stores/messaging-store'
 import { ConversationListSkeleton } from '@/components/messages/conversation-skeleton'
@@ -23,15 +15,31 @@ interface MessagesSidebarProps {
   setSidebarOpen: (open: boolean) => void
 }
 
+// Provider inbox tabs. Bookings are threads tied to a confirmed booking
+// (contextType BOOKING); Inquiries are all other non-archived threads.
+type MessageFilter = 'all' | 'inquiries' | 'bookings' | 'archived'
+
+// Empty-state copy per tab, shown when a tab has no conversations.
+const EMPTY_STATE_COPY: Record<MessageFilter, { title: string; subtitle: string }> = {
+  all: { title: 'No conversations', subtitle: 'Start a new conversation to get started' },
+  inquiries: { title: 'No inquiries', subtitle: 'New inquiries will appear here' },
+  bookings: {
+    title: 'No booking conversations',
+    subtitle: 'Conversations about bookings will appear here',
+  },
+  archived: {
+    title: 'No archived conversations',
+    subtitle: 'Conversations you archive will appear here',
+  },
+}
+
 export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
   sidebarOpen,
   setSidebarOpen,
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchMode, setIsSearchMode] = useState(false)
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all')
-  const router = useRouter()
-  const pathname = usePathname()
+  const [activeFilter, setActiveFilter] = useState<MessageFilter>('all')
 
   // Get current user for identifying own participant in conversations
   const { user } = useAuthStore()
@@ -55,6 +63,7 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
     isLoadingConversations,
     conversationsError,
     fetchConversations,
+    typingUsers,
   } = useMessagingStore()
 
   // Helper: Safely convert date to timestamp (handles both Date objects and ISO strings)
@@ -103,6 +112,9 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
       // "virtual-" participant, so the backend would reject those toggles.
       canManageSettings:
         !!currentUserParticipant && !currentUserParticipant.id.startsWith('virtual-'),
+      // Conversation context ('BOOKING' vs everything else) drives the
+      // Inquiries / Bookings tab split in the sidebar.
+      contextType: conv.contextType ?? undefined,
     }
   }
 
@@ -114,30 +126,29 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
     }
   }, [storeConversations, setUserConversations])
 
-  // Check if we're on archived page (includes both /messages/archived and /messages/archived/[id])
-  const isArchivedPage = pathname.startsWith('/messages/archived')
-
-  // Filter and sort conversations based on search, filter type, and archived status
+  // Filter and sort conversations based on the active tab and search query.
+  // The Archived tab shows archived threads; every other tab shows non-archived
+  // threads split by context (Bookings = BOOKING, Inquiries = everything else).
   const filteredConversations = useMemo(() => {
-    let filtered = userConversations.filter(conv =>
-      isArchivedPage ? conv.archived : !conv.archived
-    )
-
-    // Apply filter type (only for non-archived pages)
-    if (!isArchivedPage) {
-      switch (activeFilter) {
-        case 'favorites':
-          filtered = filtered.filter(conv => conv.starred)
-          break
-        case 'unread':
-          filtered = filtered.filter(
-            conv => conv.unread || (conv.unreadCount && conv.unreadCount > 0)
-          )
-          break
-        case 'all':
-        default:
-          break
-      }
+    let filtered: Conversation[]
+    switch (activeFilter) {
+      case 'archived':
+        filtered = userConversations.filter(conv => conv.archived)
+        break
+      case 'bookings':
+        filtered = userConversations.filter(
+          conv => !conv.archived && conv.contextType === 'BOOKING'
+        )
+        break
+      case 'inquiries':
+        filtered = userConversations.filter(
+          conv => !conv.archived && conv.contextType !== 'BOOKING'
+        )
+        break
+      case 'all':
+      default:
+        filtered = userConversations.filter(conv => !conv.archived)
+        break
     }
 
     // Apply search filter
@@ -150,15 +161,18 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
     // Shared world-class ordering: pinned group first, then most recent
     // activity, stable on ties.
     return sortConversations(filtered)
-  }, [userConversations, activeFilter, searchQuery, isArchivedPage])
+  }, [userConversations, activeFilter, searchQuery])
 
-  // Count for different filter types and archived conversations
-  const allCount = userConversations.filter(conv => !conv.archived).length
-  const favoritesCount = userConversations.filter(conv => conv.starred && !conv.archived).length
-  const unreadCount = userConversations.filter(
-    conv => !conv.archived && (conv.unread || (conv.unreadCount && conv.unreadCount > 0))
+  // Per-tab UNREAD-conversation counts (badge shown when > 0).
+  // allUnread === inquiriesUnread + bookingsUnread.
+  const allUnread = userConversations.filter(conv => !conv.archived && conv.unread).length
+  const inquiriesUnread = userConversations.filter(
+    conv => !conv.archived && conv.contextType !== 'BOOKING' && conv.unread
   ).length
-  const archivedCount = userConversations.filter(conv => conv.archived).length
+  const bookingsUnread = userConversations.filter(
+    conv => !conv.archived && conv.contextType === 'BOOKING' && conv.unread
+  ).length
+  const archivedUnread = userConversations.filter(conv => conv.archived && conv.unread).length
 
   // Handle conversation press
   const handleConversationPress = useCallback((conversation: Conversation) => {
@@ -211,7 +225,7 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
                   <ChevronLeft size={16} />
                 </Button>
                 <Input
-                  placeholder={isArchivedPage ? 'Search archived...' : 'Search conversations...'}
+                  placeholder="Search conversations..."
                   value={searchQuery}
                   onValueChange={setSearchQuery}
                   autoFocus
@@ -239,25 +253,7 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
             ) : (
               /* Normal Header */
               <div className="flex w-full items-center justify-between">
-                {isArchivedPage ? (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      isIconOnly
-                      variant="light"
-                      size="sm"
-                      radius="full"
-                      onPress={() => router.push('/messages')}
-                      className="text-gray-600 dark:text-gray-400"
-                    >
-                      <ChevronLeft size={16} />
-                    </Button>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                      Archived Chats
-                    </h1>
-                  </div>
-                ) : (
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Messages</h1>
-                )}
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Messages</h1>
 
                 {/* Search Button */}
                 <Button
@@ -277,58 +273,48 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
           {/* Messages Content */}
           <div className="flex-1 flex flex-col min-h-0">
             {/* Filter Tabs - Hide when searching and no results */}
-            {!isArchivedPage &&
-              !(searchQuery.trim() !== '' && filteredConversations.length === 0) && (
-                <div className="px-3 pb-2 pt-1 border-b border-gray-200 dark:border-gray-700">
-                  <div className="flex gap-1">
+            {!(searchQuery.trim() !== '' && filteredConversations.length === 0) && (
+              <div className="px-3 pb-2 pt-1 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex max-w-md gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {(
+                    [
+                      { key: 'all', label: 'All', count: allUnread },
+                      { key: 'inquiries', label: 'Inquiries', count: inquiriesUnread },
+                      { key: 'bookings', label: 'Bookings', count: bookingsUnread },
+                      { key: 'archived', label: 'Archived', count: archivedUnread },
+                    ] as { key: MessageFilter; label: string; count: number }[]
+                  ).map(tab => (
                     <Button
+                      key={tab.key}
                       size="sm"
-                      variant={activeFilter === 'all' ? 'solid' : 'light'}
-                      onPress={() => setActiveFilter('all')}
+                      variant={activeFilter === tab.key ? 'solid' : 'light'}
+                      onPress={() => setActiveFilter(tab.key)}
                       radius="full"
                       className={cn(
-                        'flex-1 h-8 text-sm font-medium px-0 border-2 border-primary-100',
-                        activeFilter === 'all'
+                        'h-8 flex-1 min-w-fit px-2 text-sm font-medium border-2 border-primary-100',
+                        activeFilter === tab.key
                           ? 'bg-primary-100'
                           : 'dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                       )}
                     >
-                      All{allCount > 0 && <span className="ml-1">{allCount}</span>}
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant={activeFilter === 'unread' ? 'solid' : 'light'}
-                      onPress={() => setActiveFilter('unread')}
-                      radius="full"
-                      className={cn(
-                        'flex-1 h-8 text-sm font-medium border-2 border-primary-100',
-                        activeFilter === 'unread'
-                          ? 'bg-primary-100'
-                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      {tab.label}
+                      {tab.count > 0 && (
+                        <span
+                          className={cn(
+                            'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold',
+                            activeFilter === tab.key
+                              ? 'bg-white text-primary-700'
+                              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                          )}
+                        >
+                          {tab.count}
+                        </span>
                       )}
-                    >
-                      Unread{unreadCount > 0 && <span className="ml-1">{unreadCount}</span>}
                     </Button>
-
-                    <Button
-                      size="sm"
-                      variant={activeFilter === 'favorites' ? 'solid' : 'light'}
-                      onPress={() => setActiveFilter('favorites')}
-                      radius="full"
-                      className={cn(
-                        'flex-1 h-8 text-sm font-medium border-2 border-primary-100',
-                        activeFilter === 'favorites'
-                          ? 'bg-primary-100'
-                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                      )}
-                    >
-                      Favorites
-                      {favoritesCount > 0 && <span className="ml-1">{favoritesCount}</span>}
-                    </Button>
-                  </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
             {/* Conversations List */}
             <ScrollShadow className="flex-1" hideScrollBar>
@@ -351,18 +337,6 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
                 </div>
               ) : (
                 <>
-                  {/* Archived Chats Button - Hide when searching and no results */}
-                  {!isArchivedPage &&
-                    !!archivedCount &&
-                    !(searchQuery.trim() !== '' && filteredConversations.length === 0) && (
-                      <>
-                        <div className="">
-                          <ArchivedChatsButton archivedCount={archivedCount} />
-                        </div>
-                        <div className="h-px bg-gray-200 dark:bg-gray-700" />
-                      </>
-                    )}
-
                   {filteredConversations.length === 0 ? (
                     <>
                       {searchQuery.trim() !== '' ? (
@@ -370,24 +344,14 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
                           <Search size={18} className="text-gray-500 dark:text-gray-400" />
                           <p className="font-medium text-gray-500 dark:text-gray-400">No results</p>
                         </div>
-                      ) : isArchivedPage ? (
-                        <div className="flex flex-col items-center justify-center py-20 px-6">
-                          <Search size={48} className="text-gray-400 mb-4" />
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                            No archived conversations
-                          </h3>
-                          <p className="text-gray-500 dark:text-gray-400 text-center">
-                            Conversations you archive will appear here
-                          </p>
-                        </div>
                       ) : (
                         <div className="flex flex-col items-center justify-center py-20 px-6">
                           <Search size={48} className="text-gray-400 mb-4" />
                           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                            No conversations
+                            {EMPTY_STATE_COPY[activeFilter].title}
                           </h3>
                           <p className="text-gray-500 dark:text-gray-400 text-center">
-                            Start a new conversation to get started
+                            {EMPTY_STATE_COPY[activeFilter].subtitle}
                           </p>
                         </div>
                       )}
@@ -397,12 +361,16 @@ export const MessagesSidebar: React.FC<MessagesSidebarProps> = ({
                       {filteredConversations.map(conversation => {
                         const isActive = activeConversationId === conversation.id
                         const isSuperadmin = conversation.id === 'superadmin'
+                        const isTyping = (typingUsers[conversation.id] ?? []).some(
+                          id => id !== user?.id
+                        )
 
                         return (
                           <React.Fragment key={conversation.id}>
                             <ConversationItem
                               conversation={conversation}
                               isActive={isActive}
+                              isTyping={isTyping}
                               onPress={handleConversationPress}
                               onPin={id => togglePin([id])}
                               onArchive={id => toggleArchive([id])}

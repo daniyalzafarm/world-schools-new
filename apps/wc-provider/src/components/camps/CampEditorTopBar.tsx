@@ -30,6 +30,7 @@ export function CampEditorTopBar({ campId }: CampEditorTopBarProps) {
       title: 'Success',
       description: 'Camp published successfully!',
       color: 'success',
+      timeout: 3000,
     })
     router.push('/camps')
   }

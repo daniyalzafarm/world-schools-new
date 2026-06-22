@@ -40,6 +40,33 @@ function DonutTooltip({
   )
 }
 
+/**
+ * Custom legend rendered directly from the `slices` array — name, value, and
+ * color all come from the same object in a single iteration, so the percentage
+ * can never be paired with the wrong label (BUG-125). Avoids recharts' auto
+ * legend payload + name-matching indirection, which swapped percentages.
+ */
+function DonutLegend({ slices, total }: { slices: DonutSlice[]; total: number }) {
+  return (
+    <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-2">
+      {slices.map(slice => {
+        const pct = total > 0 ? Math.round((slice.value / total) * 100) : 0
+        return (
+          <li key={slice.name} className="flex items-center gap-1.5 text-xs">
+            <span
+              className="inline-block h-2 w-2 shrink-0 rounded-full"
+              style={{ background: slice.color }}
+            />
+            <span className="text-default-700 dark:text-default-200">
+              {slice.name} <span className="text-default-400">— {pct}%</span>
+            </span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 export function DonutChart({
   slices,
   centerLabel,
@@ -68,22 +95,13 @@ export function DonutChart({
               <Cell key={i} fill={slice.color} stroke="transparent" />
             ))}
           </Pie>
-          <Tooltip content={<DonutTooltip formatValue={formatValue} />} />
+          <Tooltip
+            content={<DonutTooltip formatValue={formatValue} />}
+            wrapperStyle={{ zIndex: 10 }}
+          />
           <Legend
-            iconType="circle"
+            content={<DonutLegend slices={slices} total={total} />}
             wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-            formatter={(value: string) => {
-              // Pair the percentage with the slice by NAME, not by legend index —
-              // recharts can iterate legend items in a different order than the
-              // `slices` array, which previously swapped percentages (BUG-125).
-              const slice = slices.find(s => s.name === value)
-              const pct = total > 0 && slice ? Math.round((slice.value / total) * 100) : 0
-              return (
-                <span className="text-default-700 dark:text-default-200">
-                  {value} <span className="text-default-400">— {pct}%</span>
-                </span>
-              )
-            }}
           />
         </PieChart>
       </ResponsiveContainer>

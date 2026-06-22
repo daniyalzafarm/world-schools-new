@@ -256,6 +256,16 @@ export interface MessagingActions {
    */
   deleteMessage: (conversationId: string, messageId: string) => void
 
+  /** Edit a message via the API, then reflect the change locally. */
+  editMessageRemote: (
+    conversationId: string,
+    messageId: string,
+    newContent: string
+  ) => Promise<void>
+
+  /** Delete a message via the API, then remove it locally. */
+  deleteMessageRemote: (conversationId: string, messageId: string) => Promise<void>
+
   // Real-time features
   /**
    * Mark a message as read

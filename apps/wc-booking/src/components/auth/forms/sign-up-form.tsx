@@ -185,6 +185,7 @@ export function SignUpForm({ onSuccess, onGoogleSuccess, onSignIn }: SignUpFormP
 
         <Input
           type="email"
+          autoComplete="email"
           placeholder="Email address"
           value={formData.email}
           onValueChange={value => handleInputChange('email', value)}
@@ -200,6 +201,7 @@ export function SignUpForm({ onSuccess, onGoogleSuccess, onSignIn }: SignUpFormP
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
               placeholder="Password"
               value={formData.password}
               onValueChange={value => handleInputChange('password', value)}
@@ -223,6 +225,7 @@ export function SignUpForm({ onSuccess, onGoogleSuccess, onSignIn }: SignUpFormP
 
             <Input
               type={showConfirmPassword ? 'text' : 'password'}
+              autoComplete="new-password"
               placeholder="Confirm password"
               value={formData.confirmPassword}
               onValueChange={value => handleInputChange('confirmPassword', value)}

@@ -96,7 +96,7 @@ export function BookingDetailSidebar({
   const balanceDue = Math.max(0, detail.totalAmount - detail.paidAmount)
   const campSlug = detail.camp.slug
   const campProfileHref = `/camps/${encodeURIComponent(campSlug)}`
-  const campusHref = `${campProfileHref}#campus`
+  const campusHref = `${campProfileHref}#location`
 
   // Open the conversation with this camp's provider. The messages page resolves
   // this draft to the existing thread when one exists (deep-link); otherwise it

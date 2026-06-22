@@ -82,73 +82,109 @@ interface NavItem {
   type?: string
 }
 
-const NAV_ITEMS: NavItem[] = [
+interface NavSection {
+  /** Uppercase group heading. Omit for the top-level and trailing groups. */
+  title?: string
+  items: NavItem[]
+}
+
+const NAV_SECTIONS: NavSection[] = [
   {
-    name: 'Dashboard',
-    href: '/dashboard',
-    icon: <House size={20} />,
-    type: 'regular',
-    // No permission required - available to all authenticated users
+    // Top-level group (no heading).
+    items: [
+      {
+        name: 'Dashboard',
+        href: '/dashboard',
+        icon: <House size={20} />,
+        type: 'regular',
+        // No permission required - available to all authenticated users
+      },
+    ],
   },
   {
-    name: 'Bookings',
-    href: '/bookings',
-    icon: <Calendar size={20} />,
-    type: 'regular',
-    // No permission required - available to all authenticated users
+    title: 'Operations',
+    items: [
+      {
+        name: 'Bookings',
+        href: '/bookings',
+        icon: <Calendar size={20} />,
+        type: 'regular',
+        // No permission required - available to all authenticated users
+      },
+      {
+        name: 'Messages',
+        href: '/messages',
+        icon: <MessageCircle size={20} />,
+        type: 'regular',
+        // badge: 5,
+      },
+    ],
   },
   {
-    name: 'Messages',
-    href: '/messages',
-    icon: <MessageCircle size={20} />,
-    type: 'regular',
-    // badge: 5,
+    title: 'Content',
+    items: [
+      {
+        name: 'Camps',
+        href: '/camps',
+        icon: <Tent size={20} />,
+        type: 'regular',
+        // No permission required - available to all authenticated users
+      },
+      {
+        name: 'Add-ons',
+        href: '/add-ons',
+        icon: <Puzzle size={20} />,
+        type: 'regular',
+        // No permission required - available to all authenticated users
+      },
+    ],
   },
   {
-    name: 'Camps',
-    href: '/camps',
-    icon: <Tent size={20} />,
-    type: 'regular',
-    // No permission required - available to all authenticated users
+    title: 'Users',
+    items: [
+      {
+        name: 'Users',
+        href: '/users',
+        icon: <User size={20} />,
+        type: 'regular',
+      },
+      {
+        name: 'Roles',
+        href: '/roles',
+        icon: <ShieldCheck size={20} />,
+        type: 'regular',
+      },
+    ],
   },
   {
-    name: 'Add-ons',
-    href: '/add-ons',
-    icon: <Puzzle size={20} />,
-    type: 'regular',
-    // No permission required - available to all authenticated users
+    title: 'System',
+    items: [
+      {
+        name: 'Notifications',
+        href: '/notifications',
+        icon: <Bell size={20} />,
+        type: 'regular',
+        // No permission required - available to all authenticated users
+      },
+    ],
   },
   {
-    name: 'Users',
-    href: '/users',
-    icon: <User size={20} />,
-    type: 'regular',
-  },
-  {
-    name: 'Roles',
-    href: '/roles',
-    icon: <ShieldCheck size={20} />,
-    type: 'regular',
-  },
-  {
-    name: 'Notifications',
-    href: '/notifications',
-    icon: <Bell size={20} />,
-    type: 'regular',
-    // No permission required - available to all authenticated users
-  },
-  {
-    name: 'Help',
-    href: '/help',
-    icon: <HelpCircle size={20} />,
-    type: 'regular',
-  },
-  {
-    name: 'Support',
-    href: '/support/tickets',
-    icon: <Headphones size={20} />,
-    type: 'regular',
-    // No permission required - available to all authenticated users
+    title: 'Support',
+    items: [
+      {
+        name: 'Help',
+        href: '/help',
+        icon: <HelpCircle size={20} />,
+        type: 'regular',
+      },
+      {
+        name: 'Support',
+        href: '/support/tickets',
+        icon: <Headphones size={20} />,
+        type: 'regular',
+        // No permission required - available to all authenticated users
+      },
+    ],
   },
 ]
 
@@ -353,16 +389,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   )
 
   /**
-   * Filter navigation items based on user permissions
+   * Filter navigation items by permission and attach dynamic badge counts, then
+   * drop any section left empty.
    */
-  const visibleNavItems = React.useMemo(() => {
-    return NAV_ITEMS.filter(isNavItemVisible).map(item => {
+  const visibleSections = React.useMemo(() => {
+    const withBadge = (item: NavItem): NavItem => {
       if (item.name === 'Messages') return { ...item, badge: unreadCount || undefined }
       if (item.name === 'Notifications')
         return { ...item, badge: unreadNotificationsCount || undefined }
       if (item.name === 'Bookings') return { ...item, badge: unreadBookingsCount || undefined }
       return item
-    })
+    }
+    return NAV_SECTIONS.map(section => ({
+      ...section,
+      items: section.items.filter(isNavItemVisible).map(withBadge),
+    })).filter(section => section.items.length > 0)
   }, [isNavItemVisible, unreadCount, unreadNotificationsCount, unreadBookingsCount])
 
   const userFullName = user?.firstName ? `${user.firstName} ${user.lastName}`.trim() : 'Provider'
@@ -408,106 +449,128 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
           </div>
 
           {/* Navigation */}
-          <nav className="p-3 space-y-1 overflow-x-hidden">
-            {/* Main Navigation Items */}
-            {visibleNavItems.map(item => {
-              const isActive = item.href ? pathname.startsWith(item.href) : false
-              const itemType = item.type || 'regular'
-              const isCollapsible = itemType === 'collapsible'
-              const isExpanded = isCollapsible ? expandedSections[item.name] : false
-              const hasChildren = item.children && item.children.length > 0
-
-              const NavigationItem = (
-                <div key={item.name} className="w-full">
-                  <div
-                    onClick={() => handleNavigation(item)}
-                    className={cn(
-                      'flex h-10 items-center p-2 rounded-lg cursor-pointer whitespace-nowrap overflow-hidden',
-                      isActive ? 'bg-primary-100' : 'hover:bg-default-100 dark:hover:bg-gray-800'
-                    )}
-                  >
-                    <span className="flex justify-center min-w-6">
-                      {item.badge ? (
-                        <Badge
-                          color="primary"
-                          content={item.badge}
-                          size="sm"
-                          placement="top-right"
-                          showOutline={false}
-                        >
-                          {item.icon}
-                        </Badge>
-                      ) : (
-                        item.icon
-                      )}
-                    </span>
-                    {!isCollapsed && (
-                      <>
-                        <span className="ml-3 flex-1 text-sm font-medium">{item.name}</span>
-                        {isCollapsible && (
-                          <span className="ml-auto">
-                            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                          </span>
-                        )}
-                      </>
-                    )}
+          <nav className="p-3 overflow-x-hidden">
+            {/* Main Navigation Items, grouped into sections */}
+            {visibleSections.map((section, sectionIdx) => (
+              <div
+                key={section.title ?? `section-${sectionIdx}`}
+                className={cn(sectionIdx > 0 && 'mt-2')}
+              >
+                {!isCollapsed && section.title && (
+                  <div className="px-2 pb-1 text-[11px] font-bold uppercase tracking-wider text-default-400 dark:text-gray-500">
+                    {section.title}
                   </div>
+                )}
+                <div className="space-y-1">
+                  {section.items.map(item => {
+                    const isActive = item.href ? pathname.startsWith(item.href) : false
+                    const itemType = item.type || 'regular'
+                    const isCollapsible = itemType === 'collapsible'
+                    const isExpanded = isCollapsible ? expandedSections[item.name] : false
+                    const hasChildren = item.children && item.children.length > 0
 
-                  {/* Children items */}
-                  {hasChildren && isExpanded && !isCollapsed && (
-                    <div className="ml-6 mt-1 space-y-1">
-                      {item.children!.map(child => {
-                        const childIsActive = child.href ? pathname.startsWith(child.href) : false
-                        return (
-                          <Link key={child.name} href={child.href || '#'}>
-                            <div
-                              className={cn(
-                                'flex h-9 items-center p-2 rounded-lg cursor-pointer text-sm',
-                                childIsActive
-                                  ? 'bg-primary-100 dark:bg-primary-900/30'
-                                  : 'hover:bg-default-100 dark:hover:bg-gray-800'
+                    const NavigationItem = (
+                      <div key={item.name} className="w-full">
+                        <div
+                          onClick={() => handleNavigation(item)}
+                          className={cn(
+                            'flex h-10 items-center p-2 rounded-lg cursor-pointer whitespace-nowrap overflow-hidden',
+                            isActive
+                              ? 'bg-primary-100'
+                              : 'hover:bg-default-100 dark:hover:bg-gray-800'
+                          )}
+                        >
+                          <span className="flex justify-center min-w-6">
+                            {item.badge ? (
+                              <Badge
+                                color="primary"
+                                content={item.badge}
+                                size="sm"
+                                placement="top-right"
+                                showOutline={false}
+                              >
+                                {item.icon}
+                              </Badge>
+                            ) : (
+                              item.icon
+                            )}
+                          </span>
+                          {!isCollapsed && (
+                            <>
+                              <span className="ml-3 flex-1 text-sm font-medium">{item.name}</span>
+                              {isCollapsible && (
+                                <span className="ml-auto">
+                                  {isExpanded ? (
+                                    <ChevronDown size={16} />
+                                  ) : (
+                                    <ChevronRight size={16} />
+                                  )}
+                                </span>
                               )}
-                              onClick={() => {
-                                if (sidebarOpen) setSidebarOpen(false)
-                              }}
-                            >
-                              {child.badge ? (
-                                <Badge
-                                  color="primary"
-                                  content={child.badge}
-                                  size="sm"
-                                  placement="top-right"
-                                  showOutline={false}
-                                >
-                                  {child.icon}
-                                </Badge>
-                              ) : (
-                                child.icon
-                              )}
-                              <span className="ml-2">{child.name}</span>
-                            </div>
-                          </Link>
-                        )
-                      })}
-                    </div>
-                  )}
+                            </>
+                          )}
+                        </div>
+
+                        {/* Children items */}
+                        {hasChildren && isExpanded && !isCollapsed && (
+                          <div className="ml-6 mt-1 space-y-1">
+                            {item.children!.map(child => {
+                              const childIsActive = child.href
+                                ? pathname.startsWith(child.href)
+                                : false
+                              return (
+                                <Link key={child.name} href={child.href || '#'}>
+                                  <div
+                                    className={cn(
+                                      'flex h-9 items-center p-2 rounded-lg cursor-pointer text-sm',
+                                      childIsActive
+                                        ? 'bg-primary-100 dark:bg-primary-900/30'
+                                        : 'hover:bg-default-100 dark:hover:bg-gray-800'
+                                    )}
+                                    onClick={() => {
+                                      if (sidebarOpen) setSidebarOpen(false)
+                                    }}
+                                  >
+                                    {child.badge ? (
+                                      <Badge
+                                        color="primary"
+                                        content={child.badge}
+                                        size="sm"
+                                        placement="top-right"
+                                        showOutline={false}
+                                      >
+                                        {child.icon}
+                                      </Badge>
+                                    ) : (
+                                      child.icon
+                                    )}
+                                    <span className="ml-2">{child.name}</span>
+                                  </div>
+                                </Link>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+
+                    return isCollapsed ? (
+                      <Tooltip
+                        key={item.name}
+                        content={item.name}
+                        placement="right"
+                        delay={500}
+                        closeDelay={0}
+                      >
+                        {NavigationItem}
+                      </Tooltip>
+                    ) : (
+                      NavigationItem
+                    )
+                  })}
                 </div>
-              )
-
-              return isCollapsed ? (
-                <Tooltip
-                  key={item.name}
-                  content={item.name}
-                  placement="right"
-                  delay={500}
-                  closeDelay={0}
-                >
-                  {NavigationItem}
-                </Tooltip>
-              ) : (
-                NavigationItem
-              )
-            })}
+              </div>
+            ))}
           </nav>
 
           {/* Clickable area for sidebar toggle */}

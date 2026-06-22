@@ -29,6 +29,25 @@ interface Row {
   pending: number
 }
 
+// Zero values render as a quiet em-dash so non-zero activity stands out.
+const ZERO_DASH = <span className="text-sm text-default-400">—</span>
+
+/** Amount columns: formatted currency value, or em-dash when exactly zero. */
+function amountCell(value: number, currency: string) {
+  return value === 0 ? ZERO_DASH : formatAmount(value, currency)
+}
+
+/** Count columns: `N (X%)`, or em-dash when the count is zero. */
+function countCell(count: number, rate: number) {
+  if (count === 0) return ZERO_DASH
+  return (
+    <>
+      <span className="text-xs text-default-500">{count}</span>{' '}
+      <span className="text-sm text-default-700 dark:text-default-200">({rate}%)</span>
+    </>
+  )
+}
+
 /**
  * Aggregates the per-currency breakdowns from the other widgets into a single
  * table — the centerpiece of the All Currencies view. Renders only when the
@@ -117,11 +136,11 @@ export function CurrencyPerformanceTable() {
                     {row.currency}
                   </span>
                 </TableCell>
-                <TableCell className="font-semibold">
-                  {formatAmount(row.gmv, row.currency)}
+                <TableCell className="font-semibold">{amountCell(row.gmv, row.currency)}</TableCell>
+                <TableCell>{amountCell(row.netRevenue, row.currency)}</TableCell>
+                <TableCell>
+                  {row.payments === 0 ? ZERO_DASH : row.payments.toLocaleString()}
                 </TableCell>
-                <TableCell>{formatAmount(row.netRevenue, row.currency)}</TableCell>
-                <TableCell>{row.payments.toLocaleString()}</TableCell>
                 <TableCell>
                   <Chip
                     size="sm"
@@ -137,38 +156,16 @@ export function CurrencyPerformanceTable() {
                     {row.successRate}%
                   </Chip>
                 </TableCell>
-                <TableCell>
-                  <span className="text-xs text-default-500">{row.refundCount}</span>{' '}
-                  <span className="text-sm text-default-700 dark:text-default-200">
-                    ({row.refundRate}%)
-                  </span>
-                </TableCell>
-                <TableCell>
-                  {row.disputeCount > 0 ? (
-                    <>
-                      <span className="text-xs text-default-500">{row.disputeCount}</span>{' '}
-                      <span className="text-sm text-default-700 dark:text-default-200">
-                        ({row.disputeRate}%)
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-sm text-default-400">—</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {row.pendingPayouts > 0 ? (
-                    formatAmount(row.pendingPayouts, row.currency)
-                  ) : (
-                    <span className="text-sm text-default-400">—</span>
-                  )}
-                </TableCell>
+                <TableCell>{countCell(row.refundCount, row.refundRate)}</TableCell>
+                <TableCell>{countCell(row.disputeCount, row.disputeRate)}</TableCell>
+                <TableCell>{amountCell(row.pendingPayouts, row.currency)}</TableCell>
                 <TableCell>
                   <div className="text-sm">
                     <span className="font-semibold text-foreground">
-                      {formatAmount(row.available, row.currency)}
+                      {row.available === 0 ? '—' : formatAmount(row.available, row.currency)}
                     </span>
                     <span className="ml-1 text-xs text-default-400">
-                      / {formatAmount(row.pending, row.currency)}
+                      / {row.pending === 0 ? '—' : formatAmount(row.pending, row.currency)}
                     </span>
                   </div>
                 </TableCell>

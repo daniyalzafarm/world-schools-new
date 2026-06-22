@@ -1029,6 +1029,17 @@ export class MessagesService {
       conversationId: message.conversationId,
     })
 
+    // Broadcast the edit to all participants in real time (the Redis→socket
+    // bridge re-emits this channel as `message:updated` to the conversation room).
+    await this.redisPubSub
+      .publishMessage('messages:updated', {
+        conversationId: message.conversationId,
+        messageId,
+        content: newContent,
+        editedAt: updated.editedAt?.toISOString(),
+      })
+      .catch(err => this.logger.error('Failed to publish messages:updated', err))
+
     this.logger.log(`Message edited: ${messageId} by user: ${userId}`)
     return updated
   }
@@ -1069,6 +1080,15 @@ export class MessagesService {
     await this.redisPubSub.publishMessage('cache:invalidate:messages', {
       conversationId: message.conversationId,
     })
+
+    // Broadcast the deletion to all participants in real time (the Redis→socket
+    // bridge re-emits this channel as `message:deleted` to the conversation room).
+    await this.redisPubSub
+      .publishMessage('messages:deleted', {
+        conversationId: message.conversationId,
+        messageId,
+      })
+      .catch(err => this.logger.error('Failed to publish messages:deleted', err))
 
     this.logger.log(`Message deleted: ${messageId} by user: ${userId} (${deletionType})`)
     return deleted

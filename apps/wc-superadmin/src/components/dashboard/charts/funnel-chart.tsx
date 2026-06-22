@@ -2,6 +2,7 @@
 
 import { ArrowDown } from 'lucide-react'
 import { SLICE_COLORS } from '@/lib/chart-theme'
+import { pluralize } from '@/lib/format'
 import { formatCompactNumber } from '@/hooks/use-currency-format'
 
 interface FunnelStep {
@@ -10,6 +11,8 @@ interface FunnelStep {
   count: number
   dropoffPctFromPrev: number
   conversionPctFromTop: number
+  lostFromPrev: number
+  lostBreakdown: { reason: string; label: string; count: number }[]
 }
 
 interface FunnelChartProps {
@@ -161,10 +164,23 @@ export function FunnelChart({ steps }: FunnelChartProps) {
                 )}
               </div>
             </div>
-            {!isEmpty && i > 0 && step.dropoffPctFromPrev > 0 && (
-              <div className="mt-1 flex items-center gap-1 text-xs text-danger-600 dark:text-danger-400">
-                <ArrowDown className="h-3 w-3" />
-                {step.dropoffPctFromPrev}% drop from previous
+            {!isEmpty && i > 0 && step.lostFromPrev > 0 && (
+              <div className="mt-1 text-xs">
+                <div className="flex items-center gap-1 text-danger-600 dark:text-danger-400">
+                  <ArrowDown className="h-3 w-3 shrink-0" />
+                  <span>
+                    {formatCompactNumber(step.lostFromPrev)}{' '}
+                    {pluralize(step.lostFromPrev, 'booking')} lost ({step.dropoffPctFromPrev}% of
+                    previous)
+                  </span>
+                </div>
+                {step.lostBreakdown.length > 0 && (
+                  <div className="mt-0.5 pl-4 text-default-500">
+                    {step.lostBreakdown
+                      .map(b => `${formatCompactNumber(b.count)} ${b.label}`)
+                      .join(', ')}
+                  </div>
+                )}
               </div>
             )}
           </div>

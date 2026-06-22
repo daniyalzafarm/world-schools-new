@@ -15,7 +15,7 @@ export function ConversionFunnel() {
   return (
     <ChartCard
       title="Booking Conversion Funnel"
-      description="From booking creation to camp completion"
+      description="From checkout to paid in full"
       loading={loading}
       error={error}
       onRetry={() => void fetchWidget('funnel')}
