@@ -34,9 +34,7 @@ export const ProgramsForm: React.FC<ProgramsFormProps> = ({ formData, onChange }
 
   return (
     <div className="form-group">
-      <label className="text-base font-medium text-foreground">
-        Activity Categories <span className="text-danger">*</span>
-      </label>
+      <label className="text-base font-medium text-foreground">Activity Categories</label>
       <div className="mb-2 text-sm leading-normal text-default-500">
         Only editors for selected activities will appear in your dashboard
       </div>

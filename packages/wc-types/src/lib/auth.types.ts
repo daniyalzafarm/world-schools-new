@@ -27,6 +27,8 @@ export interface User {
   roles: Role[]
   permissions: string[]
   passwordChangedAt?: Date | string
+  /** Whether the account has a password set. False for OAuth-only (e.g. Google) users. */
+  hasPassword?: boolean
 }
 
 // ============================================================================

@@ -36,6 +36,7 @@ import * as adminSettingsService from '@/services/admin-settings.services'
 import { AppFeeModal } from '@/components/providers/app-fee-modal'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { PageSlot } from '@/components/layout/page-slot'
+import { Can } from '@/components/auth/can'
 import { useProvidersStore } from '@/stores/providers-store'
 import type { ApprovalStatus } from '@/types/application-review'
 import type { ProviderCampSummary, ProviderDetail, ProviderRecentBooking } from '@/types/providers'
@@ -330,15 +331,17 @@ export default function ProviderDetailPage() {
                         ? 'No camps yet. Import camps to get started.'
                         : `${detail._count.camps} camp${detail._count.camps !== 1 ? 's' : ''} for this provider.`}
                     </p>
-                    <Button
-                      size="sm"
-                      color="primary"
-                      variant="flat"
-                      startContent={<Upload className="h-4 w-4" />}
-                      onPress={() => router.push(`/providers/${providerId}/import-camps`)}
-                    >
-                      Import Camps
-                    </Button>
+                    <Can permission="providers.update">
+                      <Button
+                        size="sm"
+                        color="primary"
+                        variant="flat"
+                        startContent={<Upload className="h-4 w-4" />}
+                        onPress={() => router.push(`/providers/${providerId}/import-camps`)}
+                      >
+                        Import Camps
+                      </Button>
+                    </Can>
                   </div>
                   {detail.camps.length > 0 && (
                     <CampsCard camps={detail.camps} providerId={providerId} />
@@ -747,14 +750,16 @@ function SettingsTab({
               <Percent className="h-4 w-4 text-default-500" />
               <h3 className="font-semibold text-foreground">App Fee</h3>
             </div>
-            <Button
-              size="sm"
-              variant="flat"
-              onPress={() => setAppFeeOpen(true)}
-              isDisabled={systemDefaultAppFee == null}
-            >
-              Edit
-            </Button>
+            <Can permission="providers.update">
+              <Button
+                size="sm"
+                variant="flat"
+                onPress={() => setAppFeeOpen(true)}
+                isDisabled={systemDefaultAppFee == null}
+              >
+                Edit
+              </Button>
+            </Can>
           </div>
 
           <div className="text-sm">

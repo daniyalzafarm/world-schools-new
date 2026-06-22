@@ -537,6 +537,10 @@ function ChildrenStep() {
 
   const children = useCampBookingStore(state => state.children)
   const childBookingRanges = useCampBookingStore(state => state.childBookingRanges)
+  const skillGateFailuresByChildId = useCampBookingStore(state => state.skillGateFailuresByChildId)
+  const refreshSkillGateEligibility = useCampBookingStore(
+    state => state.refreshSkillGateEligibility
+  )
   const selectedChildIds = useCampBookingStore(state => state.selectedChildIds)
   const toggleChild = useCampBookingStore(state => state.toggleChild)
   const guardianConsent = useCampBookingStore(state => state.guardianConsent)
@@ -547,9 +551,23 @@ function ChildrenStep() {
   const currency = useCampBookingStore(state => getCampCurrency(state.camp, 'camp-booking-flow'))
   const [isAddingChild, setIsAddingChild] = useState(false)
 
+  // Pre-validate skill GATEs up front (the FE can't evaluate them on its own) so
+  // a skill-gated child is greyed out inline rather than only failing at Continue.
+  useEffect(() => {
+    if (!camp?.id || !session) return
+    void refreshSkillGateEligibility()
+  }, [camp?.id, session, children, refreshSkillGateEligibility])
+
   const eligibleChildren = useMemo(
-    () => getChildrenEligibility(camp, session, children, childBookingRanges),
-    [children, camp, session, childBookingRanges]
+    () =>
+      getChildrenEligibility(
+        camp,
+        session,
+        children,
+        childBookingRanges,
+        skillGateFailuresByChildId
+      ),
+    [children, camp, session, childBookingRanges, skillGateFailuresByChildId]
   )
 
   // Continue is only valid when at least one *eligible* child is selected.
@@ -838,6 +856,19 @@ function AddonsStep() {
     if (!addon) return
     const existing = addOnSelectionsById[addOnId]
     const mode = existing?.mode ?? inferMode(addon)
+
+    // With a single child there's nothing to confirm in a per_child add-on:
+    // toggleAddOn seeds the selection with all selected children, so toggling
+    // directly adds/removes the add-on for that one child without a modal.
+    // (Ineligible children still open the modal so the reason is shown.)
+    if (
+      mode === 'per_child' &&
+      selectedChildren.length === 1 &&
+      isChildAddOnEligible(selectedChildren[0], addon)
+    ) {
+      toggleAddOn(addOnId)
+      return
+    }
 
     if (existing) {
       setSheetDraft({
@@ -2072,7 +2103,7 @@ function ReviewStep({
         </p>
 
         <div className="hidden lg:block rounded-xl bg-gray-50 p-3 text-center text-xs leading-5 text-gray-500">
-          By clicking the button &quot;Request to book&quot;, you agree to the{' '}
+          By clicking the button &quot;Authorize and submit request&quot;, you agree to the{' '}
           <button
             type="button"
             onClick={() => setIsCampRulesOpen(true)}
@@ -2100,7 +2131,7 @@ function ReviewStep({
         </div>
 
         <div className="lg:hidden rounded-xl bg-gray-50 px-4 py-3 text-center text-xs leading-5 text-gray-500">
-          By clicking the button &quot;Request to book&quot;, you agree to the{' '}
+          By clicking the button &quot;Authorize and submit request&quot;, you agree to the{' '}
           <button
             type="button"
             onClick={() => setIsCampRulesOpen(true)}

@@ -16,6 +16,7 @@ import {
 import { EMOJI } from '@world-schools/wc-frontend-utils'
 import { useApplicationReviewStore } from '../../stores/application-review-store'
 import type { ApplicationDetail } from '../../types/application-review'
+import { Can } from '@/components/auth/can'
 
 interface ApprovalActionsProps {
   application: ApplicationDetail
@@ -74,15 +75,21 @@ export function ApprovalActions({ application }: ApprovalActionsProps) {
   return (
     <>
       <div className="flex gap-2">
-        {/* <Button color="warning" variant="flat" onPress={requestInfoModal.onOpen}>
-          Request Info
-        </Button> */}
-        <Button color="danger" variant="flat" onPress={rejectModal.onOpen}>
-          {EMOJI.CROSS_MARK} Reject
-        </Button>
-        <Button color="success" onPress={approveModal.onOpen}>
-          {EMOJI.CHECK_MARK} Approve
-        </Button>
+        {/* <Can permission="provider_applications.request_info">
+          <Button color="warning" variant="flat" onPress={requestInfoModal.onOpen}>
+            Request Info
+          </Button>
+        </Can> */}
+        <Can permission="provider_applications.reject">
+          <Button color="danger" variant="flat" onPress={rejectModal.onOpen}>
+            {EMOJI.CROSS_MARK} Reject
+          </Button>
+        </Can>
+        <Can permission="provider_applications.approve">
+          <Button color="success" onPress={approveModal.onOpen}>
+            {EMOJI.CHECK_MARK} Approve
+          </Button>
+        </Can>
       </div>
 
       {/* Approve Modal */}

@@ -82,9 +82,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // system role permissions for the given provider. This ensures the superadmin always has
     // full provider app access regardless of the provider owner's current role configuration.
     if (payload.impersonatedBy && payload.impersonationProviderId) {
-      const adminPermissions = await this.authService.getProviderAdminPermissions(
-        payload.impersonationProviderId
-      )
+      const adminPermissions = await this.authService.getProviderAdminPermissions()
       return {
         ...user,
         permissions: adminPermissions.length > 0 ? adminPermissions : (user.permissions ?? []),

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Button } from '@heroui/react'
+import { useConfirmDialog } from '@world-schools/ui-web'
 import { useCampsStore } from '../../stores/camps-store'
 import { AutoSaveIndicator } from '../camp-editor/AutoSaveIndicator'
 import { editorSections, navigationOnlySections, shouldShowSection } from './editor-sections'
@@ -15,6 +16,7 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { autoSaveStatus, currentCamp } = useCampsStore()
+  const { confirm } = useConfirmDialog()
   const [waitingButton, setWaitingButton] = useState<'previous' | 'next' | null>(null)
 
   const filteredSections = editorSections.filter(s => shouldShowSection(s, currentCamp))
@@ -60,6 +62,22 @@ export function CampEditorFooter({ campId }: CampEditorFooterProps) {
         setWaitingButton(null)
       }
     }
+
+    // Changes blocked by validation (e.g. a selected transport option with no
+    // description) can't be saved. Warn before navigating away and losing them.
+    if (useCampsStore.getState().hasUnsavedChanges) {
+      const proceed = await confirm({
+        title: 'Unsaved changes',
+        message:
+          "Some changes weren't saved because required details are still missing. Leave anyway? Your unsaved changes will be lost.",
+        confirmText: 'Leave',
+        cancelText: 'Keep editing',
+        variant: 'danger',
+      })
+      if (!proceed) return
+      useCampsStore.setState({ hasUnsavedChanges: false })
+    }
+
     router.push(`/camps/${campId}/edit/${target}`)
   }
 

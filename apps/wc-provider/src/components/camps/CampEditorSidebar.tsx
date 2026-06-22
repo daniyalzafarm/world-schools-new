@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { Tooltip } from '@heroui/react'
+import { Lock } from 'lucide-react'
 import { useCampsStore } from '../../stores/camps-store'
 import { useSessionsStore } from '../../stores/sessions-store'
 import { Logo } from '@/components/layout/logo'
@@ -12,12 +14,20 @@ import {
   type EditorSection,
   editorSections,
   getSectionProgress,
+  getUnmetPrerequisites,
   shouldShowSection,
 } from './editor-sections'
 import { CountBadge } from './CountBadge'
 
 interface CampEditorSidebarProps {
   campId: string
+}
+
+// "Basic Info", "Basic Info and Audience", "Basic Info, Audience and Programs"
+function formatPrerequisiteNames(sections: EditorSection[]): string {
+  const names = sections.map(s => s.label)
+  if (names.length <= 1) return names.join('')
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 }
 
 export function CampEditorSidebar({ campId }: CampEditorSidebarProps) {
@@ -156,6 +166,31 @@ export function CampEditorSidebar({ campId }: CampEditorSidebarProps) {
                   sidebarAddonTotalCount,
                   sessionCounts
                 )
+                const unmetPrerequisites = getUnmetPrerequisites(
+                  section.id,
+                  currentCamp,
+                  sidebarEligibilityCount,
+                  sidebarAddonEnabledCount,
+                  sidebarAddonTotalCount,
+                  sessionCounts
+                )
+                const isLocked = unmetPrerequisites.length > 0
+
+                if (isLocked) {
+                  return (
+                    <Tooltip
+                      key={section.id}
+                      placement="top"
+                      showArrow
+                      content={`Complete ${formatPrerequisiteNames(unmetPrerequisites)} first`}
+                    >
+                      <div className="relative flex w-full cursor-not-allowed items-center gap-3 px-5 py-2.5 text-left text-sm font-medium text-default-400 opacity-60">
+                        <span className="flex-1 truncate">{section.label}</span>
+                        <Lock className="size-3.5 shrink-0 text-default-400" />
+                      </div>
+                    </Tooltip>
+                  )
+                }
 
                 return (
                   <button

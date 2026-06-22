@@ -28,6 +28,26 @@ interface StackedBarChartProps {
   stackId?: string
 }
 
+/**
+ * Custom legend rendered directly from the `series` array so the color dot and
+ * label stay vertically aligned, matching the donut chart legend.
+ */
+function SeriesLegend({ series }: { series: Series[] }) {
+  return (
+    <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-2">
+      {series.map(s => (
+        <li key={s.key} className="flex items-center gap-1.5 text-xs">
+          <span
+            className="inline-block h-2 w-2 shrink-0 rounded-full"
+            style={{ background: s.color }}
+          />
+          <span className="text-default-700 dark:text-default-200">{s.name}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function StackedBarChart({
   data,
   xKey,
@@ -66,11 +86,8 @@ export function StackedBarChart({
           }}
         />
         <Legend
-          iconType="circle"
+          content={<SeriesLegend series={series} />}
           wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-          formatter={value => (
-            <span className="text-default-700 dark:text-default-200">{value}</span>
-          )}
         />
         {series.map(s => (
           <Bar

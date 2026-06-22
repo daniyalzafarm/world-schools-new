@@ -6,6 +6,7 @@ import { PrismaModule } from '../../../prisma/prisma.module'
 import { ConfigModule } from '../../../config/config.module'
 import { ConfigService } from '../../../config/config.service'
 import { ProfilePhotoService } from './services/profile-photo.service'
+import { GoogleTokenVerifierService } from './services/google-token-verifier.service'
 import { PasswordResetService } from '../../core/auth/services/password-reset.service'
 
 @Module({
@@ -25,6 +26,6 @@ import { PasswordResetService } from '../../core/auth/services/password-reset.se
     }),
   ],
   controllers: [UserAuthController],
-  providers: [ProfilePhotoService, PasswordResetService],
+  providers: [ProfilePhotoService, GoogleTokenVerifierService, PasswordResetService],
 })
 export class UserAuthModule {}

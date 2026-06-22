@@ -13,16 +13,20 @@ import {
 } from '@world-schools/wc-frontend-utils'
 import { signup } from '@/services/auth.services'
 import { AuthFormShell } from '@/components/auth/forms/auth-form-shell'
+import { GoogleAuthButton } from '@/components/auth/google-auth-button'
 
 interface SignUpFormProps {
   onSuccess: (email: string) => void
+  /** Fired when Google sign-up fully authenticates (no email verification needed). */
+  onGoogleSuccess: () => void
   onSignIn: () => void
 }
 
-export function SignUpForm({ onSuccess, onSignIn }: SignUpFormProps) {
+export function SignUpForm({ onSuccess, onGoogleSuccess, onSignIn }: SignUpFormProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     email: '',
@@ -32,6 +36,9 @@ export function SignUpForm({ onSuccess, onSignIn }: SignUpFormProps) {
     lastName: '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Disable the form while a sign-up (email or Google) is in flight.
+  const isBusy = isLoading || googleLoading
 
   // Clear validation errors when user starts typing
   useEffect(() => {
@@ -114,30 +121,31 @@ export function SignUpForm({ onSuccess, onSignIn }: SignUpFormProps) {
       description="Join World Camps to discover and book amazing camp experiences for your children"
       onSubmit={handleSubmit}
       footer={
-        <>
+        <div className="mx-auto flex w-full max-w-100 flex-col gap-3">
           <Button
             type="submit"
-            size="lg"
             radius="full"
             color="primary"
-            className="w-full font-semibold"
             isLoading={isLoading}
-            isDisabled={isLoading}
+            isDisabled={isBusy}
           >
             {isLoading ? 'Creating account…' : 'Create account'}
           </Button>
+
+          <GoogleAuthButton onSuccess={onGoogleSuccess} onLoadingChange={setGoogleLoading} />
 
           <div className="text-center text-sm text-gray-500">
             Already have an account?{' '}
             <button
               type="button"
               onClick={onSignIn}
-              className="text-secondary-500 hover:text-secondary-600 font-medium cursor-pointer"
+              disabled={isBusy}
+              className="text-secondary-500 hover:text-secondary-600 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Sign in
             </button>
           </div>
-        </>
+        </div>
       }
     >
       {error && (
@@ -155,6 +163,7 @@ export function SignUpForm({ onSuccess, onSignIn }: SignUpFormProps) {
             onValueChange={value => handleInputChange('firstName', value)}
             isInvalid={!!errors.firstName}
             errorMessage={errors.firstName}
+            isDisabled={isBusy}
             variant="bordered"
             radius="lg"
             size="lg"
@@ -167,6 +176,7 @@ export function SignUpForm({ onSuccess, onSignIn }: SignUpFormProps) {
             onValueChange={value => handleInputChange('lastName', value)}
             isInvalid={!!errors.lastName}
             errorMessage={errors.lastName}
+            isDisabled={isBusy}
             variant="bordered"
             radius="lg"
             size="lg"
@@ -175,11 +185,13 @@ export function SignUpForm({ onSuccess, onSignIn }: SignUpFormProps) {
 
         <Input
           type="email"
+          autoComplete="email"
           placeholder="Email address"
           value={formData.email}
           onValueChange={value => handleInputChange('email', value)}
           isInvalid={!!errors.email}
           errorMessage={errors.email}
+          isDisabled={isBusy}
           variant="bordered"
           radius="lg"
           size="lg"
@@ -189,6 +201,7 @@ export function SignUpForm({ onSuccess, onSignIn }: SignUpFormProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
               placeholder="Password"
               value={formData.password}
               onValueChange={value => handleInputChange('password', value)}
@@ -204,6 +217,7 @@ export function SignUpForm({ onSuccess, onSignIn }: SignUpFormProps) {
               }
               isInvalid={!!errors.password}
               errorMessage={errors.password}
+              isDisabled={isBusy}
               variant="bordered"
               radius="lg"
               size="lg"
@@ -211,6 +225,7 @@ export function SignUpForm({ onSuccess, onSignIn }: SignUpFormProps) {
 
             <Input
               type={showConfirmPassword ? 'text' : 'password'}
+              autoComplete="new-password"
               placeholder="Confirm password"
               value={formData.confirmPassword}
               onValueChange={value => handleInputChange('confirmPassword', value)}
@@ -226,6 +241,7 @@ export function SignUpForm({ onSuccess, onSignIn }: SignUpFormProps) {
               }
               isInvalid={!!errors.confirmPassword}
               errorMessage={errors.confirmPassword}
+              isDisabled={isBusy}
               variant="bordered"
               radius="lg"
               size="lg"

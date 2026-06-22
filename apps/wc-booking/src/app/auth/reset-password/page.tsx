@@ -139,6 +139,7 @@ function ResetPasswordForm() {
                   <div className="space-y-4">
                     <Input
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
                       placeholder="New Password"
                       value={formData.newPassword}
                       onValueChange={value => handleInputChange('newPassword', value)}
@@ -186,6 +187,7 @@ function ResetPasswordForm() {
 
                   <Input
                     type={showConfirmPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
                     placeholder="Confirm New Password"
                     value={formData.confirmPassword}
                     onValueChange={value => handleInputChange('confirmPassword', value)}

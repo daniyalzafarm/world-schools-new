@@ -10,6 +10,7 @@ import {
   type ScaleWithUsage,
   type UpdateScalePayload,
 } from '@/services/catalogue.services'
+import { usePermissions } from '@/hooks/use-permissions'
 
 function getApiErrorMessage(result: unknown, fallback: string) {
   const maybe: any = result
@@ -18,8 +19,15 @@ function getApiErrorMessage(result: unknown, fallback: string) {
 
 export default function EditCatalogueScalePage() {
   const router = useRouter()
+  const { hasPermission } = usePermissions()
   const params = useParams()
   const scaleId = params.id as string
+
+  useEffect(() => {
+    if (!hasPermission('catalogue.update')) {
+      router.push('/catalogue')
+    }
+  }, [hasPermission, router])
 
   const [scales, setScales] = useState<ScaleWithUsage[] | null>(null)
   const [loading, setLoading] = useState(true)

@@ -135,6 +135,7 @@ export default function DailyScheduleEditorPage() {
 
   useAutosave(payload, {
     enabled: isLoaded && !hasIncompleteSlots,
+    ready: isLoaded,
     save: async data => {
       await updateSection(campId, 'daily-schedule', data)
       if (!useCampsStore.getState().error) {

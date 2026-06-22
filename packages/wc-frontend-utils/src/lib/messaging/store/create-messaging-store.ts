@@ -266,6 +266,9 @@ export function createMessagingStore(config: MessagingStoreConfig) {
               log('WebSocket disconnected - updating isConnected state')
               set(draft => {
                 draft.isConnected = false
+                // Clear typing indicators: a "stop" missed during the drop would
+                // otherwise leave a stuck "typing…" after reconnect.
+                draft.typingUsers = {}
               })
             })
           )
@@ -391,6 +394,46 @@ export function createMessagingStore(config: MessagingStoreConfig) {
                   if (currentUserId && data.message.senderId !== currentUserId) {
                     void get().markAsDelivered(data.message.conversationId, data.message.id)
                   }
+                }
+              )
+            )
+
+            // Real-time edit: update the message's content + editedAt in place
+            // (idempotent with the editor's own optimistic update).
+            wsUnsubscribers.push(
+              messagingWebSocket.onMessageUpdated(
+                (data: {
+                  conversationId: string
+                  messageId: string
+                  content: string
+                  editedAt?: string
+                }) => {
+                  set(draft => {
+                    const m = draft.messages[data.conversationId]?.find(
+                      x => x.id === data.messageId
+                    )
+                    if (m) {
+                      m.content = data.content
+                      m.editedAt = data.editedAt ? new Date(data.editedAt) : new Date()
+                    }
+                  })
+                }
+              )
+            )
+
+            // Real-time delete: remove the message (GET filters soft-deleted rows,
+            // so it won't reappear on refetch). Idempotent with the deleter's remove.
+            wsUnsubscribers.push(
+              messagingWebSocket.onMessageDeleted(
+                (data: { conversationId: string; messageId: string }) => {
+                  set(draft => {
+                    const msgs = draft.messages[data.conversationId]
+                    if (msgs) {
+                      draft.messages[data.conversationId] = msgs.filter(
+                        m => m.id !== data.messageId
+                      )
+                    }
+                  })
                 }
               )
             )
@@ -1166,7 +1209,11 @@ export function createMessagingStore(config: MessagingStoreConfig) {
       sendMessage: async dto => {
         log('Sending message:', dto)
 
-        // Create optimistic message
+        // Create optimistic message. Snapshot the replied-to message so a just-sent
+        // reply shows its quoted preview immediately (before the server echo arrives).
+        const repliedTo = dto.replyToId
+          ? get().messages[dto.conversationId]?.find(m => m.id === dto.replyToId)
+          : undefined
         const optimisticMessage: OptimisticMessage = {
           id: `temp-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           conversationId: dto.conversationId,
@@ -1177,6 +1224,10 @@ export function createMessagingStore(config: MessagingStoreConfig) {
           sentAt: new Date(),
           isOptimistic: true,
           idempotencyKey: dto.idempotencyKey || `${dto.senderId}-${Date.now()}`,
+          replyToId: dto.replyToId,
+          replyTo: repliedTo
+            ? { id: repliedTo.id, content: repliedTo.content, senderId: repliedTo.senderId }
+            : undefined,
         }
 
         // Add optimistic message to store (cast to unknown first to avoid type error)
@@ -1201,11 +1252,16 @@ export function createMessagingStore(config: MessagingStoreConfig) {
         })
 
         try {
-          // ✅ Phase 3: Route message via WebSocket when feature flag enabled and connected
+          // ✅ Phase 3: Route message via WebSocket when feature flag enabled and connected.
+          // Exception: replies go via HTTP — the WS send payload doesn't carry
+          // replyToId, so a reply sent over WS loses its quoted context. The HTTP
+          // path forwards the full dto (replyToId included) and the server still
+          // broadcasts the created message (with replyTo) to all participants.
           const useWebSocket =
             featureFlags.WEBSOCKET_MESSAGES &&
             messagingWebSocket &&
-            messagingWebSocket.isConnected()
+            messagingWebSocket.isConnected() &&
+            !dto.replyToId
 
           if (useWebSocket) {
             // ✅ Send via WebSocket (fire-and-forget)
@@ -1382,6 +1438,42 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             )
           }
         })
+      },
+
+      editMessageRemote: async (conversationId, messageId, newContent) => {
+        const userId = getCurrentUserId?.() ?? null
+        if (!userId) return
+        const result = await messagesService.editMessage(messageId, {
+          messageId,
+          userId,
+          newContent,
+        })
+        if (result.success) {
+          set(draft => {
+            const m = draft.messages[conversationId]?.find(x => x.id === messageId)
+            if (m) {
+              Object.assign(m, {
+                content: result.data.content ?? newContent,
+                editedAt: result.data.editedAt,
+              })
+            }
+          })
+        }
+      },
+
+      deleteMessageRemote: async (conversationId, messageId) => {
+        const userId = getCurrentUserId?.() ?? null
+        if (!userId) return
+        const result = await messagesService.deleteMessage(messageId, { messageId, userId })
+        if (result.success) {
+          set(draft => {
+            if (draft.messages[conversationId]) {
+              draft.messages[conversationId] = draft.messages[conversationId].filter(
+                m => m.id !== messageId
+              )
+            }
+          })
+        }
       },
 
       // Real-time features

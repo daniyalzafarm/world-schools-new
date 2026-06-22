@@ -22,7 +22,7 @@ export class SupportTicketsController {
   constructor(private readonly supportTicketsService: SupportTicketsService) {}
 
   @Post()
-  @Permissions('support_tickets.read')
+  @Permissions('support_tickets.update')
   @ApiOperation({
     summary: 'Create a support ticket (admin)',
     description: 'Creates a support ticket on behalf of a requester.',

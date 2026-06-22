@@ -28,6 +28,7 @@ import {
   type ScaleWithUsage,
 } from '@/services/catalogue.services'
 import { cn, useConfirmDialog } from '@world-schools/ui-web'
+import { Can } from '@/components/auth/can'
 
 const CATALOGUE_INFO_BANNER_DISMISSED_KEY = 'wc_superadmin_catalogue_info_banner_dismissed'
 
@@ -229,14 +230,16 @@ export default function CataloguePage() {
                   <p className="text-sm text-default-500">
                     {activeCount} active · {draftCount} draft · Expand a row to manage activities
                   </p>
-                  <Button
-                    color="primary"
-                    className="ml-auto shrink-0"
-                    startContent={<Plus className="h-5 w-5" />}
-                    onPress={() => router.push('/catalogue/categories/create')}
-                  >
-                    Add Category
-                  </Button>
+                  <Can permission="catalogue.create">
+                    <Button
+                      color="primary"
+                      className="ml-auto shrink-0"
+                      startContent={<Plus className="h-5 w-5" />}
+                      onPress={() => router.push('/catalogue/categories/create')}
+                    >
+                      Add Category
+                    </Button>
+                  </Can>
                 </>
               ) : (
                 <>
@@ -244,14 +247,16 @@ export default function CataloguePage() {
                     Level progressions used for child skill profiles and camp eligibility
                     requirements
                   </p>
-                  <Button
-                    color="primary"
-                    className="ml-auto shrink-0"
-                    startContent={<Plus className="h-5 w-5" />}
-                    onPress={() => router.push('/catalogue/scales/create')}
-                  >
-                    Add Scale
-                  </Button>
+                  <Can permission="catalogue.create">
+                    <Button
+                      color="primary"
+                      className="ml-auto shrink-0"
+                      startContent={<Plus className="h-5 w-5" />}
+                      onPress={() => router.push('/catalogue/scales/create')}
+                    >
+                      Add Scale
+                    </Button>
+                  </Can>
                 </>
               )}
             </div>
@@ -272,13 +277,15 @@ export default function CataloguePage() {
                       Create your first interest category to organize activities by theme.
                     </p>
                   </div>
-                  <Button
-                    color="primary"
-                    startContent={<Plus className="h-4 w-4" />}
-                    onPress={() => router.push('/catalogue/categories/create')}
-                  >
-                    Create Your First Category
-                  </Button>
+                  <Can permission="catalogue.create">
+                    <Button
+                      color="primary"
+                      startContent={<Plus className="h-4 w-4" />}
+                      onPress={() => router.push('/catalogue/categories/create')}
+                    >
+                      Create Your First Category
+                    </Button>
+                  </Can>
                 </div>
               ) : (
                 <ul className="divide-y divide-default-200">
@@ -361,19 +368,21 @@ export default function CataloguePage() {
                               {cat.status}
                             </Chip>
                           )}
-                          <Button
-                            isIconOnly
-                            size="sm"
-                            variant="light"
-                            onPress={() => router.push(`/catalogue/categories/${cat.id}/edit`)}
-                          >
-                            <Pencil size={16} />
-                          </Button>
-                          <Switch
-                            size="sm"
-                            isSelected={cat.status === 'ACTIVE'}
-                            onValueChange={() => handleToggleStatus(cat)}
-                          />
+                          <Can permission="catalogue.update">
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="light"
+                              onPress={() => router.push(`/catalogue/categories/${cat.id}/edit`)}
+                            >
+                              <Pencil size={16} />
+                            </Button>
+                            <Switch
+                              size="sm"
+                              isSelected={cat.status === 'ACTIVE'}
+                              onValueChange={() => handleToggleStatus(cat)}
+                            />
+                          </Can>
                           <ChevronDown
                             size={20}
                             className={cn(
@@ -430,25 +439,29 @@ export default function CataloguePage() {
                                     </TableCell>
                                     <TableCell>
                                       <div className="flex justify-start gap-1">
-                                        <Button
-                                          isIconOnly
-                                          size="sm"
-                                          variant="light"
-                                          onPress={() =>
-                                            router.push(`/catalogue/activities/${act.id}/edit`)
-                                          }
-                                        >
-                                          <Pencil size={14} />
-                                        </Button>
-                                        <Button
-                                          isIconOnly
-                                          size="sm"
-                                          variant="light"
-                                          color="danger"
-                                          onPress={() => handleDeleteActivity(act)}
-                                        >
-                                          <Trash2 size={14} />
-                                        </Button>
+                                        <Can permission="catalogue.update">
+                                          <Button
+                                            isIconOnly
+                                            size="sm"
+                                            variant="light"
+                                            onPress={() =>
+                                              router.push(`/catalogue/activities/${act.id}/edit`)
+                                            }
+                                          >
+                                            <Pencil size={14} />
+                                          </Button>
+                                        </Can>
+                                        <Can permission="catalogue.delete">
+                                          <Button
+                                            isIconOnly
+                                            size="sm"
+                                            variant="light"
+                                            color="danger"
+                                            onPress={() => handleDeleteActivity(act)}
+                                          >
+                                            <Trash2 size={14} />
+                                          </Button>
+                                        </Can>
                                       </div>
                                     </TableCell>
                                   </TableRow>
@@ -456,26 +469,30 @@ export default function CataloguePage() {
                               </TableBody>
                             </Table>
                             <div className="mt-3 flex flex-wrap gap-2">
-                              <Button
-                                size="sm"
-                                variant="flat"
-                                color="primary"
-                                startContent={<Plus size={14} />}
-                                onPress={() =>
-                                  router.push(`/catalogue/activities/create?categoryId=${cat.id}`)
-                                }
-                              >
-                                Add activity
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="flat"
-                                color="danger"
-                                startContent={<Trash2 size={14} />}
-                                onPress={() => handleDeleteCategory(cat)}
-                              >
-                                Delete category
-                              </Button>
+                              <Can permission="catalogue.create">
+                                <Button
+                                  size="sm"
+                                  variant="flat"
+                                  color="primary"
+                                  startContent={<Plus size={14} />}
+                                  onPress={() =>
+                                    router.push(`/catalogue/activities/create?categoryId=${cat.id}`)
+                                  }
+                                >
+                                  Add activity
+                                </Button>
+                              </Can>
+                              <Can permission="catalogue.delete">
+                                <Button
+                                  size="sm"
+                                  variant="flat"
+                                  color="danger"
+                                  startContent={<Trash2 size={14} />}
+                                  onPress={() => handleDeleteCategory(cat)}
+                                >
+                                  Delete category
+                                </Button>
+                              </Can>
                             </div>
                           </div>
                         )}
@@ -496,13 +513,15 @@ export default function CataloguePage() {
                     eligibility requirements.
                   </p>
                 </div>
-                <Button
-                  color="primary"
-                  startContent={<Plus className="h-4 w-4" />}
-                  onPress={() => router.push('/catalogue/scales/create')}
-                >
-                  Create Your First Scale
-                </Button>
+                <Can permission="catalogue.create">
+                  <Button
+                    color="primary"
+                    startContent={<Plus className="h-4 w-4" />}
+                    onPress={() => router.push('/catalogue/scales/create')}
+                  >
+                    Create Your First Scale
+                  </Button>
+                </Can>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
@@ -520,14 +539,16 @@ export default function CataloguePage() {
                           </Chip>
                           <p className="mt-2 text-sm text-default-500">{scale.name}</p>
                         </div>
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="light"
-                          onPress={() => router.push(`/catalogue/scales/${scale.id}/edit`)}
-                        >
-                          <Pencil size={16} />
-                        </Button>
+                        <Can permission="catalogue.update">
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="light"
+                            onPress={() => router.push(`/catalogue/scales/${scale.id}/edit`)}
+                          >
+                            <Pencil size={16} />
+                          </Button>
+                        </Can>
                       </div>
 
                       <div className="mt-4">

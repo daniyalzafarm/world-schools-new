@@ -161,6 +161,34 @@ export const navigationOnlySections: string[] = editorSections
   .filter(s => s.navigationOnly)
   .map(s => s.id)
 
+// Sections a provider must complete before a given section becomes available.
+// A section with no entry here (e.g. basic-info, review) is always available.
+export const sectionPrerequisites: Record<string, string[]> = {
+  audience: ['basic-info'],
+  photos: ['basic-info'],
+  programs: ['basic-info'],
+  'camp-focus': ['programs'],
+  sports: ['programs'],
+  languages: ['programs'],
+  arts: ['programs'],
+  adventure: ['programs'],
+  water: ['programs'],
+  environmental: ['programs'],
+  academics: ['programs'],
+  religion: ['programs'],
+  excursions: ['programs'],
+  sessions: ['basic-info', 'audience'],
+  'whats-included': ['basic-info', 'audience'],
+  addons: ['basic-info', 'audience'],
+  'skill-requirements': ['programs'],
+  accommodation: ['basic-info'],
+  meals: ['basic-info'],
+  'daily-schedule': ['basic-info', 'audience'],
+  'safety-policies': ['basic-info'],
+  'location-campus': ['basic-info'],
+  'getting-there': ['location-campus'],
+}
+
 export interface SectionProgress {
   completed: number
   total: number
@@ -379,6 +407,33 @@ export function getSectionProgress(
     default:
       return { completed: 0, total: 1 }
   }
+}
+
+// Returns the prerequisite sections that are not yet complete for the given
+// section. A section is locked when this list is non-empty.
+export function getUnmetPrerequisites(
+  sectionId: string,
+  camp: Camp | null,
+  eligibilityCount: number | null,
+  addonEnabledCount: number | null,
+  addonTotalCount: number | null,
+  sessionCounts: { published: number; total: number } | null
+): EditorSection[] {
+  const prereqIds = sectionPrerequisites[sectionId] ?? []
+  return prereqIds
+    .map(id => editorSections.find(s => s.id === id))
+    .filter((s): s is EditorSection => !!s)
+    .filter(s => {
+      const progress = getSectionProgress(
+        s.id,
+        camp,
+        eligibilityCount,
+        addonEnabledCount,
+        addonTotalCount,
+        sessionCounts
+      )
+      return getStatus(progress) !== 'complete'
+    })
 }
 
 export function computeCampProgressPercent(

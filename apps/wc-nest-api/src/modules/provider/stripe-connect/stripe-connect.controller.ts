@@ -1,15 +1,15 @@
 import { Controller, Get, Post, Request, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard'
-import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
-import { Roles } from '../../core/auth/decorators/roles.decorator'
+import { ProviderAccessGuard } from '../../core/auth/guards/provider-access.guard'
+import { ProviderAccess } from '../../core/auth/decorators/provider-access.decorator'
 import { ResponseUtil } from '../../../common/utils/response.util'
 import { StripeConnectService } from './stripe-connect.service'
 
 @ApiTags('Provider')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesOrPermissionsGuard)
-@Roles('Provider Admin')
+@UseGuards(JwtAuthGuard, ProviderAccessGuard)
+@ProviderAccess('admin')
 @Controller('provider/stripe-connect')
 export class StripeConnectController {
   constructor(private readonly stripeConnectService: StripeConnectService) {}

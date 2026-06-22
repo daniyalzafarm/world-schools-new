@@ -40,6 +40,7 @@ interface ConversationItemProps {
   onMarkAsRead?: (conversationId: string) => void
   onToggleFavorite?: (conversationId: string) => void
   showActions?: boolean
+  isTyping?: boolean
 }
 
 export function ConversationItem({
@@ -53,6 +54,7 @@ export function ConversationItem({
   onMarkAsRead,
   onToggleFavorite,
   showActions = true,
+  isTyping = false,
 }: ConversationItemProps) {
   const [isPressed, setIsPressed] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
@@ -112,7 +114,11 @@ export function ConversationItem({
               )}
             </div>
           </div>
-          {conversation.contextLabel ? (
+          {isTyping ? (
+            <p className="text-sm font-medium text-primary-600 dark:text-primary-400 truncate">
+              typing…
+            </p>
+          ) : conversation.contextLabel ? (
             <p className="text-sm text-secondary truncate">
               Asks about:{' '}
               <span className="font-semibold text-gray-900 dark:text-gray-100">

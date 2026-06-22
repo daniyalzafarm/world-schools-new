@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { addToast, Button } from '@heroui/react'
 import { useCampsStore } from '../../stores/camps-store'
 import { useState } from 'react'
+import { Can } from '@/components/auth/can'
 
 interface CampWizardTopBarProps {
   currentStep: number
@@ -54,6 +55,7 @@ export function CampWizardTopBar({ currentStep, campId }: CampWizardTopBarProps)
       title: 'Success',
       description: 'Camp published successfully!',
       color: 'success',
+      timeout: 3000,
     })
     router.push('/camps')
   }
@@ -77,14 +79,16 @@ export function CampWizardTopBar({ currentStep, campId }: CampWizardTopBarProps)
             >
               Save Draft
             </Button>
-            <Button
-              color="primary"
-              onPress={handlePublish}
-              isLoading={isPublishing}
-              isDisabled={isLoading || isSaving || currentStep !== 4}
-            >
-              Publish
-            </Button>
+            <Can permission="camps.publish">
+              <Button
+                color="primary"
+                onPress={handlePublish}
+                isLoading={isPublishing}
+                isDisabled={isLoading || isSaving || currentStep !== 4}
+              >
+                Publish
+              </Button>
+            </Can>
           </>
         )}
       </div>

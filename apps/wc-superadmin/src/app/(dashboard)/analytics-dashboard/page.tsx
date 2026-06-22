@@ -55,7 +55,7 @@ export default function AnalyticsDashboardPage() {
               Comprehensive insights into platform performance and growth
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             <CurrencySelector
               currencies={currencies}
               value={currency}
@@ -66,6 +66,7 @@ export default function AnalyticsDashboardPage() {
             <Button
               size="sm"
               variant="flat"
+              className="h-9"
               startContent={<RefreshCw className="h-4 w-4" />}
               onPress={() => void fetchAll()}
             >

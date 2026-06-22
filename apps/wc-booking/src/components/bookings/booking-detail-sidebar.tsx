@@ -100,7 +100,7 @@ export function BookingDetailSidebar({
   const balanceDue = Math.max(0, detail.totalAmount - detail.paidAmount)
   const campSlug = detail.camp.slug
   const campProfileHref = `/camps/${encodeURIComponent(campSlug)}`
-  const campusHref = `${campProfileHref}#campus`
+  const campusHref = `${campProfileHref}#location`
 
   // Surface a pending provider reschedule (Spec v2.5 §9.7) awaiting the
   // customer's consent. Best-effort fetch; a failure simply hides the banner.

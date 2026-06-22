@@ -17,6 +17,7 @@ import { JwtStrategy } from './strategies/jwt.strategy'
 // Guards
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
 import { RolesOrPermissionsGuard } from './guards/roles-or-permissions.guard'
+import { ProviderAccessGuard } from './guards/provider-access.guard'
 
 // Shared services (previously triplicated across user/provider/superadmin auth modules)
 import { TwoFactorAuthService } from './services/two-factor-auth.service'
@@ -47,6 +48,7 @@ import { EmailVerificationService } from './services/email-verification.service'
     JwtStrategy,
     JwtAuthGuard,
     RolesOrPermissionsGuard,
+    ProviderAccessGuard,
     TwoFactorAuthService,
     SessionManagementService,
     EmailVerificationService,
@@ -67,6 +69,7 @@ import { EmailVerificationService } from './services/email-verification.service'
     AuthService,
     JwtAuthGuard,
     RolesOrPermissionsGuard,
+    ProviderAccessGuard,
     TwoFactorAuthService,
     SessionManagementService,
     EmailVerificationService,

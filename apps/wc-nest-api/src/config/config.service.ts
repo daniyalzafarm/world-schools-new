@@ -156,6 +156,29 @@ export class ConfigService {
     return this.getString('GOOGLE_PLACES_API_KEY', '')
   }
 
+  // Google OAuth ("Sign in with Google" for the booking app)
+  //
+  // The client ID is the audience the backend verifies Google ID tokens against;
+  // it is the same public value the booking frontend renders in the Google button
+  // (so it is NOT a secret, and there is no client secret in the ID-token flow).
+  // In production a missing/malformed client ID must fail at boot rather than on the
+  // first sign-in attempt, mirroring the Stripe config above. Dev/test stay lenient
+  // so local boot without Google configured still works, but a value that IS set is
+  // still shape-checked to catch an obviously-wrong env early.
+  get googleOAuthConfig() {
+    const clientId = this.isProduction
+      ? this.getString('GOOGLE_CLIENT_ID')
+      : this.getString('GOOGLE_CLIENT_ID', '')
+
+    if (clientId && !clientId.endsWith('.apps.googleusercontent.com')) {
+      throw new Error(
+        'Config error - GOOGLE_CLIENT_ID must be a Google OAuth client ID (*.apps.googleusercontent.com)'
+      )
+    }
+
+    return { clientId }
+  }
+
   // Stripe Configuration
   //
   // In production all three keys are required and must carry their expected prefixes

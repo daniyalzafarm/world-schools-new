@@ -35,8 +35,8 @@ function isStepCompleted(step: number, camp: Camp | null): boolean {
         camp.languages.length > 0 &&
         camp.gender
       )
-    case 3: // Programs - completed if activities are selected
-      return !!(camp.activities && camp.activities.length > 0)
+    case 3: // Programs - optional, always considered complete (0 programs is valid)
+      return true
     case 4: // Photos - completed if at least 5 photos are uploaded
       return !!(camp.photos && Array.isArray(camp.photos) && camp.photos.length >= 5)
     case 5: // Sessions - completed if sessionType is set

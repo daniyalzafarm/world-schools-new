@@ -56,6 +56,11 @@ export {
 
 // Messages components
 export { ChatInput } from './messages/chat-input'
+export {
+  MessageContextMenu,
+  type MessageContextMenuAction,
+  type MessageMenuAnchor,
+} from './messages/message-context-menu'
 export { MessageBubble } from './messages/message-bubble'
 export { ConversationItem } from './messages/conversation-item'
 export {

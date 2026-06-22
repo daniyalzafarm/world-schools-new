@@ -188,6 +188,9 @@ export interface OptimisticMessage {
   sentAt: Date
   isOptimistic: true
   idempotencyKey: string
+  /** Reply context, so a just-sent reply shows its quoted preview immediately. */
+  replyToId?: string
+  replyTo?: { id: string; content: string; senderId: string }
 }
 
 /**

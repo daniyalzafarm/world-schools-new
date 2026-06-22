@@ -33,6 +33,8 @@ export interface MessagingWebSocketAdapter {
   leaveConversation(conversationId: string): void
   onMessageCreated(handler: (data: any) => void): () => void
   onMessageNew(handler: (data: any) => void): () => void
+  onMessageUpdated(handler: (data: any) => void): () => void
+  onMessageDeleted(handler: (data: any) => void): () => void
   onMessageError(handler: (data: any) => void): () => void
   isConnected(): boolean
 
@@ -99,6 +101,14 @@ export function createMessagingWebSocketAdapter(
 
     onMessageNew(handler: (data: any) => void) {
       return wsService.on(WsServerEvent.MessageNew, handler)
+    },
+
+    onMessageUpdated(handler: (data: any) => void) {
+      return wsService.on(WsServerEvent.MessageUpdated, handler)
+    },
+
+    onMessageDeleted(handler: (data: any) => void) {
+      return wsService.on(WsServerEvent.MessageDeleted, handler)
     },
 
     onMessageError(handler: (data: any) => void) {

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '../../../../prisma/prisma.service'
-import UAParser from 'ua-parser-js'
+import Bowser from 'bowser'
 
 @Injectable()
 export class SessionManagementService {
@@ -18,10 +18,9 @@ export class SessionManagementService {
     browser: string
     os: string
   } {
-    const parser = new (UAParser as any)(userAgent)
-    const result = parser.getResult()
+    const result = Bowser.parse(userAgent)
 
-    const deviceType = result.device.type ?? 'desktop'
+    const deviceType = result.platform.type ?? 'desktop'
     const browser = result.browser.name ?? 'Unknown'
     const os = result.os.name ?? 'Unknown'
     const deviceName = `${browser} on ${os}`

@@ -172,7 +172,7 @@ export const useCampsStore = create<CampsState>((set, get) => ({
     if (!response.success) {
       const message = response.data.message
       set({ error: message, isLoading: false })
-      addToast({ title: 'Error', description: message, color: 'danger' })
+      addToast({ title: 'Error', description: message, color: 'danger', timeout: 0 })
       return
     }
     const camp = response.data.camp

@@ -53,6 +53,7 @@ export function AuthModal() {
               setFlow({ email: mail })
               setView('verify-email')
             }}
+            onGoogleSuccess={completeAuth}
             onSignIn={() => setView('signin')}
           />
         )

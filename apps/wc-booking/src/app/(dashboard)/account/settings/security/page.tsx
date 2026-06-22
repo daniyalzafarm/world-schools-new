@@ -25,6 +25,7 @@ import {
   validatePassword,
 } from '@world-schools/wc-frontend-utils'
 import * as securityService from '@/services/security.services'
+import { setPassword } from '@/services/auth.services'
 import type { Session, TwoFactorStatus } from '@world-schools/wc-types'
 
 const SecuritySettingsPage = () => {
@@ -51,8 +52,10 @@ const SecuritySettingsPage = () => {
   const [sessions, setSessions] = useState<Session[]>([])
   const [isSessionsLoading, setIsSessionsLoading] = useState(false)
 
-  // Load data on mount
+  // Load data on mount. Refresh the profile so `hasPassword`/`passwordChangedAt` are
+  // fresh — the store's user can come from login/Google (buildUserResponse), which omits them.
   useEffect(() => {
+    void useAuthStore.getState().getProfile()
     void loadTwoFactorStatus()
     void loadSessions()
   }, [])
@@ -96,6 +99,29 @@ const SecuritySettingsPage = () => {
     setIsPasswordSaving(true)
 
     try {
+      if (isSetMode) {
+        // OAuth-only user setting their first password — no current password to verify.
+        const response = await setPassword({ newPassword: passwordData.newPassword })
+
+        if (response.success) {
+          // Refresh the store so hasPassword flips to true and the section becomes change-mode.
+          await useAuthStore.getState().getProfile()
+          addToast({ title: 'Success', description: 'Password set successfully', color: 'success' })
+          setPasswordModalOpen(false)
+          setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+        } else {
+          const message =
+            'data' in response &&
+            response.data &&
+            typeof response.data === 'object' &&
+            'message' in response.data
+              ? (response.data.message as string)
+              : 'Failed to set password. Please try again.'
+          setPasswordError(message)
+        }
+        return
+      }
+
       const success = await changePassword({
         oldPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
@@ -125,7 +151,7 @@ const SecuritySettingsPage = () => {
         }, 0)
       }
     } catch (err: any) {
-      setPasswordError(err.message || 'Failed to change password')
+      setPasswordError(err.message || 'Failed to save password')
     } finally {
       setIsPasswordSaving(false)
     }
@@ -234,6 +260,10 @@ const SecuritySettingsPage = () => {
       })
     : 'Never'
 
+  // OAuth-only users (e.g. Google) have no password yet — offer "Set password" instead
+  // of "Change password" (which requires a current password they don't have).
+  const isSetMode = user?.hasPassword === false
+
   return (
     <ProtectedRoute requireAuth={true}>
       <div className="min-h-full w-full bg-white dark:bg-gray-900">
@@ -265,7 +295,9 @@ const SecuritySettingsPage = () => {
             <div className="flex-1 min-w-0">
               <div className="font-medium text-gray-900 dark:text-gray-100 mb-1">Password</div>
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                Last changed {passwordChangedAt}
+                {isSetMode
+                  ? 'You signed up with Google — set a password to also sign in with your email.'
+                  : `Last changed ${passwordChangedAt}`}
               </div>
             </div>
             <div className="shrink-0">
@@ -274,7 +306,7 @@ const SecuritySettingsPage = () => {
                 variant="light"
                 className="underline"
               >
-                Edit
+                {isSetMode ? 'Set password' : 'Edit'}
               </Button>
             </div>
           </div>
@@ -450,7 +482,9 @@ const SecuritySettingsPage = () => {
         placement="center"
       >
         <ModalContent>
-          <ModalHeader className="text-xl font-semibold">Change password</ModalHeader>
+          <ModalHeader className="text-xl font-semibold">
+            {isSetMode ? 'Set password' : 'Change password'}
+          </ModalHeader>
           <ModalBody className="gap-5">
             {passwordError && (
               <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
@@ -458,28 +492,30 @@ const SecuritySettingsPage = () => {
               </div>
             )}
 
-            <Input
-              type={showCurrentPassword ? 'text' : 'password'}
-              label="Current password"
-              labelPlacement="outside"
-              placeholder="Enter current password"
-              value={passwordData.currentPassword}
-              onValueChange={value => {
-                setPasswordData(prev => ({ ...prev, currentPassword: value }))
-                if (passwordError) setPasswordError(null)
-              }}
-              endContent={
-                <button
-                  type="button"
-                  onClick={() => setShowCurrentPassword(prev => !prev)}
-                  className="text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
-                  tabIndex={-1}
-                >
-                  {showCurrentPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              }
-              isRequired
-            />
+            {!isSetMode && (
+              <Input
+                type={showCurrentPassword ? 'text' : 'password'}
+                label="Current password"
+                labelPlacement="outside"
+                placeholder="Enter current password"
+                value={passwordData.currentPassword}
+                onValueChange={value => {
+                  setPasswordData(prev => ({ ...prev, currentPassword: value }))
+                  if (passwordError) setPasswordError(null)
+                }}
+                endContent={
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(prev => !prev)}
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    {showCurrentPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                }
+                isRequired
+              />
+            )}
 
             <Input
               type={showNewPassword ? 'text' : 'password'}
@@ -572,12 +608,18 @@ const SecuritySettingsPage = () => {
               onPress={handlePasswordChange}
               isLoading={isPasswordSaving}
               isDisabled={
-                !passwordData.currentPassword ||
+                (!isSetMode && !passwordData.currentPassword) ||
                 !passwordData.newPassword ||
                 !passwordData.confirmPassword
               }
             >
-              {isPasswordSaving ? 'Changing...' : 'Change password'}
+              {isSetMode
+                ? isPasswordSaving
+                  ? 'Setting...'
+                  : 'Set password'
+                : isPasswordSaving
+                  ? 'Changing...'
+                  : 'Change password'}
             </Button>
           </ModalFooter>
         </ModalContent>

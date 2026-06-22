@@ -1,13 +1,16 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { Avatar } from '@heroui/react'
 import { getCountryName } from '@world-schools/ui-web'
 import { ChartCard } from '../shared/chart-card'
 import { RankedList, RankedListRow } from '../shared/ranked-list'
+import { pluralize } from '@/lib/format'
 import { useCurrencyFormat } from '@/hooks/use-currency-format'
 import { useAnalyticsStore } from '@/stores/analytics-store'
 
 export function TopProvidersList() {
+  const router = useRouter()
   const providers = useAnalyticsStore(s => s.topProviders)
   const loading = useAnalyticsStore(s => s.loading.topProviders)
   const error = useAnalyticsStore(s => s.errors.topProviders)
@@ -32,6 +35,7 @@ export function TopProvidersList() {
           <RankedListRow
             key={p.id}
             rank={i + 1}
+            onClick={() => router.push(`/providers/${p.id}`)}
             avatar={
               <Avatar
                 size="sm"
@@ -46,7 +50,7 @@ export function TopProvidersList() {
               <>
                 {[p.city, getCountryName(p.country)].filter(Boolean).join(', ') || '—'}
                 <span className="mx-1.5 text-default-300">·</span>
-                {p.bookingCount} bookings
+                {p.bookingCount} {pluralize(p.bookingCount, 'booking')}
               </>
             }
             right={fmtMoney(p.gmv)}

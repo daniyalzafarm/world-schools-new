@@ -23,6 +23,8 @@ import { Check, Eye, FilterX, LogIn, Search, Upload } from 'lucide-react'
 import { getInitials, Input, useConfirmDialog, useDebounce } from '@world-schools/ui-web'
 import { OPERATIONAL_STATUS_LABELS, OperationalStatus } from '@world-schools/wc-types'
 import { PageSlot } from '@/components/layout/page-slot'
+import { Can } from '@/components/auth/can'
+import { usePermissions } from '@/hooks/use-permissions'
 import { useApplicationReviewStore } from '@/stores/application-review-store'
 import { providersService } from '@/services/providers.services'
 import config from '@/config/config'
@@ -220,6 +222,17 @@ export function AllProvidersView() {
   const { confirm } = useConfirmDialog()
 
   const activeTab = getActiveTab(pathname)
+  const { hasPermission } = usePermissions()
+  // pending-review/rejected = application lifecycle (provider_applications.read);
+  // approved/suspended = active providers (providers.read).
+  const canApps = hasPermission('provider_applications.read')
+  const canProviders = hasPermission('providers.read')
+  const activeTabPermission =
+    activeTab === 'approved' || activeTab === 'suspended'
+      ? 'providers.read'
+      : 'provider_applications.read'
+  const canViewActiveTab = hasPermission(activeTabPermission)
+
   const [searchInput, setSearchInput] = useState('')
   const [approvingId, setApprovingId] = useState<string | null>(null)
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null)
@@ -227,26 +240,35 @@ export function AllProvidersView() {
 
   const debouncedSearch = useDebounce(searchInput, 500)
 
-  // Initial load — set status filter based on the current tab path
+  // If the user landed on a tab they can't access, send them to one they can.
   useEffect(() => {
-    if (!hasInitialized.current) {
-      hasInitialized.current = true
-      clearFilters()
-      setFilters({ status: TAB_STATUS_MAP[activeTab] })
-      void fetchTabCounts()
-      void fetchApplications()
-    }
-  }, [])
+    if (canViewActiveTab) return
+    if (canApps) router.replace('/providers/pending-review')
+    else if (canProviders) router.replace('/providers/approved')
+  }, [canViewActiveTab, canApps, canProviders, router])
+
+  // Initial load — only for an accessible tab; count only the tabs the user can see.
+  useEffect(() => {
+    if (hasInitialized.current || !canViewActiveTab) return
+    hasInitialized.current = true
+    clearFilters()
+    setFilters({ status: TAB_STATUS_MAP[activeTab] })
+    const countStatuses: ApprovalStatus[] = []
+    if (canApps) countStatuses.push('under_review', 'rejected')
+    if (canProviders) countStatuses.push('approved', 'suspended')
+    void fetchTabCounts(countStatuses)
+    void fetchApplications()
+  }, [canViewActiveTab])
 
   // Update search filter when debounced value changes
   useEffect(() => {
     setFilters({ search: debouncedSearch || undefined })
   }, [debouncedSearch, setFilters])
 
-  // Re-fetch when filters or pagination change
+  // Re-fetch when filters or pagination change (only while on an accessible tab)
   useEffect(() => {
-    void fetchApplications()
-  }, [fetchApplications, pagination.page, pagination.limit, filters])
+    if (canViewActiveTab) void fetchApplications()
+  }, [fetchApplications, pagination.page, pagination.limit, filters, canViewActiveTab])
 
   const handleTabChange = (key: React.Key) => {
     router.push(TAB_PATHS[key as AllProvidersTab])
@@ -336,38 +358,46 @@ export function AllProvidersView() {
                   tabList: 'p-0!',
                 }}
               >
-                <Tab
-                  key="pending-review"
-                  title={
-                    <span className="flex items-center gap-1.5">
-                      Pending Review {tabCountBadge(tabCounts.pendingReview, true)}
-                    </span>
-                  }
-                />
-                <Tab
-                  key="approved"
-                  title={
-                    <span className="flex items-center gap-1.5">
-                      Approved {tabCountBadge(tabCounts.approved)}
-                    </span>
-                  }
-                />
-                <Tab
-                  key="rejected"
-                  title={
-                    <span className="flex items-center gap-1.5">
-                      Rejected {tabCountBadge(tabCounts.rejected)}
-                    </span>
-                  }
-                />
-                <Tab
-                  key="suspended"
-                  title={
-                    <span className="flex items-center gap-1.5">
-                      Suspended {tabCountBadge(tabCounts.suspended)}
-                    </span>
-                  }
-                />
+                {canApps && (
+                  <Tab
+                    key="pending-review"
+                    title={
+                      <span className="flex items-center gap-1.5">
+                        Pending Review {tabCountBadge(tabCounts.pendingReview, true)}
+                      </span>
+                    }
+                  />
+                )}
+                {canProviders && (
+                  <Tab
+                    key="approved"
+                    title={
+                      <span className="flex items-center gap-1.5">
+                        Approved {tabCountBadge(tabCounts.approved)}
+                      </span>
+                    }
+                  />
+                )}
+                {canApps && (
+                  <Tab
+                    key="rejected"
+                    title={
+                      <span className="flex items-center gap-1.5">
+                        Rejected {tabCountBadge(tabCounts.rejected)}
+                      </span>
+                    }
+                  />
+                )}
+                {canProviders && (
+                  <Tab
+                    key="suspended"
+                    title={
+                      <span className="flex items-center gap-1.5">
+                        Suspended {tabCountBadge(tabCounts.suspended)}
+                      </span>
+                    }
+                  />
+                )}
               </Tabs>
             </div>
 
@@ -393,15 +423,17 @@ export function AllProvidersView() {
                   Clear filters
                 </Button>
               )}
-              <Button
-                variant="flat"
-                color="primary"
-                className="ml-auto shrink-0"
-                startContent={<Upload className="h-4 w-4" />}
-                onPress={() => router.push('/providers/import')}
-              >
-                Import Providers
-              </Button>
+              <Can permission="providers.create">
+                <Button
+                  variant="flat"
+                  color="primary"
+                  className="ml-auto shrink-0"
+                  startContent={<Upload className="h-4 w-4" />}
+                  onPress={() => router.push('/providers/import')}
+                >
+                  Import Providers
+                </Button>
+              </Can>
             </div>
 
             {/* Table */}
@@ -434,7 +466,7 @@ export function AllProvidersView() {
                 <TableColumn>ACTIONS</TableColumn>
               </TableHeader>
               <TableBody
-                items={applications}
+                items={applications ?? []}
                 isLoading={isLoading}
                 emptyContent={
                   <div className="py-12 text-center">
@@ -549,17 +581,19 @@ export function AllProvidersView() {
                           </Button>
                         )}
                         {activeTab === 'pending-review' && (
-                          <Button
-                            isIconOnly
-                            size="sm"
-                            variant="light"
-                            color="success"
-                            aria-label="Quick approve"
-                            isLoading={approvingId === app.id}
-                            onPress={() => void handleQuickApprove(app)}
-                          >
-                            <Check className="h-4 w-4" />
-                          </Button>
+                          <Can permission="providers.update">
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="light"
+                              color="success"
+                              aria-label="Quick approve"
+                              isLoading={approvingId === app.id}
+                              onPress={() => void handleQuickApprove(app)}
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                          </Can>
                         )}
                       </div>
                     </TableCell>

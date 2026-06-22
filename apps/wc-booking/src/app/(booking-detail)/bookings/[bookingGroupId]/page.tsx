@@ -9,6 +9,7 @@ import type { ParentBookingGroupDetail } from '@/types/camp-booking'
 import { BookingDetailTopBar } from '@/components/bookings/booking-detail-top-bar'
 import { BookingDetailSidebar } from '@/components/bookings/booking-detail-sidebar'
 import { BookingDetailMapPanel } from '@/components/bookings/booking-detail-map-panel'
+import { BookingDeclinedSummary } from '@/components/bookings/booking-declined-summary'
 
 export default function BookingGroupDetailPage() {
   const params = useParams()
@@ -85,6 +86,23 @@ export default function BookingGroupDetailPage() {
       <div className="flex flex-1 flex-col items-center justify-center gap-4 py-24">
         <Spinner size="lg" color="primary" label="Opening draft…" />
       </div>
+    )
+  }
+
+  // A declined booking has no map/logistics/messaging to show — surface a
+  // simplified summary that points the parent forward instead.
+  if (detail.status === 'declined') {
+    return (
+      <>
+        <BookingDetailTopBar
+          title={detail.camp.name}
+          status={detail.status}
+          bookingGroupNumber={detail.bookingGroupNumber}
+        />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <BookingDeclinedSummary detail={detail} />
+        </div>
+      </>
     )
   }
 

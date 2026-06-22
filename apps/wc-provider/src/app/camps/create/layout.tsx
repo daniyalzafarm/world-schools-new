@@ -8,10 +8,12 @@ import { CampWizardSidebar } from '../../../components/camps/CampWizardSidebar'
 import { CampWizardTopBar } from '../../../components/camps/CampWizardTopBar'
 import { CampWizardFooter } from '../../../components/camps/CampWizardFooter'
 import { Logo } from '@/components/layout/logo'
+import { usePermissions } from '@/hooks/use-permissions'
 
 export default function CampCreateLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, isInitialized, user } = useAuthStore()
+  const { hasPermission } = usePermissions()
   const { wizardCamp, wizardStep } = useCampsStore()
 
   useEffect(() => {
@@ -19,7 +21,12 @@ export default function CampCreateLayout({ children }: { children: React.ReactNo
       router.push('/auth/signin')
       return
     }
-  }, [isAuthenticated, router])
+    // This wizard lives outside the dashboard RouteGuard, so enforce the create permission
+    // here (the API requires camps.create). Wait for auth to initialise to avoid a flash.
+    if (isInitialized && user && !hasPermission('camps.create')) {
+      router.replace('/404')
+    }
+  }, [isAuthenticated, isInitialized, user, hasPermission, router])
 
   return (
     <div className="flex h-screen overflow-hidden bg-white">

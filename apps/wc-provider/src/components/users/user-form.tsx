@@ -177,6 +177,7 @@ export function UserForm({
           labelPlacement="outside"
           placeholder="Enter email address"
           type="email"
+          autoComplete="off"
           value={formData.email}
           onChange={e => {
             setFormData(prev => ({ ...prev, email: e.target.value }))
@@ -207,6 +208,7 @@ export function UserForm({
           labelPlacement="outside"
           placeholder="Enter password"
           type={showPassword ? 'text' : 'password'}
+          autoComplete="new-password"
           value={formData.password}
           onChange={e => {
             setFormData(prev => ({ ...prev, password: e.target.value }))
@@ -237,6 +239,7 @@ export function UserForm({
           labelPlacement="outside"
           placeholder="Re-enter password"
           type={showConfirmPassword ? 'text' : 'password'}
+          autoComplete="new-password"
           value={confirmPassword}
           onChange={e => {
             setConfirmPassword(e.target.value)

@@ -62,6 +62,12 @@ export interface Conversation {
   muted?: boolean
   unread?: boolean
   unreadCount?: number // Number of unread messages
+  /**
+   * Backend conversation context ('BOOKING' | 'CAMP' | 'PROVIDER' | 'GENERAL').
+   * Typed as string so ui-web stays free of a wc-frontend-utils dependency.
+   * Used by the provider sidebar to split the Inquiries vs Bookings tabs.
+   */
+  contextType?: string
   userProfileData?: any // Detailed user profile for the participant
 }
 

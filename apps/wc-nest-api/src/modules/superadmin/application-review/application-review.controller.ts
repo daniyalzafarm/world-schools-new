@@ -1,9 +1,24 @@
-import { Body, Controller, Get, Param, Post, Query, Request, UseGuards } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Param,
+  Post,
+  Query,
+  Request,
+  UseGuards,
+} from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard'
 import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
 import { Permissions } from '../../core/auth/decorators/permissions.decorator'
+import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
 import { ResponseUtil } from '../../../common/utils/response.util'
+
+// Approved/suspended rows are "active providers" (viewable with `providers.read`); every other
+// status — and the unfiltered list — is application-lifecycle data requiring `provider_applications.read`.
+const PROVIDER_LIST_STATUSES = ['approved', 'suspended']
 
 // Services
 import { ApplicationReviewService } from './services/application-review.service'
@@ -32,9 +47,19 @@ export class ApplicationReviewController {
    * Get list of provider applications
    */
   @Get()
-  @Permissions('provider_applications.read')
+  @Permissions('providers.read', 'provider_applications.read')
   @ApiOperation({ summary: 'Get list of provider applications' })
-  async getApplications(@Query() query: GetApplicationsQueryDto) {
+  async getApplications(@Query() query: GetApplicationsQueryDto, @CurrentUser() user: any) {
+    // Enforce the status↔permission split: approved/suspended (active providers) need
+    // `providers.read`; all application-lifecycle statuses (and the unfiltered list) need
+    // `provider_applications.read`.
+    const required =
+      query.status && PROVIDER_LIST_STATUSES.includes(query.status)
+        ? 'providers.read'
+        : 'provider_applications.read'
+    if (!(user?.permissions ?? []).includes(required)) {
+      throw new ForbiddenException(`Access denied. Required permission: ${required}`)
+    }
     const result = await this.applicationReviewService.getApplications(query)
     return ResponseUtil.success(result)
   }

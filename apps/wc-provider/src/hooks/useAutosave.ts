@@ -5,6 +5,13 @@ import { useCampsStore } from '../stores/camps-store'
 
 interface UseAutosaveOptions<T> {
   enabled?: boolean
+  /**
+   * Signals that `payload` now reflects loaded/persisted data, so the baseline
+   * can be captured. Defaults to `enabled`. Pass a separate load flag (distinct
+   * from a validity gate) so a form that loads invalid still snapshots its
+   * baseline and doesn't swallow the first edit that makes it valid.
+   */
+  ready?: boolean
   debounceMs?: number
   /**
    * Persist `payload`. May return a canonical form (e.g. server-normalized response);
@@ -23,7 +30,7 @@ const SAVED_INDICATOR_MS = 2000
 
 export function useAutosave<T>(
   payload: T,
-  { enabled = true, debounceMs = DEFAULT_DEBOUNCE_MS, save }: UseAutosaveOptions<T>
+  { enabled = true, ready = enabled, debounceMs = DEFAULT_DEBOUNCE_MS, save }: UseAutosaveOptions<T>
 ): UseAutosaveResult {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const savedTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -32,9 +39,11 @@ export function useAutosave<T>(
   const pendingPayloadRef = useRef<T | null>(null)
   const saveRef = useRef(save)
   const enabledRef = useRef(enabled)
+  const readyRef = useRef(ready)
 
   saveRef.current = save
   enabledRef.current = enabled
+  readyRef.current = ready
 
   const performSave = async (data: T): Promise<void> => {
     if (savedTimerRef.current) {
@@ -95,27 +104,42 @@ export function useAutosave<T>(
   useEffect(() => {
     const serialized = JSON.stringify(payload)
 
-    // While disabled (form not loaded yet, or validation errors), pause autosave
-    // but keep the baseline pointing at the last persisted value. This way an edit
-    // made while transiently invalid (e.g. clearing a number field before typing the
-    // new value) is still detected and saved once the form becomes valid again.
+    // First time the data is ready (initial load) — snapshot the baseline without
+    // saving, so loading server data doesn't register as a diff and resave. Keyed
+    // on `ready` (not `enabled`) so a form that loads in an invalid state still
+    // captures its baseline and doesn't swallow the first edit that fixes it.
+    if (baselineRef.current === null) {
+      if (readyRef.current) baselineRef.current = serialized
+      return
+    }
+
+    // While disabled (validation errors), pause autosave but keep the baseline
+    // pointing at the last persisted value. This way an edit made while transiently
+    // invalid (e.g. clearing a number field before typing the new value) is still
+    // detected and saved once the form becomes valid again.
     if (!enabledRef.current) {
       pendingPayloadRef.current = null
       if (timerRef.current) {
         clearTimeout(timerRef.current)
         timerRef.current = null
       }
+      // Validation is blocking the save: nothing can be persisted right now, but if the
+      // payload diverges from the last saved baseline there ARE unsaved changes. Surface
+      // that so navigation/publish guards can warn before the edits are discarded.
+      useCampsStore.setState({
+        hasPendingAutoSave: false,
+        hasUnsavedChanges: serialized !== baselineRef.current,
+      })
       return
     }
 
-    // First time the form becomes enabled (initial load) — snapshot the baseline
-    // without saving, so loading server data doesn't register as a diff and resave.
-    if (baselineRef.current === null) {
-      baselineRef.current = serialized
+    if (serialized === baselineRef.current) {
+      // Edits were reverted back to the persisted baseline — no unsaved changes remain.
+      if (useCampsStore.getState().hasUnsavedChanges) {
+        useCampsStore.setState({ hasUnsavedChanges: false, hasPendingAutoSave: false })
+      }
       return
     }
-
-    if (serialized === baselineRef.current) return
 
     pendingPayloadRef.current = payload
     useCampsStore.setState({ hasPendingAutoSave: true, hasUnsavedChanges: true })
@@ -127,7 +151,7 @@ export function useAutosave<T>(
       pendingPayloadRef.current = null
       if (data !== null) void performSave(data)
     }, debounceMs)
-  }, [payload, enabled, debounceMs])
+  }, [payload, enabled, ready, debounceMs])
 
   // Register flush on the store so the footer can call it before navigation.
   useEffect(() => {

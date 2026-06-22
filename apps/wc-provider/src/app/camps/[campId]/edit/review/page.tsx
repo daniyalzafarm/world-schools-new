@@ -18,6 +18,7 @@ import {
   shouldShowSection,
 } from '@/components/camps/editor-sections'
 import { CountBadge } from '@/components/camps/CountBadge'
+import { Can } from '@/components/auth/can'
 
 const RING_SIZE = 160
 const RING_STROKE = 12
@@ -257,6 +258,7 @@ export default function ReviewPublishPage() {
       title: 'Success',
       description: 'Camp published successfully!',
       color: 'success',
+      timeout: 3000,
     })
     router.push('/camps')
   }
@@ -377,14 +379,16 @@ export default function ReviewPublishPage() {
             </Button>
           )}
           {canPublish && (
-            <Button
-              color="primary"
-              onPress={handlePublish}
-              isLoading={isPublishing}
-              isDisabled={isPublishing || hasUnsavedChanges}
-            >
-              Publish
-            </Button>
+            <Can permission="camps.publish">
+              <Button
+                color="primary"
+                onPress={handlePublish}
+                isLoading={isPublishing}
+                isDisabled={isPublishing || hasUnsavedChanges}
+              >
+                Publish
+              </Button>
+            </Can>
           )}
           {isArchived && (
             <Button color="default" variant="bordered" isDisabled>

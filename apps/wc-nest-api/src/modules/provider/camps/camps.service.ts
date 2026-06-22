@@ -211,10 +211,6 @@ export class CampsService {
   async updateCampPrograms(campId: string, providerId: string, dto: UpdateCampProgramsDto) {
     await this.verifyCampOwnership(campId, providerId)
 
-    if (dto.activities.length === 0) {
-      throw new BadRequestException('At least one activity must be selected')
-    }
-
     const camp = await this.prisma.camp.update({
       where: { id: campId },
       data: {
@@ -317,9 +313,6 @@ export class CampsService {
     }
     if (!camp.languages || camp.languages.length === 0) {
       throw new BadRequestException('Languages are required')
-    }
-    if (!camp.activities || camp.activities.length === 0) {
-      throw new BadRequestException('Activities are required')
     }
     if (!camp.photos || (camp.photos as any[]).length < 5) {
       throw new BadRequestException('At least 5 photos are required')
