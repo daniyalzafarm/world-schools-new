@@ -163,7 +163,7 @@ export default function ChildrenPage() {
               color="danger"
               onPress={() => {
                 clearError()
-                fetchChildren().catch(error => {
+                fetchChildren(true).catch(error => {
                   console.error('Failed to fetch children:', error)
                 })
               }}

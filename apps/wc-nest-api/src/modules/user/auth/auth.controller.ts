@@ -7,6 +7,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   NotFoundException,
   Param,
   Patch,
@@ -22,6 +23,7 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import { JwtService } from '@nestjs/jwt'
 import { Request, Response } from 'express'
 import { parseDuration } from '@world-schools/wc-utils'
+import { Prisma } from '../../../generated/client/client'
 import { AuthService } from '../../core/auth/auth.service'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { Public } from '../../core/auth/decorators/public.decorator'
@@ -42,6 +44,7 @@ import {
   ForgotPasswordDto,
   RefreshTokenDto,
   ResetPasswordDto,
+  SetPasswordDto,
 } from '../../core/auth/dto/auth.dto'
 import { ResponseUtil } from '../../../common/utils/response.util'
 import { ConfigService } from '../../../config/config.service'
@@ -50,12 +53,15 @@ import { PasswordResetService } from '../../core/auth/services/password-reset.se
 import { TwoFactorAuthService } from '../../core/auth/services/two-factor-auth.service'
 import { SessionManagementService } from '../../core/auth/services/session-management.service'
 import { ProfilePhotoService } from './services/profile-photo.service'
+import { GoogleTokenVerifierService } from './services/google-token-verifier.service'
 import { ProfileCompletionService } from '../../common/profile-completion/profile-completion.service'
 import * as bcrypt from 'bcryptjs'
 
 @ApiTags('User Auth')
 @Controller('user/auth')
 export class UserAuthController {
+  private readonly logger = new Logger(UserAuthController.name)
+
   constructor(
     private readonly authService: AuthService,
     private readonly jwtService: JwtService,
@@ -66,6 +72,7 @@ export class UserAuthController {
     private readonly twoFactorAuthService: TwoFactorAuthService,
     private readonly sessionManagementService: SessionManagementService,
     private readonly profilePhotoService: ProfilePhotoService,
+    private readonly googleTokenVerifier: GoogleTokenVerifierService,
     private readonly profileCompletion: ProfileCompletionService
   ) {}
 
@@ -420,157 +427,223 @@ export class UserAuthController {
   @ApiOperation({
     summary: 'Google OAuth sign-in',
     description:
-      'Sign in with Google account. Creates new user and parent profile if not exists, or returns existing user.',
+      'Verify a Google ID-token credential server-side, then sign in the matching parent — ' +
+      'logging in a returning Google user, auto-linking to an existing account by verified email, ' +
+      'or creating a new Parent account — and issue the standard user session.',
   })
   async googleSignIn(
     @Body() googleSignInDto: GoogleSignInDto,
     @Res({ passthrough: true }) response: Response,
     @Req() request: Request
   ) {
-    // Verify provider exists
-    const provider = await this.prisma.provider.findUnique({
-      where: { id: googleSignInDto.providerId },
-    })
+    // 1. Verify the Google credential server-side. verifyIdToken validates the
+    //    signature, audience (our client ID), issuer and expiry; we only assert
+    //    the application-level claims below.
+    const payload = await this.googleTokenVerifier.verify(googleSignInDto.credential)
 
-    if (!provider) {
-      throw new NotFoundException('Provider not found')
+    // 2. Security gate: only trust a Google-VERIFIED email. This MUST run before
+    //    the email-match link branch below — otherwise an attacker could register
+    //    a Google account claiming a victim's (unverified) email and link into it.
+    if (!payload.email_verified) {
+      throw new UnauthorizedException('Google email not verified')
+    }
+    if (!payload.email || !payload.sub) {
+      throw new UnauthorizedException('Google account is missing an email')
     }
 
-    // Find Parent role
-    const parentRole = await this.prisma.role.findFirst({
-      where: {
-        name: 'Parent',
-        isSystemRole: true,
-      },
-    })
+    const email = payload.email.toLowerCase()
+    const providerAccountId = payload.sub
+    const firstName = payload.given_name ?? null
+    const lastName = payload.family_name ?? null
+    const picture = payload.picture
 
-    if (!parentRole) {
-      throw new Error('Parent role not found in system')
+    // 3. Resolve the user: find-by-google-account → link-by-verified-email → create.
+    //    The DB unique constraints (User.email and the UserAccount composite) are
+    //    the real serialization point under concurrent first-time logins, so we
+    //    tolerate a lost create race by catching P2002 and re-resolving once.
+    let userId: string
+    try {
+      userId = await this.resolveGoogleUser(email, providerAccountId, firstName, lastName)
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        userId = await this.resolveGoogleUser(email, providerAccountId, firstName, lastName)
+      } else {
+        throw error
+      }
     }
 
-    // Check if account exists
+    // 4. Best-effort: import the Google avatar for users that have no photo yet.
+    //    Must never block or fail sign-in (see helper).
+    await this.importGooglePhotoBestEffort(userId, picture)
+
+    // 5. Issue the standard user session (same cookies/JWT as email login).
+    const fullUser = await this.authService.validateUser(userId)
+    await this.createAuthenticatedSession(fullUser, request, response, 'user')
+
+    return ResponseUtil.success({ user: fullUser })
+  }
+
+  /**
+   * Find-or-link-or-create the parent User for a verified Google identity.
+   * Returns the resolved user id. Throws Prisma P2002 if it loses a concurrent
+   * create/link race — the caller re-invokes once, by which point the winning
+   * request's row is visible and resolution falls through to a plain login.
+   */
+  private async resolveGoogleUser(
+    email: string,
+    providerAccountId: string,
+    firstName: string | null,
+    lastName: string | null
+  ): Promise<string> {
+    // a. Returning Google user — matched by provider account id.
     const account = await this.prisma.userAccount.findUnique({
       where: {
         authProvider_authProviderAccountId: {
           authProvider: 'google',
-          authProviderAccountId: googleSignInDto.providerAccountId,
+          authProviderAccountId: providerAccountId,
         },
       },
-      include: {
-        user: {
-          include: {
-            roles: {
-              include: {
-                role: true,
-              },
-            },
-            parentProfile: true,
-          },
-        },
-      },
+      select: { userId: true },
     })
-
-    let user: any
-    let parent: any
-
     if (account) {
-      // Existing user - return their data
-      user = account.user
-      parent = user.parentProfile
-
-      // If parent profile doesn't exist, create it (contact fields are on User)
-      if (!parent) {
-        parent = await this.prisma.parent.create({
-          data: {
-            userId: user.id,
-          },
-        })
-      }
-
-      // Update user with contact fields if provided (e.g. from Google profile)
-      if (
-        googleSignInDto.phone ||
-        googleSignInDto.address ||
-        googleSignInDto.city ||
-        googleSignInDto.state ||
-        googleSignInDto.postalCode ||
-        googleSignInDto.country
-      ) {
-        await this.prisma.user.update({
-          where: { id: user.id },
-          data: {
-            ...(googleSignInDto.phone && { phone: googleSignInDto.phone }),
-            ...(googleSignInDto.address && { address: googleSignInDto.address }),
-            ...(googleSignInDto.city && { city: googleSignInDto.city }),
-            ...(googleSignInDto.state && { state: googleSignInDto.state }),
-            ...(googleSignInDto.postalCode && { postalCode: googleSignInDto.postalCode }),
-            ...(googleSignInDto.country && { country: googleSignInDto.country }),
-          },
-        })
-      }
-    } else {
-      // New user - create user (with contact fields), account, parent profile, and assign role
-      const result = await this.prisma.$transaction(async tx => {
-        // Create user with contact fields on User model
-        const newUser = await tx.user.create({
-          data: {
-            email: googleSignInDto.email,
-            firstName: googleSignInDto.firstName,
-            lastName: googleSignInDto.lastName,
-            passwordHash: null, // OAuth users don't have password
-            phone: googleSignInDto.phone,
-            address: googleSignInDto.address,
-            city: googleSignInDto.city,
-            state: googleSignInDto.state,
-            postalCode: googleSignInDto.postalCode,
-            country: googleSignInDto.country,
-          },
-        })
-
-        // Create user account
-        await tx.userAccount.create({
-          data: {
-            userId: newUser.id,
-            type: 'oauth',
-            authProvider: 'google',
-            authProviderAccountId: googleSignInDto.providerAccountId,
-          },
-        })
-
-        // Create parent profile (nationality/languages only - contact fields are on User)
-        const newParent = await tx.parent.create({
-          data: {
-            userId: newUser.id,
-          },
-        })
-
-        // Assign Parent role
-        await tx.userRole.create({
-          data: {
-            userId: newUser.id,
-            roleId: parentRole.id,
-          },
-        })
-
-        return { user: newUser, parent: newParent }
-      })
-
-      user = result.user
-      parent = result.parent
+      return account.userId
     }
 
-    // Fetch the full user with roles and permissions for token generation
-    const fullUser = await this.authService.validateUser(user.id)
+    const parentRole = await this.prisma.role.findFirst({
+      where: { name: 'Parent', isSystemRole: true },
+      select: { id: true },
+    })
+    if (!parentRole) {
+      throw new Error('Parent role not found in system')
+    }
 
-    // Use centralized helper to create session and generate tokens with sessionId
-    await this.createAuthenticatedSession(fullUser, request, response, 'user')
-
-    return ResponseUtil.success({
-      user: fullUser,
-      parent: {
-        id: parent.id,
+    // b. Existing account with the same Google-verified email — auto-link.
+    const existing = await this.prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        emailVerified: true,
+        roles: { select: { role: { select: { name: true } } } },
+        parentProfile: { select: { id: true } },
       },
     })
+
+    if (existing) {
+      const hasParentRole = existing.roles.some(ur => ur.role.name === 'Parent')
+      await this.prisma.$transaction(async tx => {
+        await tx.userAccount.create({
+          data: {
+            userId: existing.id,
+            type: 'oauth',
+            authProvider: 'google',
+            authProviderAccountId: providerAccountId,
+          },
+        })
+        // The email is Google-verified, so confirm it on our side if it wasn't.
+        if (!existing.emailVerified) {
+          await tx.user.update({
+            where: { id: existing.id },
+            data: { emailVerified: true, emailVerifiedAt: new Date() },
+          })
+        }
+        if (!hasParentRole) {
+          await tx.userRole.create({ data: { userId: existing.id, roleId: parentRole.id } })
+        }
+        if (!existing.parentProfile) {
+          await tx.parent.create({ data: { userId: existing.id } })
+        }
+      })
+      return existing.id
+    }
+
+    // c. Brand-new user — Google has verified the email, so create it pre-verified.
+    const created = await this.prisma.$transaction(async tx => {
+      const newUser = await tx.user.create({
+        data: {
+          email,
+          firstName,
+          lastName,
+          passwordHash: null, // OAuth users have no password
+          emailVerified: true,
+          emailVerifiedAt: new Date(),
+        },
+        select: { id: true },
+      })
+      await tx.userAccount.create({
+        data: {
+          userId: newUser.id,
+          type: 'oauth',
+          authProvider: 'google',
+          authProviderAccountId: providerAccountId,
+        },
+      })
+      await tx.parent.create({ data: { userId: newUser.id } })
+      await tx.userRole.create({ data: { userId: newUser.id, roleId: parentRole.id } })
+      return newUser
+    })
+    return created.id
+  }
+
+  /**
+   * Best-effort import of a Google profile picture into our own Azure storage so
+   * it serves through the standard SAS pipeline. Only runs for users without a
+   * photo (new accounts, or linked accounts with none) — never overwrites a
+   * user's existing/edited photo. A slow or failed fetch must never block or fail
+   * sign-in, so all errors are swallowed with a warning.
+   */
+  private async importGooglePhotoBestEffort(
+    userId: string,
+    pictureUrl: string | undefined
+  ): Promise<void> {
+    if (!pictureUrl) return
+
+    try {
+      const current = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { profilePhotoUrl: true },
+      })
+      if (current?.profilePhotoUrl) return
+
+      // Request a larger render than Google's default ~96px thumbnail.
+      const url = pictureUrl.replace(/=s\d+-c$/, '=s256-c')
+
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 5000)
+      try {
+        const res = await fetch(url, { signal: controller.signal })
+        if (!res.ok) return
+
+        const mimetype = (res.headers.get('content-type') ?? 'image/jpeg')
+          .split(';')[0]
+          .trim()
+          .toLowerCase()
+        const ext =
+          { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[
+            mimetype
+          ] ?? 'jpg'
+        const buffer = Buffer.from(await res.arrayBuffer())
+
+        const uploadResult = await this.profilePhotoService.uploadPhoto(userId, {
+          buffer,
+          originalname: `profile-photo.${ext}`,
+          mimetype,
+          size: buffer.length,
+        })
+
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { profilePhotoUrl: uploadResult.url },
+        })
+      } finally {
+        clearTimeout(timeout)
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Failed to import Google profile photo for user ${userId}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`
+      )
+    }
   }
 
   @Public()
@@ -671,6 +744,7 @@ export class UserAuthController {
         bio: true,
         emailVerified: true,
         passwordChangedAt: true,
+        passwordHash: true, // used only to derive `hasPassword` below — never returned
         createdAt: true,
         updatedAt: true,
         profilePhotoUrl: true,
@@ -697,6 +771,7 @@ export class UserAuthController {
             primaryNationality: true,
             secondaryNationality: true,
             languages: true,
+            profileCompletion: true,
           },
         },
       },
@@ -722,6 +797,7 @@ export class UserAuthController {
       bio: dbUser.bio ?? null,
       emailVerified: dbUser.emailVerified,
       passwordChangedAt: dbUser.passwordChangedAt,
+      hasPassword: !!dbUser.passwordHash, // false for OAuth-only users (no password set)
       createdAt: dbUser.createdAt,
       updatedAt: dbUser.updatedAt,
       profilePhotoUrl: profilePhotoUrl, // Use SAS URL for secure access
@@ -1048,6 +1124,27 @@ export class UserAuthController {
     }
 
     const result = await this.authService.changePassword(user.id, changePasswordDto)
+
+    return ResponseUtil.success(result)
+  }
+
+  @Post('set-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Set initial password',
+    description:
+      'Set an initial password for a passwordless (e.g. Google OAuth) parent user. No current ' +
+      'password is required because none exists; rejected if a password is already set.',
+  })
+  async setPassword(@CurrentUser() user: any, @Body() setPasswordDto: SetPasswordDto) {
+    // Verify user has Parent role
+    const hasParentRole = user.roles?.some((role: any) => role.name === 'Parent')
+
+    if (!hasParentRole) {
+      throw new UnauthorizedException('Access denied. Parent role required.')
+    }
+
+    const result = await this.authService.setPassword(user.id, setPasswordDto.newPassword)
 
     return ResponseUtil.success(result)
   }

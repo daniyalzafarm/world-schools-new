@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { BottomNav } from '@/components/layout/bottom-nav'
+import { useIncompleteBookingVisible } from '@/components/layout/incomplete-booking-banner'
 import { Sidebar } from '@/components/layout/sidebar'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -29,6 +30,9 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { isInitialized, isAuthenticated } = useAuthStore()
   const pathname = usePathname()
+  // When the "Incomplete booking" banner is fixed to the top, offset the
+  // full-height layout so it doesn't sit underneath the banner.
+  const bannerOffset = useIncompleteBookingVisible() ? 'pt-12' : ''
   const isChildDetailRoute = pathname?.startsWith('/children/')
   const isWishlistDetailRoute =
     !!pathname && pathname.startsWith('/wishlists/') && pathname !== '/wishlists'
@@ -64,7 +68,7 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
     }
     // Authenticated: full layout with sidebar
     return (
-      <div className="flex h-screen bg-white dark:bg-gray-900">
+      <div className={`flex h-screen bg-white dark:bg-gray-900 ${bannerOffset}`}>
         <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <main
@@ -83,7 +87,7 @@ export function MainLayout({ children, allowPublic = false }: MainLayoutProps) {
   // Protected dashboard: require auth and parent role
   return (
     <ProtectedRoute requireAuth requireParentRole>
-      <div className="flex h-screen bg-white dark:bg-gray-900">
+      <div className={`flex h-screen bg-white dark:bg-gray-900 ${bannerOffset}`}>
         <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
         <div className="flex-1 flex flex-col overflow-hidden">

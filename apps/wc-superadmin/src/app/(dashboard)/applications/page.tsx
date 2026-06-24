@@ -5,14 +5,14 @@ import { useRouter } from 'next/navigation'
 import { Spinner } from '@heroui/react'
 
 /**
- * Redirect page for legacy /applications route
- * This route has been consolidated into /provider-requests
+ * Redirect page for the legacy /applications route — provider applications now live under the
+ * Providers section's Pending Review tab.
  */
 export default function ApplicationsRedirect() {
   const router = useRouter()
 
   useEffect(() => {
-    router.replace('/provider-requests')
+    router.replace('/providers/pending-review')
   }, [router])
 
   return (

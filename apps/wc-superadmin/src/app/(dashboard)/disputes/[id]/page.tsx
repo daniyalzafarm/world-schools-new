@@ -23,6 +23,7 @@ import {
 import { AlertTriangle, ArrowLeft, FileText, Gavel, Upload } from 'lucide-react'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { PageSlot } from '@/components/layout/page-slot'
+import { Can } from '@/components/auth/can'
 import {
   type DisputeOutcome,
   type DisputeRow,
@@ -499,34 +500,36 @@ export default function DisputeDetailPage() {
               })}
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="flat"
-                onPress={() => void handleSave(false)}
-                isLoading={submitting}
-                startContent={<FileText className="h-4 w-4" />}
-              >
-                Save draft
-              </Button>
-              <Button
-                color="primary"
-                onPress={() => setConfirmSubmit(true)}
-                isLoading={submitting}
-                startContent={<Upload className="h-4 w-4" />}
-              >
-                Submit to Stripe
-              </Button>
-              <div className="ml-auto">
+            <Can permission="disputes.write">
+              <div className="flex flex-wrap gap-2">
                 <Button
-                  variant="light"
-                  color="warning"
-                  onPress={() => setOverrideOpen(true)}
-                  startContent={<AlertTriangle className="h-4 w-4" />}
+                  variant="flat"
+                  onPress={() => void handleSave(false)}
+                  isLoading={submitting}
+                  startContent={<FileText className="h-4 w-4" />}
                 >
-                  Manual outcome override
+                  Save draft
                 </Button>
+                <Button
+                  color="primary"
+                  onPress={() => setConfirmSubmit(true)}
+                  isLoading={submitting}
+                  startContent={<Upload className="h-4 w-4" />}
+                >
+                  Submit to Stripe
+                </Button>
+                <div className="ml-auto">
+                  <Button
+                    variant="light"
+                    color="warning"
+                    onPress={() => setOverrideOpen(true)}
+                    startContent={<AlertTriangle className="h-4 w-4" />}
+                  >
+                    Manual outcome override
+                  </Button>
+                </div>
               </div>
-            </div>
+            </Can>
           </CardBody>
         </Card>
       ) : (

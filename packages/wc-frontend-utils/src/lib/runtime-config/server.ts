@@ -38,6 +38,7 @@ export function readBaseServerConfig(): BaseRuntimeConfig {
     wsUrl: process.env['WS_URL'] ?? (isProd && !isBuildPhase ? undefined : 'http://localhost:3000'),
     authUsingRequest: parseBool(process.env['AUTH_USING_REQUEST'], false),
     googleMapsApiKey: process.env['GOOGLE_MAPS_API_KEY'],
+    googleOAuthClientId: process.env['GOOGLE_OAUTH_CLIENT_ID'],
     stripePublishableKey: process.env['STRIPE_PUBLISHABLE_KEY'],
     enableWebsocketMessages: parseBool(process.env['ENABLE_WEBSOCKET_MESSAGES'], true),
     websocketFallbackHttp: parseBool(process.env['WEBSOCKET_FALLBACK_HTTP'], true),

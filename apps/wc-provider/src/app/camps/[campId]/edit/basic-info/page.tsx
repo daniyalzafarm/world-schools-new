@@ -106,6 +106,7 @@ export default function BasicInfoEditorPage() {
 
   useAutosave(formData, {
     enabled: autosaveEnabled,
+    ready: isLoaded,
     save: async data => {
       await updateBasicInfo(campId, data)
       if (!useCampsStore.getState().error) {

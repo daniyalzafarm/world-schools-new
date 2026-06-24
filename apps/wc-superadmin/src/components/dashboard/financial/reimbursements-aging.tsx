@@ -4,6 +4,7 @@ import { Card, CardBody } from '@heroui/react'
 import { ChartCard } from '../shared/chart-card'
 import { ProgressRow } from '../shared/progress-row'
 import { formatAmount, useCurrencyFormat } from '@/hooks/use-currency-format'
+import { pluralize } from '@/lib/format'
 import { useFinancialStore } from '@/stores/financial-store'
 
 export function ReimbursementsAging() {
@@ -50,7 +51,7 @@ export function ReimbursementsAging() {
               label={buckets.current.label}
               value={
                 isAllCurrencies ? (
-                  `${buckets.current.count} items`
+                  `${buckets.current.count} ${pluralize(buckets.current.count, 'item')}`
                 ) : (
                   <>
                     <span className="text-xs text-default-400 mr-1.5">{buckets.current.count}</span>
@@ -78,7 +79,7 @@ export function ReimbursementsAging() {
               label={buckets.weekOverdue.label}
               value={
                 isAllCurrencies ? (
-                  `${buckets.weekOverdue.count} items`
+                  `${buckets.weekOverdue.count} ${pluralize(buckets.weekOverdue.count, 'item')}`
                 ) : (
                   <>
                     <span className="text-xs text-default-400 mr-1.5">
@@ -108,7 +109,7 @@ export function ReimbursementsAging() {
               label={buckets.monthOverdue.label}
               value={
                 isAllCurrencies ? (
-                  `${buckets.monthOverdue.count} items`
+                  `${buckets.monthOverdue.count} ${pluralize(buckets.monthOverdue.count, 'item')}`
                 ) : (
                   <>
                     <span className="text-xs text-default-400 mr-1.5">
@@ -144,7 +145,9 @@ export function ReimbursementsAging() {
                 <div className="text-lg font-bold text-foreground">
                   {fmtMoney(reimb.byStatus.pending.amount)}
                 </div>
-                <div className="text-xs text-default-400">{reimb.byStatus.pending.count} items</div>
+                <div className="text-xs text-default-400">
+                  {reimb.byStatus.pending.count} {pluralize(reimb.byStatus.pending.count, 'item')}
+                </div>
               </CardBody>
             </Card>
             <Card shadow="none" className="border border-default-200">
@@ -154,7 +157,7 @@ export function ReimbursementsAging() {
                   {fmtMoney(reimb.byStatus.invoiced.amount)}
                 </div>
                 <div className="text-xs text-default-400">
-                  {reimb.byStatus.invoiced.count} items
+                  {reimb.byStatus.invoiced.count} {pluralize(reimb.byStatus.invoiced.count, 'item')}
                 </div>
               </CardBody>
             </Card>

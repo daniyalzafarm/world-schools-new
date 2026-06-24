@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common'
+import { AzureStorageService } from '@world-schools/wc-utils/backend'
 import { Prisma } from '../../../generated/client/client'
 import { BookingGroupStatus, CampStatus } from '../../../generated/client/enums'
 import { PrismaService } from '../../../prisma/prisma.service'
+import { ConfigService } from '../../../config/config.service'
 import { DashboardCacheService } from './dashboard-cache.util'
 import type { AnalyticsRangeDto } from './dto/analytics-range.dto'
 import { type ResolvedRange, resolveRange } from './range.util'
@@ -22,6 +24,107 @@ const REVENUE_STATUSES: BookingGroupStatus[] = [
   BookingGroupStatus.partially_refunded,
 ]
 
+// Conversion funnel stages. Each stage is the set of statuses a booking can hold
+// once it has reached that stage (cumulative — later statuses imply earlier ones).
+// The sets are strictly nested, so the drop-off between two stages is exactly the
+// bookings whose current status sits in the earlier set but not the later one.
+const FUNNEL_STAGES: { key: string; label: string; statuses: BookingGroupStatus[] }[] = [
+  {
+    key: 'created',
+    label: 'Checkout started',
+    statuses: Object.values(BookingGroupStatus),
+  },
+  {
+    key: 'requested',
+    label: 'Payment authorized',
+    statuses: [
+      BookingGroupStatus.request,
+      BookingGroupStatus.accepted,
+      BookingGroupStatus.deposit_paid,
+      BookingGroupStatus.fully_paid,
+      BookingGroupStatus.at_camp,
+      BookingGroupStatus.completed,
+      BookingGroupStatus.partially_refunded,
+      BookingGroupStatus.fully_refunded,
+    ],
+  },
+  {
+    key: 'accepted',
+    label: 'Provider confirmed',
+    statuses: [
+      BookingGroupStatus.accepted,
+      BookingGroupStatus.deposit_paid,
+      BookingGroupStatus.fully_paid,
+      BookingGroupStatus.at_camp,
+      BookingGroupStatus.completed,
+      BookingGroupStatus.partially_refunded,
+      BookingGroupStatus.fully_refunded,
+    ],
+  },
+  {
+    key: 'deposit_paid',
+    label: 'Deposit paid',
+    statuses: [
+      BookingGroupStatus.deposit_paid,
+      BookingGroupStatus.fully_paid,
+      BookingGroupStatus.at_camp,
+      BookingGroupStatus.completed,
+      BookingGroupStatus.partially_refunded,
+    ],
+  },
+  {
+    key: 'fully_paid',
+    label: 'Paid in full',
+    statuses: [
+      BookingGroupStatus.fully_paid,
+      BookingGroupStatus.at_camp,
+      BookingGroupStatus.completed,
+    ],
+  },
+]
+
+// Maps a dropped booking's current status to a human reason bucket, so the funnel
+// can explain *where* lost bookings went (cancelled = CX issue, expired = timing,
+// still pending = normal pipeline, etc.).
+const FUNNEL_LOST_REASONS: Record<BookingGroupStatus, { reason: string; label: string }> = {
+  [BookingGroupStatus.draft]: { reason: 'pending', label: 'still pending' },
+  [BookingGroupStatus.request]: { reason: 'pending', label: 'still pending' },
+  [BookingGroupStatus.accepted]: { reason: 'pending', label: 'still pending' },
+  [BookingGroupStatus.deposit_paid]: { reason: 'pending', label: 'still pending' },
+  [BookingGroupStatus.fully_paid]: { reason: 'pending', label: 'still pending' },
+  [BookingGroupStatus.at_camp]: { reason: 'pending', label: 'still pending' },
+  [BookingGroupStatus.completed]: { reason: 'pending', label: 'still pending' },
+  [BookingGroupStatus.expired]: { reason: 'expired', label: 'expired' },
+  [BookingGroupStatus.cancelled]: { reason: 'cancelled', label: 'cancelled' },
+  [BookingGroupStatus.declined]: { reason: 'declined', label: 'declined' },
+  [BookingGroupStatus.payment_failed]: { reason: 'payment_failed', label: 'payment failed' },
+  [BookingGroupStatus.partially_refunded]: { reason: 'refunded', label: 'refunded' },
+  [BookingGroupStatus.fully_refunded]: { reason: 'refunded', label: 'refunded' },
+  [BookingGroupStatus.disputed]: { reason: 'disputed', label: 'disputed' },
+}
+
+/**
+ * Breaks down the bookings lost between two funnel stages (statuses in `prev` but
+ * not `curr`) into reason buckets, summed and sorted by count descending.
+ */
+function buildLostBreakdown(
+  prev: BookingGroupStatus[],
+  curr: BookingGroupStatus[],
+  byStatus: Map<BookingGroupStatus, number>
+): { reason: string; label: string; count: number }[] {
+  const lostStatuses = prev.filter(s => !curr.includes(s))
+  const tally = new Map<string, { reason: string; label: string; count: number }>()
+  for (const status of lostStatuses) {
+    const count = byStatus.get(status) ?? 0
+    if (count === 0) continue
+    const { reason, label } = FUNNEL_LOST_REASONS[status]
+    const existing = tally.get(reason)
+    if (existing) existing.count += count
+    else tally.set(reason, { reason, label, count })
+  }
+  return Array.from(tally.values()).sort((a, b) => b.count - a.count)
+}
+
 const TTL = {
   overview: 60,
   timeseries: 300,
@@ -35,10 +138,39 @@ const TTL = {
 
 @Injectable()
 export class AnalyticsService {
+  private azureStorage: AzureStorageService | null = null
+
   constructor(
     private readonly prisma: PrismaService,
-    private readonly cache: DashboardCacheService
+    private readonly cache: DashboardCacheService,
+    private readonly configService: ConfigService
   ) {}
+
+  /** Lazily initialize the Azure Storage Service for generating logo SAS URLs. */
+  private getAzureStorage(): AzureStorageService {
+    if (!this.azureStorage) {
+      const config = this.configService.azureStorageConfig
+      if (!config.accountName || !config.accountKey || !config.containerName) {
+        throw new Error('Azure Storage is not configured. Please contact the administrator.')
+      }
+      this.azureStorage = new AzureStorageService(config)
+    }
+    return this.azureStorage
+  }
+
+  /**
+   * Provider `logoUrl` is stored as a blob name, not a fetchable URL. Convert it
+   * to a time-limited SAS URL so the dashboard can render the logo; fall back to
+   * null if generation fails or no logo is set.
+   */
+  private async resolveLogoSasUrl(logoUrl: string | null | undefined): Promise<string | null> {
+    if (!logoUrl) return null
+    try {
+      return await this.getAzureStorage().generateSasUrl(logoUrl, 24)
+    } catch {
+      return null
+    }
+  }
 
   // -------------------------------------------------------------------------
   // Currency discovery
@@ -63,7 +195,8 @@ export class AnalyticsService {
   }
 
   // -------------------------------------------------------------------------
-  // Overview KPIs (5 cards: GMV, Platform Revenue, Bookings, Active Parents, Conversion Rate)
+  // Overview KPIs (6 cards: GMV, Platform Revenue, Bookings, Active Parents,
+  // Active Providers, Conversion Rate)
   // -------------------------------------------------------------------------
 
   async getOverview(query: AnalyticsRangeDto) {
@@ -103,6 +236,11 @@ export class AnalyticsService {
         ),
         bookings: buildKpi(current.bookings, previous.bookings, 'bookings'),
         activeParents: buildKpi(current.activeParents, previous.activeParents, 'activeParents'),
+        activeProviders: buildKpi(
+          current.activeProviders,
+          previous.activeProviders,
+          'activeProviders'
+        ),
         conversionRate: buildKpi(current.conversionRate, previous.conversionRate, 'conversionRate'),
       }
     })
@@ -111,40 +249,50 @@ export class AnalyticsService {
   private async computeOverviewWindow(from: Date, to: Date, currency?: string) {
     const providerFilter = buildProviderCurrencyFilter(currency)
 
-    const [activeGroups, paymentSum, distinctParents, totalGroupsCreated] = await Promise.all([
-      this.prisma.bookingGroup.aggregate({
-        where: {
-          createdAt: { gte: from, lte: to },
-          status: { notIn: INACTIVE_STATUSES },
-          ...providerFilter,
-        },
-        _sum: { totalAmount: true },
-        _count: true,
-      }),
-      this.prisma.payment.aggregate({
-        where: {
-          createdAt: { gte: from, lte: to },
-          status: 'succeeded',
-          ...(currency ? { currency } : {}),
-        },
-        _sum: { applicationFeeAmount: true },
-      }),
-      this.prisma.bookingGroup.findMany({
-        where: {
-          createdAt: { gte: from, lte: to },
-          status: { notIn: INACTIVE_STATUSES },
-          ...providerFilter,
-        },
-        select: { parentId: true },
-        distinct: ['parentId'],
-      }),
-      this.prisma.bookingGroup.count({
-        where: {
-          createdAt: { gte: from, lte: to },
-          ...providerFilter,
-        },
-      }),
-    ])
+    const [activeGroups, paymentSum, distinctParents, distinctProviders, totalGroupsCreated] =
+      await Promise.all([
+        this.prisma.bookingGroup.aggregate({
+          where: {
+            createdAt: { gte: from, lte: to },
+            status: { notIn: INACTIVE_STATUSES },
+            ...providerFilter,
+          },
+          _sum: { totalAmount: true },
+          _count: true,
+        }),
+        this.prisma.payment.aggregate({
+          where: {
+            createdAt: { gte: from, lte: to },
+            status: 'succeeded',
+            ...(currency ? { currency } : {}),
+          },
+          _sum: { applicationFeeAmount: true },
+        }),
+        this.prisma.bookingGroup.findMany({
+          where: {
+            createdAt: { gte: from, lte: to },
+            status: { notIn: INACTIVE_STATUSES },
+            ...providerFilter,
+          },
+          select: { parentId: true },
+          distinct: ['parentId'],
+        }),
+        this.prisma.bookingGroup.findMany({
+          where: {
+            createdAt: { gte: from, lte: to },
+            status: { notIn: INACTIVE_STATUSES },
+            ...providerFilter,
+          },
+          select: { providerId: true },
+          distinct: ['providerId'],
+        }),
+        this.prisma.bookingGroup.count({
+          where: {
+            createdAt: { gte: from, lte: to },
+            ...providerFilter,
+          },
+        }),
+      ])
 
     const completedCount = await this.prisma.bookingGroup.count({
       where: {
@@ -159,6 +307,7 @@ export class AnalyticsService {
       platformRevenue: Number(paymentSum._sum.applicationFeeAmount ?? 0),
       bookings: activeGroups._count,
       activeParents: distinctParents.length,
+      activeProviders: distinctProviders.length,
       conversionRate:
         totalGroupsCreated > 0 ? Math.round((completedCount / totalGroupsCreated) * 100) : 0,
     }
@@ -180,6 +329,7 @@ export class AnalyticsService {
       platformRevenue: series.map(s => s.platformRevenue),
       bookings: series.map(s => s.bookings),
       activeParents: series.map(s => s.activeParents),
+      activeProviders: series.map(s => s.activeProviders),
       conversionRate: series.map(s => s.conversionRate),
     }
   }
@@ -332,18 +482,20 @@ export class AnalyticsService {
       const providerMap = new Map(providers.map(p => [p.id, p]))
 
       return {
-        providers: grouped.map(g => {
-          const p = providerMap.get(g.providerId)
-          return {
-            id: g.providerId,
-            name: p?.legalCompanyName ?? 'Unknown provider',
-            logoUrl: p?.logoUrl ?? null,
-            city: p?.legalCity ?? null,
-            country: p?.legalCountry ?? null,
-            bookingCount: g._count,
-            gmv: Number(g._sum.totalAmount ?? 0),
-          }
-        }),
+        providers: await Promise.all(
+          grouped.map(async g => {
+            const p = providerMap.get(g.providerId)
+            return {
+              id: g.providerId,
+              name: p?.legalCompanyName ?? 'Unknown provider',
+              logoUrl: await this.resolveLogoSasUrl(p?.logoUrl),
+              city: p?.legalCity ?? null,
+              country: p?.legalCountry ?? null,
+              bookingCount: g._count,
+              gmv: Number(g._sum.totalAmount ?? 0),
+            }
+          })
+        ),
       }
     })
   }
@@ -434,92 +586,35 @@ export class AnalyticsService {
       const providerFilter = buildProviderCurrencyFilter(currency)
       const baseWhere = { createdAt: { gte: range.from, lte: range.to }, ...providerFilter }
 
-      const [created, requested, accepted, depositPaid, fullyPaid, completed] = await Promise.all([
-        this.prisma.bookingGroup.count({ where: baseWhere }),
-        this.prisma.bookingGroup.count({
-          where: {
-            ...baseWhere,
-            status: {
-              in: [
-                BookingGroupStatus.request,
-                BookingGroupStatus.accepted,
-                BookingGroupStatus.deposit_paid,
-                BookingGroupStatus.fully_paid,
-                BookingGroupStatus.at_camp,
-                BookingGroupStatus.completed,
-                BookingGroupStatus.partially_refunded,
-                BookingGroupStatus.fully_refunded,
-              ],
-            },
-          },
-        }),
-        this.prisma.bookingGroup.count({
-          where: {
-            ...baseWhere,
-            status: {
-              in: [
-                BookingGroupStatus.accepted,
-                BookingGroupStatus.deposit_paid,
-                BookingGroupStatus.fully_paid,
-                BookingGroupStatus.at_camp,
-                BookingGroupStatus.completed,
-                BookingGroupStatus.partially_refunded,
-                BookingGroupStatus.fully_refunded,
-              ],
-            },
-          },
-        }),
-        this.prisma.bookingGroup.count({
-          where: {
-            ...baseWhere,
-            status: {
-              in: [
-                BookingGroupStatus.deposit_paid,
-                BookingGroupStatus.fully_paid,
-                BookingGroupStatus.at_camp,
-                BookingGroupStatus.completed,
-                BookingGroupStatus.partially_refunded,
-              ],
-            },
-          },
-        }),
-        this.prisma.bookingGroup.count({
-          where: {
-            ...baseWhere,
-            status: {
-              in: [
-                BookingGroupStatus.fully_paid,
-                BookingGroupStatus.at_camp,
-                BookingGroupStatus.completed,
-              ],
-            },
-          },
-        }),
-        this.prisma.bookingGroup.count({
-          where: { ...baseWhere, status: BookingGroupStatus.completed },
-        }),
-      ])
+      const statusRows = await this.prisma.bookingGroup.groupBy({
+        by: ['status'],
+        where: baseWhere,
+        _count: true,
+      })
+      const byStatus = new Map<BookingGroupStatus, number>(
+        statusRows.map(r => [r.status, r._count])
+      )
+      const countIn = (statuses: BookingGroupStatus[]) =>
+        statuses.reduce((sum, s) => sum + (byStatus.get(s) ?? 0), 0)
 
-      const counts = [created, requested, accepted, depositPaid, fullyPaid, completed]
-      const labels = [
-        'Bookings created',
-        'Card authorized',
-        'Provider accepted',
-        'Deposit paid',
-        'Fully paid',
-        'Completed',
-      ]
+      const counts = FUNNEL_STAGES.map(stage => countIn(stage.statuses))
 
-      const steps = counts.map((count, i) => {
+      const steps = FUNNEL_STAGES.map((stage, i) => {
         const prev = i === 0 ? counts[0] : counts[i - 1]
-        const dropoff = i === 0 || prev === 0 ? 0 : Math.round(((prev - count) / prev) * 100)
-        const conversion = counts[0] === 0 ? 0 : Math.round((count / counts[0]) * 100)
+        const lostFromPrev = i === 0 ? 0 : prev - counts[i]
+        const dropoff = i === 0 || prev === 0 ? 0 : Math.round((lostFromPrev / prev) * 100)
+        const conversion = counts[0] === 0 ? 0 : Math.round((counts[i] / counts[0]) * 100)
         return {
-          key: ['created', 'requested', 'accepted', 'deposit_paid', 'fully_paid', 'completed'][i],
-          label: labels[i],
-          count,
+          key: stage.key,
+          label: stage.label,
+          count: counts[i],
           dropoffPctFromPrev: dropoff,
           conversionPctFromTop: conversion,
+          lostFromPrev,
+          lostBreakdown:
+            i === 0
+              ? []
+              : buildLostBreakdown(FUNNEL_STAGES[i - 1].statuses, stage.statuses, byStatus),
         }
       })
 

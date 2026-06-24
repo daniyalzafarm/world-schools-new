@@ -64,8 +64,15 @@ export default function GettingThereEditorPage() {
     }
   }, [currentCamp, campId, router])
 
+  // A selected transport option is only valid once it has a description. Until then
+  // the section stays a draft and is not persisted, so empty selections aren't saved.
+  const allTransportsValid = gettingThereData.selectedTransport.every(id =>
+    gettingThereData.transportDetails[id]?.description?.trim()
+  )
+
   useAutosave(gettingThereData, {
-    enabled: isLoaded,
+    enabled: isLoaded && allTransportsValid,
+    ready: isLoaded,
     save: async data => {
       await updateSection(campId, 'getting-there', { gettingThere: data })
     },

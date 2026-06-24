@@ -57,7 +57,7 @@ export default function FinancialDashboardPage() {
               Revenue, Stripe balance, payouts, disputes, and platform health
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             <CurrencySelector
               currencies={currencies}
               value={currency}
@@ -68,6 +68,7 @@ export default function FinancialDashboardPage() {
             <Button
               size="sm"
               variant="flat"
+              className="h-9"
               startContent={<RefreshCw className="h-4 w-4" />}
               onPress={() => void fetchAll()}
             >
@@ -77,6 +78,7 @@ export default function FinancialDashboardPage() {
               size="sm"
               variant="flat"
               as="a"
+              className="h-9"
               href="https://dashboard.stripe.com/"
               target="_blank"
               rel="noreferrer"

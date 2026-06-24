@@ -1,10 +1,8 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import { usePathname } from 'next/navigation'
 import {
   addToast,
-  Avatar,
   Button,
   Checkbox,
   Dropdown,
@@ -20,9 +18,13 @@ import {
 import {
   type Conversation,
   DEFAULT_REPORT_REASONS,
+  MessageContextMenu,
+  type MessageContextMenuAction,
+  type MessageMenuAnchor,
   MessageThread,
   type ReportReason,
   Textarea,
+  UserAvatar,
 } from '@world-schools/ui-web'
 import { ChevronLeft, MessageSquare, MoreVertical, PanelRight } from 'lucide-react'
 import { ProtectedRoute } from '@/components/auth/protected-route'
@@ -32,8 +34,8 @@ import { useMessagingStore } from '@/stores/messaging-store'
 import { useMessagePanelStore } from '@/stores/message-panel-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { MessageListSkeleton } from '@/components/messages/message-skeleton'
-import { TypingDots } from '@/components/messages/TypingIndicator'
 import { PresenceIndicator } from '@/components/messages/PresenceIndicator'
+import { useTypingIndicator } from '@/hooks/useTypingIndicator'
 
 import {
   type EnhancedMessage,
@@ -42,15 +44,12 @@ import {
   type MessageStatus,
   type PresenceStatus,
   type SenderType,
+  TypingBubble,
 } from '@world-schools/wc-frontend-utils'
 import { messagingAttachmentsService } from '@/services/messaging-attachments.services'
 
 export default function MessagesPage() {
-  const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-
-  // Detect if we're on the archived route
-  const isArchivedPage = pathname.startsWith('/messages/archived')
 
   // On mobile, show the conversation list by default
   useEffect(() => {
@@ -63,7 +62,7 @@ export default function MessagesPage() {
   const { user } = useAuthStore()
 
   // Right contact panel toggle (parent profile)
-  const { togglePanel, setPanelOpen } = useMessagePanelStore()
+  const { togglePanel, setPanelOpen, isPanelOpen } = useMessagePanelStore()
 
   // Measure the chat-area region (chat + panel) so the panel can switch between
   // a side column and a full-cover overlay based on its own available width —
@@ -97,15 +96,19 @@ export default function MessagesPage() {
     fetchMessages,
     sendMessage,
     markAsRead,
-    stopTyping,
     retryFailedMessage,
     reportMessage,
+    editMessageRemote,
+    deleteMessageRemote,
     fetchMoreMessages,
     messagesHasMore,
     isLoadingMoreMessages,
     rateLimitRetryAfter,
     clearRateLimitRetryAfter,
   } = useMessagingStore()
+
+  // Typing indicator — emits start/stop for the active conversation.
+  const { handleTyping, handleStopTyping } = useTypingIndicator(activeConversationId)
 
   // Report modal state
   const [showReportModal, setShowReportModal] = useState(false)
@@ -114,6 +117,20 @@ export default function MessagesPage() {
   const [reportComment, setReportComment] = useState('')
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
   const [reportError, setReportError] = useState<string | null>(null)
+
+  // Message actions (5B design): right-click context menu, reply bar, edit/delete.
+  const [actionMenu, setActionMenu] = useState<{
+    message: EnhancedMessage
+    anchor: MessageMenuAnchor
+  } | null>(null)
+  const [replyTarget, setReplyTarget] = useState<{
+    id: string
+    sender: string
+    text: string
+  } | null>(null)
+  const [editTarget, setEditTarget] = useState<{ id: string; text: string } | null>(null)
+  const [editText, setEditText] = useState('')
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
 
   // Get active conversation messages
   const activeMessages = activeConversationId ? storeMessages[activeConversationId] || [] : []
@@ -200,20 +217,80 @@ export default function MessagesPage() {
     return {
       id: msg.id,
       text: msg.content,
-      isUser: msg.senderId === user?.id && msg.senderType !== 'USER',
+      // The whole provider team is one side of the conversation: every
+      // provider-sent message is "ours" (right-aligned), not just the current
+      // user's — a colleague's reply shows as sent, attributed by name below.
+      // Only the parent's (USER) messages are incoming.
+      isUser: msg.senderType === 'PROVIDER',
       timestamp: msg.sentAt,
       status: msg.status as MessageStatus,
       isTransferRequest: msg.type === 'TRANSFER_REQUEST',
       isTransferSummary: msg.type === 'TRANSFER_SUMMARY',
       isChatbot: msg.senderType === 'CHATBOT',
+      // Attribute provider/staff messages to the staff member who sent them so a
+      // shared inbox shows who replied. First name shows by default; the last
+      // name slides in on hover. Parent messages carry no name label — the
+      // conversation header already identifies the parent.
+      senderFirstName:
+        msg.senderType === 'PROVIDER' ? (msg.sender?.firstName ?? undefined) : undefined,
+      senderLastName:
+        msg.senderType === 'PROVIDER' ? (msg.sender?.lastName ?? undefined) : undefined,
       deliveredAt: msg.deliveredAt,
       readAt: msg.readAt,
+      editedAt: msg.editedAt,
       attachments: msg.attachments ?? null,
     }
   }
 
   // Convert messages for UI
-  const enhancedMessages: EnhancedMessage[] = activeMessages.map(convertToEnhancedMessage)
+  // Build the UI messages with WhatsApp-style grouping flags: consecutive
+  // messages from the same sender within 5 min are one group (single avatar/name
+  // + single timestamp), and a date divider is shown when the day changes.
+  const GROUP_GAP_MS = 5 * 60 * 1000
+  const dayOf = (m?: MessageResponseDto) => (m ? new Date(m.sentAt).toDateString() : '')
+  const msOf = (m?: MessageResponseDto) => (m ? new Date(m.sentAt).getTime() : 0)
+  const enhancedMessages: EnhancedMessage[] = activeMessages.map((msg, i) => {
+    const prev = activeMessages[i - 1]
+    const next = activeMessages[i + 1]
+    const showDateDivider = !prev || dayOf(prev) !== dayOf(msg)
+    const isGroupStart =
+      showDateDivider || prev?.senderId !== msg.senderId || msOf(msg) - msOf(prev) > GROUP_GAP_MS
+    const isGroupEnd =
+      next?.senderId !== msg.senderId ||
+      msOf(next) - msOf(msg) > GROUP_GAP_MS ||
+      dayOf(next) !== dayOf(msg)
+    // Quoted reply preview (WhatsApp-style): the original is carried on msg.replyTo
+    // {id, content, senderId}; resolve the quoted sender's name from the loaded message.
+    const repliedTo = msg.replyTo
+    const original = repliedTo ? activeMessages.find(m => m.id === repliedTo.id) : undefined
+    return {
+      ...convertToEnhancedMessage(msg),
+      senderId: msg.senderId,
+      isGroupStart,
+      isGroupEnd,
+      showDateDivider,
+      dateLabel: showDateDivider
+        ? new Date(msg.sentAt).toLocaleDateString(undefined, {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+          })
+        : undefined,
+      replyPreview: repliedTo
+        ? {
+            sender:
+              repliedTo.senderId && repliedTo.senderId === user?.id
+                ? 'You'
+                : original?.sender
+                  ? [original.sender.firstName, original.sender.lastName]
+                      .filter(Boolean)
+                      .join(' ') || undefined
+                  : undefined,
+            text: repliedTo.content ?? '',
+          }
+        : undefined,
+    }
+  })
 
   // Get presence status for active conversation participants
   const getPresenceStatus = (): PresenceStatus | null => {
@@ -227,6 +304,12 @@ export default function MessagesPage() {
 
   const presenceStatus = getPresenceStatus()
 
+  // Is the other participant typing in the open conversation? Drives the header
+  // "typing…" subtitle and the in-thread typing bubble.
+  const isOtherTyping = activeConversationId
+    ? (typingUsers[activeConversationId] ?? []).some(id => id !== user?.id)
+    : false
+
   const sendMessageContent = async ({
     content,
     attachments,
@@ -237,7 +320,7 @@ export default function MessagesPage() {
     const trimmed = content.trim()
     if (!activeConversationId || !user) return
     if (!trimmed && attachments.length === 0) return
-    stopTyping(activeConversationId)
+    handleStopTyping()
 
     let attachmentIds: string[] | undefined
     if (attachments.length > 0) {
@@ -265,8 +348,10 @@ export default function MessagesPage() {
       senderType: 'PROVIDER' as SenderType,
       content: trimmed,
       attachmentIds,
+      replyToId: replyTarget?.id,
       idempotencyKey: `${user.id}-${Date.now()}`,
     })
+    setReplyTarget(null)
   }
 
   const handleReportReasonToggle = (reasonId: string) => {
@@ -331,18 +416,7 @@ export default function MessagesPage() {
   // Listen for conversation selection events from the sidebar
   useEffect(() => {
     const handleConversationSelect = (event: CustomEvent<Conversation>) => {
-      const conversation = event.detail
-
-      // Filter conversations based on current route
-      if (isArchivedPage && !conversation.archived) {
-        return
-      }
-      if (!isArchivedPage && conversation.archived) {
-        return
-      }
-
-      // Set active conversation in store
-      handleSelectConversation(conversation.id)
+      handleSelectConversation(event.detail.id)
     }
 
     window.addEventListener('selectConversation', handleConversationSelect as EventListener)
@@ -350,7 +424,7 @@ export default function MessagesPage() {
     return () => {
       window.removeEventListener('selectConversation', handleConversationSelect as EventListener)
     }
-  }, [isArchivedPage, handleSelectConversation])
+  }, [handleSelectConversation])
 
   // Get conversation details for display
   const getConversationName = () => {
@@ -382,18 +456,59 @@ export default function MessagesPage() {
   // The contact profile panel only applies to provider↔parent conversations.
   const isParentConversation = activeConversation?.type === 'USER_PROVIDER'
 
+  // Build the right-click menu for a message: Reply/Copy for incoming; Edit/Copy/
+  // Delete for the current user's own messages (gated on real authorship).
+  // Reply is available on any message (including your own, like WhatsApp). Shared
+  // by the context menu, double-click (desktop) and swipe (mobile) triggers.
+  const startReply = (m: EnhancedMessage) => {
+    const replySender =
+      m.senderId && m.senderId === user?.id
+        ? 'You'
+        : [m.senderFirstName, m.senderLastName].filter(Boolean).join(' ') || name
+    setReplyTarget({ id: m.id, sender: replySender, text: m.text })
+  }
+
+  const buildMessageActions = (m: EnhancedMessage): MessageContextMenuAction[] => {
+    const actions: MessageContextMenuAction[] = []
+    actions.push({
+      key: 'reply',
+      label: 'Reply',
+      onSelect: () => startReply(m),
+    })
+    actions.push({
+      key: 'copy',
+      label: 'Copy text',
+      onSelect: () => void navigator.clipboard?.writeText(m.text),
+    })
+    if (m.senderId && m.senderId === user?.id) {
+      actions.push({
+        key: 'edit',
+        label: 'Edit',
+        onSelect: () => {
+          setEditTarget({ id: m.id, text: m.text })
+          setEditText(m.text)
+        },
+      })
+      actions.push({
+        key: 'delete',
+        label: 'Delete',
+        danger: true,
+        onSelect: () => setDeleteTargetId(m.id),
+      })
+    }
+    return actions
+  }
+
   // Main content - conversation view or empty state
   const mainContent = !activeConversation ? (
     <div className="flex h-full items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div className="text-center px-6">
         <MessageSquare size={64} className="mx-auto mb-4 text-gray-400" />
         <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-          {isArchivedPage ? 'Select an archived conversation' : 'Select a conversation'}
+          Select a conversation
         </h2>
         <p className="text-gray-500 dark:text-gray-400">
-          {isArchivedPage
-            ? 'Choose an archived conversation from the sidebar to view messages'
-            : 'Choose a conversation from the sidebar to start messaging'}
+          Choose a conversation from the sidebar to start messaging
         </p>
       </div>
     </div>
@@ -401,7 +516,7 @@ export default function MessagesPage() {
     <div className="flex h-full flex-col bg-white dark:bg-gray-900">
       {/* Chat Header */}
       <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 h-20">
-        <div className="flex items-center gap-3 w-full">
+        <div className="flex items-center gap-3 w-full min-w-0">
           <Button
             isIconOnly
             variant="light"
@@ -424,26 +539,45 @@ export default function MessagesPage() {
                 setPanelOpen(true)
               }
             }}
-            className={`flex items-center gap-3 w-full ${isParentConversation ? 'cursor-pointer' : ''}`}
+            className={`flex items-center gap-3 w-full min-w-0 ${isParentConversation ? 'cursor-pointer' : ''}`}
             aria-label={isParentConversation ? 'Open contact profile' : undefined}
           >
-            <div className="relative">
-              <Avatar src={avatarSrc} name={name} size="md" />
+            <div className="relative shrink-0">
+              <UserAvatar
+                photoUrl={avatarSrc}
+                fullName={name}
+                className="w-12 h-12 text-base"
+                variant="flat"
+              />
               {/* Presence indicator */}
               <PresenceIndicator status={presenceStatus} position="bottom-right" />
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{name}</h2>
-              <div className="flex items-center gap-2">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {isArchivedPage
-                    ? `${name} (Archived)`
-                    : presenceStatus === 'ONLINE'
-                      ? 'Online'
-                      : presenceStatus === 'AWAY'
-                        ? 'Away'
-                        : 'User'}
-                </p>
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
+                {name}
+              </h2>
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-1.5 truncate text-sm text-gray-500 dark:text-gray-400">
+                  {isOtherTyping ? (
+                    <span className="font-medium text-primary-600 dark:text-primary-300">
+                      typing…
+                    </span>
+                  ) : presenceStatus === 'ONLINE' ? (
+                    <>
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                      Online
+                    </>
+                  ) : presenceStatus === 'AWAY' ? (
+                    <>
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" />
+                      Away
+                    </>
+                  ) : activeConversation?.type === 'USER_SUPERADMIN' ? (
+                    'Usually responds within 2 hours'
+                  ) : (
+                    'User'
+                  )}
+                </div>
                 {/* Provider-specific: Assignment status indicator */}
                 {/* {assignmentStatus && !isArchivedPage && (
                 <>
@@ -466,17 +600,20 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 pl-8">
+        <div className="flex items-center gap-1 pl-8 shrink-0">
           {/* Toggle the contact profile panel — not shown for support chats */}
           {isParentConversation && (
             <Button
-              isIconOnly
               variant="light"
               size="sm"
-              aria-label="Toggle contact profile"
+              aria-label={isPanelOpen ? 'Hide details' : 'View details'}
               onPress={togglePanel}
+              startContent={<PanelRight size={16} />}
+              className="min-w-0 rounded-lg border border-gray-200 bg-gray-100 px-2 text-sm text-gray-900 data-[hover=true]:border-primary-500 data-[hover=true]:bg-primary-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:data-[hover=true]:bg-gray-700 sm:px-3"
             >
-              <PanelRight size={20} />
+              <span className="hidden sm:inline">
+                {isPanelOpen ? 'Hide Details' : 'View Details'}
+              </span>
             </Button>
           )}
 
@@ -531,6 +668,8 @@ export default function MessagesPage() {
               senderName={name}
               isAdminView={false}
               onRetry={messageId => retryFailedMessage(messageId)}
+              onReply={startReply}
+              onOpenActions={(m, anchor) => setActionMenu({ message: m, anchor })}
             />
           )}
           renderBeforeMessages={() =>
@@ -549,6 +688,7 @@ export default function MessagesPage() {
             ) : null
           }
           onSend={sendMessageContent}
+          onType={value => (value ? handleTyping() : handleStopTyping())}
           isLoading={isLoadingMessages[activeConversationId || '']}
           error={messagesError[activeConversationId || '']}
           onRetry={() => activeConversationId && fetchMessages(activeConversationId)}
@@ -557,33 +697,45 @@ export default function MessagesPage() {
             !isConnected || !user || (rateLimitRetryAfter != null && rateLimitRetryAfter > 0)
           }
           emptyMessage={
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <MessageSquare size={48} className="mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            <div className="flex h-full items-center justify-center">
+              <div className="px-6 text-center">
+                <div className="mb-4 text-5xl">💬</div>
+                <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
                   No messages yet
                 </h3>
-                <p className="text-gray-500 dark:text-gray-400">
-                  Start the conversation by sending a message
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Send a message to start the conversation.
                 </p>
               </div>
             </div>
           }
-          renderLoading={() => <MessageListSkeleton count={5} />}
-          renderAfterMessages={() => {
-            const otherUsersTyping =
-              activeConversationId && user
-                ? typingUsers[activeConversationId]?.filter(id => id !== user.id) || []
-                : []
-            return otherUsersTyping.length > 0 ? (
-              <div className="flex justify-start">
-                <div className="rounded-2xl bg-gray-100 dark:bg-gray-800 shadow-sm px-4 py-3">
-                  <TypingDots show={true} />
-                </div>
+          renderError={(_error, retry) => (
+            <div className="flex h-full items-center justify-center">
+              <div className="px-6 text-center">
+                <div className="mb-4 text-5xl">⚠️</div>
+                <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  Unable to load messages
+                </h3>
+                <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+                  Check your internet connection and try again.
+                </p>
+                {retry && (
+                  <Button size="sm" color="primary" onPress={retry}>
+                    Retry
+                  </Button>
+                )}
               </div>
-            ) : null
-          }}
+            </div>
+          )}
+          renderLoading={() => <MessageListSkeleton count={5} />}
+          renderAfterMessages={() =>
+            isOtherTyping ? <TypingBubble avatarSrc={avatarSrc} senderName={name} /> : null
+          }
           scrollAreaClassName="flex-1 min-h-0"
+          messagesContainerClassName="space-y-0"
+          sendVariant="pill"
+          replyTo={replyTarget ? { sender: replyTarget.sender, text: replyTarget.text } : null}
+          onCancelReply={() => setReplyTarget(null)}
         />
       </div>
 
@@ -626,7 +778,7 @@ export default function MessagesPage() {
               Cancel
             </Button>
             <Button
-              className="bg-[#1E2A4A] text-white"
+              className="bg-slate-800 text-white"
               onPress={handleSubmitReport}
               isLoading={isSubmittingReport}
               disabled={selectedReasons.length === 0}
@@ -636,12 +788,84 @@ export default function MessagesPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* Message actions menu (hover chevron / long-press) */}
+      {actionMenu && (
+        <MessageContextMenu
+          anchor={actionMenu.anchor}
+          onClose={() => setActionMenu(null)}
+          actions={buildMessageActions(actionMenu.message)}
+        />
+      )}
+
+      {/* Edit message */}
+      <Modal isOpen={!!editTarget} onClose={() => setEditTarget(null)} size="lg">
+        <ModalContent>
+          <ModalHeader>
+            <h3 className="text-xl font-semibold">Edit message</h3>
+          </ModalHeader>
+          <ModalBody>
+            <Textarea value={editText} onValueChange={setEditText} minRows={3} autoFocus />
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="light" onPress={() => setEditTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              color="primary"
+              isDisabled={!editText.trim()}
+              onPress={async () => {
+                if (editTarget && activeConversationId && editText.trim()) {
+                  await editMessageRemote(activeConversationId, editTarget.id, editText.trim())
+                }
+                setEditTarget(null)
+              }}
+            >
+              Save
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Delete message confirmation */}
+      <Modal isOpen={!!deleteTargetId} onClose={() => setDeleteTargetId(null)} size="sm">
+        <ModalContent>
+          <ModalHeader>
+            <h3 className="text-xl font-semibold">Delete Message?</h3>
+          </ModalHeader>
+          <ModalBody>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              This message will be permanently deleted and cannot be recovered.
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="light" onPress={() => setDeleteTargetId(null)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-rose-500 text-white"
+              onPress={async () => {
+                if (deleteTargetId && activeConversationId) {
+                  await deleteMessageRemote(activeConversationId, deleteTargetId)
+                }
+                setDeleteTargetId(null)
+              }}
+            >
+              Delete
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </div>
   )
 
   // Full-screen layout with TopNav and MessagesSidebar
   return (
-    <ProtectedRoute requireAuth requireProviderRole>
+    <ProtectedRoute
+      requireAuth
+      requireProviderRole
+      requiredPermissions={['messages.read', 'messages.write']}
+    >
       <div className="flex flex-col h-full bg-white dark:bg-gray-900">
         {/* Messages Content Area */}
         <div className="flex flex-1 overflow-hidden">

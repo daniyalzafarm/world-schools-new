@@ -14,6 +14,8 @@ export interface BaseRuntimeConfig {
   wsUrl?: string
   authUsingRequest: boolean
   googleMapsApiKey?: string
+  /** Public Google OAuth client ID for "Sign in with Google" (booking app only). */
+  googleOAuthClientId?: string
   stripePublishableKey?: string
   enableWebsocketMessages: boolean
   websocketFallbackHttp: boolean

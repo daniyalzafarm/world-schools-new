@@ -1,6 +1,5 @@
 'use client'
 
-import { Avatar } from '@heroui/react'
 import { Globe, Languages as LanguagesIcon, MapPin, Repeat } from 'lucide-react'
 import {
   getCountryDemonym,
@@ -8,6 +7,7 @@ import {
   getCountryName,
   getLanguageName,
   StarRating,
+  UserAvatar,
 } from '@world-schools/ui-web'
 import { ageFromDateOfBirth } from '@world-schools/wc-frontend-utils'
 import type { ProviderContactProfile } from '@/services/contact-profile.services'
@@ -54,11 +54,16 @@ export function IdentitySection({ data }: { data: ProviderContactProfile }) {
             </span>
           ) : null}
         </div>
-        {data.inquirySummary ? (
-          <p className="mt-1 text-sm text-default-500">{data.inquirySummary}</p>
+        {data.user.bio ? (
+          <p className="mt-1 text-sm text-default-500 whitespace-pre-line">{data.user.bio}</p>
         ) : null}
       </div>
-      <Avatar src={data.user.profilePhotoUrl ?? undefined} name={name} size="lg" />
+      <UserAvatar
+        photoUrl={data.user.profilePhotoUrl ?? undefined}
+        fullName={name}
+        variant="flat"
+        className="w-14 h-14 text-lg"
+      />
     </div>
   )
 }

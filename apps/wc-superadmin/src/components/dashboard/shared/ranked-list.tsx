@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 
 interface RankedListRowProps {
   rank: number
@@ -8,6 +8,7 @@ interface RankedListRowProps {
   secondary?: ReactNode
   right?: ReactNode
   avatar?: ReactNode
+  onClick?: () => void
 }
 
 const MEDAL_CLASSES: Record<number, string> = {
@@ -16,10 +17,37 @@ const MEDAL_CLASSES: Record<number, string> = {
   3: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
 }
 
-export function RankedListRow({ rank, primary, secondary, right, avatar }: RankedListRowProps) {
+export function RankedListRow({
+  rank,
+  primary,
+  secondary,
+  right,
+  avatar,
+  onClick,
+}: RankedListRowProps) {
   const medalClass = MEDAL_CLASSES[rank] ?? 'bg-default-100 text-default-600 dark:bg-default-700/50'
+  const interactive = Boolean(onClick)
   return (
-    <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-default-50 dark:hover:bg-default-900/40">
+    <div
+      {...(interactive
+        ? {
+            role: 'button',
+            tabIndex: 0,
+            onClick,
+            onKeyDown: (e: KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onClick?.()
+              }
+            },
+          }
+        : {})}
+      className={`flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-default-50 dark:hover:bg-default-900/40${
+        interactive
+          ? ' cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+          : ''
+      }`}
+    >
       <div
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${medalClass}`}
       >

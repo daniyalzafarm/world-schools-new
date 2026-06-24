@@ -43,6 +43,7 @@ import { useMessagingStore } from '@/stores/messaging-store'
 import { providerBookingGroupsService } from '@/services/provider-booking-groups.services'
 import { AcceptBookingConfirmationModal } from './accept-booking-confirmation-modal'
 import { DeclineBookingModal, type DeclinePayload } from './decline-booking-modal'
+import { Can } from '@/components/auth/can'
 
 export interface BookingRequestDrawerProps {
   isOpen: boolean
@@ -582,53 +583,55 @@ export function BookingRequestDrawer({
               }}
             />
           </div>
-          <div className="p-4">
-            <Button
-              fullWidth
-              radius="md"
-              className="w-full rounded-lg bg-primary-200 py-3.5 text-base font-semibold text-secondary-500 hover:bg-primary-300 disabled:cursor-not-allowed disabled:opacity-50"
-              isDisabled={actionLoading || isExpired}
-              isLoading={actionLoading}
-              onPress={() => {
-                setLocalError(null)
-                setAcceptConfirmOpen(true)
-              }}
-            >
-              Accept
-            </Button>
-            {isExpired ? (
-              <p className="mt-2 text-center text-xs font-medium text-danger">
-                This request has expired and can no longer be accepted.
-              </p>
-            ) : null}
-            <div className="mt-2 flex gap-2">
+          <Can permission="bookings.write">
+            <div className="p-4">
               <Button
-                variant="bordered"
-                color="danger"
+                fullWidth
                 radius="md"
-                className="flex-1 rounded-lg border border-danger-200 bg-white py-2.5 text-sm font-medium text-danger"
-                isDisabled={actionLoading}
+                className="w-full rounded-lg bg-primary-200 py-3.5 text-base font-semibold text-secondary-500 hover:bg-primary-300 disabled:cursor-not-allowed disabled:opacity-50"
+                isDisabled={actionLoading || isExpired}
+                isLoading={actionLoading}
                 onPress={() => {
                   setLocalError(null)
-                  setDeclineModalOpen(true)
+                  setAcceptConfirmOpen(true)
                 }}
               >
-                Decline
+                Accept
               </Button>
-              <Button
-                variant="bordered"
-                radius="md"
-                className="flex-1 rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-500 hover:border-secondary-500 hover:text-secondary-500"
-                isDisabled={actionLoading || extensionLoading}
-                onPress={() => setMoreTimeOpen(true)}
-              >
-                Need more time?
-              </Button>
+              {isExpired ? (
+                <p className="mt-2 text-center text-xs font-medium text-danger">
+                  This request has expired and can no longer be accepted.
+                </p>
+              ) : null}
+              <div className="mt-2 flex gap-2">
+                <Button
+                  variant="bordered"
+                  color="danger"
+                  radius="md"
+                  className="flex-1 rounded-lg border border-danger-200 bg-white py-2.5 text-sm font-medium text-danger"
+                  isDisabled={actionLoading}
+                  onPress={() => {
+                    setLocalError(null)
+                    setDeclineModalOpen(true)
+                  }}
+                >
+                  Decline
+                </Button>
+                <Button
+                  variant="bordered"
+                  radius="md"
+                  className="flex-1 rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-500 hover:border-secondary-500 hover:text-secondary-500"
+                  isDisabled={actionLoading || extensionLoading}
+                  onPress={() => setMoreTimeOpen(true)}
+                >
+                  Need more time?
+                </Button>
+              </div>
+              {localError ? (
+                <p className="mt-2 text-center text-sm text-danger">{localError}</p>
+              ) : null}
             </div>
-            {localError ? (
-              <p className="mt-2 text-center text-sm text-danger">{localError}</p>
-            ) : null}
-          </div>
+          </Can>
         </DrawerFooter>
       )
     }
@@ -1084,17 +1087,19 @@ export function BookingRequestDrawer({
                         </span>
                       </Button>
                     ) : null}
-                    <Button
-                      fullWidth
-                      variant="light"
-                      color="danger"
-                      radius="none"
-                      className="flex h-auto min-h-0 justify-between border-b border-gray-100 px-6 py-4 hover:bg-gray-50"
-                      endContent={<span className="text-lg text-gray-400">›</span>}
-                      onPress={() => setCancelModalOpen(true)}
-                    >
-                      <span className="text-sm font-medium text-danger">Cancel booking</span>
-                    </Button>
+                    <Can permission="bookings.write">
+                      <Button
+                        fullWidth
+                        variant="light"
+                        color="danger"
+                        radius="none"
+                        className="flex h-auto min-h-0 justify-between border-b border-gray-100 px-6 py-4 hover:bg-gray-50"
+                        endContent={<span className="text-lg text-gray-400">›</span>}
+                        onPress={() => setCancelModalOpen(true)}
+                      >
+                        <span className="text-sm font-medium text-danger">Cancel booking</span>
+                      </Button>
+                    </Can>
                   </div>
                 ) : null}
 

@@ -44,6 +44,7 @@ export { DocumentDropzone } from './document-dropzone'
 export { TagSelectField } from './tag-select-field'
 export { IconTagSelectField, type IconTagItem } from './icon-tag-select-field'
 export { UserAvatar, type UserAvatarProps, type UserAvatarVariant } from './user-avatar'
+export { ProfileCompletionBanner } from './profile-completion-banner'
 
 // Notification components
 export {
@@ -55,6 +56,11 @@ export {
 
 // Messages components
 export { ChatInput } from './messages/chat-input'
+export {
+  MessageContextMenu,
+  type MessageContextMenuAction,
+  type MessageMenuAnchor,
+} from './messages/message-context-menu'
 export { MessageBubble } from './messages/message-bubble'
 export { ConversationItem } from './messages/conversation-item'
 export {

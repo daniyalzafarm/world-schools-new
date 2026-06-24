@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { addToast } from '@heroui/react'
 import { useRouter } from 'next/navigation'
 import { CatalogueCategoryForm } from '@/components/catalogue/category-form'
 import { catalogueService, type CreateCategoryPayload } from '@/services/catalogue.services'
+import { usePermissions } from '@/hooks/use-permissions'
 
 function getApiErrorMessage(result: unknown, fallback: string) {
   const maybe: any = result
@@ -13,7 +14,14 @@ function getApiErrorMessage(result: unknown, fallback: string) {
 
 export default function CreateCatalogueCategoryPage() {
   const router = useRouter()
+  const { hasPermission } = usePermissions()
   const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    if (!hasPermission('catalogue.create')) {
+      router.push('/catalogue')
+    }
+  }, [hasPermission, router])
 
   const handleSubmit = async (payload: CreateCategoryPayload) => {
     setIsSaving(true)

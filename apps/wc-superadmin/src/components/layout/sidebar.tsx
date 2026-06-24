@@ -31,6 +31,7 @@ import { Logo } from '@/components/layout/logo'
 import { useAuthStore } from '@/stores/auth-store'
 import { eventBus } from '@world-schools/wc-utils'
 import { usePermissions } from '@/hooks/use-permissions'
+import { hasRouteAccess } from '@/utils/navigation'
 import { disputesService } from '@/services/disputes.services'
 import { supportTicketsService } from '@/services/support-tickets.services'
 import { useUnreadNotificationsCount } from '@/hooks/use-unread-notifications-count'
@@ -85,120 +86,142 @@ interface NavItem {
   badge?: number
   children?: NavItem[]
   type?: string
-  permission?: string // Required permission to view this item
 }
 
-const NAV_ITEMS: NavItem[] = [
+interface NavSection {
+  /** Uppercase group heading. Omit for the trailing footer-style group. */
+  title?: string
+  items: NavItem[]
+}
+
+const NAV_SECTIONS: NavSection[] = [
   {
-    name: 'Analytics Dashboard',
-    href: '/analytics-dashboard',
-    icon: <House size={20} />,
-    type: 'regular',
-    permission: 'analytics.read',
-  },
-  {
-    name: 'Financial Dashboard',
-    href: '/financial-dashboard',
-    icon: <Banknote size={20} />,
-    type: 'regular',
-    permission: 'financial.read',
-  },
-  {
-    name: 'Reimbursements',
-    href: '/reimbursements',
-    icon: <Receipt size={20} />,
-    type: 'regular',
-    permission: 'billing.read',
-  },
-  {
-    name: 'Disputes',
-    href: '/disputes',
-    icon: <Gavel size={20} />,
-    type: 'regular',
-    permission: 'disputes.read',
-  },
-  {
-    name: 'All Providers',
-    href: '/providers',
-    icon: <Building size={20} />,
-    type: 'regular',
-    permission: 'providers.read',
-  },
-  {
-    name: 'Camps',
-    href: '/camps',
-    icon: <Tent size={20} />,
-    type: 'regular',
-    permission: 'camps.read',
-  },
-  {
-    name: 'Parents',
-    href: '/parents',
-    icon: <Users size={20} />,
-    type: 'regular',
-    permission: 'parents.read',
-  },
-  {
-    name: 'Activity Catalogue',
-    href: '/catalogue',
-    icon: <FolderOpen size={20} />,
-    type: 'regular',
-  },
-  {
-    name: 'Knowledge Base',
-    icon: <Notebook size={20} />,
-    type: 'collapsible',
-    permission: 'kb.articles.read',
-    children: [
+    title: 'Insights',
+    items: [
       {
-        name: 'Articles',
-        href: '/kb/articles',
-        icon: <List size={20} />,
+        name: 'Analytics Dashboard',
+        href: '/analytics-dashboard',
+        icon: <House size={20} />,
         type: 'regular',
-        permission: 'kb.articles.read',
       },
       {
-        name: 'Categories',
-        href: '/kb/categories',
-        icon: <LayoutGrid size={20} />,
+        name: 'Financial Dashboard',
+        href: '/financial-dashboard',
+        icon: <Banknote size={20} />,
         type: 'regular',
-        permission: 'kb.categories.read',
       },
     ],
   },
   {
-    name: 'Users',
-    href: '/users',
-    icon: <User size={20} />,
-    type: 'regular',
-    permission: 'users.read',
+    title: 'Users',
+    items: [
+      {
+        name: 'All Providers',
+        href: '/providers',
+        icon: <Building size={20} />,
+        type: 'regular',
+      },
+      {
+        name: 'Parents',
+        href: '/parents',
+        icon: <Users size={20} />,
+        type: 'regular',
+      },
+      {
+        name: 'Users',
+        href: '/users',
+        icon: <User size={20} />,
+        type: 'regular',
+      },
+      {
+        name: 'Roles',
+        href: '/roles',
+        icon: <ShieldCheck size={20} />,
+        type: 'regular',
+      },
+    ],
   },
   {
-    name: 'Roles',
-    href: '/roles',
-    icon: <ShieldCheck size={20} />,
-    type: 'regular',
-    permission: 'roles.read',
+    title: 'Content',
+    items: [
+      {
+        name: 'Camps',
+        href: '/camps',
+        icon: <Tent size={20} />,
+        type: 'regular',
+      },
+      {
+        name: 'Activity Catalogue',
+        href: '/catalogue',
+        icon: <FolderOpen size={20} />,
+        type: 'regular',
+      },
+      {
+        name: 'Knowledge Base',
+        icon: <Notebook size={20} />,
+        type: 'collapsible',
+        children: [
+          {
+            name: 'Articles',
+            href: '/kb/articles',
+            icon: <List size={20} />,
+            type: 'regular',
+          },
+          {
+            name: 'Categories',
+            href: '/kb/categories',
+            icon: <LayoutGrid size={20} />,
+            type: 'regular',
+          },
+        ],
+      },
+    ],
   },
   {
-    name: 'Notifications',
-    href: '/notifications',
-    icon: <Bell size={20} />,
-    type: 'regular',
-    // No permission required - available to all authenticated users
+    title: 'Operations',
+    items: [
+      {
+        name: 'Support',
+        href: '/support',
+        icon: <Headphones size={20} />,
+        type: 'regular',
+      },
+      {
+        name: 'Reimbursements',
+        href: '/reimbursements',
+        icon: <Receipt size={20} />,
+        type: 'regular',
+      },
+      {
+        name: 'Disputes',
+        href: '/disputes',
+        icon: <Gavel size={20} />,
+        type: 'regular',
+      },
+    ],
   },
   {
-    name: 'Help',
-    href: '/help',
-    icon: <HelpCircle size={20} />,
-    type: 'regular',
+    title: 'System',
+    items: [
+      {
+        name: 'Notifications',
+        href: '/notifications',
+        icon: <Bell size={20} />,
+        type: 'regular',
+        // No permission required - available to all authenticated users
+      },
+    ],
   },
   {
-    name: 'Support',
-    href: '/support',
-    icon: <Headphones size={20} />,
-    type: 'regular',
-    permission: 'support_tickets.read',
+    title: 'Support',
+    items: [
+      {
+        name: 'Help',
+        href: '/help',
+        icon: <HelpCircle size={20} />,
+        type: 'regular',
+      },
+    ],
   },
 ]
 
@@ -408,24 +431,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   )
 
   /**
-   * Check if a navigation item should be visible based on user permissions
+   * Filter navigation items (and their children) based on user permissions, then drop any
+   * section left empty.
+   * Visibility is derived from the shared ROUTES config (single source of truth) so the
+   * sidebar and the RouteGuard can never disagree about what a user may access. A collapsible
+   * parent with no destination is visible if any of its children are accessible.
    */
-  const isNavItemVisible = React.useCallback(
-    (item: NavItem): boolean => {
-      // If no permission is required, item is always visible
-      if (!item.permission) return true
-      // Check if user has the required permission
-      return hasPermission(item.permission)
-    },
-    [hasPermission]
-  )
-
-  /**
-   * Filter navigation items based on user permissions
-   */
-  const visibleNavItems = React.useMemo(() => {
-    return NAV_ITEMS.filter(isNavItemVisible)
-  }, [isNavItemVisible])
+  const visibleSections = React.useMemo(() => {
+    const userPermissions = user?.permissions ?? []
+    const isVisible = (item: NavItem): boolean => {
+      if (item.href) return hasRouteAccess(item.href, userPermissions)
+      if (item.children?.length) return item.children.some(isVisible)
+      return true
+    }
+    return NAV_SECTIONS.map(section => ({
+      ...section,
+      items: section.items
+        .filter(isVisible)
+        .map(item =>
+          item.children?.length ? { ...item, children: item.children.filter(isVisible) } : item
+        ),
+    })).filter(section => section.items.length > 0)
+  }, [user])
 
   const userFullName = user?.firstName ? `${user.firstName} ${user.lastName}`.trim() : 'Superadmin'
 
@@ -467,118 +494,140 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
           </div>
 
           {/* Navigation */}
-          <nav className="p-3 space-y-1 overflow-x-hidden">
-            {/* Main Navigation Items */}
-            {visibleNavItems.map(item => {
-              const isActive = item.href ? pathname.startsWith(item.href) : false
-              const itemType = item.type || 'regular'
-              const isCollapsible = itemType === 'collapsible'
-              const isExpanded = isCollapsible ? expandedSections[item.name] : false
-              const hasChildren = item.children && item.children.length > 0
-
-              // Get dynamic badge count for Provider Requests / Support Tickets / Disputes
-              const badgeCount =
-                item.name === 'All Providers' && unreadApplicationsCount > 0
-                  ? unreadApplicationsCount
-                  : item.name === 'Support Tickets' && openTicketCount > 0
-                    ? openTicketCount
-                    : item.name === 'Disputes' && openDisputeCount > 0
-                      ? openDisputeCount
-                      : item.name === 'Notifications' && unreadNotificationsCount > 0
-                        ? unreadNotificationsCount
-                        : item.badge
-
-              const NavigationItem = (
-                <div key={item.name} className="w-full">
-                  <div
-                    onClick={() => handleNavigation(item)}
-                    className={cn(
-                      'flex h-10 items-center p-2 rounded-lg cursor-pointer whitespace-nowrap overflow-hidden',
-                      isActive ? 'bg-primary-100' : 'hover:bg-default-100 dark:hover:bg-gray-800'
-                    )}
-                  >
-                    <span className="flex justify-center min-w-6">
-                      {badgeCount ? (
-                        <Badge
-                          color="primary"
-                          content={badgeCount}
-                          size="sm"
-                          placement="top-right"
-                          showOutline={false}
-                        >
-                          {item.icon}
-                        </Badge>
-                      ) : (
-                        item.icon
-                      )}
-                    </span>
-                    {!isCollapsed && (
-                      <>
-                        <span className="ml-3 flex-1 text-sm font-medium">{item.name}</span>
-                        {isCollapsible && (
-                          <span className="ml-auto">
-                            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                          </span>
-                        )}
-                      </>
-                    )}
+          <nav className="p-3 overflow-x-hidden">
+            {/* Main Navigation Items, grouped into sections */}
+            {visibleSections.map((section, sectionIdx) => (
+              <div
+                key={section.title ?? `section-${sectionIdx}`}
+                className={cn(sectionIdx > 0 && 'mt-2')}
+              >
+                {!isCollapsed && section.title && (
+                  <div className="px-2 pb-1 text-[11px] font-bold uppercase tracking-wider text-default-400 dark:text-gray-500">
+                    {section.title}
                   </div>
+                )}
+                <div className="space-y-1">
+                  {section.items.map(item => {
+                    const isActive = item.href ? pathname.startsWith(item.href) : false
+                    const itemType = item.type || 'regular'
+                    const isCollapsible = itemType === 'collapsible'
+                    const isExpanded = isCollapsible ? expandedSections[item.name] : false
+                    const hasChildren = item.children && item.children.length > 0
 
-                  {/* Children items */}
-                  {hasChildren && isExpanded && !isCollapsed && (
-                    <div className="ml-6 mt-1 space-y-1">
-                      {item.children!.map(child => {
-                        const childIsActive = child.href ? pathname.startsWith(child.href) : false
-                        return (
-                          <Link key={child.name} href={child.href || '#'}>
-                            <div
-                              className={cn(
-                                'flex h-9 items-center p-2 rounded-lg cursor-pointer text-sm',
-                                childIsActive
-                                  ? 'bg-primary-100 dark:bg-primary-900/30'
-                                  : 'hover:bg-default-100 dark:hover:bg-gray-800'
+                    // Get dynamic badge count for Provider Requests / Support Tickets / Disputes
+                    const badgeCount =
+                      item.name === 'All Providers' && unreadApplicationsCount > 0
+                        ? unreadApplicationsCount
+                        : item.name === 'Support Tickets' && openTicketCount > 0
+                          ? openTicketCount
+                          : item.name === 'Disputes' && openDisputeCount > 0
+                            ? openDisputeCount
+                            : item.name === 'Notifications' && unreadNotificationsCount > 0
+                              ? unreadNotificationsCount
+                              : item.badge
+
+                    const NavigationItem = (
+                      <div key={item.name} className="w-full">
+                        <div
+                          onClick={() => handleNavigation(item)}
+                          className={cn(
+                            'flex h-10 items-center p-2 rounded-lg cursor-pointer whitespace-nowrap overflow-hidden',
+                            isActive
+                              ? 'bg-primary-100'
+                              : 'hover:bg-default-100 dark:hover:bg-gray-800'
+                          )}
+                        >
+                          <span className="flex justify-center min-w-6">
+                            {badgeCount ? (
+                              <Badge
+                                color="primary"
+                                content={badgeCount}
+                                size="sm"
+                                placement="top-right"
+                                showOutline={false}
+                              >
+                                {item.icon}
+                              </Badge>
+                            ) : (
+                              item.icon
+                            )}
+                          </span>
+                          {!isCollapsed && (
+                            <>
+                              <span className="ml-3 flex-1 text-sm font-medium">{item.name}</span>
+                              {isCollapsible && (
+                                <span className="ml-auto">
+                                  {isExpanded ? (
+                                    <ChevronDown size={16} />
+                                  ) : (
+                                    <ChevronRight size={16} />
+                                  )}
+                                </span>
                               )}
-                              onClick={() => {
-                                if (sidebarOpen) setSidebarOpen(false)
-                              }}
-                            >
-                              {child.badge ? (
-                                <Badge
-                                  color="primary"
-                                  content={child.badge}
-                                  size="sm"
-                                  placement="top-right"
-                                  showOutline={false}
-                                >
-                                  {child.icon}
-                                </Badge>
-                              ) : (
-                                child.icon
-                              )}
-                              <span className="ml-2">{child.name}</span>
-                            </div>
-                          </Link>
-                        )
-                      })}
-                    </div>
-                  )}
+                            </>
+                          )}
+                        </div>
+
+                        {/* Children items */}
+                        {hasChildren && isExpanded && !isCollapsed && (
+                          <div className="ml-6 mt-1 space-y-1">
+                            {item.children!.map(child => {
+                              const childIsActive = child.href
+                                ? pathname.startsWith(child.href)
+                                : false
+                              return (
+                                <Link key={child.name} href={child.href || '#'}>
+                                  <div
+                                    className={cn(
+                                      'flex h-9 items-center p-2 rounded-lg cursor-pointer text-sm',
+                                      childIsActive
+                                        ? 'bg-primary-100 dark:bg-primary-900/30'
+                                        : 'hover:bg-default-100 dark:hover:bg-gray-800'
+                                    )}
+                                    onClick={() => {
+                                      if (sidebarOpen) setSidebarOpen(false)
+                                    }}
+                                  >
+                                    {child.badge ? (
+                                      <Badge
+                                        color="primary"
+                                        content={child.badge}
+                                        size="sm"
+                                        placement="top-right"
+                                        showOutline={false}
+                                      >
+                                        {child.icon}
+                                      </Badge>
+                                    ) : (
+                                      child.icon
+                                    )}
+                                    <span className="ml-2">{child.name}</span>
+                                  </div>
+                                </Link>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+
+                    return isCollapsed ? (
+                      <Tooltip
+                        key={item.name}
+                        content={item.name}
+                        placement="right"
+                        delay={500}
+                        closeDelay={0}
+                      >
+                        {NavigationItem}
+                      </Tooltip>
+                    ) : (
+                      NavigationItem
+                    )
+                  })}
                 </div>
-              )
-
-              return isCollapsed ? (
-                <Tooltip
-                  key={item.name}
-                  content={item.name}
-                  placement="right"
-                  delay={500}
-                  closeDelay={0}
-                >
-                  {NavigationItem}
-                </Tooltip>
-              ) : (
-                NavigationItem
-              )
-            })}
+              </div>
+            ))}
           </nav>
 
           {/* Clickable area for sidebar toggle */}

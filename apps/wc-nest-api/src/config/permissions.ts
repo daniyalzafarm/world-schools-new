@@ -61,7 +61,6 @@ const providerApplicationsPermissions: PermissionGroup = {
   name: 'Provider Applications',
   permissions: [
     { id: 'provider_applications.read', name: 'Read provider applications' },
-    { id: 'provider_applications.review', name: 'Review provider applications' },
     { id: 'provider_applications.approve', name: 'Approve provider applications' },
     { id: 'provider_applications.reject', name: 'Reject provider applications' },
     { id: 'provider_applications.request_info', name: 'Request additional information' },
@@ -73,8 +72,6 @@ const providerDocumentsPermissions: PermissionGroup = {
   permissions: [
     { id: 'provider_documents.read', name: 'Read provider documents' },
     { id: 'provider_documents.review', name: 'Review provider documents' },
-    { id: 'provider_documents.approve', name: 'Approve provider documents' },
-    { id: 'provider_documents.reject', name: 'Reject provider documents' },
   ],
 }
 
@@ -87,6 +84,14 @@ const campsPermissions: PermissionGroup = {
     { id: 'camps.delete', name: 'Delete camps' },
     { id: 'camps.publish', name: 'Publish camps' },
   ],
+}
+
+// Superadmin's Camps section is currently read-only (view camps/sessions/bookings/reviews); camp &
+// session import is gated by `providers.update` (provider management). This group holds the
+// superadmin-specific camp permissions — add more here if superadmin camp management is introduced.
+const superadminCampsPermissions: PermissionGroup = {
+  name: 'Camps',
+  permissions: [{ id: 'camps.read', name: 'Read camps' }],
 }
 
 const addonsPermissions: PermissionGroup = {
@@ -105,6 +110,19 @@ const bookingsPermissions: PermissionGroup = {
     { id: 'bookings.read', name: 'Read bookings' },
     { id: 'bookings.write', name: 'Write bookings' },
   ],
+}
+
+const messagesPermissions: PermissionGroup = {
+  name: 'Messaging',
+  permissions: [
+    { id: 'messages.read', name: 'View and receive messages' },
+    { id: 'messages.write', name: 'Send and reply to messages' },
+  ],
+}
+
+const dashboardPermissions: PermissionGroup = {
+  name: 'Dashboard',
+  permissions: [{ id: 'provider_dashboard.read', name: 'View the provider dashboard' }],
 }
 
 const kbCategoriesPermissions: PermissionGroup = {
@@ -185,6 +203,16 @@ const financialPermissions: PermissionGroup = {
   ],
 }
 
+const cataloguePermissions: PermissionGroup = {
+  name: 'Activity Catalogue',
+  permissions: [
+    { id: 'catalogue.read', name: 'Read the activity catalogue' },
+    { id: 'catalogue.create', name: 'Create catalogue items (categories, activities, scales)' },
+    { id: 'catalogue.update', name: 'Update catalogue items' },
+    { id: 'catalogue.delete', name: 'Delete catalogue items' },
+  ],
+}
+
 // Context-based main groups
 export const superadminContext: PermissionContext = {
   name: 'SuperAdmin',
@@ -194,9 +222,8 @@ export const superadminContext: PermissionContext = {
     providersPermissions,
     providerApplicationsPermissions,
     providerDocumentsPermissions,
-    campsPermissions,
-    addonsPermissions,
-    bookingsPermissions,
+    superadminCampsPermissions,
+    cataloguePermissions,
     kbCategoriesPermissions,
     kbArticlesPermissions,
     supportTicketsPermissions,
@@ -211,11 +238,13 @@ export const superadminContext: PermissionContext = {
 export const providerContext: PermissionContext = {
   name: 'Provider',
   groups: [
+    dashboardPermissions,
     usersPermissions,
     rolesPermissions,
     campsPermissions,
     addonsPermissions,
     bookingsPermissions,
+    messagesPermissions,
   ],
 }
 

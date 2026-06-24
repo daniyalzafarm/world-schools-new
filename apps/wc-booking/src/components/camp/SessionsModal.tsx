@@ -1,11 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react'
 import { isSessionBookable } from '@world-schools/wc-utils'
 import type { Session } from '../../types/sessions'
 import type { AgeGroup, CampType } from '../../types/camps'
 import { formatCurrency } from '../../utils/currency'
+import { useAuthStore } from '../../stores/auth-store'
+import { useAuthModalStore } from '../../stores/auth-modal-store'
 
 function getSessionAgeLabel(
   session: Session,
@@ -61,6 +64,9 @@ export function SessionsModal({
   onClose,
   onSessionSelect,
 }: SessionsModalProps) {
+  const router = useRouter()
+  const { isAuthenticated } = useAuthStore()
+  const openAuthModal = useAuthModalStore(state => state.open)
   const [selectedMonth, setSelectedMonth] = useState<string>('any')
   const [selectedAgeId, setSelectedAgeId] = useState<string>('any')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -101,10 +107,15 @@ export function SessionsModal({
   const selectedSession = sessions.find(s => s.id === selectedId) ?? null
 
   const handleReserve = () => {
-    if (selectedSession) {
-      onSessionSelect(selectedSession)
-      onClose()
+    if (!selectedSession) return
+    onSessionSelect(selectedSession)
+    const bookUrl = `/book/${campSlug}?sessionId=${selectedSession.id}`
+    onClose()
+    if (!isAuthenticated) {
+      openAuthModal({ context: 'book', onSuccess: () => router.push(bookUrl) })
+      return
     }
+    router.push(bookUrl)
   }
 
   const pillClass = (active: boolean) =>
@@ -260,13 +271,13 @@ export function SessionsModal({
                       </p>
                     )}
                   </div>
-                  <a
-                    href={`/book/${campSlug}?sessionId=${selectedSession.id}`}
+                  <button
+                    type="button"
                     onClick={handleReserve}
-                    className="shrink-0 bg-primary hover:brightness-95 text-secondary text-sm font-bold rounded-xl py-3 px-6 transition-all whitespace-nowrap"
+                    className="cursor-pointer shrink-0 bg-primary hover:brightness-95 text-secondary text-sm font-bold rounded-xl py-3 px-6 transition-all whitespace-nowrap"
                   >
                     Reserve →
-                  </a>
+                  </button>
                 </>
               )
             })()

@@ -42,7 +42,7 @@ export const BOOKING_DECLINE_REASON_LABELS: Record<BookingDeclineReason, string>
   [BookingDeclineReason.EligibilityCriteriaNotMet]: 'Enrollment requirements not met',
   [BookingDeclineReason.OperationalInability]: 'Unable to accommodate specific needs',
   [BookingDeclineReason.IncompleteInformation]: 'Incomplete or missing information',
-  [BookingDeclineReason.SafeguardingConcerns]: 'Safety concern',
+  [BookingDeclineReason.SafeguardingConcerns]: 'Safety or safeguarding concern',
   [BookingDeclineReason.Other]: 'Other',
 }
 
@@ -244,6 +244,8 @@ export interface ParentBookingGroupsQuery {
   tab?: ParentBookingTab
   /** Narrow to one status within the current tab group */
   status?: BookingGroupStatus
+  /** Filter to booking groups that include this child */
+  childId?: string
   sortBy?: ParentBookingSortField
   sortOrder?: 'asc' | 'desc'
   page?: number

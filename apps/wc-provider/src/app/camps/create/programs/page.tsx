@@ -68,7 +68,7 @@ export default function ProgramsPage() {
 
   // Expose form validation and submit handler to parent layout
   useEffect(() => {
-    const isFormValid = formData.activities.length > 0
+    const isFormValid = true
 
     useCampsStore.setState({
       wizardFormValid: isFormValid,

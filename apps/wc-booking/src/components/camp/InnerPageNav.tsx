@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ScrollShadow } from '@heroui/react'
 import { cn } from '@world-schools/ui-web'
-import { useAuthStore } from '@/stores/auth-store'
 import { WishlistHeartButton } from '@/components/wishlists/WishlistHeartButton'
 
 interface NavLink {
@@ -33,7 +32,6 @@ function getStickyHeaderOffsetPx() {
 export function InnerPageNav({ links, visible, camp }: InnerPageNavProps) {
   const [activeSection, setActiveSection] = useState('')
   const observerRef = useRef<IntersectionObserver | null>(null)
-  const { isAuthenticated } = useAuthStore()
 
   useEffect(() => {
     const topPx = getStickyHeaderOffsetPx()
@@ -101,7 +99,7 @@ export function InnerPageNav({ links, visible, camp }: InnerPageNavProps) {
             </a>
           ))}
         </ScrollShadow>
-        {isAuthenticated && camp && (
+        {camp && (
           <div className="flex shrink-0 items-center pl-3">
             <WishlistHeartButton
               campId={camp.id}

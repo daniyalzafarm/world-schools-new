@@ -14,9 +14,12 @@ interface WishlistCampCardProps {
   item: WishlistItem
   readOnly?: boolean
   id?: string
+  /** When provided, shows a save heart even in read-only mode and calls this on click
+   *  (used on the public shared-wishlist page to gate saving behind the auth modal). */
+  onSave?: () => void
 }
 
-export function WishlistCampCard({ item, readOnly = false, id }: WishlistCampCardProps) {
+export function WishlistCampCard({ item, readOnly = false, id, onSave }: WishlistCampCardProps) {
   const router = useRouter()
   const [slideIndex, setSlideIndex] = useState(0)
   const { toggleCompare, compareIds, openAddToWishlistModal } = useWishlistsStore()
@@ -198,15 +201,34 @@ export function WishlistCampCard({ item, readOnly = false, id }: WishlistCampCar
         )}
 
         {/* Heart / wishlist button */}
-        {!readOnly && (
+        {(!readOnly || onSave) && (
           <button
             className="cursor-pointer absolute top-2.5 right-2.5 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] transition-transform hover:scale-110 z-10"
-            onClick={handleWishlistClick}
+            onClick={
+              onSave
+                ? e => {
+                    e.stopPropagation()
+                    onSave()
+                  }
+                : handleWishlistClick
+            }
             title="Add to wishlist"
           >
-            <svg className="w-4 h-4 fill-red-500 text-red-500" viewBox="0 0 24 24">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
+            {onSave ? (
+              <svg
+                className="w-4 h-4 text-gray-600"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 fill-red-500 text-red-500" viewBox="0 0 24 24">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+            )}
           </button>
         )}
       </div>

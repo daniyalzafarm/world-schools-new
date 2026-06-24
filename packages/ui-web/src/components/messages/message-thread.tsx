@@ -17,6 +17,8 @@ export interface MessageThreadProps<T extends MessageThreadMessage> {
   renderMessage: (message: T) => React.ReactNode
   /** Send handler; may be async. Input is cleared after send. */
   onSend: (payload: { content: string; attachments: File[] }) => void | Promise<void>
+  /** Called on every input change — used to drive typing indicators. */
+  onType?: (value: string) => void
   /** Show loading skeleton in the message area. */
   isLoading?: boolean
   /** Error message to show with optional retry. */
@@ -44,12 +46,24 @@ export interface MessageThreadProps<T extends MessageThreadMessage> {
   maxAttachments?: number
   /** Maximum combined size of all attachments in bytes. */
   maxTotalAttachmentSizeBytes?: number
+  /** Override the messages container class (default `space-y-4`). Pages that own
+   *  per-message spacing (grouping) pass `space-y-0`. */
+  messagesContainerClassName?: string
+  /** Send button style passed to ChatInput: 'icon' (default) or 'pill' (5B design). */
+  sendVariant?: 'icon' | 'pill'
+  /** Reply context shown above the input. */
+  replyTo?: { sender: string; text: string } | null
+  /** Clear the reply context. */
+  onCancelReply?: () => void
+  /** Custom error state (default = inline red text + Retry button). */
+  renderError?: (error: string, retry?: () => void) => React.ReactNode
 }
 
 export function MessageThread<T extends MessageThreadMessage>({
   messages,
   renderMessage,
   onSend,
+  onType,
   isLoading = false,
   error = null,
   onRetry,
@@ -64,10 +78,20 @@ export function MessageThread<T extends MessageThreadMessage>({
   scrollAreaClassName,
   maxAttachments = 10,
   maxTotalAttachmentSizeBytes = 100 * 1024 * 1024,
+  messagesContainerClassName,
+  sendVariant = 'icon',
+  replyTo,
+  onCancelReply,
+  renderError,
 }: MessageThreadProps<T>) {
   const [inputValue, setInputValue] = useState('')
   const [attachments, setAttachments] = useState<File[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  const handleInputChange = (value: string) => {
+    setInputValue(value)
+    onType?.(value)
+  }
 
   const handleSend = async () => {
     const content = inputValue.trim()
@@ -96,7 +120,10 @@ export function MessageThread<T extends MessageThreadMessage>({
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
-      <div ref={scrollRef} className={cn('flex-1 overflow-y-auto p-6', scrollAreaClassName)}>
+      <div
+        ref={scrollRef}
+        className={cn('flex flex-1 flex-col overflow-y-auto p-6', scrollAreaClassName)}
+      >
         {isLoading &&
           (renderLoading ? (
             renderLoading()
@@ -105,20 +132,27 @@ export function MessageThread<T extends MessageThreadMessage>({
               Loading...
             </div>
           ))}
-        {!isLoading && error && (
-          <div className="flex flex-col items-center justify-center min-h-48 px-4">
-            <p className="text-sm text-red-500 dark:text-red-400 mb-3">{error}</p>
-            {onRetry && (
-              <Button size="sm" color="primary" onPress={onRetry}>
-                Retry
-              </Button>
-            )}
-          </div>
-        )}
+        {!isLoading &&
+          error &&
+          (renderError ? (
+            renderError(error, onRetry)
+          ) : (
+            <div className="flex flex-col items-center justify-center min-h-48 px-4">
+              <p className="text-sm text-red-500 dark:text-red-400 mb-3">{error}</p>
+              {onRetry && (
+                <Button size="sm" color="primary" onPress={onRetry}>
+                  Retry
+                </Button>
+              )}
+            </div>
+          ))}
         {!isLoading && !error && showEmpty && (emptyMessage ?? defaultEmpty)}
         {!isLoading && !error && messages.length > 0 && renderBeforeMessages?.()}
         {!isLoading && !error && messages.length > 0 && (
-          <div className="space-y-4 pb-4">
+          // mt-auto bottom-anchors the thread: short conversations sit just above
+          // the input (so the trailing typing bubble lands there too); long ones
+          // overflow and scroll normally with the newest at the bottom.
+          <div className={cn(messagesContainerClassName ?? 'space-y-4', 'pb-4 mt-auto')}>
             {messages.map(msg => (
               <React.Fragment key={msg.id}>{renderMessage(msg)}</React.Fragment>
             ))}
@@ -128,7 +162,7 @@ export function MessageThread<T extends MessageThreadMessage>({
       </div>
       <ChatInput
         value={inputValue}
-        onChange={setInputValue}
+        onChange={handleInputChange}
         onSend={handleSend}
         placeholder={placeholder}
         disabled={disabled}
@@ -138,6 +172,9 @@ export function MessageThread<T extends MessageThreadMessage>({
         onFilesChange={setAttachments}
         maxAttachments={maxAttachments}
         maxTotalAttachmentSizeBytes={maxTotalAttachmentSizeBytes}
+        sendVariant={sendVariant}
+        replyTo={replyTo}
+        onCancelReply={onCancelReply}
       />
     </div>
   )

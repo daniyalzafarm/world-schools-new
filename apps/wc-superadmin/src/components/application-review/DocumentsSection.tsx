@@ -17,6 +17,7 @@ import {
 import { EMOJI } from '@world-schools/wc-frontend-utils'
 import { useApplicationReviewStore } from '../../stores/application-review-store'
 import type { DocumentReviewStatus, VerificationDocument } from '../../types/application-review'
+import { Can } from '@/components/auth/can'
 
 interface DocumentsSectionProps {
   documents: VerificationDocument[]
@@ -147,9 +148,11 @@ export function DocumentsSection({ documents, providerId: _providerId }: Documen
                 {EMOJI.DOWNLOAD} View
               </Button>
               {doc.reviewStatus === 'pending' && (
-                <Button size="sm" color="primary" onPress={() => handleReviewClick(doc)}>
-                  Review
-                </Button>
+                <Can permission="provider_documents.review">
+                  <Button size="sm" color="primary" onPress={() => handleReviewClick(doc)}>
+                    Review
+                  </Button>
+                </Can>
               )}
             </div>
           </div>

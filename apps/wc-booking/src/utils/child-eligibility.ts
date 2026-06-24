@@ -3,7 +3,11 @@ import {
   getSessionAgeGroups,
   validateChildAgainstCamp,
 } from '@world-schools/wc-utils'
-import type { ChildBookingRange, EligibilityFailureCode } from '@world-schools/wc-types'
+import type {
+  ChildBookingRange,
+  EligibilityFailure,
+  EligibilityFailureCode,
+} from '@world-schools/wc-types'
 import type { Camp } from '@/types/camps'
 import { type Child, getChildAge } from '@/types/child'
 import type { Session } from '@/types/sessions'
@@ -56,9 +60,15 @@ function groupRangesByChild(ranges: ChildBookingRange[]): Map<string, ExistingBo
  * Mirror the backend eligibility gate client-side for instant feedback:
  * real camp age groups + gender + readiness (DOB / emergency contact /
  * residential medical) + the existing-booking date-overlap check (when
- * `childBookingRanges` is supplied). Skill GATEs are evaluated authoritatively
- * by the backend (the FE lacks the child's skill levels), so they're omitted
- * here.
+ * `childBookingRanges` is supplied).
+ *
+ * Skill GATEs are evaluated authoritatively by the backend (the FE lacks the
+ * child's skill levels), so they're not computed here — instead the caller can
+ * pass the backend's per-child skill-gate failures via `skillGateFailuresByChildId`
+ * (fetched once up front from the eligibility-check endpoint). When present they
+ * are merged into the child's reasons and force `isEligible = false`, so a
+ * skill-gated child is greyed out / non-selectable inline rather than only
+ * failing late at Continue.
  *
  * Single source of truth shared by the step-2 ChildrenStep UI, the mobile
  * footer's Continue gate, and the store's auto-select, so all three agree on
@@ -68,7 +78,8 @@ export function getChildrenEligibility(
   camp: Camp | null,
   session: Session | null | undefined,
   children: Child[],
-  childBookingRanges: ChildBookingRange[] = []
+  childBookingRanges: ChildBookingRange[] = [],
+  skillGateFailuresByChildId: Record<string, EligibilityFailure[]> = {}
 ): ChildEligibility[] {
   // Use the selected session's age band — the subset of camp age groups it
   // actually offers — not the camp-wide range, so a child outside the session's
@@ -97,11 +108,15 @@ export function getChildrenEligibility(
       sessionStart,
       { sessionEnd: session?.endDate, existingBookings: rangesByChild.get(child.id) ?? [] }
     )
+    // Server-evaluated skill GATE failures (e.g. "Requires Football level of
+    // 'Intermediate' or higher.") merged in so they render inline alongside the
+    // client-mirrored blockers.
+    const failures = [...result.failures, ...(skillGateFailuresByChildId[child.id] ?? [])]
     return {
       child,
       age,
-      isEligible: result.eligible,
-      ineligibleReasons: result.failures.map(f => {
+      isEligible: failures.length === 0,
+      ineligibleReasons: failures.map(f => {
         const link = REASON_LINKS[f.code]
         return {
           code: f.code,
@@ -119,9 +134,16 @@ export function getEligibleChildIds(
   camp: Camp | null,
   session: Session | null | undefined,
   children: Child[],
-  childBookingRanges: ChildBookingRange[] = []
+  childBookingRanges: ChildBookingRange[] = [],
+  skillGateFailuresByChildId: Record<string, EligibilityFailure[]> = {}
 ): string[] {
-  return getChildrenEligibility(camp, session, children, childBookingRanges)
+  return getChildrenEligibility(
+    camp,
+    session,
+    children,
+    childBookingRanges,
+    skillGateFailuresByChildId
+  )
     .filter(e => e.isEligible)
     .map(e => e.child.id)
 }
@@ -132,10 +154,15 @@ export function hasEligibleSelection(
   session: Session | null | undefined,
   children: Child[],
   selectedChildIds: string[],
-  childBookingRanges: ChildBookingRange[] = []
+  childBookingRanges: ChildBookingRange[] = [],
+  skillGateFailuresByChildId: Record<string, EligibilityFailure[]> = {}
 ): boolean {
   const selected = new Set(selectedChildIds)
-  return getChildrenEligibility(camp, session, children, childBookingRanges).some(
-    e => e.isEligible && selected.has(e.child.id)
-  )
+  return getChildrenEligibility(
+    camp,
+    session,
+    children,
+    childBookingRanges,
+    skillGateFailuresByChildId
+  ).some(e => e.isEligible && selected.has(e.child.id))
 }

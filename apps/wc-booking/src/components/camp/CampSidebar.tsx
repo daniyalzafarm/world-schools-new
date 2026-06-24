@@ -7,6 +7,7 @@ import { ContextType } from '@world-schools/wc-frontend-utils'
 import { isSessionBookable } from '@world-schools/wc-utils'
 import { useAuth } from '../../hooks/use-auth'
 import { useMessagingStore } from '../../stores/messaging-store'
+import { useAuthModalStore } from '../../stores/auth-modal-store'
 import { formatCurrency } from '../../utils/currency'
 import type { Camp } from '../../types/camps'
 import type { Session } from '../../types/sessions'
@@ -156,6 +157,7 @@ export function CampSidebar({
   const router = useRouter()
   const { isAuthenticated, user } = useAuth()
   const { setDraftConversation } = useMessagingStore()
+  const openAuthModal = useAuthModalStore(state => state.open)
   const [selectedMonth, setSelectedMonth] = useState<string>('any')
 
   const activeSessions = sessions.filter(s => s.status === 'published')
@@ -210,21 +212,37 @@ export function CampSidebar({
       : null
 
   const handleMessageOrganizer = () => {
+    const provider = camp.provider
+    if (!provider?.id) return
+
+    const goToMessages = () => {
+      setDraftConversation({
+        providerId: provider.id,
+        providerName: provider.legalCompanyName || 'Provider',
+        participantType: 'provider',
+        contextType: ContextType.CAMP,
+        contextId: camp.id,
+        contextName: camp.name,
+        contextImageUrl: camp.photos?.find(p => p.isPrimary)?.url ?? camp.photos?.[0]?.url,
+      })
+      router.push('/messages')
+    }
+
     if (!isAuthenticated || !user) {
-      router.push(`/login?returnUrl=${encodeURIComponent(`/camp/${camp.slug}`)}`)
+      openAuthModal({ context: 'message', onSuccess: goToMessages })
       return
     }
-    if (!camp.provider?.id) return
 
-    setDraftConversation({
-      providerId: camp.provider.id,
-      providerName: camp.provider.legalCompanyName || 'Provider',
-      participantType: 'provider',
-      contextType: ContextType.CAMP,
-      contextId: camp.id,
-      contextName: camp.name,
-    })
-    router.push('/messages')
+    goToMessages()
+  }
+
+  const handleReserve = (sessionId: string) => {
+    const bookUrl = `/book/${camp.slug}?sessionId=${sessionId}`
+    if (!isAuthenticated || !user) {
+      openAuthModal({ context: 'book', onSuccess: () => router.push(bookUrl) })
+      return
+    }
+    router.push(bookUrl)
   }
 
   return (
@@ -344,12 +362,13 @@ export function CampSidebar({
               </button>
             ) : selectedSession ? (
               <>
-                <Link
-                  href={`/book/${camp.slug}?sessionId=${selectedSession.id}`}
-                  className="block w-full py-4 px-5 bg-primary hover:brightness-95 text-secondary text-base font-bold rounded-xl text-center transition-colors mt-3"
+                <button
+                  type="button"
+                  onClick={() => handleReserve(selectedSession.id)}
+                  className="cursor-pointer block w-full py-4 px-5 bg-primary hover:brightness-95 text-secondary text-base font-bold rounded-xl text-center transition-colors mt-3"
                 >
                   Reserve
-                </Link>
+                </button>
                 <p className="text-xs text-gray-400 text-center mt-2">
                   You won&apos;t be charged yet
                 </p>

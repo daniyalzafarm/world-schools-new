@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useCampsStore } from '@/stores/camps-store'
+import { useAuthStore } from '@/stores/auth-store'
+import { usePermissions } from '@/hooks/use-permissions'
 import { CampEditorSidebar } from '@/components/camps/CampEditorSidebar'
 import { CampEditorTopBar } from '@/components/camps/CampEditorTopBar'
 import { CampEditorFooter } from '@/components/camps/CampEditorFooter'
@@ -19,8 +21,23 @@ function CampEditorLayoutContent({
   children: React.ReactNode
   campId: string
 }) {
+  const router = useRouter()
+  const { isAuthenticated, isInitialized, user } = useAuthStore()
+  const { hasPermission } = usePermissions()
   const { fetchCamp } = useCampsStore()
   const { rightSidebar } = useCampEditorLayout()
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/auth/signin')
+      return
+    }
+    // This editor lives outside the dashboard RouteGuard, so enforce the update permission
+    // here (the API requires camps.update). Wait for auth to initialise to avoid a flash.
+    if (isInitialized && user && !hasPermission('camps.update')) {
+      router.replace('/404')
+    }
+  }, [isAuthenticated, isInitialized, user, hasPermission, router])
 
   useEffect(() => {
     if (campId) {

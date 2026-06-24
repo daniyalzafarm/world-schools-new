@@ -107,8 +107,18 @@ export function KpiCard({
           </div>
           <div className="mt-0.5 text-sm text-default-500">{label}</div>
           {previousValue !== undefined && (
-            <div className="mt-0.5 text-xs text-default-400">
-              {isNewPeriod ? 'No prior-period data' : `vs ${previousValue} prior period`}
+            <div className="mt-1 text-xs text-default-500">
+              {isNewPeriod ? (
+                'No prior-period data'
+              ) : (
+                <>
+                  vs{' '}
+                  <span className="font-semibold text-default-700 dark:text-default-300">
+                    {previousValue}
+                  </span>{' '}
+                  <span className="text-default-400">prior period</span>
+                </>
+              )}
             </div>
           )}
         </div>

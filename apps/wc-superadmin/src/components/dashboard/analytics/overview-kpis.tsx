@@ -1,6 +1,6 @@
 'use client'
 
-import { Banknote, ClipboardList, Coins, TrendingUp, Users } from 'lucide-react'
+import { Banknote, ClipboardList, Coins, Store, TrendingUp, Users } from 'lucide-react'
 import { KpiCard } from '../shared/kpi-card'
 import { CHART_COLORS } from '@/lib/chart-theme'
 import { useCurrencyFormat } from '@/hooks/use-currency-format'
@@ -13,7 +13,7 @@ export function OverviewKpis() {
   const fmtMoney = useCurrencyFormat(currency)
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       <KpiCard
         loading={loading || !overview}
         label="Total GMV"
@@ -75,6 +75,25 @@ export function OverviewKpis() {
         }
         sparkline={overview?.activeParents.sparkline}
         sparklineColor={CHART_COLORS.orange}
+      />
+      <KpiCard
+        loading={loading || !overview}
+        label="Active Providers"
+        value={overview ? overview.activeProviders.value.toLocaleString() : '—'}
+        icon={<Store className="h-5 w-5" />}
+        iconBgClass="bg-red-50 dark:bg-red-900/30"
+        iconColorClass="text-red-600 dark:text-red-300"
+        trendPct={overview?.activeProviders.trendPct}
+        previousValue={
+          overview ? overview.activeProviders.previousValue.toLocaleString() : undefined
+        }
+        isNewPeriod={
+          !!overview &&
+          overview.activeProviders.previousValue === 0 &&
+          overview.activeProviders.value > 0
+        }
+        sparkline={overview?.activeProviders.sparkline}
+        sparklineColor={CHART_COLORS.red}
       />
       <KpiCard
         loading={loading || !overview}

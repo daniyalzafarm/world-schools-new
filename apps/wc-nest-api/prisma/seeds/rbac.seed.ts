@@ -101,6 +101,37 @@ export async function seedRbac(prisma: PrismaClient): Promise<SeedRoleIds> {
     },
   })
 
+  // Keep per-provider "Admin" roles (created via the provider Roles UI) in sync with the
+  // provider context, so newly added permissions propagate to existing admin roles.
+  const scopedAdminRoles = await prisma.role.findMany({
+    where: { name: 'Admin', isSystemRole: true, providerId: { not: null } },
+    select: { id: true },
+  })
+  for (const role of scopedAdminRoles) {
+    for (const permissionId of providerAdminPermissionIds) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: role.id,
+            permissionId,
+          },
+        },
+        update: {},
+        create: {
+          roleId: role.id,
+          permissionId,
+        },
+      })
+    }
+
+    await prisma.rolePermission.deleteMany({
+      where: {
+        roleId: role.id,
+        permissionId: { notIn: providerAdminPermissionIds },
+      },
+    })
+  }
+
   let parentRole = await prisma.role.findFirst({
     where: { name: 'Parent', isSystemRole: true, providerId: null },
   })

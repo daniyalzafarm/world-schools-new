@@ -81,10 +81,11 @@ export class ProfileCompletionService {
    *
    * Formula (matches the Children one in spirit — small, weighted, derived
    * from concrete fields the parent edits in their account settings):
-   *  - Basic contact (40%): User.firstName + lastName + phone
+   *  - Basic contact (35%): User.firstName + lastName + phone
+   *  - Address (15%): User.address + city + country
    *  - Profile photo (10%): User.profilePhotoUrl
-   *  - Nationality (20%): Parent.primaryNationality
-   *  - Languages (15%): Parent.languages[].length ≥ 1
+   *  - Nationality (15%): Parent.primaryNationality
+   *  - Languages (10%): Parent.languages[].length ≥ 1
    *  - At least one child (15%): Children.count ≥ 1
    *
    * Returns the new score; null if the parent row is missing (caller can
@@ -98,17 +99,28 @@ export class ProfileCompletionService {
         primaryNationality: true,
         languages: true,
         profileCompletion: true,
-        user: { select: { firstName: true, lastName: true, phone: true, profilePhotoUrl: true } },
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            phone: true,
+            profilePhotoUrl: true,
+            address: true,
+            city: true,
+            country: true,
+          },
+        },
         _count: { select: { children: { where: { archived: false } } } },
       },
     })
     if (!parent) return null
 
     let score = 0
-    if (parent.user.firstName && parent.user.lastName && parent.user.phone) score += 40
+    if (parent.user.firstName && parent.user.lastName && parent.user.phone) score += 35
+    if (parent.user.address && parent.user.city && parent.user.country) score += 15
     if (parent.user.profilePhotoUrl) score += 10
-    if (parent.primaryNationality) score += 20
-    if (parent.languages.length > 0) score += 15
+    if (parent.primaryNationality) score += 15
+    if (parent.languages.length > 0) score += 10
     if (parent._count.children > 0) score += 15
 
     if (score !== parent.profileCompletion) {

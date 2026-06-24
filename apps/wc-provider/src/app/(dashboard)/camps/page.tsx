@@ -19,6 +19,7 @@ import {
   Users,
 } from 'lucide-react'
 import { PageSlot } from '@/components/layout/page-slot'
+import { Can } from '@/components/auth/can'
 import type { Camp, CampStatus, CampType } from '../../../types/camps'
 import { Input, SelectField, useConfirmDialog, useDebounce } from '@world-schools/ui-web'
 import config from '@/config/config'
@@ -264,13 +265,15 @@ export default function CampsPage() {
             <p className="mt-1 text-slate-500">Manage your camp listings and track performance</p>
           </div>
           <div className="flex gap-3">
-            <Button
-              color="primary"
-              startContent={<Plus className="h-4 w-4" />}
-              onPress={handleCreateCamp}
-            >
-              Add New Camp
-            </Button>
+            <Can permission="camps.create">
+              <Button
+                color="primary"
+                startContent={<Plus className="h-4 w-4" />}
+                onPress={handleCreateCamp}
+              >
+                Add New Camp
+              </Button>
+            </Can>
           </div>
         </header>
 
@@ -569,18 +572,22 @@ export default function CampsPage() {
 
                           {/* Action Buttons */}
                           <div className="mt-4 flex gap-2" onClick={e => e.stopPropagation()}>
-                            <Button
-                              color="primary"
-                              fullWidth
-                              size="sm"
-                              onPress={() => handleEditCamp(camp.id)}
-                              aria-label={
-                                camp.status === 'draft' ? 'Complete camp setup' : 'Edit camp'
-                              }
-                              title={camp.status === 'draft' ? 'Complete camp setup' : 'Edit camp'}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                            <Can permission="camps.update">
+                              <Button
+                                color="primary"
+                                fullWidth
+                                size="sm"
+                                onPress={() => handleEditCamp(camp.id)}
+                                aria-label={
+                                  camp.status === 'draft' ? 'Complete camp setup' : 'Edit camp'
+                                }
+                                title={
+                                  camp.status === 'draft' ? 'Complete camp setup' : 'Edit camp'
+                                }
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </Can>
                             <Button
                               variant="bordered"
                               fullWidth
@@ -592,17 +599,19 @@ export default function CampsPage() {
                               <Eye className="h-4 w-4" />
                             </Button>
                             {camp.status !== 'published' && (
-                              <Button
-                                variant="flat"
-                                color="danger"
-                                fullWidth
-                                size="sm"
-                                onPress={() => handleDeleteCamp(camp.id, camp.name)}
-                                aria-label="Delete camp"
-                                title="Delete camp"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <Can permission="camps.delete">
+                                <Button
+                                  variant="flat"
+                                  color="danger"
+                                  fullWidth
+                                  size="sm"
+                                  onPress={() => handleDeleteCamp(camp.id, camp.name)}
+                                  aria-label="Delete camp"
+                                  title="Delete camp"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </Can>
                             )}
                           </div>
                         </div>

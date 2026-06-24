@@ -22,14 +22,14 @@ const RETURNING_STATUSES: BookingGroupStatus[] = [
  * `ProviderContactProfile` type; keep the two in sync.
  */
 export interface ProviderContactProfile {
-  /** The conversation subject, e.g. "Asking about the French program". */
-  inquirySummary: string | null
   campName: string | null
   isReturning: boolean
   user: {
     firstName: string | null
     lastName: string | null
     profilePhotoUrl: string | null
+    /** Parent's bio (free text), shown under their name in the contact panel. */
+    bio: string | null
     city: string | null
     /** ISO 3166-1 alpha-2 country code. */
     country: string | null
@@ -94,6 +94,7 @@ export class ProviderContactProfileService {
           firstName: true,
           lastName: true,
           profilePhotoUrl: true,
+          bio: true,
           city: true,
           country: true,
         },
@@ -171,13 +172,13 @@ export class ProviderContactProfileService {
     }
 
     return {
-      inquirySummary: conversation.subject ?? null,
       campName: (conversation as { campName?: string | null }).campName ?? null,
       isReturning,
       user: {
         firstName: user.firstName,
         lastName: user.lastName,
         profilePhotoUrl: await this.resolvePhotoUrl(user.profilePhotoUrl),
+        bio: user.bio,
         city: user.city,
         country: user.country,
       },

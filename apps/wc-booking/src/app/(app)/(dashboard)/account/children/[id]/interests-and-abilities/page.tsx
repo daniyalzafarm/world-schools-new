@@ -257,7 +257,7 @@ export default function InterestsAndAbilitiesPage() {
         </div>
         <p className="text-base text-gray-500 dark:text-gray-400">
           Helps us match {child.firstName} with the right camps and group {child.firstName} with
-          peers at her level.
+          peers at {child.gender === 'girl' ? 'her' : 'his'} level.
         </p>
       </div>
 

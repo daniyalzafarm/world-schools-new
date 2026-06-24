@@ -9,6 +9,7 @@ import { useAddOnsStore } from '@/stores/add-ons.store'
 import { useOnboardingStore } from '@/stores/onboarding-store'
 import { AddOnCard } from '@/components/add-ons/add-on-card'
 import { AddOnModal } from '@/components/add-ons/add-on-modal'
+import { Can } from '@/components/auth/can'
 import { ADD_ON_TYPES, type AddOn, type AddOnType } from '@/types/add-ons'
 
 const ADDONS_INFO_BANNER_DISMISSED_KEY = 'wc_provider_addons_info_banner_dismissed'
@@ -105,14 +106,16 @@ export default function AddOnsPage() {
               across all your camps.
             </p>
           </div>
-          <Button
-            color="primary"
-            startContent={<Plus className="h-5 w-5" />}
-            onPress={() => handleOpenModal()}
-            isDisabled={!providerCurrency}
-          >
-            Create Add-on
-          </Button>
+          <Can permission="addons.create">
+            <Button
+              color="primary"
+              startContent={<Plus className="h-5 w-5" />}
+              onPress={() => handleOpenModal()}
+              isDisabled={!providerCurrency}
+            >
+              Create Add-on
+            </Button>
+          </Can>
         </header>
 
         {showInfoBanner && (

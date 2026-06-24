@@ -59,10 +59,7 @@ export const AddressModal: React.FC<AddressModalProps> = ({
       setError('City is required')
       return
     }
-    if (!postalCode.trim()) {
-      setError('Postal code is required')
-      return
-    }
+    // Postal code is optional — many countries don't use one.
     if (!country) {
       setError('Country is required')
       return
@@ -151,7 +148,6 @@ export const AddressModal: React.FC<AddressModalProps> = ({
                 setPostalCode(value)
                 if (error) setError(null)
               }}
-              isRequired
               isDisabled={isSaving}
             />
           </div>

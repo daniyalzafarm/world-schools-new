@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { isSessionBookable } from '@world-schools/wc-utils'
 import { formatCurrency } from '../../utils/currency'
+import { useAuthStore } from '../../stores/auth-store'
+import { useAuthModalStore } from '../../stores/auth-modal-store'
 import type { Session } from '../../types/sessions'
 import type { Camp } from '../../types/camps'
 
@@ -42,6 +44,10 @@ export function MobileStickyFooter({
   onOpenSessionsModal,
   isAnyModalOpen,
 }: MobileStickyFooterProps) {
+  const router = useRouter()
+  const { isAuthenticated } = useAuthStore()
+  const openAuthModal = useAuthModalStore(state => state.open)
+
   // Use MutationObserver to hide footer when any modal is open (body overflow: hidden)
   const [bodyLocked, setBodyLocked] = useState(false)
 
@@ -67,6 +73,16 @@ export function MobileStickyFooter({
     selectedSession?.pricingType === 'age_group' &&
     (selectedSession?.ageGroupPrices?.length ?? 0) > 1
 
+  const handleReserve = () => {
+    if (!selectedSession) return
+    const bookUrl = `/book/${campSlug}?sessionId=${selectedSession.id}`
+    if (!isAuthenticated) {
+      openAuthModal({ context: 'book', onSuccess: () => router.push(bookUrl) })
+      return
+    }
+    router.push(bookUrl)
+  }
+
   return (
     <div
       className={`lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-300 px-5 py-4 shadow-lg z-40 transition-transform duration-200 ${
@@ -87,12 +103,13 @@ export function MobileStickyFooter({
               {getSessionDurationLabel(selectedSession, campType)}
             </div>
           </div>
-          <Link
-            href={`/book/${campSlug}?sessionId=${selectedSession.id}`}
-            className="shrink-0 px-6 py-3 rounded-xl bg-primary hover:brightness-95 text-secondary text-sm font-bold transition-all"
+          <button
+            type="button"
+            onClick={handleReserve}
+            className="cursor-pointer shrink-0 px-6 py-3 rounded-xl bg-primary hover:brightness-95 text-secondary text-sm font-bold transition-all"
           >
             Reserve →
-          </Link>
+          </button>
         </div>
       ) : (
         /* Default state */

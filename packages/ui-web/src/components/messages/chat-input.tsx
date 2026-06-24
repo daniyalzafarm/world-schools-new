@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Textarea } from '@heroui/react'
-import { ArrowUp, Paperclip, X } from 'lucide-react'
+import { ArrowUp, Paperclip, Plus, X } from 'lucide-react'
 import { cn } from '../../utils/cn'
 
 interface ChatInputProps {
@@ -23,6 +23,12 @@ interface ChatInputProps {
   maxAttachments?: number
   /** Maximum combined size of all attachments in bytes. */
   maxTotalAttachmentSizeBytes?: number
+  /** 'icon' (default circular arrow) or 'pill' (5B design: pill container + dark "Send"). */
+  sendVariant?: 'icon' | 'pill'
+  /** Reply context shown above the input. */
+  replyTo?: { sender: string; text: string } | null
+  /** Clear the reply context. */
+  onCancelReply?: () => void
 }
 
 export function ChatInput({
@@ -39,7 +45,11 @@ export function ChatInput({
   onFilesChange,
   maxAttachments = 10,
   maxTotalAttachmentSizeBytes = 100 * 1024 * 1024,
+  sendVariant = 'icon',
+  replyTo,
+  onCancelReply,
 }: ChatInputProps) {
+  const designMode = sendVariant === 'pill'
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const shouldRefocusAfterSendRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -153,7 +163,32 @@ export function ChatInput({
       <div
         className={`w-full ${!isLarge && !fullWidth ? 'md:w-4/5' : ''} ${fullWidth ? 'px-16' : ''} mx-auto`}
       >
-        <div className="relative max-h-40 flex items-end gap-3 bg-white shadow dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-2">
+        {replyTo && (
+          <div className="mb-3 flex items-center gap-3 rounded-lg bg-gray-100 px-3.5 py-2.5 dark:bg-gray-800">
+            <div className="min-w-0 flex-1 border-l-4 border-primary-500 pl-2.5">
+              <div className="text-xs font-semibold text-primary-700">{replyTo.sender}</div>
+              <div className="truncate text-sm text-gray-500 dark:text-gray-400">
+                {replyTo.text}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onCancelReply}
+              aria-label="Cancel reply"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+        <div
+          className={cn(
+            'relative flex max-h-40 bg-white dark:bg-gray-800',
+            designMode
+              ? 'min-h-12 items-center gap-2 rounded-3xl border border-gray-200 py-1 pl-3 pr-1 focus-within:border-gray-500 dark:border-gray-700'
+              : 'items-end gap-3 rounded-2xl border border-gray-200 p-2 shadow dark:border-gray-700'
+          )}
+        >
           {onFilesChange && (
             <div className="self-center">
               <input
@@ -171,10 +206,15 @@ export function ChatInput({
                 variant="light"
                 onPress={handleFileButtonClick}
                 disabled={disabled}
-                className="shrink-0 text-gray-500 dark:text-gray-300"
+                className={cn(
+                  'shrink-0',
+                  designMode
+                    ? 'h-9 w-9 rounded-full bg-gray-100 text-gray-500 hover:bg-primary-50 dark:bg-gray-700 dark:text-gray-300'
+                    : 'text-gray-500 dark:text-gray-300'
+                )}
                 aria-label="Attach files"
               >
-                <Paperclip size={16} />
+                {designMode ? <Plus size={22} /> : <Paperclip size={16} />}
               </Button>
             </div>
           )}
@@ -202,25 +242,53 @@ export function ChatInput({
             }}
           />
 
-          <Button
-            isIconOnly
-            size="sm"
-            onMouseDown={e => {
-              // Prevent the button from taking focus away from the textarea on click
-              e.preventDefault()
-            }}
-            onPress={handleSend}
-            disabled={!canSend}
-            className={cn(
-              'w-8 h-8 rounded-full shrink-0 transition-all duration-200',
-              canSend
-                ? 'bg-secondary text-primary-foreground hover:bg-secondary/90'
-                : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-            )}
-            aria-label="Send message"
-          >
-            <ArrowUp className="text-white" size={16} />
-          </Button>
+          {designMode ? (
+            <>
+              {/* Small screens: compact dark icon button (the text pill is too wide). */}
+              <Button
+                isIconOnly
+                size="sm"
+                onMouseDown={e => e.preventDefault()}
+                onPress={handleSend}
+                disabled={!canSend}
+                className="m-1 h-9 w-9 shrink-0 rounded-full bg-gray-900 text-white transition-opacity duration-150 hover:opacity-90 disabled:opacity-50 sm:hidden"
+                aria-label="Send message"
+              >
+                <ArrowUp className="text-white" size={18} />
+              </Button>
+              {/* sm and up: full dark "Send" pill. */}
+              <Button
+                size="sm"
+                onMouseDown={e => e.preventDefault()}
+                onPress={handleSend}
+                disabled={!canSend}
+                className="m-1 hidden shrink-0 rounded-3xl bg-gray-900 px-6 py-3 text-sm font-semibold text-white transition-opacity duration-150 hover:opacity-90 disabled:opacity-50 sm:inline-flex"
+                aria-label="Send message"
+              >
+                Send
+              </Button>
+            </>
+          ) : (
+            <Button
+              isIconOnly
+              size="sm"
+              onMouseDown={e => {
+                // Prevent the button from taking focus away from the textarea on click
+                e.preventDefault()
+              }}
+              onPress={handleSend}
+              disabled={!canSend}
+              className={cn(
+                'w-8 h-8 rounded-full shrink-0 transition-all duration-200',
+                canSend
+                  ? 'bg-secondary text-primary-foreground hover:bg-secondary/90'
+                  : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+              )}
+              aria-label="Send message"
+            >
+              <ArrowUp className="text-white" size={16} />
+            </Button>
+          )}
         </div>
 
         {attachments && attachments.length > 0 && (

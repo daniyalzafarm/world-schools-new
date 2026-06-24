@@ -1,17 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Alert, Button, Checkbox, Input } from '@heroui/react'
+import { Alert, Button, Checkbox } from '@heroui/react'
+import { Input } from '@world-schools/ui-web'
 import { AlertTriangle } from 'lucide-react'
 import type { CreateRoleData, Role } from '@/types/roles'
 import { getPermissions, type PermissionGroup } from '@/services/permissions.services'
 import {
-  getGroupKeyForPermission,
-  getNavigationPermission,
-  isNavigationPermission,
-  NAVIGATION_PERMISSIONS,
-  type NavigationPermissionConfig,
-} from '@/config/navigation-permissions'
+  getGroupNavigationPermission,
+  getNavigationPermissionForPermission,
+  isGroupNavigationPermission,
+} from '@world-schools/wc-frontend-utils'
 
 interface RoleFormProps {
   role?: Role | null
@@ -102,13 +101,10 @@ export function RoleForm({
     if (checked) {
       newSelectedPermissions.add(permissionId)
 
-      // Auto-select navigation permission for this group if not already selected
-      const groupKey = getGroupKeyForPermission(permissionId)
-      if (groupKey) {
-        const navPermission = getNavigationPermission(groupKey)
-        if (navPermission && !newSelectedPermissions.has(navPermission)) {
-          newSelectedPermissions.add(navPermission)
-        }
+      // Auto-select navigation (read) permission for this group if not already selected
+      const navPermission = getNavigationPermissionForPermission(permissionGroups, permissionId)
+      if (navPermission && !newSelectedPermissions.has(navPermission)) {
+        newSelectedPermissions.add(navPermission)
       }
     } else {
       newSelectedPermissions.delete(permissionId)
@@ -172,8 +168,7 @@ export function RoleForm({
   }
 
   const hasNavigationPermissions = (group: PermissionGroup): boolean => {
-    const groupKey = group.name.toLowerCase().replace(/\s+/g, '_')
-    const navPermission = getNavigationPermission(groupKey)
+    const navPermission = getGroupNavigationPermission(group)
     if (!navPermission) return false
     return selectedPermissions.has(navPermission)
   }
@@ -181,36 +176,31 @@ export function RoleForm({
   const validateNavigationPermissions = (): { [groupName: string]: string } => {
     const navigationErrors: { [groupName: string]: string } = {}
 
-    Object.entries(NAVIGATION_PERMISSIONS).forEach(
-      ([groupKey, config]: [string, NavigationPermissionConfig]) => {
-        const { navigationPermission, label, groupPermissions } = config
+    permissionGroups.forEach(group => {
+      const navigationPermission = getGroupNavigationPermission(group)
+      if (!navigationPermission) return
 
-        if (!groupPermissions) return
+      const hasNonNavPermissions = group.permissions.some(
+        p => p.id !== navigationPermission && selectedPermissions.has(p.id)
+      )
 
-        const hasNonNavPermissions = groupPermissions.some(
-          permId => permId !== navigationPermission && selectedPermissions.has(permId)
-        )
+      const hasNavPermission = selectedPermissions.has(navigationPermission)
 
-        const hasNavPermission = selectedPermissions.has(navigationPermission)
+      if (hasNonNavPermissions && !hasNavPermission) {
+        const navPermissionName =
+          group.permissions.find(p => p.id === navigationPermission)?.name || 'Read'
 
-        if (hasNonNavPermissions && !hasNavPermission) {
-          const navPermissionName =
-            permissionGroups.flatMap(g => g.permissions).find(p => p.id === navigationPermission)
-              ?.name || 'Read'
-
-          navigationErrors[groupKey] =
-            `Navigation permission required: You have selected permissions from the '${label}' group but haven't selected '${navPermissionName}' which is required for navigation access. Please select '${navPermissionName}' or deselect all other permissions from this group.`
-        }
+        navigationErrors[group.name] =
+          `Navigation permission required: You have selected permissions from the '${group.name}' group but haven't selected '${navPermissionName}' which is required for navigation access. Please select '${navPermissionName}' or deselect all other permissions from this group.`
       }
-    )
+    })
 
     return navigationErrors
   }
 
   const getNavigationError = (group: PermissionGroup): string | null => {
-    const groupKey = group.name.toLowerCase().replace(/\s+/g, '_')
     const navigationErrors = validateNavigationPermissions()
-    return navigationErrors[groupKey] || null
+    return navigationErrors[group.name] || null
   }
 
   const handleSubmit = async () => {
@@ -262,8 +252,6 @@ export function RoleForm({
           <div className="space-y-4">
             {permissionGroups.map(group => {
               const hasNavPermissions = hasNavigationPermissions(group)
-              const groupKey = group.name.toLowerCase().replace(/\s+/g, '_')
-              const _navPermission = getNavigationPermission(groupKey)
               const navError = getNavigationError(group)
 
               return (
@@ -314,7 +302,7 @@ export function RoleForm({
                   </div>
                   <div className="grid grid-cols-2 gap-2 ml-6">
                     {group.permissions.map(permission => {
-                      const isNavPermission = isNavigationPermission(permission.id)
+                      const isNavPermission = isGroupNavigationPermission(group, permission.id)
 
                       return (
                         <Checkbox

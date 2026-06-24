@@ -9,6 +9,7 @@ import { cn } from '@world-schools/ui-web'
 import { Logo } from '@/components/layout/logo'
 import { Sidebar } from '@/components/layout/sidebar'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAuthModalStore } from '@/stores/auth-modal-store'
 import config from '@/config/config'
 
 const PROVIDER_LIST_CAMP_URL = 'https://www.worldcamps.com'
@@ -26,6 +27,7 @@ const GUEST_DRAWER_LINKS: GuestLink[] = [
 
 function CampDrawerGuestPanel({ onClose }: { onClose: () => void }) {
   const router = useRouter()
+  const openAuthModal = useAuthModalStore(state => state.open)
 
   const handleLink = (href: string, external?: boolean) => {
     if (external) {
@@ -60,7 +62,7 @@ function CampDrawerGuestPanel({ onClose }: { onClose: () => void }) {
           color="secondary"
           onPress={() => {
             onClose()
-            router.push('/auth/signup')
+            openAuthModal({ view: 'signup' })
           }}
         >
           Sign up
@@ -69,7 +71,7 @@ function CampDrawerGuestPanel({ onClose }: { onClose: () => void }) {
           variant="bordered"
           onPress={() => {
             onClose()
-            router.push('/auth/signin')
+            openAuthModal({ view: 'signin' })
           }}
         >
           Log in

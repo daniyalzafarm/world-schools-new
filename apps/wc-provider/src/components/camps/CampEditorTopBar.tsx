@@ -7,6 +7,7 @@ import { Eye } from 'lucide-react'
 import { useCampsStore } from '../../stores/camps-store'
 import * as campsService from '../../services/camps.services'
 import config from '../../config/config'
+import { Can } from '@/components/auth/can'
 
 interface CampEditorTopBarProps {
   campId: string
@@ -29,6 +30,7 @@ export function CampEditorTopBar({ campId }: CampEditorTopBarProps) {
       title: 'Success',
       description: 'Camp published successfully!',
       color: 'success',
+      timeout: 3000,
     })
     router.push('/camps')
   }
@@ -91,16 +93,18 @@ export function CampEditorTopBar({ campId }: CampEditorTopBarProps) {
           Preview
         </Button>
 
-        {/* Publish Button - Only show if not published */}
+        {/* Publish Button - Only show if not published and user may publish */}
         {canPublish && (
-          <Button
-            color="primary"
-            onPress={handlePublish}
-            isDisabled={isPublishing || hasUnsavedChanges}
-            isLoading={isPublishing}
-          >
-            Publish
-          </Button>
+          <Can permission="camps.publish">
+            <Button
+              color="primary"
+              onPress={handlePublish}
+              isDisabled={isPublishing || hasUnsavedChanges}
+              isLoading={isPublishing}
+            >
+              Publish
+            </Button>
+          </Can>
         )}
       </div>
     </div>

@@ -32,7 +32,7 @@ export class ProviderReviewsController {
   }
 
   @Put(':reviewId/response')
-  @Permissions('camps.manage')
+  @Permissions('camps.update')
   @ApiOperation({ summary: 'Create or update a camp response to a parent review' })
   async respond(
     @CurrentUser() user: any,
@@ -49,7 +49,7 @@ export class ProviderReviewsController {
   }
 
   @Delete(':reviewId/response')
-  @Permissions('camps.manage')
+  @Permissions('camps.update')
   @ApiOperation({ summary: 'Delete a camp response to a parent review' })
   async deleteResponse(@CurrentUser() user: any, @Param('reviewId') reviewId: string) {
     const result = await this.providerReviewsService.deleteResponse(

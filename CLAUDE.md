@@ -13,14 +13,14 @@
 
 ## Apps
 
-| App                   | Type       | Description                            |
-| --------------------- | ---------- | -------------------------------------- |
-| `wc-booking`          | Next.js    | World Camps booking frontend           |
-| `wc-provider`         | Vite/React | World Camps provider portal            |
-| `wc-superadmin`       | Vite/React | World Camps super admin dashboard      |
-| `wc-nest-api`         | NestJS     | World Camps backend API                |
-| `schoolable-nest-api` | NestJS     | Backend API for the Schoolable product |
-| `schoolable-web`      | Next.js    | Frontend for the Schoolable product    |
+| App                   | Type    | Description                            |
+| --------------------- | ------- | -------------------------------------- |
+| `wc-booking`          | Next.js | World Camps booking frontend           |
+| `wc-provider`         | Next.js | World Camps provider portal            |
+| `wc-superadmin`       | Next.js | World Camps super admin dashboard      |
+| `wc-nest-api`         | NestJS  | World Camps backend API                |
+| `schoolable-nest-api` | NestJS  | Backend API for the Schoolable product |
+| `schoolable-web`      | Next.js | Frontend for the Schoolable product    |
 
 ## Shared Packages
 

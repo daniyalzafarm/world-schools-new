@@ -1573,6 +1573,11 @@ model Conversation {
   contextId   String?      @map("context_id")
   metadata    Json?
 
+  // Per-(parent, provider, camp) uniqueness key for USER_PROVIDER threads.
+  // Null for non-provider conversations (Postgres allows multiple NULLs under
+  // a unique index). See buildProviderConversationKey() in conversations.service.
+  dedupeKey String? @unique @map("dedupe_key")
+
   // Assignment (GAP 12)
   assignedToId String?   @map("assigned_to_id")
   assignedAt   DateTime? @map("assigned_at")
@@ -1628,6 +1633,9 @@ model ConversationParticipant {
   // Read tracking
   lastReadAt  DateTime? @map("last_read_at")
   unreadCount Int       @default(0) @map("unread_count")
+  // User explicitly marked the conversation unread (WhatsApp-style): shows as
+  // unread even with zero unread messages; cleared when the conversation is opened.
+  manuallyUnread Boolean @default(false) @map("manually_unread")
 
   // Auto-response settings (GAP 17)
   autoResponseEnabled Boolean   @default(false) @map("auto_response_enabled")

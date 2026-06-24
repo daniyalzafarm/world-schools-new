@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useMessagingStore } from '@/stores/messaging-store'
+import { useAuthModalStore } from '@/stores/auth-modal-store'
 import { ContextType } from '@world-schools/wc-frontend-utils'
 import { getInitials } from '@world-schools/ui-web'
 import { Button } from '@heroui/react'
@@ -64,10 +65,11 @@ function formatReplyTime(minutes: number): string {
   return '24h+'
 }
 
-export function ProviderSection({ provider, campId, campSlug, campTitle }: ProviderSectionProps) {
+export function ProviderSection({ provider, campId, campTitle }: ProviderSectionProps) {
   const router = useRouter()
   const { isAuthenticated, user } = useAuth()
   const { setDraftConversation } = useMessagingStore()
+  const openAuthModal = useAuthModalStore(state => state.open)
 
   const {
     legalCity,
@@ -90,21 +92,25 @@ export function ProviderSection({ provider, campId, campSlug, campTitle }: Provi
   const totalCamps = _count?.camps ?? 1
 
   const handleMessageOrganizer = () => {
+    const goToMessages = () => {
+      setDraftConversation({
+        providerId: provider.id,
+        providerName: provider.legalCompanyName || 'Provider',
+        participantType: 'provider',
+        contextType: campId ? ContextType.CAMP : undefined,
+        contextId: campId,
+        contextName: campTitle,
+        contextImageUrl: provider.logoUrl ?? undefined,
+      })
+      router.push('/messages')
+    }
+
     if (!isAuthenticated || !user) {
-      router.push(
-        `/login?returnUrl=${encodeURIComponent(campSlug ? `/camp/${campSlug}` : window.location.pathname)}`
-      )
+      openAuthModal({ context: 'message', onSuccess: goToMessages })
       return
     }
-    setDraftConversation({
-      providerId: provider.id,
-      providerName: provider.legalCompanyName || 'Provider',
-      participantType: 'provider',
-      contextType: campId ? ContextType.CAMP : undefined,
-      contextId: campId,
-      contextName: campTitle,
-    })
-    router.push('/messages')
+
+    goToMessages()
   }
 
   return (

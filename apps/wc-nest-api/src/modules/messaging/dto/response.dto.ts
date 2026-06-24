@@ -46,6 +46,7 @@ export class ParticipantResponseDto {
   muted: boolean
   archived: boolean
   unreadCount: number
+  manuallyUnread: boolean
   lastReadAt: Date | null
   joinedAt: Date
   user?: UserResponseDto

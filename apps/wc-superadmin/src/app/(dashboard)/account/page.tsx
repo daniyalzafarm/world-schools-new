@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, ChevronRight, MapPin, Phone, Shield, User } from 'lucide-react'
 import { profileService, type UserProfile } from '@/services/profile.services'
-import { getCountryName, UserAvatar } from '@world-schools/ui-web'
+import { getCountryName, ProfileCompletionBanner, UserAvatar } from '@world-schools/ui-web'
 
 interface QuickLink {
   title: string
@@ -78,6 +78,34 @@ export default function AccountHubPage() {
     return city || country || 'Location not set'
   }
 
+  // Admins are plain Users with no backend completeness score, so derive it
+  // client-side from the fields they actually manage.
+  const completionItems = [
+    {
+      label: 'your name',
+      done: Boolean(profileData?.firstName && profileData?.lastName),
+      href: '/account/profile/personal-info',
+    },
+    {
+      label: 'profile photo',
+      done: Boolean(profileData?.profilePhotoUrl),
+      href: '/account/profile/personal-info',
+    },
+    {
+      label: 'phone',
+      done: Boolean(profileData?.phone),
+      href: '/account/profile/contact-details',
+    },
+    {
+      label: 'address',
+      done: Boolean(profileData?.address && profileData?.city && profileData?.country),
+      href: '/account/profile/contact-details',
+    },
+  ]
+  const completedCount = completionItems.filter(item => item.done).length
+  const profileCompletion = Math.round((completedCount / completionItems.length) * 100)
+  const missingItems = completionItems.filter(item => !item.done)
+
   return (
     <>
       <div className="mb-10">
@@ -110,6 +138,15 @@ export default function AccountHubPage() {
           </>
         )}
       </div>
+
+      {!isLoading && (
+        <ProfileCompletionBanner
+          completion={profileCompletion}
+          missingItems={missingItems}
+          onNavigate={router.push}
+          dismissStorageKey="wc_superadmin_account_profile_complete_banner_dismissed"
+        />
+      )}
 
       <div className="mb-6">
         <div className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">

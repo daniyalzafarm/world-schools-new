@@ -94,7 +94,6 @@ export class UpdateCampAudienceDto {
 }
 
 export class UpdateCampProgramsDto {
-  @IsNotEmpty()
   @IsString({ each: true })
   activities: string[]
 }

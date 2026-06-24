@@ -21,6 +21,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger'
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator'
+import { Permissions } from '../../core/auth/decorators/permissions.decorator'
+import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
 import { ConversationAccessGuard } from '../../messaging/guards/conversation-access.guard'
 import { ConversationsService } from '../../messaging/services/conversations.service'
 import { ProviderContactProfileService } from './provider-contact-profile.service'
@@ -53,6 +55,11 @@ import {
 @ApiTags('Provider Messaging - Conversations')
 @ApiBearerAuth()
 @Controller('provider/messaging/conversations')
+// Messaging is gated on the Messaging permission: only provider users who hold
+// messages.read or messages.write may view/reply. Org-wide visibility (all of
+// the provider's conversations) is enforced in ConversationsService.
+@UseGuards(RolesOrPermissionsGuard)
+@Permissions('messages.read', 'messages.write')
 export class ProviderConversationsController {
   private readonly logger = new Logger(ProviderConversationsController.name)
 
@@ -160,22 +167,6 @@ export class ProviderConversationsController {
         hasMore,
       },
     }
-  }
-
-  /**
-   * Get unread conversation count (excluding support tickets)
-   */
-  @Get('unread-count')
-  @ApiOperation({
-    summary: 'Get unread conversation count',
-    description:
-      'Returns the number of conversations with unread messages, excluding support ticket conversations.',
-  })
-  @ApiResponse({ status: 200, description: 'Unread conversation count retrieved successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getUnreadConversationsCount(@CurrentUser('id') currentUserId: string) {
-    const count = await this.conversationsService.getPersonalUnreadConversationsCount(currentUserId)
-    return { success: true, data: { count } }
   }
 
   /**
@@ -310,6 +301,33 @@ export class ProviderConversationsController {
     return {
       success: true,
       message: 'All messages marked as read successfully',
+    }
+  }
+
+  @Post(':id/mark-unread')
+  @UseGuards(ConversationAccessGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Mark a conversation as unread',
+    description:
+      'Marks the conversation as unread for the current user (shows as unread even with no unread messages). User must be a participant.',
+  })
+  @ApiParam({ name: 'id', description: 'Conversation ID', type: String })
+  @ApiResponse({ status: 200, description: 'Conversation marked as unread successfully' })
+  @ApiResponse({ status: 404, description: 'Conversation not found' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Not a participant' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async markConversationAsUnread(
+    @Param('id') conversationId: string,
+    @CurrentUser('id') currentUserId: string
+  ) {
+    this.logger.log(`Marking conversation ${conversationId} as unread`)
+
+    await this.conversationsService.markConversationUnread(conversationId, currentUserId)
+
+    return {
+      success: true,
+      message: 'Conversation marked as unread successfully',
     }
   }
 

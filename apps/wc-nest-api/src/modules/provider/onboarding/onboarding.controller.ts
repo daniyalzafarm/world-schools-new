@@ -14,8 +14,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express'
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard'
-import { RolesOrPermissionsGuard } from '../../core/auth/guards/roles-or-permissions.guard'
-import { Roles } from '../../core/auth/decorators/roles.decorator'
+import { ProviderAccessGuard } from '../../core/auth/guards/provider-access.guard'
+import { ProviderAccess } from '../../core/auth/decorators/provider-access.decorator'
 import { ResponseUtil } from '../../../common/utils/response.util'
 
 // Services
@@ -39,7 +39,8 @@ import { UploadDocumentDto } from './dto/document-upload.dto'
 @ApiTags('Provider Onboarding')
 @ApiBearerAuth()
 @Controller('provider/onboarding')
-@UseGuards(JwtAuthGuard, RolesOrPermissionsGuard)
+@UseGuards(JwtAuthGuard, ProviderAccessGuard)
+@ProviderAccess('admin')
 export class OnboardingController {
   constructor(
     private readonly onboardingService: OnboardingService,
@@ -56,7 +57,6 @@ export class OnboardingController {
    * Get onboarding status
    */
   @Get('status')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Get onboarding status' })
   async getStatus(@Request() req: any) {
     const providerId = req.user.providerId
@@ -71,7 +71,6 @@ export class OnboardingController {
    * frontend.
    */
   @Get('calculator-config')
-  @Roles('Provider Admin')
   @ApiOperation({
     summary: 'Get currency + app fee percentage for onboarding calculators',
     description:
@@ -89,7 +88,6 @@ export class OnboardingController {
    * Get trust score breakdown (debug endpoint)
    */
   @Get('trust-score/breakdown')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Get detailed trust score breakdown' })
   async getTrustScoreBreakdown(@Request() req: any) {
     const providerId = req.user.providerId
@@ -101,7 +99,7 @@ export class OnboardingController {
    * Step 1: Get Google Business Profile and Legal Business Information
    */
   @Get('find-your-camp/profile')
-  @Roles('Provider Admin')
+  @ProviderAccess('member')
   @ApiOperation({ summary: 'Get saved Google Business Profile and legal business information' })
   async getGoogleBusinessProfile(@Request() req: any) {
     const providerId = req.user.providerId
@@ -121,7 +119,6 @@ export class OnboardingController {
    * Note: Business search is now handled client-side via Google Places Autocomplete
    */
   @Post('find-your-camp/save')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Save selected Google Business Profile and legal business information' })
   async saveGoogleBusinessProfile(@Request() req: any, @Body() dto: SaveGoogleBusinessProfileDto) {
     const providerId = req.user.providerId
@@ -153,7 +150,6 @@ export class OnboardingController {
    * Used by the account page — works for both onboarded and CSV-imported providers.
    */
   @Patch('find-your-camp/legal-info')
-  @Roles('Provider Admin')
   @ApiOperation({
     summary: 'Update company legal details without changing the Google Business Profile',
   })
@@ -168,7 +164,6 @@ export class OnboardingController {
    * Step 2: Get Contact & Legal Info
    */
   @Get('contact/info')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Get saved contact and legal information' })
   async getContactInfo(@Request() req: any) {
     const providerId = req.user.providerId
@@ -180,7 +175,6 @@ export class OnboardingController {
    * Step 1: Save Contact & Legal Info
    */
   @Post('contact/save')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Save contact and legal information' })
   async saveContactInfo(@Request() req: any, @Body() dto: SaveContactInfoDto) {
     const providerId = req.user.providerId
@@ -193,7 +187,6 @@ export class OnboardingController {
    * Step 3: Get Camp Info
    */
   @Get('about-your-camp/info')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Get saved camp information' })
   async getCampInfo(@Request() req: any) {
     const providerId = req.user.providerId
@@ -205,7 +198,6 @@ export class OnboardingController {
    * Step 3: Save Camp Info
    */
   @Post('about-your-camp/save')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Save camp information' })
   async saveCampInfo(@Request() req: any, @Body() dto: SaveCampInfoDto) {
     const providerId = req.user.providerId
@@ -222,7 +214,6 @@ export class OnboardingController {
    * Step 4: Upload Document
    */
   @Post('verification/upload')
-  @Roles('Provider Admin')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Upload verification document' })
   @ApiConsumes('multipart/form-data')
@@ -285,7 +276,6 @@ export class OnboardingController {
    * Step 4: Get Documents
    */
   @Get('verification/documents')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Get all uploaded documents' })
   async getDocuments(@Request() req: any) {
     const providerId = req.user.providerId
@@ -297,7 +287,6 @@ export class OnboardingController {
    * Step 4: Complete Step (advance to Step 5)
    */
   @Post('verification/complete')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Complete document upload step and advance to Step 5' })
   async completeStep4(@Request() req: any) {
     const providerId = req.user.providerId
@@ -311,7 +300,6 @@ export class OnboardingController {
    * Step 4: Delete Document
    */
   @Delete('verification/documents/:documentId')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Delete a document' })
   async deleteDocument(@Request() req: any, @Param('documentId') documentId: string) {
     const providerId = req.user.providerId
@@ -327,7 +315,6 @@ export class OnboardingController {
    * Step 5: Get Deposit Settings
    */
   @Get('deposit-settings/info')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Get deposit settings' })
   async getDepositSettings(@Request() req: any) {
     const providerId = req.user.providerId
@@ -339,7 +326,6 @@ export class OnboardingController {
    * Step 5: Save Deposit Settings (automatically advances to Step 6)
    */
   @Post('deposit-settings/save')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Save deposit settings and advance to Step 6' })
   async saveDepositSettings(@Request() req: any, @Body() dto: SaveDepositSettingsDto) {
     const providerId = req.user.providerId
@@ -352,7 +338,6 @@ export class OnboardingController {
    * Note: Deposit settings are retrieved separately via /deposit-settings/info endpoint
    */
   @Get('payment-policies/settings')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Get saved cancellation policy settings' })
   async getSettings(@Request() req: any) {
     const providerId = req.user.providerId
@@ -366,7 +351,6 @@ export class OnboardingController {
    * This endpoint automatically advances to Step 7 (Review) after saving
    */
   @Post('payment-policies/save')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Save cancellation policy settings and advance to Step 7' })
   async saveSettings(@Request() req: any, @Body() dto: SaveProviderSettingsDto) {
     const providerId = req.user.providerId
@@ -383,7 +367,7 @@ export class OnboardingController {
    * Provider Logo: Get current logo URL
    */
   @Get('logo')
-  @Roles('Provider Admin')
+  @ProviderAccess('member')
   @ApiOperation({ summary: 'Get provider logo URL' })
   async getProviderLogo(@Request() req: any) {
     const providerId = req.user.providerId
@@ -398,7 +382,6 @@ export class OnboardingController {
    * Provider Logo: Upload logo
    */
   @Patch('logo')
-  @Roles('Provider Admin')
   @UseInterceptors(FileInterceptor('logo'))
   @ApiOperation({ summary: 'Upload provider logo' })
   @ApiConsumes('multipart/form-data')
@@ -425,7 +408,6 @@ export class OnboardingController {
    * Provider Logo: Delete logo
    */
   @Delete('logo')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Delete provider logo' })
   async deleteProviderLogo(@Request() req: any) {
     const providerId = req.user.providerId
@@ -441,7 +423,6 @@ export class OnboardingController {
    * Validate Onboarding Completion
    */
   @Get('validate')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Validate onboarding completion before submission' })
   async validateOnboarding(@Request() req: any) {
     const providerId = req.user.providerId
@@ -453,7 +434,6 @@ export class OnboardingController {
    * Complete Onboarding
    */
   @Post('complete')
-  @Roles('Provider Admin')
   @ApiOperation({ summary: 'Complete onboarding and submit for review' })
   async completeOnboarding(@Request() req: any) {
     const providerId = req.user.providerId

@@ -41,7 +41,7 @@ export default function ProgramsEditorPage() {
   }, [currentCamp])
 
   useAutosave(formData, {
-    enabled: isLoaded && formData.activities.length > 0,
+    enabled: isLoaded,
     save: async data => {
       await updateCampPrograms(campId, data)
       if (!useCampsStore.getState().error) {

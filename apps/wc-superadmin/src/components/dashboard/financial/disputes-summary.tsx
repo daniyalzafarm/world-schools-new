@@ -5,6 +5,7 @@ import { ChartCard } from '../shared/chart-card'
 import { DonutChart } from '../charts/donut-chart'
 import { CHART_COLORS, formatStatusLabel, STATUS_COLOR_MAP } from '@/lib/chart-theme'
 import { formatAmount, useCurrencyFormat } from '@/hooks/use-currency-format'
+import { pluralize } from '@/lib/format'
 import { useFinancialStore } from '@/stores/financial-store'
 
 export function DisputesSummary() {
@@ -30,7 +31,7 @@ export function DisputesSummary() {
       title="Dispute Activity"
       description={
         disputes
-          ? `${disputes.totalDisputes} disputes · ${disputes.openDisputeRate}% open rate`
+          ? `${disputes.totalDisputes} ${pluralize(disputes.totalDisputes, 'dispute')} · ${disputes.openDisputeRate}% open rate`
           : ''
       }
       loading={loading}
@@ -58,7 +59,7 @@ export function DisputesSummary() {
                       {row.currency}
                     </div>
                     <div className="text-default-500">
-                      {row.count} disputes · {row.openRate}% rate
+                      {row.count} {pluralize(row.count, 'dispute')} · {row.openRate}% rate
                     </div>
                     <div className="font-semibold">{formatAmount(row.amount, row.currency)}</div>
                   </li>
