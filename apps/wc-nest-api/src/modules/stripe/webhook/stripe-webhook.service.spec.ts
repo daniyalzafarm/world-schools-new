@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { DisputesService } from '../../billing/disputes/disputes.service'
 import { PaymentIntentsService } from '../../billing/intents/payment-intents.service'
@@ -75,6 +76,7 @@ describe('StripeWebhookService', () => {
         { provide: RefundsService, useValue: refundsService },
         { provide: PayoutsService, useValue: payoutsService },
         { provide: DisputesService, useValue: disputesService },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
 
@@ -211,6 +213,8 @@ describe('StripeWebhookService', () => {
           stripePayoutsEnabled: false,
           stripeDetailsSubmitted: false,
           stripeAttentionRequired: false,
+          stripeAccountDisconnectedAt: expect.any(Date),
+          stripeAccountDisconnectedReason: 'stripe_webhook_deauthorized',
         },
       })
       const data = prisma.provider.update.mock.calls[0][0].data

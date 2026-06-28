@@ -58,6 +58,9 @@ describe('MessagingWebSocketHandler — security checks', () => {
   }
 
   const mockRedisService: any = {
+    // `null` = cache miss, so canAccessConversation computes the result fresh.
+    get: jest.fn().mockResolvedValue(null),
+    setex: jest.fn().mockResolvedValue('OK'),
     getClient: jest.fn().mockReturnValue({ set: jest.fn(), del: jest.fn() }),
   }
 
@@ -155,7 +158,7 @@ describe('MessagingWebSocketHandler — security checks', () => {
       expect(mockWsService.emitToRoom).not.toHaveBeenCalled()
     })
 
-    it('calls markAsRead and emits receipt when user IS a participant', async () => {
+    it('calls markAsRead when user IS a participant', async () => {
       mockPrisma.conversationParticipant.findFirst.mockResolvedValue({ id: 'p-1' })
       mockMessagesService.markAsRead.mockResolvedValue(undefined)
 
@@ -168,11 +171,8 @@ describe('MessagingWebSocketHandler — security checks', () => {
       expect(mockMessagesService.markAsRead).toHaveBeenCalledWith(
         expect.objectContaining({ messageId: MSG_ID, userId: USER_ID })
       )
-      expect(mockWsService.emitToRoom).toHaveBeenCalledWith(
-        `conversation:${CONV_ID}`,
-        expect.any(String),
-        expect.objectContaining({ messageId: MSG_ID })
-      )
+      // The receipt broadcast is emitted by Redis pub/sub inside markAsRead(),
+      // not by the handler — see messages.service.spec for that assertion.
     })
   })
 
