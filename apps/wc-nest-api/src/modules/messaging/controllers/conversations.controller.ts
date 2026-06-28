@@ -476,7 +476,7 @@ export class ConversationsController {
   }
 
   /**
-   * ✅ PHASE 5 FIX: Get cache metrics for monitoring
+   * Get cache metrics for monitoring
    * Admin-only endpoint for monitoring Redis cache health
    */
   @Get('cache/metrics')

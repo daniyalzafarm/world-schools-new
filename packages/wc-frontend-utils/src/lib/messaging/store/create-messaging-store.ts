@@ -439,7 +439,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             )
           }
 
-          // Phase D: Set up global WebSocket adapter event listeners for typing/presence/receipts
+          // Set up global WebSocket adapter event listeners for typing/presence/receipts
           if (featureFlags.WEBSOCKET_MESSAGES) {
             log('Setting up global WebSocket adapter typing/presence/receipt listeners')
 
@@ -672,7 +672,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             )
           )
 
-          // Phase 3.2: Initialize message queue for offline support
+          // Initialize message queue for offline support
           if (featureFlags.WEBSOCKET_MESSAGES) {
             log('Initializing message queue for offline support')
             messageQueue.load()
@@ -1252,7 +1252,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
         })
 
         try {
-          // ✅ Phase 3: Route message via WebSocket when feature flag enabled and connected.
+          // Route message via WebSocket when feature flag enabled and connected.
           // Exception: replies go via HTTP — the WS send payload doesn't carry
           // replyToId, so a reply sent over WS loses its quoted context. The HTTP
           // path forwards the full dto (replyToId included) and the server still

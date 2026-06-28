@@ -117,7 +117,7 @@ export class SuperAdminProvidersController {
     return ResponseUtil.success(settings)
   }
 
-  // M3 audit fix: the superadmin Provider delete endpoint is removed.
+  // The superadmin Provider delete endpoint is removed.
   // Providers are not deletable once onboarding completes — they carry the
   // foreign-key spine for every Payment / Booking / Payout / Refund /
   // Reimbursement in the system, and deleting one would cascade across the

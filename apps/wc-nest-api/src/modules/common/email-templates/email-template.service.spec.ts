@@ -2,11 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { EmailTemplateService } from './email-template.service'
 
 /**
- * Covers the Phase 3 payment-template escapes plus the Phase 10 backfill
+ * Covers the payment-template escapes plus the backfill
  * onto the legacy templates (verification, application emails, provider
  * import welcome, 2FA login).
  */
-describe('EmailTemplateService — payment templates (Phase 3)', () => {
+describe('EmailTemplateService — payment templates', () => {
   let service: EmailTemplateService
 
   beforeEach(async () => {
@@ -80,7 +80,7 @@ describe('EmailTemplateService — payment templates (Phase 3)', () => {
     })
 
     it('uses generic copy that covers card-declined, no-PM, AND step-up-abandoned cases', () => {
-      // Phase 3 audit fix: the prior template said "we tried twice and the
+      // the prior template said "we tried twice and the
       // charge was declined both times" which lied for the no-PM and
       // step-up-abandoned paths. The new copy must NOT mention "twice" or
       // "declined" — those are specific to one of the three terminal paths.
@@ -98,10 +98,10 @@ describe('EmailTemplateService — payment templates (Phase 3)', () => {
     })
   })
 
-  // ---------- Phase 4 templates ----------
+  // ---------- cancellation / reimbursement templates ----------
 
   describe('getBookingCancelledConfirmationTemplate', () => {
-    it('escapes user-controlled params (Phase 3 fix Q4 carried forward)', () => {
+    it('escapes user-controlled params', () => {
       const html = service.getBookingCancelledConfirmationTemplate({
         parentFirstName: '<b>Ada</b>',
         campName: 'My <script>alert(1)</script> Camp',
@@ -226,9 +226,9 @@ describe('EmailTemplateService — payment templates (Phase 3)', () => {
     })
   })
 
-  // ---------- Phase 10: legacy template escape backfill ----------
+  // ---------- legacy template escape backfill ----------
 
-  describe('getVerificationEmailTemplate (Phase 10)', () => {
+  describe('getVerificationEmailTemplate', () => {
     it('escapes script-tag injection in userName', () => {
       const html = service.getVerificationEmailTemplate(
         '123456',
@@ -263,7 +263,7 @@ describe('EmailTemplateService — payment templates (Phase 3)', () => {
       expect(html).toContain('href="https://example.test/verify?token=abc&next=/x"')
     })
 
-    // BUG-176: a parent's verification email must NOT carry provider-targeted copy.
+    // a parent's verification email must NOT carry provider-targeted copy.
     it('renders parent-targeted copy + support contact for the parent audience', () => {
       const html = service.getVerificationEmailTemplate(
         '123456',
@@ -295,7 +295,7 @@ describe('EmailTemplateService — payment templates (Phase 3)', () => {
     })
   })
 
-  describe('getApplicationSubmittedTemplate (Phase 10)', () => {
+  describe('getApplicationSubmittedTemplate', () => {
     it('escapes script-tag injection in providerName', () => {
       const html = service.getApplicationSubmittedTemplate({
         providerName: '<script>alert(1)</script>',
@@ -316,7 +316,7 @@ describe('EmailTemplateService — payment templates (Phase 3)', () => {
     })
   })
 
-  describe('getApplicationApprovedTemplate (Phase 10)', () => {
+  describe('getApplicationApprovedTemplate', () => {
     it('escapes script-tag injection in providerName', () => {
       const html = service.getApplicationApprovedTemplate({
         providerName: '<script>alert(1)</script>',
@@ -346,7 +346,7 @@ describe('EmailTemplateService — payment templates (Phase 3)', () => {
     })
   })
 
-  describe('getApplicationRejectedTemplate (Phase 10)', () => {
+  describe('getApplicationRejectedTemplate', () => {
     it('escapes script-tag injection in providerName', () => {
       const html = service.getApplicationRejectedTemplate({
         providerName: '<script>alert(1)</script>',
@@ -401,7 +401,7 @@ describe('EmailTemplateService — payment templates (Phase 3)', () => {
     })
   })
 
-  describe('getProviderImportWelcomeTemplate (Phase 10)', () => {
+  describe('getProviderImportWelcomeTemplate', () => {
     it('escapes script-tag injection in firstName', () => {
       const html = service.getProviderImportWelcomeTemplate({
         firstName: '<script>alert(1)</script>',
@@ -424,7 +424,7 @@ describe('EmailTemplateService — payment templates (Phase 3)', () => {
     })
   })
 
-  describe('getLoginVerificationTemplate (Phase 10)', () => {
+  describe('getLoginVerificationTemplate', () => {
     it('escapes script-tag injection in userName', () => {
       const html = service.getLoginVerificationTemplate('123456', 10, '<script>alert(1)</script>')
       expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')

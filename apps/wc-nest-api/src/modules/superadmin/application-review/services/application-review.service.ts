@@ -115,7 +115,7 @@ export class ApplicationReviewService {
         contactLastName: true,
         createdAt: true, // Added for sorting support
         logoUrl: true,
-        // Operational-status inputs (BUG-107)
+        // Operational-status inputs
         stripeAccountId: true,
         stripeChargesEnabled: true,
         stripePayoutsEnabled: true,
@@ -430,13 +430,13 @@ export class ApplicationReviewService {
     // Send application approved email
     await this.applicationNotificationService.sendApplicationApprovedEmail(providerId)
 
-    // v28 catalog dispatch — also fires the in-app notification + the
-    // catalog-managed email. Phase 8 cutover keeps the legacy email path
+    // Also fires the in-app notification + the
+    // catalog-managed email. Keeps the legacy email path
     // running so any consumer keyed off the old template id still
     // works; the legacy path can retire in a future cleanup.
     notify(this.eventEmitter, NotificationType.ProviderApplicationApproved, { providerId })
 
-    // Phase 8.5 — initial Stripe-connect nudge. Provider can't accept
+    // Initial Stripe-connect nudge. Provider can't accept
     // bookings until Stripe is connected, so we prompt them the moment
     // they're approved. The weekly `dispatchConnectStripeReminder` cron
     // (provider-engagement.cron) picks up any provider still without
@@ -484,7 +484,7 @@ export class ApplicationReviewService {
     // Send application rejected email
     await this.applicationNotificationService.sendApplicationRejectedEmail(providerId)
 
-    // v28 catalog dispatch — decline notification includes the controlled
+    // Decline notification includes the controlled
     // reason from `dto.category` (passed via `extra.detail` so the email
     // template renders it inline).
     notify(this.eventEmitter, NotificationType.ProviderApplicationDeclined, {
@@ -522,7 +522,7 @@ export class ApplicationReviewService {
       previousStatus: provider.approvalStatus,
     })
 
-    // v28 catalog dispatch — the dto's `message` (plus optional
+    // The dto's `message` (plus optional
     // `fieldsNeeded`) renders into the email's `detail` line.
     const detail = [dto.message, dto.fieldsNeeded].filter(Boolean).join(' — ')
     notify(this.eventEmitter, NotificationType.ProviderAdditionalInfoRequired, {
@@ -563,7 +563,7 @@ export class ApplicationReviewService {
   }
 
   /**
-   * Operational readiness signal for an approved provider (BUG-107).
+   * Operational readiness signal for an approved provider.
    * Independent of approval status — Approved + Stripe disconnected is
    * still `setup_incomplete`, not "approved and ready". SuperAdmin uses
    * this to triage which approved providers need follow-up.

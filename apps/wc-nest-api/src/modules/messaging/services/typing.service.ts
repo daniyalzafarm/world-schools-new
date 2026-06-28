@@ -72,7 +72,7 @@ export class TypingService {
    */
   async getTypingUsers(conversationId: string): Promise<TypingIndicator[]> {
     try {
-      // ✅ PHASE 4 FIX: Use SCAN instead of KEYS (non-blocking)
+      // Use SCAN instead of KEYS (non-blocking)
       const client = this.redis.getClient()
       const pattern = `typing:${conversationId}:*`
       const keys: string[] = []

@@ -256,7 +256,7 @@ export interface BookingStepSessionsState {
 }
 
 /**
- * Phase 4 — types for the parent cancel + refund-preview flow. Mirror of
+ * types for the parent cancel + refund-preview flow. Mirror of
  * `ParentCancelMode` and `RefundPreview` on the backend.
  */
 export type ParentCancelMode = 'void_auth' | 'grace' | 'policy' | 'not_cancelable'

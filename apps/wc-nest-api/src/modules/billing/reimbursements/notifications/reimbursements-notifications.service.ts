@@ -4,7 +4,7 @@ import { ConfigService } from '../../../../config/config.service'
 import { EmailTemplateService } from '../../../common/email-templates/email-template.service'
 
 /**
- * Phase 4 — reimbursements-side notifications. Lives next to the
+ * Reimbursements-side notifications. Lives next to the
  * reimbursement cron + service so the dependency graph is
  * `cron → notifications → email-templates`, with no edge into the refunds
  * module (which would create a circular import — RefundsModule already

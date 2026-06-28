@@ -12,7 +12,7 @@ const LOCK_TTL_SECONDS = 600
 const BATCH_SIZE = 500
 
 /**
- * Phase 7.5 — weekly nudge for parents whose profile is incomplete.
+ * Weekly nudge for parents whose profile is incomplete.
  *
  * Threshold lives on `ProfileCompletionService.INCOMPLETE_THRESHOLD` (50).
  * Only parents whose `User.createdAt` is >= 7 days ago are eligible, so
@@ -22,7 +22,7 @@ const BATCH_SIZE = 500
  * the worker falls back to `parent`, which lands one row per parent per
  * weekly run).
  *
- * Provider-side equivalent comes with Phase 8.
+ * Provider-side equivalent comes later.
  */
 @Injectable()
 export class ProfileIncompleteCron {

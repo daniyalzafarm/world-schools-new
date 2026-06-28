@@ -9,11 +9,11 @@ import {
 import type { ProfileCompletionJobData } from './profile-completion.worker'
 
 /**
- * Centralised profile-completeness scoring for the v28 notification spec.
+ * Centralised profile-completeness scoring for the notification spec.
  *
  * Drives the `Parent_Profile_Incomplete` and `Provider_Profile_Incomplete`
  * catalog entries: each is gated on `profileCompletion < INCOMPLETE_THRESHOLD`.
- * The thresholds live alongside the catalog entries (Phase 7/8) — this
+ * The thresholds live alongside the catalog entries — this
  * service just owns the math and the persistence.
  *
  * Recompute pattern: call `recomputeForParent(parentId)` /
@@ -26,7 +26,7 @@ import type { ProfileCompletionJobData } from './profile-completion.worker'
  * Pre-existing `Children.profileCompletion` keeps its inline calc in
  * `ChildrenService.calculateProfileCompletion` — that one is already
  * battle-tested and the child profile-incomplete trigger isn't in the
- * v28 spec, so no consolidation needed.
+ * spec, so no consolidation needed.
  */
 @Injectable()
 export class ProfileCompletionService {
@@ -42,7 +42,7 @@ export class ProfileCompletionService {
   ) {}
 
   /**
-   * Phase 14d — preferred call from domain endpoints.
+   * Preferred call from domain endpoints.
    *
    * Enqueues a recompute with `jobId: profile_parent_<id>` so multiple
    * concurrent endpoints touching the same parent collapse to one eventual

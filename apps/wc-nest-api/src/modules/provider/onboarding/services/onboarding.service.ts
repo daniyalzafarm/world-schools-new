@@ -211,7 +211,7 @@ export class OnboardingService {
       })
     })
 
-    // Phase 7.5 (audit bug #4): legalCompanyName is part of the 25% legal +
+    // legalCompanyName is part of the 25% legal +
     // contact slice of the provider profile-completion score.
     await this.profileCompletion.enqueueRecomputeForProvider(providerId)
   }
@@ -266,9 +266,9 @@ export class OnboardingService {
 
     // Update trust score
     await this.trustScoreService.updateTrustScore(providerId)
-    // Phase 7.5 (audit bug #4): contact fields are 25% of the provider
+    // Contact fields are 25% of the provider
     // profile-completion score — recompute so the incomplete-profile
-    // cron (Phase 8) is gated against fresh state.
+    // cron is gated against fresh state.
     await this.profileCompletion.enqueueRecomputeForProvider(providerId)
 
     this.logger.log(`Saved contact info for provider ${providerId}`)
@@ -315,7 +315,7 @@ export class OnboardingService {
 
     // Update trust score
     await this.trustScoreService.updateTrustScore(providerId)
-    // Phase 7.5 (audit bug #4): description is 15% of the provider
+    // Description is 15% of the provider
     // profile-completion score.
     await this.profileCompletion.enqueueRecomputeForProvider(providerId)
 
@@ -618,9 +618,8 @@ export class OnboardingService {
     // Send application submitted confirmation email
     await this.applicationNotificationService.sendApplicationSubmittedEmail(providerId)
 
-    // v28 catalog dispatch — Phase 8a.
     notify(this.eventEmitter, NotificationType.ProviderApplicationReceived, { providerId })
-    // v28 Phase 9 — superadmin mirror so the review queue surfaces the
+    // Superadmin mirror so the review queue surfaces the
     // new application immediately.
     notify(this.eventEmitter, NotificationType.SuperadminCampApplicationNew, { providerId })
   }
@@ -654,7 +653,7 @@ export class OnboardingService {
       data: { logoUrl },
     })
 
-    // Phase 7.5 (audit bug #4): logo is 10% of the provider profile-
+    // Logo is 10% of the provider profile-
     // completion score (both upload and delete flow through here).
     await this.profileCompletion.enqueueRecomputeForProvider(providerId)
   }

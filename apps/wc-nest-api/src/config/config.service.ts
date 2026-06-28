@@ -259,7 +259,7 @@ export class ConfigService {
         'Config error - STRIPE_WEBHOOK_TOLERANCE_SECONDS must be a non-negative integer'
       )
     }
-    // H2 audit fix: tighten the cap from 86400s (1 day) to 3600s (1 hour).
+    // Tighten the cap from 86400s (1 day) to 3600s (1 hour).
     // The previous ceiling was wide enough that a leaked webhook signing
     // secret could be replayed against day-old payloads — long enough for
     // an attacker to find and exploit a leak. 1 hour is generous for any

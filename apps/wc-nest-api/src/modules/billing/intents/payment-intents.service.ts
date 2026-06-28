@@ -558,7 +558,7 @@ export class PaymentIntentsService {
    * of failing the booking. On a hard decline, we record the failure and let the
    * cron schedule the next retry within the spec's 48h / 2-attempt window.
    *
-   * Concurrency note: Phase 3's cron wraps batch iteration in a Redis lock; the
+   * Concurrency note: the cron wraps batch iteration in a Redis lock; the
    * Stripe idempotency key here is the second line of defense (same params hash
    * → cached response within 24h, so a second call collapses to the same intent
    * id).
@@ -570,7 +570,7 @@ export class PaymentIntentsService {
     })
     if (!payment) throw new NotFoundException(`Payment ${paymentId} not found`)
 
-    // Phase 3 fix Q2: short-circuit if the booking has left the happy path.
+    // short-circuit if the booking has left the happy path.
     // Charging now would create a billing surprise we'd have to refund. Mark
     // the Payment row terminal so the cron's `status in [...]` query stops
     // matching it on subsequent runs (without this write the cron would
@@ -614,7 +614,7 @@ export class PaymentIntentsService {
         archivedAt: null,
       },
     })
-    // Phase 3 fix Q6: instead of throwing (which the cron would log as a
+    // instead of throwing (which the cron would log as a
     // transient error and then retry every 30 min indefinitely), mark the
     // row terminal with `attemptCount=maxOffSessionAttempts` so the cron's
     // post-state branch flips the BookingGroup to `payment_failed` and
@@ -638,7 +638,7 @@ export class PaymentIntentsService {
       return
     }
 
-    // H4 audit fix: precheck that the saved PM is still attached to the Stripe
+    // precheck that the saved PM is still attached to the Stripe
     // customer. The parent may have detached it directly via Stripe Customer
     // Portal (or Stripe Dashboard) — our `payment_method.detached` webhook
     // handler eventually archives the row, but in the racy window the cron
@@ -686,7 +686,7 @@ export class PaymentIntentsService {
       throw err
     }
 
-    // H4 audit fix: use the LIVE variant here. The cached
+    // use the LIVE variant here. The cached
     // `assertProviderPaymentReady` is fine for synchronous booking-create
     // flows (where the parent will see any error on the next page load), but
     // off-session balance charges fire up to 90 days after submit and the
@@ -751,7 +751,7 @@ export class PaymentIntentsService {
             status: PaymentStatus.failed,
             attemptCount: attempt,
             failureCode: err.code ?? null,
-            // H6 audit fix: Stripe decline messages can echo card metadata
+            // Stripe decline messages can echo card metadata
             // (last 4, BIN). Run through `redactPii` before persisting since
             // this column is rendered to admin UIs.
             failureMessage: redactPii(err.message ?? ''),
@@ -792,7 +792,7 @@ export class PaymentIntentsService {
     // `findPaymentForIntent` covers the narrow window before this UPDATE
     // commits.
     //
-    // H8 audit fix: stamp `processingStartedAt` so the daily janitor cron can
+    // stamp `processingStartedAt` so the daily janitor cron can
     // detect rows stuck in `processing` / `requires_action` for >48h cheaply.
     // Cleared again on transition to a terminal state below.
     await this.prisma.payment.update({
@@ -811,7 +811,7 @@ export class PaymentIntentsService {
     // fully_paid` advance + saved-PM upsert + audit log). Writing
     // `status = succeeded` here directly would trip markSucceeded's
     // idempotency check and the BookingGroup would never advance.
-    // (This is the exact same trap that bit the Phase 2 capture flow.)
+    // (This is the exact same trap that bit the capture flow.)
     // markSucceeded is itself idempotent on a re-run from the webhook.
     if (intent.status === 'succeeded') {
       await this.markSucceeded(intent)
@@ -842,7 +842,7 @@ export class PaymentIntentsService {
   }
 
   /**
-   * Phase 3 fix Q3: when an off-session charge has been sitting in
+   * When an off-session charge has been sitting in
    * `requires_action` past the 48h step-up window, the parent has effectively
    * abandoned the 3DS challenge. Cancel the live Stripe intent so it stops
    * occupying a row of off-session capacity, mark the Payment row terminal
@@ -873,7 +873,7 @@ export class PaymentIntentsService {
           )
         )
       } catch (err) {
-        // H7 audit fix: a failed cancel leaves a Stripe-side intent alive,
+        // a failed cancel leaves a Stripe-side intent alive,
         // holding capacity until natural expiry. ERROR-level + structured
         // audit so the alerting hook can pick it up; we still flip the row
         // terminal so the booking can advance, but ops needs to reconcile
@@ -1043,7 +1043,7 @@ export class PaymentIntentsService {
           await this.dispatchSetupIntentSync(setupIntent)
         }
       } catch (err) {
-        // H13 audit fix: best-effort, but emit a structured audit line so a
+        // best-effort, but emit a structured audit line so a
         // metrics emitter can alert on consistently-failing rows. Without the
         // audit signal, a row that gets stuck syncing is invisible (the warn
         // alone doesn't escalate).
@@ -1173,7 +1173,7 @@ export class PaymentIntentsService {
     }
     if (payment.status === PaymentStatus.succeeded) return
 
-    // B7 audit fix: defensive guard against an `intent.amount_received` that
+    // defensive guard against an `intent.amount_received` that
     // diverges from our cached `payment.amount`. Stripe supports partial
     // capture (`amount_to_capture`), so a future bug, manual Dashboard tweak,
     // or new feature could capture less (or more) than authorized. Without
@@ -1258,7 +1258,7 @@ export class PaymentIntentsService {
           paidAmount: true,
           refundedAmount: true,
           // Snapshot fields used to mint the balance Payment row when the
-          // deposit captures (Phase 3 fix Q1). `balanceDueAt` is only set
+          // deposit captures. `balanceDueAt` is only set
           // for bookings that have a balance to charge later;
           // `appFeePercentageSnapshot` lets us compute the proportional
           // application_fee_amount for the balance row consistent with the
@@ -1316,7 +1316,7 @@ export class PaymentIntentsService {
         })
       }
 
-      // Phase 3 fix Q1: when a deposit captures and the booking moves to
+      // when a deposit captures and the booking moves to
       // `deposit_paid`, create the balance Payment row so the off-session
       // balance-charge cron has something to pick up at `dueAt =
       // balanceDueAt`. Skipped for `fully_paid` (deposit==total — there's
@@ -1408,9 +1408,9 @@ export class PaymentIntentsService {
       bookingGroupId: payment.bookingGroupId,
     })
 
-    // v28 Phase 8 — provider-side mirror only for balance / full / rebill
+    // provider-side mirror only for balance / full / rebill
     // captures. Deposit capture already fires `ProviderBookingAccepted`
-    // (Phase 5) so emitting "balance collected" for the deposit would be
+    // so emitting "balance collected" for the deposit would be
     // duplicative. The catalog's `providerOwnerForBooking` resolver scopes
     // this to the camp owner; this is finance content the whole staff
     // doesn't need to see.
@@ -1420,7 +1420,7 @@ export class PaymentIntentsService {
         bookingGroupId: payment.bookingGroupId,
       })
     }
-    // v28 Phase 9 — superadmin "funds pending transfer" mirror. Fires on
+    // superadmin "funds pending transfer" mirror. Fires on
     // every successful capture (deposit + balance + rebill) so admins
     // have visibility on the inbound-funds queue before the payout cron
     // releases them.
@@ -1465,7 +1465,7 @@ export class PaymentIntentsService {
         status: PaymentStatus.failed,
         stripePaymentIntentId: intent.id,
         failureCode: lastError?.code ?? null,
-        // H6 audit fix: redact PII from failure messages. Stripe's
+        // redact PII from failure messages. Stripe's
         // last_payment_error.message can include card BIN / last4 fragments;
         // this column renders into admin UIs.
         failureMessage: lastError?.message ? redactPii(lastError.message) : null,
@@ -1515,7 +1515,7 @@ export class PaymentIntentsService {
   }
 
   /**
-   * Webhook: `payment_intent.requires_action`. B2 audit fix — Stripe fires this
+   * Webhook: `payment_intent.requires_action`. Stripe fires this
    * when the intent transitions into a state that needs further action (most
    * commonly an async 3DS step-up post-auth). We capture the synchronous
    * `requires_action` from `paymentIntents.create` in `chargeOffSession`, but
@@ -1545,7 +1545,7 @@ export class PaymentIntentsService {
   }
 
   /**
-   * Webhook: `payment_intent.processing`. P1 audit fix — for PMs that go
+   * Webhook: `payment_intent.processing`. For PMs that go
    * through a `processing` state (some bank-redirects, future SEPA/iDEAL
    * additions). Cards skip this state, but explicit handling de-risks
    * future PM enablement.
@@ -1757,7 +1757,7 @@ export class PaymentIntentsService {
       // routing param needed — no `on_behalf_of` or `transfer_data` because
       // the charge already lives on the connected account.
       application_fee_amount: toStripeMinorUnits(applicationFee, currency),
-      // H2 audit fix: lock down to non-redirect PMs only. Our deferred-mode
+      // lock down to non-redirect PMs only. Our deferred-mode
       // confirm flow inside the booking page expects `redirect: 'if_required'`
       // to redirect ONLY for 3DS step-up; redirect-only PMs (iDEAL, Bancontact,
       // Klarna, etc.) would bounce the parent off-page even on the happy path,
@@ -1967,7 +1967,7 @@ export class PaymentIntentsService {
   /**
    * Default spec: 48h window, 2 retries 24h apart. After the configured max
    * attempts, the cron stops retrying and the booking is flagged
-   * `payment_failed`. H5 audit fix: both the attempt cap and the retry
+   * `payment_failed`. Both the attempt cap and the retry
    * spacing read from `ConfigService.billingConfig` so ops can widen the
    * window per environment.
    */

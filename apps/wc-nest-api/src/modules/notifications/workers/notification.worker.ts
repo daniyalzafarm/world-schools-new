@@ -118,7 +118,7 @@ function sanitizeErrorMessage(err: unknown): string {
 /**
  * Shared job runner. Extracted so the live + scheduled workers don't drift.
  *
- * Worker concurrency is left at BullMQ's default (1) for v1 — Phase 7+
+ * Worker concurrency is left at BullMQ's default (1) for now — we
  * can tune via `worker.concurrency = N` on a per-queue basis once we have
  * volume data.
  */

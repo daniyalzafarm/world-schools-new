@@ -8,7 +8,7 @@ import {
 } from '@world-schools/wc-frontend-utils'
 import apiClient from '@/utils/api-client'
 
-// Phase 12 — superadmin notification preferences page. Backend filters
+// Superadmin notification preferences page. Backend filters
 // preferences to the superadmin audience based on the authenticated user.
 export default function NotificationPreferencesSuperadminPage() {
   const prefs = useNotificationPreferences({

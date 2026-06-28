@@ -101,7 +101,7 @@ export class StripeWebhookService {
    *     Handlers do last-write-wins updates, so this is safe — the cost is
    *     redundant DB writes, not data corruption.
    *
-   * Handler-idempotency contract (H2 audit fix — read before adding handlers):
+   * Handler-idempotency contract (read before adding handlers):
    *   The dedup row above is best-effort against single-deliverer retries; it
    *   does NOT serialize concurrent same-event deliveries from Stripe (which
    *   happen under retry-storm / network-flap conditions). Every status-changing
@@ -259,7 +259,7 @@ export class StripeWebhookService {
         return
       }
       case 'payment_intent.requires_action': {
-        // B2 audit fix: Stripe fires this when a payment intent needs further
+        // Stripe fires this when a payment intent needs further
         // action (typically async 3DS step-up triggered by additional fraud
         // signals after auth). The synchronous create response in
         // `chargeOffSession` already handles the immediate case; this webhook
@@ -270,13 +270,13 @@ export class StripeWebhookService {
         return
       }
       case 'payment_intent.processing': {
-        // P1 audit fix: explicit handler for PMs that go through `processing`
+        // Explicit handler for PMs that go through `processing`
         // (some bank-redirects, future SEPA/iDEAL). Cards skip this state.
         await this.paymentIntentsService.markProcessing(event.data.object as StripePaymentIntent)
         return
       }
       case 'payment_intent.partially_funded': {
-        // P1 audit fix: documented in the official Custom Flow event list.
+        // Documented in the official Custom Flow event list.
         // We don't accept partial funding for our flow today; audit-log so
         // a future enable doesn't go silent.
         const intent = event.data.object as StripePaymentIntent
@@ -308,7 +308,7 @@ export class StripeWebhookService {
 
       // ----- Radar (pre-chargeback signals) -------------------------------
       case 'radar.early_fraud_warning.created': {
-        // B3 audit fix: pre-chargeback signal. For Destination Charges where
+        // Pre-chargeback signal. For Destination Charges where
         // the provider is the merchant of record, EFWs are the only proactive
         // way to refund before a dispute fires (saving dispute fees).
         // Annotate the matching Payment row + emit an alert-grade structured
@@ -484,7 +484,7 @@ export class StripeWebhookService {
    *   2. Stamp `Payment.failureCode = 'early_fraud_warning'` if the row was
    *      previously clean (preserves prior failure codes for triage).
    *   3. Emit an ERROR-level structured log for alert-grade visibility.
-   *   4. H1 audit fix: if Stripe marked the EFW `actionable: true`, fire an
+   *   4. If Stripe marked the EFW `actionable: true`, fire an
    *      automatic 100% refund (`RefundReason.fraud`, app-fee included). The
    *      platform absorbs the cost on the theory that a refund-now is cheaper
    *      than the chargeback + fees that would otherwise follow. Non-actionable
@@ -538,7 +538,7 @@ export class StripeWebhookService {
         `efwId=${efw.id} fraudType=${efw.fraud_type ?? 'unknown'} actionable=${efw.actionable ?? false}`
     )
 
-    // H1 audit fix: auto-refund actionable EFWs.
+    // Auto-refund actionable EFWs.
     if (efw.actionable === true) {
       try {
         const refunds = await this.refundsService.processFraudRefund({
@@ -639,14 +639,14 @@ export class StripeWebhookService {
         stripePayoutsEnabled: false,
         stripeDetailsSubmitted: false,
         stripeAttentionRequired: false,
-        // v28 notification trigger fields. The catalog `Provider_Stripe_*`
-        // entries (Phase 8) read these to render the "your Stripe account
+        // Notification trigger fields. The catalog `Provider_Stripe_*`
+        // entries read these to render the "your Stripe account
         // was disconnected" notification with timing + reason. Cleared on
-        // re-connect via `StripeConnectService` (Phase 8 wiring).
+        // re-connect via `StripeConnectService`.
         stripeAccountDisconnectedAt: new Date(),
         stripeAccountDisconnectedReason: 'stripe_webhook_deauthorized',
-        // B2: `appFeePercentage` is deliberately NOT cleared. App-fee fields
-        // are managed exclusively by the superadmin (Phase 5 audit) and a
+        // `appFeePercentage` is deliberately NOT cleared. App-fee fields
+        // are managed exclusively by the superadmin and a
         // Stripe disconnect is a payment-rails change, not a commercial-terms
         // change. The negotiated rate must survive a deauth/reauth round-trip.
         // This matches the resource_missing scrub at
@@ -657,11 +657,10 @@ export class StripeWebhookService {
 
     this.logger.log(`Provider ${provider.id} disconnected their Stripe account ${accountId}`)
 
-    // v28 catalog dispatch — Phase 8a.
     notify(this.eventEmitter, NotificationType.ProviderStripeDisconnected, {
       providerId: provider.id,
     })
-    // v28 Phase 9 — superadmin mirror. Platform team intervenes when a
+    // Superadmin mirror. Platform team intervenes when a
     // camp loses payouts (no new bookings can be accepted).
     notify(this.eventEmitter, NotificationType.SuperadminCampStripeDisconnected, {
       providerId: provider.id,

@@ -19,7 +19,7 @@ const DAY_MS = 24 * HOUR_MS
 const WINDOW_HOURS = 25 // 24h coverage + 1h overlap for clock skew
 
 /**
- * Phase 10 — Notification reconciliation cron.
+ * Notification reconciliation cron.
  *
  * Daily sweep that catches scheduled BullMQ jobs which may have been lost
  * between enqueue (at a domain commit point) and their `runAt` firing time.
@@ -33,13 +33,13 @@ const WINDOW_HOURS = 25 // 24h coverage + 1h overlap for clock skew
  * 25h window and re-emits unconditionally; the dispatcher + worker handle
  * dedupe.
  *
- * Phase 14d — cursor pagination. Each tier drains its candidate set in
+ * Cursor pagination: each tier drains its candidate set in
  * `PAGE_SIZE`-sized pages instead of capping at the first 1000 rows. The
- * load-bearing change vs. the v1 fixed-size `take` is that growth past
+ * load-bearing change vs. a fixed-size `take` is that growth past
  * 1000 candidates per tier per cron no longer silently drops; the cron
  * keeps pulling pages until either an empty page or `MAX_PAGES_PER_TIER`
- * (a defensive cap with a WARN log). Composite indexes added in the same
- * phase make each page an index scan.
+ * (a defensive cap with a WARN log). Composite indexes make each page an
+ * index scan.
  *
  * Covered scheduled triggers (13 — every entity-bound `notify(..., runAt)`
  * call site across the catalog):

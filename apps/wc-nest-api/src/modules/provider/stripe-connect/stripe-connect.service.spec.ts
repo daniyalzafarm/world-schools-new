@@ -350,9 +350,9 @@ describe('StripeConnectService', () => {
       expect(prisma.provider.findUniqueOrThrow).toHaveBeenCalled()
     })
 
-    it('Phase-5 audit fix A2: does NOT write to app-fee fields at Connect creation', async () => {
+    it('does NOT write to app-fee fields at Connect creation', async () => {
       // App-fee fields (`appFeeCustom`, `appFeePercentage`) are superadmin-
-      // managed exclusively. The pre-Phase-5 H10 snapshot wrote
+      // managed exclusively. The earlier snapshot wrote
       // `appFeePercentage = systemSettings.defaultAppFee` here; that's gone.
       prisma.provider.findUnique.mockResolvedValue(baseProvider)
       prisma.systemSettings.upsert.mockResolvedValue({ id: 'singleton', defaultAppFee: 10 })
@@ -775,9 +775,9 @@ describe('StripeConnectService', () => {
           }),
         })
       )
-      // Phase-5 audit fix A3: app-fee fields are superadmin-managed and must
+      // App-fee fields are superadmin-managed and must
       // survive a Stripe deauth. The clearing of `appFeePercentage` here was
-      // a leftover from the pre-Phase-5 H10 snapshot semantic.
+      // a leftover from the earlier snapshot semantic.
       const updateData = prisma.provider.update.mock.calls[0][0].data
       expect(updateData).not.toHaveProperty('appFeePercentage')
       expect(updateData).not.toHaveProperty('appFeeCustom')

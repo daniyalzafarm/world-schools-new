@@ -169,7 +169,7 @@ export class SuperAdminProvidersService {
   }
 
   /**
-   * Phase 5 — set the per-provider app-fee override.
+   * Set the per-provider app-fee override.
    *
    * When `custom = true`, REQUIRES `appFeePercentage`. When false, the saved
    * percentage is preserved on the row (so toggling back on retains the
@@ -215,7 +215,7 @@ export class SuperAdminProvidersService {
   }
 
   /**
-   * Phase 5 — set the per-provider early-payout configuration.
+   * Set the per-provider early-payout configuration.
    *
    * When `enabled = true`, REQUIRES `offsetDays` and `agreementNote`. The
    * agreement note records the off-platform written agreement (Part B.2 in
@@ -242,7 +242,7 @@ export class SuperAdminProvidersService {
 
     await this.findOne(providerId)
 
-    // Phase 5 audit fix A8 (preserved): don't auto-create ProviderSettings.
+    // Don't auto-create ProviderSettings.
     // The currency + timezone defaults belong to onboarding (step 2).
     const existingSettings = await this.prisma.providerSettings.findUnique({
       where: { providerId },
@@ -390,7 +390,7 @@ export class SuperAdminProvidersService {
     }
   }
 
-  // M3 audit fix: `remove(id)` is intentionally removed. See the matching
+  // `remove(id)` is intentionally removed. See the matching
   // comment on the deleted DELETE endpoint in the superadmin providers
   // controller. Providers cannot be deleted post-onboarding — their row is
   // the foreign-key spine for the entire billing audit trail (Payment,

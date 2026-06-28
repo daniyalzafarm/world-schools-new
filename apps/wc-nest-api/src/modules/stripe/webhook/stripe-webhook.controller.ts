@@ -114,7 +114,7 @@ export class StripeWebhookController {
       throw new BadRequestException('Invalid signature')
     }
 
-    // H10 audit fix: include `account` (connected-account scope) and
+    // Include `account` (connected-account scope) and
     // `livemode` so triage in mixed test/live environments can correlate
     // events with the right Stripe dashboard tab. `account` is null for
     // platform-account events; set for Connect events forwarded from a

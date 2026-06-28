@@ -9,8 +9,6 @@ import { useRouter } from 'next/navigation'
 import { notificationsService } from '@/services/notifications.services'
 import { useWsNotifications } from '@/hooks/useWsNotifications'
 
-// Phase 14d — filter set extracted to wc-frontend-utils (`getFiltersFor`)
-// so a new category flows through to all three apps from one place.
 const PARENT_FILTERS = getFiltersFor('parent')
 
 export default function NotificationsPage() {

@@ -17,7 +17,7 @@ export interface EnqueueOptions {
 }
 
 /**
- * Per-channel retry overrides (Phase 14d).
+ * Per-channel retry overrides.
  *
  * A jobs's `channels` array can be `['in_app']`, `['email']`, or both. The
  * queue's `defaultJobOptions` are tuned for email (`attempts: 5, backoff:

@@ -253,7 +253,7 @@ export const useCampBookingStore = create<CampBookingStore>()(
         // successful confirmSetup (the placeholder is a cron-driven row),
         // so we don't infer anything from it for setup_intent yet — the
         // parent would simply see the form and Stripe would resolve the
-        // duplicate confirm gracefully. Phase 3 hardens this case.
+        // duplicate confirm gracefully.
         const isPaymentAlreadyAuthorized =
           details.payment?.intentType === 'payment_intent' &&
           (details.payment.status === 'requires_capture' || details.payment.status === 'succeeded')

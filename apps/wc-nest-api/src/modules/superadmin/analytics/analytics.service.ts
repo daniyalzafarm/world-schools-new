@@ -612,7 +612,9 @@ export class AnalyticsService {
           conversionPctFromTop: conversion,
           lostFromPrev,
           lostBreakdown:
-            i === 0 ? [] : buildLostBreakdown(FUNNEL_STAGES[i - 1].statuses, stage.statuses, byStatus),
+            i === 0
+              ? []
+              : buildLostBreakdown(FUNNEL_STAGES[i - 1].statuses, stage.statuses, byStatus),
         }
       })
 

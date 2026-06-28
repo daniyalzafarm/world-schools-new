@@ -10,7 +10,7 @@ const LOCK_TTL_SECONDS = 600
 const BATCH_SIZE = 200
 
 /**
- * Phase 8 — payout-release cron.
+ * Payout-release cron.
  *
  * Walks `BookingPayoutSchedule` for rows where `status = pending` and
  * `releaseAt <= now`, then calls `PayoutsService.releasePendingTranche`

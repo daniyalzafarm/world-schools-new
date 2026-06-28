@@ -5,7 +5,7 @@ const START = '2026-06-01'
 const END = '2026-06-08'
 
 describe('formatSessionDateRange', () => {
-  it('returns only the date range, never the session name (BUG-117)', () => {
+  it('returns only the date range, never the session name', () => {
     expect(formatSessionDateRange(START, END)).toBe('Jun 1 – Jun 8, 2026')
   })
 

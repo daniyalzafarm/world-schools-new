@@ -119,7 +119,7 @@ export function ageFromDateOfBirth(iso: string | null): number | null {
 /**
  * Just the session's date range, e.g. "Jun 1 – Jun 8, 2026". Returns `fallback`
  * (default empty) when either date can't be parsed. Use this where the session
- * name is already shown separately, so it isn't repeated (BUG-117).
+ * name is already shown separately, so it isn't repeated.
  */
 export function formatSessionDateRange(startIso: string, endIso: string, fallback = ''): string {
   const start = new Date(startIso)

@@ -3,8 +3,7 @@
 # =============================================================================
 #
 # Paste into GitHub Variable `PROD_SUPERADMIN_ENV`. Injected as runtime env on
-# `ca-admin-wc-prod`. None of these values are secret — see Phase 2 of the
-# deployment plan.
+# `ca-admin-wc-prod`. None of these values are secret
 # =============================================================================
 
 APP_URL=https://superadmin.world-camps.org

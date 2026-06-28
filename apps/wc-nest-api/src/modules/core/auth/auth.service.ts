@@ -104,7 +104,7 @@ export class AuthService {
   /**
    * Stamp `Provider.lastLoginAt = now` for every provider the user is
    * associated with (as owner or via a provider-scoped role). Powers the
-   * SuperAdmin Inactive operational state (BUG-107) which keys on
+   * SuperAdmin Inactive operational state which keys on
    * `lastLoginAt < now - 90d`.
    *
    * Fire-and-forget by design — failures are logged but never surfaced to

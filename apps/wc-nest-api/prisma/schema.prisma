@@ -230,7 +230,7 @@ model Provider {
   approvalStatus      ApprovalStatus @default(pending) @map("approval_status")
   approvalDecisionAt  DateTime?      @map("approval_decision_at")
   approvedByAdminId   String?        @map("approved_by_admin_id")
-  /// Phase 10 follow-up: bounded to 2000 chars. Phase 10 already escaped HTML
+  /// bounded to 2000 chars. already escaped HTML
   /// in the rejection email; the cap closes the email-deliverability /
   /// payload-size foot-gun left over from the unbounded `@db.Text`.
   rejectionReason     String?        @map("rejection_reason") @db.VarChar(2000)
@@ -649,7 +649,7 @@ model ProviderSettings {
 
   /// Audit trail for payout-mode changes. The note records the agreement
   /// reference (contract id, email subject, etc.) — required by ops policy
-  /// for any non-default mode (parallel to the Phase-5 early-payout discipline).
+  /// for any non-default mode.
   payoutModeAgreementNote   String?   @map("payout_mode_agreement_note") @db.Text
   payoutModeAgreedAt        DateTime? @map("payout_mode_agreed_at")
   payoutModeAgreedByAdminId String?   @map("payout_mode_agreed_by_admin_id")
@@ -679,7 +679,7 @@ model VerificationDocument {
   reviewedAt        DateTime?            @map("reviewed_at")
   reviewChecklist   Json?                @map("review_checklist")
   reviewNotes       String?              @map("review_notes") @db.VarChar(2000)
-  /// Phase 10 follow-up: bounded for the same reason as
+  /// bounded for the same reason as
   /// `Provider.rejectionReason` — admin-typed free text that gets emailed.
   rejectionReason   String?              @map("rejection_reason") @db.VarChar(2000)
 
@@ -1270,7 +1270,7 @@ model BookingGroup {
   @@index([status])
   @@index([transferDate])
   @@index([balanceDueAt])
-  // Phase 14d composite indexes — back the notifications reconciliation cron.
+  // composite indexes — back the notifications reconciliation cron.
   // `reconcileBookingRequestTiers` filters by (status='request', createdAt: range);
   // `reconcilePostDeclineAlternatives` filters by (status='declined', updatedAt: range).
   // Without these, the cron seq-scans booking_groups once the table is large.
@@ -1324,7 +1324,7 @@ model Session {
   @@index([campId])
   @@index([status])
   @@index([sortOrder])
-  // Phase 14d — pre-camp + post-camp reconciliation cron filters sessions
+  // pre-camp + post-camp reconciliation cron filters sessions
   // by startDate / endDate range. Single-column indexes here so the cron
   // can probe a 25h window without scanning the full table.
   @@index([startDate])
@@ -2688,7 +2688,7 @@ enum RefundReason {
   force_majeure
   dispute
   manual_admin
-  /// H1 audit fix: auto-refund triggered by an actionable Stripe Radar
+  /// auto-refund triggered by an actionable Stripe Radar
   /// Early Fraud Warning. The platform absorbs the cost (the refund includes
   /// the application fee) on the theory that recouping a fraudulent
   /// transaction is cheaper than absorbing a chargeback + fees later.

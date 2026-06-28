@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common'
 import IORedis, { type RedisOptions } from 'ioredis'
 
 /**
- * Phase 14d — dedicated BullMQ queue for `ProfileCompletionService`
+ * Dedicated BullMQ queue for `ProfileCompletionService`
  * recompute jobs.
  *
  * Why a queue instead of synchronous calls: the recompute fires from ~8

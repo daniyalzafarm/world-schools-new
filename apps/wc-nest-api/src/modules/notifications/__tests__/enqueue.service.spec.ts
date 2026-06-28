@@ -51,7 +51,7 @@ describe('NotificationsEnqueueService', () => {
     })
   })
 
-  describe('per-channel retry override (Phase 14d)', () => {
+  describe('per-channel retry override', () => {
     it('uses tighter retry (3 attempts, 5s fixed) for in-app-only jobs', async () => {
       await service.enqueue({ ...baseOpts, channels: ['in_app'] })
 

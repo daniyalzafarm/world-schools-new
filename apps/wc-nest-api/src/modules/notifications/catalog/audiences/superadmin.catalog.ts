@@ -23,7 +23,7 @@ import { propLoaders } from '../../resolvers/prop-loaders'
 import type { CatalogEntry } from '../types'
 
 /**
- * Superadmin-audience catalog entries (19 total per v28 spec sheet 4).
+ * Superadmin-audience catalog entries (19 total).
  *
  * Single resolver — `allSuperadmins` — fans out to every superadmin user.
  * Per spec convention: providers + superadmins get `salutation: 'none'`.
@@ -39,14 +39,14 @@ import type { CatalogEntry } from '../types'
  *    deletion" domain endpoint (none today). Catalog entry + template + loader
  *    are wired so it fires the moment that domain feature lands.
  *
- * `SuperadminReviewFlagged` fires on every verified-review create (Phase 9
- * pragmatic interpretation — the v28 schema has no "flag" status, so the most
+ * `SuperadminReviewFlagged` fires on every verified-review create (a
+ * pragmatic interpretation — the schema has no "flag" status, so the most
  * useful trigger is per-submission so superadmin can spot-check). When a
  * dedicated flagging feature lands, narrow the resolver.
  */
 
 // ============================================================================
-// Phase 9a — Support tickets (2)
+// Support tickets (2)
 // ============================================================================
 
 function makeSupportEntry(
@@ -116,7 +116,7 @@ const superadminSupportTicketReply = makeSupportEntry(
 )
 
 // ============================================================================
-// Phase 9b — Onboarding (5)
+// Onboarding (5)
 // ============================================================================
 
 function makeOnboardingEntry(
@@ -171,7 +171,7 @@ function makeOnboardingEntry(
       body: props => (props ? (props.country ?? '') : ''),
       entityType: NotificationEntityType.Camp,
       entityId: props => props?.companyName ?? '',
-      // BUG-171-175 hardening: a loader that ever returns props without a
+      // hardening: a loader that ever returns props without a
       // `reviewUrl` would otherwise crash here on `undefined.replace`.
       redirectUrl: props =>
         props?.reviewUrl ? props.reviewUrl.replace(/^https?:\/\/[^/]+/, '') : '/',
@@ -223,7 +223,7 @@ const superadminCampFirstListingLive = makeOnboardingEntry(
 )
 
 // ============================================================================
-// Phase 9c — Booking lifecycle (2)
+// Booking lifecycle (2)
 // ============================================================================
 
 function makeCampHealthEntry(
@@ -279,7 +279,7 @@ function makeCampHealthEntry(
       body: props => (props?.reason ? props.reason : ''),
       entityType: NotificationEntityType.Camp,
       entityId: props => props?.companyName ?? '',
-      // BUG-171-175 hardening: a loader that ever returns props without a
+      // hardening: a loader that ever returns props without a
       // `reviewUrl` would otherwise crash here on `undefined.replace`.
       redirectUrl: props =>
         props?.reviewUrl ? props.reviewUrl.replace(/^https?:\/\/[^/]+/, '') : '/',
@@ -310,7 +310,7 @@ const superadminCampUnresponsiveExpiredRequests = makeCampHealthEntry(
 )
 
 // ============================================================================
-// Phase 9d — Payments / disputes (5) + booking-cancelled-non-payment (1)
+// Payments / disputes (5) + booking-cancelled-non-payment (1)
 // ============================================================================
 
 function makeFinanceEntry(
@@ -377,7 +377,7 @@ function makeFinanceEntry(
               ? NotificationEntityType.Reimbursement
               : NotificationEntityType.BookingGroup,
       entityId: props => props?.bookingRef ?? '',
-      // BUG-171-175 hardening: a loader that ever returns props without a
+      // hardening: a loader that ever returns props without a
       // `reviewUrl` would otherwise crash here on `undefined.replace`.
       redirectUrl: props =>
         props?.reviewUrl ? props.reviewUrl.replace(/^https?:\/\/[^/]+/, '') : '/',
@@ -439,7 +439,7 @@ const superadminFundsPendingTransfer = makeFinanceEntry(
 )
 
 // ============================================================================
-// Phase 9e — Platform health (2) + seasonal/profile (2)
+// Platform health (2) + seasonal/profile (2)
 // ============================================================================
 
 const superadminCampStripeDisconnected = makeCampHealthEntry(
@@ -474,7 +474,7 @@ const superadminCampProfileDeactivated = makeCampHealthEntry(
 )
 
 // ============================================================================
-// Phase 9f — Reviews (1)
+// Reviews (1)
 // ============================================================================
 
 const superadminReviewFlagged: CatalogEntry<SuperadminReviewFlaggedProps | null> = {

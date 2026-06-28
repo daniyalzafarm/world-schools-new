@@ -169,7 +169,7 @@ export class MessagesService {
     // Track if conversation was auto-assigned
     let wasAutoAssigned = false
 
-    // ✅ PHASE 4 FIX: Wrap transaction in try-catch for proper error handling
+    // Wrap transaction in try-catch for proper error handling
     try {
       // Create message with transaction
       const message = await this.prisma.$transaction(async tx => {
@@ -302,10 +302,10 @@ export class MessagesService {
         ;(message as { attachments?: unknown }).attachments = null
       }
 
-      // ✅ PHASE 4 FIX: Only cache after successful transaction
+      // Only cache after successful transaction
       await this.redis.setex(cacheKey, this.IDEMPOTENCY_TTL, JSON.stringify(message))
 
-      // ✅ PHASE 2 FIX: Get conversation with participants for cache invalidation
+      // Get conversation with participants for cache invalidation
       const conversation = await this.prisma.conversation.findUnique({
         where: { id: conversationId },
         include: { participants: true },
@@ -315,7 +315,7 @@ export class MessagesService {
         throw new NotFoundException('Conversation not found')
       }
 
-      // v28 catalog dispatch — outbound parent-facing notification when the
+      // Outbound parent-facing notification when the
       // sender is the provider side of a camp DM or the support side of a
       // support ticket. Resolver filters out provider participants + the
       // sender, so a parent-authored message never re-notifies the sender.
@@ -333,7 +333,7 @@ export class MessagesService {
               conversationId,
               messageId: message.id,
             })
-            // v28 Phase 9 — superadmin mirror so the assigned support
+            // superadmin mirror so the assigned support
             // agent sees the requester reply alongside parent/provider.
             notify(this.eventEmitter, NotificationType.SuperadminSupportTicketReply, {
               supportTicketId: ticket.id,
@@ -348,7 +348,7 @@ export class MessagesService {
           })
         }
       } else if (senderType === SenderType.USER) {
-        // v28 Phase 8 — provider mirror for parent → camp DMs, plus the
+        // provider mirror for parent → camp DMs, plus the
         // provider-as-requester support-reply path. Resolver filters out
         // the sender + parent participants so a provider doesn't get
         // notified about their own message.
@@ -367,7 +367,7 @@ export class MessagesService {
             })
           }
           if (ticket) {
-            // v28 Phase 9 — superadmin mirror for any USER reply in a
+            // superadmin mirror for any USER reply in a
             // support-ticket conversation (parent requester or provider
             // requester). Fires alongside the audience-specific notify.
             notify(this.eventEmitter, NotificationType.SuperadminSupportTicketReply, {
@@ -416,19 +416,19 @@ export class MessagesService {
         })
       }
 
-      // ✅ PHASE 2 FIX: Invalidate message cache for this conversation
+      // Invalidate message cache for this conversation
       await this.invalidateMessageCache(conversationId)
 
-      // ✅ PHASE 2 FIX: Broadcast message cache invalidation to all replicas
+      // Broadcast message cache invalidation to all replicas
       await this.redisPubSub.publishMessage('cache:invalidate:messages', {
         conversationId,
       })
 
-      // ✅ PHASE 2 FIX: Invalidate metrics cache for this conversation
+      // Invalidate metrics cache for this conversation
       const metricsKey = `conversation:metrics:${conversationId}`
       await this.redis.del(metricsKey)
 
-      // ✅ PHASE 2 FIX: Broadcast metrics cache invalidation to all replicas
+      // Broadcast metrics cache invalidation to all replicas
       await this.redisPubSub.publishMessage('cache:invalidate:metrics', {
         conversationId,
       })
@@ -437,8 +437,8 @@ export class MessagesService {
         `Cache invalidated for conversation ${conversationId} and ${participantUserIds.length} participants`
       )
 
-      // ✅ PHASE 4 FIX: Pub/sub failure doesn't affect message save (eventual consistency)
-      // PHASE 5: Publish to Redis for real-time delivery
+      // Pub/sub failure doesn't affect message save (eventual consistency)
+      // Publish to Redis for real-time delivery
       const publishStartTime = Date.now()
       await this.redisPubSub
         .publishMessage('messages:new', {
@@ -495,7 +495,7 @@ export class MessagesService {
 
       return message
     } catch (error) {
-      // ✅ PHASE 4 FIX: Don't cache on error
+      // Don't cache on error
       this.logger.error('Failed to send message', error)
       throw error
     }
@@ -715,7 +715,7 @@ export class MessagesService {
       await this.assertConversationAccess(conversationId, accessUserId)
     }
 
-    // ✅ PHASE 4 FIX: Check cache first
+    // Check cache first
     const cacheKey = `messages:${conversationId}:${limit}:${cursor || 'initial'}:${direction}`
     const cached = await this.redis.get(cacheKey)
     if (cached) {
@@ -744,7 +744,7 @@ export class MessagesService {
       return { ...parsed, data: dataWithUrls }
     }
 
-    // ✅ PHASE 5 FIX: Track cache miss
+    // Track cache miss
     this.logger.log({
       event: 'cache.messages.miss',
       direction,
@@ -866,7 +866,7 @@ export class MessagesService {
       hasMore,
     }
 
-    // ✅ PHASE 4 FIX: Cache the result for 5 minutes (cache stores paths, not URLs)
+    // Cache the result for 5 minutes (cache stores paths, not URLs)
     await this.redis.setex(cacheKey, 300, JSON.stringify(result))
     this.logger.debug(`Cached messages: ${cacheKey}`)
 
@@ -1020,11 +1020,11 @@ export class MessagesService {
       })
     })
 
-    // ✅ PHASE 4 FIX: Invalidate message cache
+    // Invalidate message cache
     await this.redis.del(`message:${messageId}`)
     await this.invalidateMessageCache(message.conversationId)
 
-    // ✅ PHASE 4 FIX: Broadcast cache invalidation
+    // Broadcast cache invalidation
     await this.redisPubSub.publishMessage('cache:invalidate:messages', {
       conversationId: message.conversationId,
     })
@@ -1072,11 +1072,11 @@ export class MessagesService {
       },
     })
 
-    // ✅ PHASE 4 FIX: Invalidate message cache
+    // Invalidate message cache
     await this.redis.del(`message:${messageId}`)
     await this.invalidateMessageCache(message.conversationId)
 
-    // ✅ PHASE 4 FIX: Broadcast cache invalidation
+    // Broadcast cache invalidation
     await this.redisPubSub.publishMessage('cache:invalidate:messages', {
       conversationId: message.conversationId,
     })
@@ -1096,7 +1096,7 @@ export class MessagesService {
 
   /**
    * Mark message as read
-   * PHASE 5: Enhanced with Redis pub/sub and lastReadAt update
+   * Enhanced with Redis pub/sub and lastReadAt update
    */
   async markAsRead(dto: MarkAsReadDto) {
     const { messageId, userId } = dto
@@ -1153,7 +1153,7 @@ export class MessagesService {
       return { readAt: result.receipt.readAt }
     }
 
-    // PHASE 5: Broadcast read receipt via Redis pub/sub
+    // Broadcast read receipt via Redis pub/sub
     await this.redisPubSub.publishMessage('receipts:read', {
       messageId,
       conversationId: result.message.conversationId,
@@ -1162,13 +1162,13 @@ export class MessagesService {
       senderId: result.message.senderId,
     })
 
-    // ✅ PHASE 3 FIX: Invalidate conversation cache for user (unread count changed)
+    // Invalidate conversation cache for user (unread count changed)
     await this.conversationsService.invalidateConversationCache(userId)
 
-    // ✅ PHASE 3 FIX: Invalidate metrics cache
+    // Invalidate metrics cache
     await this.redis.del(`conversation:metrics:${result.message.conversationId}`)
 
-    // ✅ PHASE 3 FIX: Broadcast cache invalidation to all replicas
+    // Broadcast cache invalidation to all replicas
     await this.redisPubSub.publishMessage('cache:invalidate:conversations', {
       userIds: [userId],
     })
@@ -1183,7 +1183,7 @@ export class MessagesService {
 
   /**
    * Mark message as delivered
-   * PHASE 5: Enhanced with Redis pub/sub and delivery latency tracking
+   * Enhanced with Redis pub/sub and delivery latency tracking
    */
   async markAsDelivered(dto: MarkAsDeliveredDto) {
     const { messageId, userId, deliveryLatencyMs } = dto
@@ -1241,7 +1241,7 @@ export class MessagesService {
       deliveryLatencyMs ??
       (result.message.sentAt ? Date.now() - new Date(result.message.sentAt).getTime() : undefined)
 
-    // PHASE 5: Broadcast delivery receipt via Redis pub/sub
+    // Broadcast delivery receipt via Redis pub/sub
     await this.redisPubSub.publishMessage('receipts:delivered', {
       messageId,
       conversationId: result.message.conversationId,
@@ -1252,13 +1252,13 @@ export class MessagesService {
       processingLatencyMs: Date.now() - deliveryStartTime,
     })
 
-    // ✅ PHASE 3 FIX: Invalidate conversation cache for user
+    // Invalidate conversation cache for user
     await this.conversationsService.invalidateConversationCache(userId)
 
-    // ✅ PHASE 3 FIX: Invalidate metrics cache
+    // Invalidate metrics cache
     await this.redis.del(`conversation:metrics:${result.message.conversationId}`)
 
-    // ✅ PHASE 3 FIX: Broadcast cache invalidation to all replicas
+    // Broadcast cache invalidation to all replicas
     await this.redisPubSub.publishMessage('cache:invalidate:conversations', {
       userIds: [userId],
     })
@@ -1299,7 +1299,7 @@ export class MessagesService {
 
   /**
    * Add reaction to message
-   * PHASE 6: Enhanced with Redis pub/sub for real-time updates
+   * Enhanced with Redis pub/sub for real-time updates
    */
   async addReaction(dto: AddReactionDto) {
     const { messageId, userId, emoji } = dto
@@ -1323,16 +1323,16 @@ export class MessagesService {
       },
     })
 
-    // ✅ PHASE 4 FIX: Invalidate message cache (reactions changed)
+    // Invalidate message cache (reactions changed)
     await this.redis.del(`message:${messageId}`)
     await this.invalidateMessageCache(message.conversationId)
 
-    // ✅ PHASE 4 FIX: Broadcast cache invalidation to all replicas
+    // Broadcast cache invalidation to all replicas
     await this.redisPubSub.publishMessage('cache:invalidate:messages', {
       conversationId: message.conversationId,
     })
 
-    // PHASE 6: Broadcast reaction via Redis pub/sub for real-time updates
+    // Broadcast reaction via Redis pub/sub for real-time updates
     await this.redisPubSub.publishMessage('reactions:added', {
       messageId,
       conversationId: message.conversationId,
@@ -1351,7 +1351,7 @@ export class MessagesService {
 
   /**
    * Remove reaction from message
-   * PHASE 6: Enhanced with Redis pub/sub for real-time updates
+   * Enhanced with Redis pub/sub for real-time updates
    */
   async removeReaction(dto: RemoveReactionDto) {
     const { messageId, userId, emoji } = dto
@@ -1377,16 +1377,16 @@ export class MessagesService {
       },
     })
 
-    // ✅ PHASE 4 FIX: Invalidate message cache
+    // Invalidate message cache
     await this.redis.del(`message:${messageId}`)
     await this.invalidateMessageCache(message.conversationId)
 
-    // ✅ PHASE 4 FIX: Broadcast cache invalidation
+    // Broadcast cache invalidation
     await this.redisPubSub.publishMessage('cache:invalidate:messages', {
       conversationId: message.conversationId,
     })
 
-    // PHASE 6: Broadcast reaction removal via Redis pub/sub
+    // Broadcast reaction removal via Redis pub/sub
     await this.redisPubSub.publishMessage('reactions:removed', {
       messageId,
       conversationId: message.conversationId,
@@ -1402,7 +1402,7 @@ export class MessagesService {
 
   /**
    * Bookmark a message
-   * PHASE 6: Enhanced with optional note field
+   * Enhanced with optional note field
    */
   async bookmarkMessage(dto: BookmarkMessageDto) {
     const { messageId, userId, note } = dto
@@ -1436,11 +1436,11 @@ export class MessagesService {
       },
     })
 
-    // ✅ PHASE 5 FIX: Invalidate bookmark list cache
+    // Invalidate bookmark list cache
     const cacheKey = `bookmarks:${userId}:*`
     await this.deleteKeysByPattern(cacheKey)
 
-    // ✅ PHASE 5 FIX: Broadcast bookmark event to all devices
+    // Broadcast bookmark event to all devices
     await this.redisPubSub.publishMessage('bookmarks:added', {
       messageId,
       userId,
@@ -1478,11 +1478,11 @@ export class MessagesService {
       },
     })
 
-    // ✅ PHASE 5 FIX: Invalidate bookmark list cache
+    // Invalidate bookmark list cache
     const cacheKey = `bookmarks:${userId}:*`
     await this.deleteKeysByPattern(cacheKey)
 
-    // ✅ PHASE 5 FIX: Broadcast bookmark event
+    // Broadcast bookmark event
     await this.redisPubSub.publishMessage('bookmarks:removed', {
       bookmarkId: bookmark?.id,
       messageId,
@@ -1494,7 +1494,7 @@ export class MessagesService {
   }
 
   /**
-   * PHASE 6: Get bookmarked messages for a user
+   * Get bookmarked messages for a user
    */
   async getBookmarkedMessages(userId: string, limit = 50, cursor?: string) {
     const where: any = {
@@ -1549,7 +1549,7 @@ export class MessagesService {
 
   /**
    * Pin a message in conversation
-   * PHASE 6: Enhanced with pin limit validation and Redis pub/sub
+   * Enhanced with pin limit validation and Redis pub/sub
    */
   async pinMessage(dto: PinMessageDto) {
     const { messageId, userId } = dto
@@ -1595,20 +1595,20 @@ export class MessagesService {
       },
     })
 
-    // ✅ PHASE 4 FIX: Invalidate message cache (pin status changed)
+    // Invalidate message cache (pin status changed)
     await this.redis.del(`message:${messageId}`)
     await this.invalidateMessageCache(message.conversationId)
 
-    // ✅ PHASE 4 FIX: Invalidate pinned messages cache
+    // Invalidate pinned messages cache
     const pinnedCacheKey = `messages:pinned:${message.conversationId}`
     await this.redis.del(pinnedCacheKey)
 
-    // ✅ PHASE 4 FIX: Broadcast cache invalidation to all replicas
+    // Broadcast cache invalidation to all replicas
     await this.redisPubSub.publishMessage('cache:invalidate:messages', {
       conversationId: message.conversationId,
     })
 
-    // PHASE 6: Broadcast pin event via Redis pub/sub
+    // Broadcast pin event via Redis pub/sub
     await this.redisPubSub.publishMessage('messages:pinned', {
       messageId,
       conversationId: message.conversationId,
@@ -1622,7 +1622,7 @@ export class MessagesService {
 
   /**
    * Unpin a message
-   * PHASE 6: Enhanced with Redis pub/sub
+   * Enhanced with Redis pub/sub
    */
   async unpinMessage(dto: UnpinMessageDto) {
     const { messageId } = dto
@@ -1651,20 +1651,20 @@ export class MessagesService {
       },
     })
 
-    // ✅ PHASE 4 FIX: Invalidate message cache
+    // Invalidate message cache
     await this.redis.del(`message:${messageId}`)
     await this.invalidateMessageCache(message.conversationId)
 
-    // ✅ PHASE 4 FIX: Invalidate pinned messages cache
+    // Invalidate pinned messages cache
     const pinnedCacheKey = `messages:pinned:${message.conversationId}`
     await this.redis.del(pinnedCacheKey)
 
-    // ✅ PHASE 4 FIX: Broadcast cache invalidation
+    // Broadcast cache invalidation
     await this.redisPubSub.publishMessage('cache:invalidate:messages', {
       conversationId: message.conversationId,
     })
 
-    // PHASE 6: Broadcast unpin event via Redis pub/sub
+    // Broadcast unpin event via Redis pub/sub
     await this.redisPubSub.publishMessage('messages:unpinned', {
       messageId,
       conversationId: message.conversationId,
@@ -1678,7 +1678,7 @@ export class MessagesService {
 
   /**
    * Forward a message to another conversation
-   * PHASE 6: Enhanced with forwardCount tracking and Redis pub/sub
+   * Enhanced with forwardCount tracking and Redis pub/sub
    */
   async forwardMessage(dto: ForwardMessageDto) {
     const { messageId, toConversationId, forwardedBy } = dto
@@ -1741,7 +1741,7 @@ export class MessagesService {
       return forwardedMessage
     })
 
-    // PHASE 6: Broadcast forwarded message via Redis pub/sub for real-time delivery
+    // Broadcast forwarded message via Redis pub/sub for real-time delivery
     // ✅ Fetch target conversation participants for user-room broadcasting
     const targetConversation = await this.prisma.conversation.findUnique({
       where: { id: toConversationId },
@@ -1780,7 +1780,7 @@ export class MessagesService {
   }
 
   /**
-   * PHASE 6.7: Get edit history for a message
+   * Get edit history for a message
    * Retrieves all edit history records with cursor-based pagination
    */
   async getMessageEditHistory(messageId: string, limit = 50, cursor?: string) {
@@ -1836,7 +1836,7 @@ export class MessagesService {
   }
 
   /**
-   * PHASE 6.9: Schedule a message for later
+   * Schedule a message for later
    * Enhanced with proper status tracking
    */
   async scheduleMessage(dto: ScheduleMessageDto) {
@@ -1856,7 +1856,7 @@ export class MessagesService {
         isScheduled: true,
         scheduledFor,
         scheduledBy,
-        status: MessageStatus.SENDING, // PHASE 6.9: Use SENDING status for scheduled messages
+        status: MessageStatus.SENDING, // Use SENDING status for scheduled messages
       },
       include: {
         sender: {
@@ -1873,7 +1873,7 @@ export class MessagesService {
   }
 
   /**
-   * PHASE 6.9: Get scheduled messages for a user
+   * Get scheduled messages for a user
    * Retrieves all pending scheduled messages
    */
   async getScheduledMessages(userId: string, limit = 50, cursor?: string) {
@@ -1925,7 +1925,7 @@ export class MessagesService {
   }
 
   /**
-   * PHASE 6.9: Cancel a scheduled message
+   * Cancel a scheduled message
    * Prevents a scheduled message from being sent
    */
   async cancelScheduledMessage(messageId: string, userId: string) {
@@ -1988,7 +1988,7 @@ export class MessagesService {
   }
 
   /**
-   * PHASE 6: Get messages where user was mentioned
+   * Get messages where user was mentioned
    */
   async getMentionedMessages(userId: string, limit = 50, cursor?: string) {
     const where: any = {
@@ -2048,7 +2048,7 @@ export class MessagesService {
   }
 
   /**
-   * PHASE 6: Get message thread/reply chain
+   * Get message thread/reply chain
    * Fetches the full thread starting from a message
    */
   async getMessageThread(messageId: string) {

@@ -24,7 +24,7 @@ export interface NotificationDispatchEvent {
  * Domain services never touch the queue, never touch templates, never
  * touch recipient lookup — all that lives behind the catalog.
  *
- * **Phase 14c hardening — never throws to the caller.** EventEmitter2's
+ * **Hardening — never throws to the caller.** EventEmitter2's
  * `emit` is synchronous and only throws if a listener throws synchronously
  * (the dispatcher's `@OnEvent({ async: true })` decorator runs it on the
  * micro-task queue, so today it can't). But ~50 domain call sites
