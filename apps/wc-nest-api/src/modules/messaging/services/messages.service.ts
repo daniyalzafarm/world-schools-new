@@ -459,7 +459,7 @@ export class MessagesService {
             sender: message.sender,
             replyTo: message.replyTo,
           },
-          // ✅ Include recipient info so Redis subscriber can broadcast to user rooms
+          // Include recipient info so Redis subscriber can broadcast to user rooms
           recipientUserIds: participantUserIds.filter(id => id !== senderId),
           providerId: metadata?.providerId,
           senderId,
@@ -1742,7 +1742,7 @@ export class MessagesService {
     })
 
     // Broadcast forwarded message via Redis pub/sub for real-time delivery
-    // ✅ Fetch target conversation participants for user-room broadcasting
+    // Fetch target conversation participants for user-room broadcasting
     const targetConversation = await this.prisma.conversation.findUnique({
       where: { id: toConversationId },
       select: {
@@ -1766,7 +1766,7 @@ export class MessagesService {
       forwardedFromId: messageId,
       originalSenderId: originalMessage.senderId,
       sentAt: result.sentAt.toISOString(),
-      // ✅ Include recipient info so Redis subscriber can broadcast to user rooms
+      // Include recipient info so Redis subscriber can broadcast to user rooms
       recipientUserIds: forwardRecipientUserIds,
       providerId: forwardMetadata?.providerId,
       publishedAt: publishedAt.toISOString(),
@@ -2110,9 +2110,9 @@ export class MessagesService {
   }
 
   /**
-   * ✅ NEW: Invalidate message cache for a conversation
+   * Invalidate message cache for a conversation
    * Deletes all cached message pages (all limit/cursor/direction combinations)
-   * ✅ PUBLIC: Called from RedisPubSubService for cross-replica cache invalidation
+   * Called from RedisPubSubService for cross-replica cache invalidation
    */
   async invalidateMessageCache(conversationId: string): Promise<void> {
     const pattern = `messages:${conversationId}:*`
@@ -2122,7 +2122,7 @@ export class MessagesService {
   }
 
   /**
-   * ✅ NEW: Delete cache keys by pattern using SCAN (non-blocking)
+   * Delete cache keys by pattern using SCAN (non-blocking)
    * Replaces KEYS command which blocks Redis in production
    */
   private async deleteKeysByPattern(pattern: string): Promise<void> {

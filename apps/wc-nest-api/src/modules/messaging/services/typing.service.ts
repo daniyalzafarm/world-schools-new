@@ -95,7 +95,7 @@ export class TypingService {
         return []
       }
 
-      // ✅ GOOD: Pipeline for batch reads (keep existing code)
+      // Pipeline for batch reads
       const pipeline = client.pipeline()
       keys.forEach(key => pipeline.get(key))
       const results = await pipeline.exec()
@@ -145,7 +145,7 @@ export class TypingService {
    */
   async clearConversationTyping(conversationId: string): Promise<boolean> {
     try {
-      // ✅ ISSUE #14 FIX: Use SCAN instead of KEYS (non-blocking)
+      // Use SCAN instead of KEYS (non-blocking)
       const client = this.redis.getClient()
       const pattern = `typing:${conversationId}:*`
       const keys: string[] = []

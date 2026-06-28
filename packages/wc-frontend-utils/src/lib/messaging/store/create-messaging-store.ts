@@ -852,7 +852,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             participantType: params.participantType,
             contextType: contextTypeEnum,
             contextId: params.contextId,
-            initialMessage: params.initialMessage, // ✅ Required
+            initialMessage: params.initialMessage, // Required
           })
 
           if (!response.success) {
@@ -877,7 +877,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
 
           log('Conversation created successfully:', conversation.id)
 
-          // ✅ Use setActiveConversation to properly activate the conversation
+          // Use setActiveConversation to properly activate the conversation
           // This will fetch messages, join WebSocket room, etc.
           get().setActiveConversation(conversation.id)
 
@@ -1264,7 +1264,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             !dto.replyToId
 
           if (useWebSocket) {
-            // ✅ Send via WebSocket (fire-and-forget)
+            // Send via WebSocket (fire-and-forget)
             // Server will confirm via message:created event or report via message:error event
             log('Sending message via WebSocket:', optimisticMessage.id)
             messagingWebSocket.sendMessage(dto.conversationId, dto.content, optimisticMessage.id, {
@@ -1279,11 +1279,11 @@ export function createMessagingStore(config: MessagingStoreConfig) {
           ) {
             // WebSocket enabled but disconnected
             if (featureFlags.WEBSOCKET_FALLBACK_TO_HTTP) {
-              // ✅ Fallback to HTTP
+              // Fallback to HTTP
               log('WebSocket disconnected, falling back to HTTP for:', optimisticMessage.id)
               await get().sendMessageViaHttp(dto, optimisticMessage)
             } else {
-              // ❌ No fallback - queue the message for later delivery
+              // No fallback - queue the message for later delivery
               log('WebSocket disconnected, queueing message:', optimisticMessage.id)
               messageQueue.enqueue(dto.conversationId, dto.content, optimisticMessage.id)
               set(draft => {
@@ -1297,7 +1297,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
               })
             }
           } else {
-            // ✅ Feature flag disabled - use HTTP (existing behavior)
+            // Feature flag disabled - use HTTP (existing behavior)
             await get().sendMessageViaHttp(dto, optimisticMessage)
           }
         } catch (error: any) {

@@ -27,7 +27,7 @@ const BATCH_SIZE = 200
  * and LOGS them — no DB write, no notification. Lets ops observe volume
  * before the catalog entries land.
  *
- * Wiring (TODO):
+ * TODO: Wiring to complete:
  *  1. Add `NotificationType.ParentCheckoutAbandoned3h/2d/4d/6d` enum values
  *     + catalog entries + React Email templates.
  *  2. Replace the diagnostic log below with:

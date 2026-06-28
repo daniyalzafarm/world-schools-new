@@ -80,7 +80,7 @@ export class ConversationsService {
   async createConversation(dto: CreateConversationDto) {
     const { userId, participantId, participantType, contextType, contextId, initialMessage } = dto
 
-    // ✅ NEW: Require initial message
+    // Require initial message
     if (!initialMessage || initialMessage.trim().length === 0) {
       throw new BadRequestException('Initial message is required to create a conversation')
     }
@@ -230,19 +230,19 @@ export class ConversationsService {
 
     // For provider conversations, invalidate provider users' cache
     if (participantType === 'provider') {
-      // ✅ LOCAL invalidation for provider users on current replica
+      // Local invalidation for provider users on current replica
       const providerUsers = await this.redisPubSub.getProviderUsers(participantId)
       for (const providerUser of providerUsers) {
         await this.invalidateConversationCache(providerUser.id)
       }
 
-      // ✅ Broadcast to all replicas to invalidate provider users' cache
+      // Broadcast to all replicas to invalidate provider users' cache
       await this.redisPubSub.publishMessage('cache:invalidate:conversations', {
         userIds: userIdsToInvalidate,
         providerId: participantId, // participantId is the provider ID
       })
 
-      // ✅ NEW: Emit WebSocket event to provider users for real-time conversation list updates
+      // Emit WebSocket event to provider users for real-time conversation list updates
       this.logger.log(
         `[Real-time] Publishing conversations:new event for provider ${participantId}`
       )
@@ -273,7 +273,7 @@ export class ConversationsService {
         userIds: userIdsToInvalidate,
       })
 
-      // ✅ NEW: Emit WebSocket event to superadmin users for real-time conversation list updates
+      // Emit WebSocket event to superadmin users for real-time conversation list updates
       await this.redisPubSub.publishMessage('conversations:new', {
         conversation,
         userIds: userIdsToInvalidate,
@@ -284,7 +284,7 @@ export class ConversationsService {
       `Cache invalidated for new conversation ${conversation.id} and ${userIdsToInvalidate.length} users`
     )
 
-    // ✅ Enrich conversation with provider data for USER_PROVIDER conversations
+    // Enrich conversation with provider data for USER_PROVIDER conversations
     // This matches the enrichment done in getConversations() to ensure consistent data structure
     let enrichedConversation = conversation
     if (participantType === 'provider') {
@@ -1328,8 +1328,8 @@ export class ConversationsService {
 
   /**
    * Helper: Invalidate conversation cache for a user
-   * ✅ UPDATED: Now uses SCAN instead of KEYS and includes providerId
-   * ✅ PUBLIC: Called from RedisPubSubService for cross-replica cache invalidation
+   * Now uses SCAN instead of KEYS and includes providerId
+   * Called from RedisPubSubService for cross-replica cache invalidation
    */
   async invalidateConversationCache(userId: string): Promise<void> {
     const now = Date.now()
@@ -1354,7 +1354,7 @@ export class ConversationsService {
   }
 
   /**
-   * ✅ NEW: Delete cache keys by pattern using SCAN (non-blocking)
+   * Delete cache keys by pattern using SCAN (non-blocking)
    * Replaces KEYS command which blocks Redis in production
    */
   private async deleteKeysByPattern(pattern: string): Promise<void> {
