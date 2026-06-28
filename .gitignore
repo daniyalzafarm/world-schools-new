@@ -65,8 +65,6 @@ Thumbs.db
 # Nx
 .nx/
 **/.nx/
-.cursor/rules/nx-rules.mdc
-.github/instructions/nx.instructions.md
 
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
@@ -79,7 +77,6 @@ out
 next-env.d.ts
 static/
 graph.html
-.cursor
 
 # Temporary files
 temp/
@@ -99,8 +96,3 @@ temp/
 *~
 *.orig
 *.rej
-
-# Claude Code — local user settings (project settings.json is tracked)
-.claude/settings.local.json
-.claude/scheduled_tasks.lock
-.claude/worktrees
