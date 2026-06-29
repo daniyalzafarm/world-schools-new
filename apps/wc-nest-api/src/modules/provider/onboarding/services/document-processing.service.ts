@@ -147,7 +147,7 @@ export class DocumentProcessingService {
         `${existingDocument ? 'Replaced' : 'Uploaded'} document ${document.id} for provider ${providerId}`
       )
 
-      // v28 Phase 9 — notify superadmins that verification docs are ready
+      // Notify superadmins that verification docs are ready
       // for review. Fires on every upload (including re-uploads after
       // 'needs_reupload') so admins always see the latest submission.
       notify(this.eventEmitter, NotificationType.SuperadminVerificationDocsUploaded, {

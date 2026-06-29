@@ -516,7 +516,7 @@ export class EmailTemplateService {
    * Booking accepted — parent-facing confirmation that the card has been
    * charged and the spot is secured. Replaces the earlier in-app copy that
    * incorrectly told parents to "proceed to payment" after capture had
-   * already succeeded (BUG-110).
+   * already succeeded.
    */
   /**
    * Get welcome email template for provider accounts created via admin import
@@ -528,8 +528,8 @@ export class EmailTemplateService {
     loginUrl: string
   }): string {
     // Only `firstName` is admin-typed free text; `email` is RFC-validated
-    // and `tempPassword` is server-generated (random charset). Per Phase 3
-    // selectivity, escape only the field with HTML-injection risk.
+    // and `tempPassword` is server-generated (random charset).
+    // Escape only the field with HTML-injection risk.
     const firstName = this.escapeHtml(params.firstName)
     const content = `
       <div class="email-header">
@@ -675,7 +675,7 @@ export class EmailTemplateService {
   }
 
   /**
-   * Phase 4: parent-facing cancellation confirmation. Sent immediately after
+   * Parent-facing cancellation confirmation. Sent immediately after
    * a parent successfully cancels via the booking detail page. Body
    * differs by `mode` so the parent sees a truthful summary of what
    * happened (refund vs. authorization void vs. partial policy refund).
@@ -743,7 +743,7 @@ export class EmailTemplateService {
   }
 
   /**
-   * Phase 4: reimbursement reminder. Sent by the daily reminder cron to the
+   * Reimbursement reminder. Sent by the daily reminder cron to the
    * provider's owner when a Reimbursement is overdue (dueDate < now). Under
    * Accounts v2 the platform absorbed the refund debit; the camp owes us
    * the equivalent and we collect either by deduction from their next

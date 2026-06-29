@@ -149,7 +149,7 @@ export class NotificationsFailureListener implements OnModuleInit, OnModuleDestr
 /**
  * Single-line sanitisation: strip stack traces / multi-line provider
  * messages so the DB column doesn't leak secrets or unbounded text.
- * Phase 14c tightens this further in the worker's in-loop catch.
+ * The worker's in-loop catch tightens this further.
  */
 function sanitizeErrorMessage(raw: string): string {
   return raw.split('\n')[0]?.slice(0, 500) ?? ''

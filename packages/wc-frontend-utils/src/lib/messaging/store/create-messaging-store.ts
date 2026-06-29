@@ -439,7 +439,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             )
           }
 
-          // Phase D: Set up global WebSocket adapter event listeners for typing/presence/receipts
+          // Set up global WebSocket adapter event listeners for typing/presence/receipts
           if (featureFlags.WEBSOCKET_MESSAGES) {
             log('Setting up global WebSocket adapter typing/presence/receipt listeners')
 
@@ -672,7 +672,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             )
           )
 
-          // Phase 3.2: Initialize message queue for offline support
+          // Initialize message queue for offline support
           if (featureFlags.WEBSOCKET_MESSAGES) {
             log('Initializing message queue for offline support')
             messageQueue.load()
@@ -852,7 +852,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             participantType: params.participantType,
             contextType: contextTypeEnum,
             contextId: params.contextId,
-            initialMessage: params.initialMessage, // ✅ Required
+            initialMessage: params.initialMessage, // Required
           })
 
           if (!response.success) {
@@ -877,7 +877,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
 
           log('Conversation created successfully:', conversation.id)
 
-          // ✅ Use setActiveConversation to properly activate the conversation
+          // Use setActiveConversation to properly activate the conversation
           // This will fetch messages, join WebSocket room, etc.
           get().setActiveConversation(conversation.id)
 
@@ -1252,7 +1252,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
         })
 
         try {
-          // ✅ Phase 3: Route message via WebSocket when feature flag enabled and connected.
+          // Route message via WebSocket when feature flag enabled and connected.
           // Exception: replies go via HTTP — the WS send payload doesn't carry
           // replyToId, so a reply sent over WS loses its quoted context. The HTTP
           // path forwards the full dto (replyToId included) and the server still
@@ -1264,7 +1264,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
             !dto.replyToId
 
           if (useWebSocket) {
-            // ✅ Send via WebSocket (fire-and-forget)
+            // Send via WebSocket (fire-and-forget)
             // Server will confirm via message:created event or report via message:error event
             log('Sending message via WebSocket:', optimisticMessage.id)
             messagingWebSocket.sendMessage(dto.conversationId, dto.content, optimisticMessage.id, {
@@ -1279,11 +1279,11 @@ export function createMessagingStore(config: MessagingStoreConfig) {
           ) {
             // WebSocket enabled but disconnected
             if (featureFlags.WEBSOCKET_FALLBACK_TO_HTTP) {
-              // ✅ Fallback to HTTP
+              // Fallback to HTTP
               log('WebSocket disconnected, falling back to HTTP for:', optimisticMessage.id)
               await get().sendMessageViaHttp(dto, optimisticMessage)
             } else {
-              // ❌ No fallback - queue the message for later delivery
+              // No fallback - queue the message for later delivery
               log('WebSocket disconnected, queueing message:', optimisticMessage.id)
               messageQueue.enqueue(dto.conversationId, dto.content, optimisticMessage.id)
               set(draft => {
@@ -1297,7 +1297,7 @@ export function createMessagingStore(config: MessagingStoreConfig) {
               })
             }
           } else {
-            // ✅ Feature flag disabled - use HTTP (existing behavior)
+            // Feature flag disabled - use HTTP (existing behavior)
             await get().sendMessageViaHttp(dto, optimisticMessage)
           }
         } catch (error: any) {

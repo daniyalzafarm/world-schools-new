@@ -20,7 +20,7 @@ import { type Audience, NotificationPreferencesService } from './notification-pr
  * Class-validator decorator that asserts a string is a registered
  * `templateKey` in the catalog. Replaces the previous `@IsString()` which
  * silently accepted arbitrary strings and let the service-side filter drop
- * them with no client feedback. Phase 14c — now returns 400 with a clear
+ * them with no client feedback. Now returns 400 with a clear
  * message so the frontend can surface "stale catalog, please reload" if a
  * user toggles a removed entry.
  *
@@ -76,7 +76,7 @@ export function _resetTemplateKeyCacheForTests(): void {
 }
 
 /**
- * Phase 12 — Notification preferences controller.
+ * Notification preferences controller.
  *
  * Single endpoint pair, audience derived from the authenticated user:
  *  - GET  /notification-preferences   → flat list of (templateKey, channel)
@@ -84,7 +84,7 @@ export function _resetTemplateKeyCacheForTests(): void {
  *                                       transactional entries locked.
  *  - PATCH /notification-preferences  → bulk-upsert opt-outs / opt-ins.
  *
- * Phase 14c — PATCH is rate-limited per-user via Redis (30 requests / 60s)
+ * PATCH is rate-limited per-user via Redis (30 requests / 60s)
  * and templateKey is allow-listed against the live catalog so garbage
  * input is rejected with 400 instead of silently dropped server-side.
  */

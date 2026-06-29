@@ -37,7 +37,7 @@ const MAX_EVIDENCE_FILE_BYTES = 5 * 1024 * 1024 // 5 MB; Stripe's hard cap is 5 
 const MAX_EVIDENCE_FILES = 4
 
 /**
- * Phase 6 — Superadmin Disputes UI backend.
+ * Superadmin Disputes UI backend.
  *
  * Sits alongside `SuperAdminBillingController` (reimbursements / refund
  * triggers) but in its own controller because the surface is meaningfully

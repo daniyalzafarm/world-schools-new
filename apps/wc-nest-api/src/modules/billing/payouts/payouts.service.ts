@@ -934,7 +934,7 @@ export class PayoutsService {
     const event = await this.upsertPayoutEvent(payout, accountId, PayoutStatus.paid)
     if (event) {
       await this.linkTranchesToPayoutEvent(payout.id, event.id, PayoutTrancheStatus.paid)
-      // v28 Phase 8 — provider-owner notification on every released payout.
+      // provider-owner notification on every released payout.
       notify(this.eventEmitter, NotificationType.ProviderPayoutReleased, {
         payoutEventId: event.id,
       })
@@ -955,7 +955,7 @@ export class PayoutsService {
       notify(this.eventEmitter, NotificationType.ProviderPayoutFailed, {
         payoutEventId: failedEvent.id,
       })
-      // v28 Phase 9 — superadmin mirror so platform team can spot
+      // superadmin mirror so platform team can spot
       // recurring payout failures (often bank-detail issues the camp
       // needs help fixing).
       notify(this.eventEmitter, NotificationType.SuperadminPayoutFailure, {

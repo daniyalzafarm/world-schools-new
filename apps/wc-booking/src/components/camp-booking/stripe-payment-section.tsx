@@ -96,7 +96,7 @@ export const StripePaymentSection = forwardRef<
             mode: 'setup',
             currency,
             // SetupIntent flow — parent saves card today, gets charged off-session
-            // at `dueAt` (Phase 3 cron handles the actual charge).
+            // at `dueAt`
             setupFutureUsage: 'off_session',
             appearance: { theme: 'stripe' },
           }
@@ -108,7 +108,7 @@ export const StripePaymentSection = forwardRef<
             // accept. This lets us void cleanly on decline without the parent
             // ever seeing a charge.
             captureMethod: 'manual',
-            // Save the PM so the off-session balance charge (Phase 3 cron) can
+            // Save the PM so the off-session balance charge can
             // reuse it without prompting the parent again.
             setupFutureUsage: 'off_session',
             appearance: { theme: 'stripe' },
@@ -287,7 +287,7 @@ function InnerForm({
       //    is fast but not instantaneous. Race it against a short timeout so
       //    we don't hold the success UI hostage to a slow sync — but also
       //    don't flip to "confirmed" before the server has had a chance to
-      //    reconcile, which is the bug B6 audit fix targets.
+      //    reconcile, which is the bug this targets.
       //
       //    The booking-detail page that we navigate to after success can do
       //    its own state polling for the residual cases where neither the
@@ -327,7 +327,7 @@ function InnerForm({
     return null
   }
 
-  // H6 audit fix: surface what the parent is about to authorize directly
+  // surface what the parent is about to authorize directly
   // above the card form. The outer review step shows the same number, but at
   // the moment of card entry it needs to be adjacent so the parent isn't
   // glancing between two panels. `setupFutureUsage` is always set so the
@@ -392,8 +392,7 @@ async function runConfirm(
 /**
  * Where Stripe redirects the parent after a 3DS challenge. The route is
  * `/payment/authorize` which polls the backend for terminal status and shows
- * an inline success/failure state. Phase 3 reuses this route for off-session
- * step-up flows triggered by the balance-charge cron.
+ * an inline success/failure state.
  *
  * `booking_group_id` is included so the return page can call `syncPayment` to
  * reconcile our local Payment row with Stripe before navigating onward — the
@@ -419,7 +418,7 @@ function buildReturnUrl(
 }
 
 /**
- * B6 audit fix: cap on how long the deferred-flow's post-confirm
+ * cap on how long the deferred-flow's post-confirm
  * `syncPayment` call may take before we flip the success UI. 5s is generous
  * enough for normal RTT + DB writes but small enough that a sync hiccup
  * doesn't strand the user staring at a spinner. After the timeout the
@@ -473,7 +472,7 @@ function toStripeMinorUnits(amount: number, currency: string): number {
 }
 
 /**
- * H6 audit fix: render a major-unit amount in the camp's settlement
+ * render a major-unit amount in the camp's settlement
  * currency. Pinned to `en-US` locale (matching the app shell at
  * `apps/wc-booking/src/app/layout.tsx`) so the thousands/decimal
  * separators stay consistent across the booking flow regardless of the

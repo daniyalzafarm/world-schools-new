@@ -64,7 +64,7 @@ export class GdprController {
    *
    * GDPR Article 17: Right to Erasure (Right to be Forgotten)
    *
-   * ⚠️ WARNING: This operation is IRREVERSIBLE
+   * WARNING: This operation is IRREVERSIBLE
    *
    * Permanently deletes:
    * - All messages (content replaced with deletion notice)

@@ -144,7 +144,7 @@ export const bookingGroupsService = {
   },
 
   /**
-   * Phase 4: read-only refund preview for the cancel modal. The parent
+   * read-only refund preview for the cancel modal. The parent
    * sees the exact amount they'd get back BEFORE confirming. The mode tells
    * the modal which copy to render (full grace refund vs. policy partial vs.
    * void-auth pre-capture vs. not-cancelable).
@@ -164,7 +164,7 @@ export const bookingGroupsService = {
   },
 
   /**
-   * Phase 4: parent-initiated cancellation. Server dispatches based on the
+   * parent-initiated cancellation. Server dispatches based on the
    * live booking state — pre-capture voids the auth, in-grace issues 100%,
    * post-grace issues the policy-tier % refund. Optional `circumstance` opts
    * into a provider-configured special-circumstance refund (medical /

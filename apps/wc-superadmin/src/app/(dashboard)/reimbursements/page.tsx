@@ -29,7 +29,7 @@ import {
 } from '@/services/reimbursements.services'
 
 /**
- * Phase 4 — superadmin Reimbursements list page.
+ * Superadmin Reimbursements list page.
  *
  * The list is sorted server-side by `dueDate ASC` so the most-urgent
  * (oldest pending) row sits at the top. The "All" tab shows everything;

@@ -95,7 +95,7 @@ export interface CatalogEntry<TProps = unknown> {
      *  redirect URL alone doesn't convey — e.g. `bookingGroupNumber`,
      *  `campName`, `senderName`, `messagePreview`. The legacy
      *  `BookingWebSocketHandler` populated `bookingGroupNumber` + `campName`
-     *  this way; opting back in here keeps frontends working post-cutover. */
+     *  this way; opting back in here keeps frontends working. */
     metadata?: (props: TProps) => Record<string, unknown>
   }
 }

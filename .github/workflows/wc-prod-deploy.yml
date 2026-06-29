@@ -26,7 +26,7 @@ env:
   # Container App names
   API_CONTAINER_APP_NAME: ca-api-wc-prod
 
-  # Prisma migrate Container Apps Job — created out-of-band per AZURE_SETUP_WC_PROD.md
+  # Prisma migrate Container Apps Job — created out-of-band (see DEPLOYMENT.md)
   MIGRATION_JOB_NAME: caj-migrate-wc-prod
 
 jobs:

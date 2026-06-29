@@ -64,7 +64,7 @@ const getTrustScoreColor = (score?: number | null) => {
 }
 
 /**
- * Coloured-dot mapping for the OPERATIONAL column (BUG-107). Kept inline
+ * Coloured-dot mapping for the OPERATIONAL column. Kept inline
  * rather than extracted to ui-web since SuperAdmin is the only consumer
  * today — promote when a second consumer appears.
  */
@@ -78,7 +78,7 @@ const OPERATIONAL_STATUS_DOT_CLASS: Record<OperationalStatus, string> = {
 /**
  * Plain-language definition of each operational status, shown as a fallback
  * tooltip when no per-provider `operationalStatusReasons` are available so the
- * badge is never a bare, unexplained label (BUG-120).
+ * badge is never a bare, unexplained label.
  */
 const OPERATIONAL_STATUS_DESCRIPTION: Record<OperationalStatus, string> = {
   [OperationalStatus.FullyActive]: 'Fully active — all onboarding criteria are met.',

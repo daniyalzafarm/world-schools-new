@@ -12,7 +12,7 @@ import { WsInternalEvent } from '../websocket/ws-internal-events'
 /**
  * Live WebSocket fan-out for booking lifecycle events.
  *
- * Phase 5 cutover (v28 spec): persistent in-app notification creation and
+ * Persistent in-app notification creation and
  * email dispatch moved out of this handler into the catalog dispatcher
  * (see `BookingGroupsService.acceptForProvider` / `declineForProvider` /
  * booking-submit, which call `notify(...)`). This handler is now ONLY

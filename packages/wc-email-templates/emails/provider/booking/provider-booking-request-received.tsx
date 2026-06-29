@@ -18,9 +18,9 @@ export interface ProviderBookingRequestReceivedProps {
 /**
  * Provider — New booking request received.
  *
- * Spec: WorldCamps_Notifications_v28.xlsx → "For Providers" (Booking Request
- * Received). BUG-179: the in-app notification fired but no email did, so a camp
- * that isn't logged in could miss a request that auto-expires in 72 hours.
+ * Spec: WorldCamps notifications catalog → "For Providers" (Booking Request
+ * Received). The in-app notification fired but no email did, so a camp that
+ * isn't logged in could miss a request that auto-expires in 72 hours.
  */
 export default function ProviderBookingRequestReceived({
   campName,

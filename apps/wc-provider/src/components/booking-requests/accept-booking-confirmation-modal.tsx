@@ -15,12 +15,12 @@ interface AcceptBookingConfirmationModalProps {
 }
 
 /**
- * Confirmation gate before accepting a booking (BUG-109). Surfaces the
+ * Confirmation gate before accepting a booking. Surfaces the
  * full booking summary AND the immediate financial consequence (parent
  * charge) so providers can never click Accept without seeing the amount
  * they're committing to take.
  *
- * Mirror of the parent's pre-request confirmation (BUG-073) — both sides
+ * Mirror of the parent's pre-request confirmation — both sides
  * of the transaction see a final summary before money moves.
  */
 export function AcceptBookingConfirmationModal({
@@ -31,7 +31,7 @@ export function AcceptBookingConfirmationModal({
   detail,
 }: AcceptBookingConfirmationModalProps) {
   // The session name is shown on its own line below, so this is the date range
-  // only — appending the name here would repeat it (BUG-117).
+  // only — appending the name here would repeat it.
   const sessionRange = formatSessionDateRange(detail.session.startDate, detail.session.endDate)
   const formattedTotal = formatCurrency(detail.totalAmount, detail.currency)
 

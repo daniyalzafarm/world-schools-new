@@ -117,7 +117,7 @@ export class MessagesController {
   }
 
   /**
-   * PHASE 6: Get messages where current user was mentioned
+   * Get messages where current user was mentioned
    */
   @Get('mentions')
   @ApiOperation({
@@ -179,7 +179,7 @@ export class MessagesController {
   }
 
   /**
-   * PHASE 6: Get message thread/reply chain
+   * Get message thread/reply chain
    */
   @Get(':id/thread')
   @UseGuards(MessageAccessGuard)
@@ -209,7 +209,7 @@ export class MessagesController {
   }
 
   /**
-   * PHASE 6.7: Get edit history for a message
+   * Get edit history for a message
    */
   @Get(':id/edit-history')
   @UseGuards(MessageAccessGuard)
@@ -554,7 +554,7 @@ export class MessagesController {
   }
 
   /**
-   * PHASE 6: Get all bookmarked messages for current user
+   * Get all bookmarked messages for current user
    */
   @Get('bookmarks')
   @ApiOperation({
@@ -702,7 +702,7 @@ export class MessagesController {
   }
 
   /**
-   * PHASE 6.9: Schedule a message for later
+   * Schedule a message for later
    */
   @Post('schedule')
   @HttpCode(HttpStatus.CREATED)
@@ -736,7 +736,7 @@ export class MessagesController {
   }
 
   /**
-   * PHASE 6.9: Get scheduled messages for current user
+   * Get scheduled messages for current user
    */
   @Get('scheduled')
   @ApiOperation({
@@ -771,7 +771,7 @@ export class MessagesController {
   }
 
   /**
-   * PHASE 6.9: Cancel a scheduled message
+   * Cancel a scheduled message
    */
   @Delete('scheduled/:id')
   @HttpCode(HttpStatus.OK)

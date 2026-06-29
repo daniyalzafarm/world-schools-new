@@ -4,7 +4,7 @@ import { PrismaService } from '../../../prisma/prisma.service'
 import { ProfileCompletionService } from './profile-completion.service'
 import { PROFILE_COMPLETION_QUEUE_NAME } from './profile-completion.queue'
 
-describe('ProfileCompletionService — Phase 14d queue serialisation', () => {
+describe('ProfileCompletionService — queue serialisation', () => {
   let service: ProfileCompletionService
   let queue: { add: jest.Mock }
 

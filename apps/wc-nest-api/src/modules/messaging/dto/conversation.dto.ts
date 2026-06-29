@@ -50,7 +50,7 @@ export class CreateConversationDto {
   @IsNotEmpty({ message: 'Initial message is required' })
   @MinLength(1, { message: 'Message cannot be empty' })
   @MaxLength(10000, { message: 'Message is too long' })
-  initialMessage: string // ✅ No longer optional
+  initialMessage: string // No longer optional
 
   @Trim()
   @IsString()

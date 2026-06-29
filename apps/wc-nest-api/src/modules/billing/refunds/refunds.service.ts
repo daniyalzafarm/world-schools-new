@@ -247,7 +247,7 @@ export class RefundsService {
     // No refunds means the policy gives 0% at this point in time — that's
     // a valid business outcome, but we still want to mark the group cancelled.
     await this.markGroupCancelled(group.id, 'policy_balance', input.initiatedByUserId)
-    // Phase 8: a policy refund may be partial (some funds still owed to the
+    // a policy refund may be partial (some funds still owed to the
     // camp). Recompute pending tranches so the schedule reflects the new
     // "still owed" amount. For policy_staged bookings whose deposit-grace
     // tranche has already paid, this trims later tier_threshold tranches.
@@ -363,7 +363,7 @@ export class RefundsService {
   }
 
   /**
-   * H1 audit fix: auto-refund triggered by an actionable Stripe Radar
+   * Auto-refund triggered by an actionable Stripe Radar
    * Early Fraud Warning. Called from the `radar.early_fraud_warning.created`
    * webhook handler. Issues a 100% refund (including the application fee —
    * we eat the cost) on every succeeded Payment for the group, cancels the
@@ -429,7 +429,7 @@ export class RefundsService {
   /**
    * Spec Part D row "Force majeure". Discretionary — admin chooses cash refund
    * or credit note. Cash refund: 100% less service fee. Credit note: handled
-   * outside this service in a future doc-generation phase.
+   * outside this service.
    */
   async processForceMajeureRefund(
     input: RefundInput & { adminUserId: string; mode: 'cash' | 'credit_note' }
@@ -732,7 +732,7 @@ export class RefundsService {
           data: { refundedAmount: { increment: row!.amount } },
         })
       }
-      // Phase-7 audit fix H4: ensure the Reimbursement is committed in the
+      // ensure the Reimbursement is committed in the
       // same tx as the status flip. Covers the case where the original
       // `issueRefund` call's `createIfNeeded` invocation raced this webhook
       // (or was missed via the orphan-recovery path).
@@ -752,7 +752,7 @@ export class RefundsService {
     // v28 catalog dispatch — refund success / failure. Fires only on the
     // transition into a terminal state so duplicate webhook deliveries (or
     // status churn before the final outcome) don't spam the parent.
-    // Phase 8 adds the provider-side mirrors plus a reimbursement-owed
+    // We also fire the provider-side mirrors plus a reimbursement-owed
     // notification when the platform absorbed the refund (transferDate
     // already passed).
     if (isSucceeded && !wasSucceeded) {
@@ -851,7 +851,7 @@ export class RefundsService {
   }
 
   /**
-   * C2 audit fix: pre-flight validation against the live Stripe charge before
+   * Pre-flight validation against the live Stripe charge before
    * a refund is issued. Trust the DB to know WHICH charge to refund, but
    * trust Stripe to tell us whether the refund is *legal* right now.
    *
@@ -1008,7 +1008,7 @@ export class RefundsService {
       throw new BadRequestException(`Payment ${args.payment.id} has no charge id; cannot refund`)
     }
 
-    // C2 audit fix: validate the live Stripe charge before we issue the
+    // validate the live Stripe charge before we issue the
     // refund. The Payment row's stripe ids are a denormalized snapshot; if
     // they're stale (provider re-onboarded with a new account; data
     // corruption; manual DB edits) we'd otherwise issue a refund on the
@@ -1018,7 +1018,7 @@ export class RefundsService {
     await this.validateChargeForRefund(args.payment, args.amountMajor)
 
     // Reimbursement is required iff the camp has already received the funds.
-    // Phase 8: query `BookingPayoutSchedule` for any tranches in `paid` status
+    // query `BookingPayoutSchedule` for any tranches in `paid` status
     // for this booking — that's the real disbursement signal. Whether we keep
     // the app fee or refund it does NOT change the reimbursement obligation;
     // under Direct Charges the refund debits the connected account directly,
@@ -1053,19 +1053,19 @@ export class RefundsService {
       })
     )
 
-    // Phase 4 audit fix Q1: when Stripe returns `succeeded` immediately
+    // when Stripe returns `succeeded` immediately
     // (the normal happy path for card refunds), we MUST run the
     // `BookingGroup.refundedAmount` increment in the same transaction as the
     // Refund row insert. If we wrote status=succeeded here without the
     // increment, the eventual `refund.updated` webhook would see the row
     // already at succeeded and short-circuit before ever incrementing —
-    // exact same bug pattern as Phase 2's captureForBookingGroup and
-    // Phase 3's chargeOffSession. The webhook is then a true no-op (its
+    // exact same bug pattern as captureForBookingGroup and
+    // chargeOffSession. The webhook is then a true no-op (its
     // `if (isSucceeded && !wasSucceeded)` guard sees wasSucceeded=true).
     const initialStatus = this.translateRefundStatus(refund.status ?? null)
     const succeededImmediately = initialStatus === RefundStatus.succeeded
 
-    // Phase-7 audit fix H4: create the Reimbursement row INSIDE the same
+    // create the Reimbursement row INSIDE the same
     // transaction as the Refund row + refundedAmount increment, so a DB blip
     // on the Reimbursement insert rolls everything back. Previously the
     // Reimbursement was created outside the tx, allowing a Refund row with
@@ -1179,7 +1179,7 @@ export class RefundsService {
       .toFixed(2)
     const requiresReimbursement = await this.resolveRequiresReimbursement(payment.bookingGroupId)
 
-    // Phase 4 audit fix Q1b: always write `pending` for the recovery row,
+    // always write `pending` for the recovery row,
     // even if Stripe's webhook payload says `succeeded`. The caller
     // (`markRefundCompleted`) immediately runs its own status-transition
     // logic — by writing pending here we preserve `wasSucceeded=false`
@@ -1214,7 +1214,7 @@ export class RefundsService {
   }
 
   /**
-   * Phase 8: decide whether a refund needs to flag a Reimbursement, i.e. has
+   * Decide whether a refund needs to flag a Reimbursement, i.e. has
    * the camp already received funds (any tranche) for this booking?
    *
    * The signal is the count of `BookingPayoutSchedule` rows in `paid` (Stripe
@@ -1328,7 +1328,7 @@ export class RefundsService {
     cancelledByUserId?: string
   ): Promise<void> {
     // Capture the pre-cancellation status before we flip it to `cancelled` —
-    // BUG-178 gates the non-payment notification set on it (see below).
+    // we gate the non-payment notification set on it (see below).
     const prior = await this.prisma.bookingGroup.findUnique({
       where: { id: bookingGroupId },
       select: { status: true },
@@ -1342,7 +1342,7 @@ export class RefundsService {
         cancelledByUserId: cancelledByUserId ?? null,
       },
     })
-    // Phase 8: any cancellation invalidates pending payout tranches. Already-
+    // any cancellation invalidates pending payout tranches. Already-
     // released tranches stay (under Direct Charges their unwind is the
     // connected-account debit from `refunds.create` + a Reimbursement when the
     // funds have moved out), but we MUST stop the cron from firing future
@@ -1350,7 +1350,7 @@ export class RefundsService {
     // calling this on a booking with no pending tranches is a no-op.
     await this.payoutsService.cancelPendingTranches(bookingGroupId, `refund:${reason}`)
 
-    // Phase 7.5 — when the cancellation was driven by a balance payment
+    // When the cancellation was driven by a balance payment
     // failure (the balance-charge cron flips BookingGroup to `payment_failed`
     // first, then this path runs with reason `policy_balance`), the parent
     // gets a distinct "cancelled because we couldn't collect" email rather
@@ -1360,7 +1360,7 @@ export class RefundsService {
     // cancellation reasons stay silent here because the active path emits
     // `ParentBookingCancelled` from `BookingGroupsService.cancelForParent`.
     //
-    // BUG-178: `policy_balance` is also the reason used when a family cancels a
+    // Note: `policy_balance` is also the reason used when a family cancels a
     // fully-paid booking post-grace (`cancelForParent` → `processPolicyRefund`).
     // Firing the non-payment set there wrongly tells the parent/camp/superadmin
     // "we couldn't collect your balance" on a booking that was already paid. The
@@ -1372,11 +1372,11 @@ export class RefundsService {
       notify(this.eventEmitter, NotificationType.ParentPaymentCancelledNonPayment, {
         bookingGroupId,
       })
-      // v28 Phase 8 — provider-side mirror.
+      // provider-side mirror.
       notify(this.eventEmitter, NotificationType.ProviderBookingCancelledNonPayment, {
         bookingGroupId,
       })
-      // v28 Phase 9 — superadmin mirror. Deposit payout has already settled
+      // superadmin mirror. Deposit payout has already settled
       // per cancellation policy; this is purely informational so admins can
       // spot patterns (e.g. card-failure clusters at one camp).
       notify(this.eventEmitter, NotificationType.SuperadminBookingCancelledNonPayment, {

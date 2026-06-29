@@ -57,7 +57,7 @@ export function DashboardActiveHealthy({
           tone={bookingRequests.length > 0 ? 'warning' : 'default'}
           href="/bookings"
         />
-        {/* BUG-111: split the old "Revenue this month" card into two —
+        {/* split the old "Revenue this month" card into two —
             bookings value (charges captured) and payouts (Stripe
             disbursements) — so a confirmed booking shows up immediately
             and providers can distinguish earned vs. paid-out. */}

@@ -161,7 +161,7 @@ describe('DisputesService', () => {
     })
   })
 
-  // ===== Phase 6: superadmin UI surface ===============================
+  // ===== superadmin UI surface ===============================
 
   describe('listForAdmin', () => {
     it('paginates and orders by evidence deadline first, recency tie-break', async () => {
@@ -392,7 +392,7 @@ describe('DisputesService', () => {
       ).rejects.toBeInstanceOf(NotFoundException)
     })
 
-    it('Phase-6 audit: webhook-race guard — does NOT downgrade outcome that has gone terminal between Stripe call and DB update', async () => {
+    it('webhook-race guard — does NOT downgrade outcome that has gone terminal between Stripe call and DB update', async () => {
       // Pre-check at start of submitEvidence reads `open`.
       prisma.dispute.findUnique.mockResolvedValueOnce(baseDisputeRow)
       // Stripe responds with `under_review` (success, evidence accepted).

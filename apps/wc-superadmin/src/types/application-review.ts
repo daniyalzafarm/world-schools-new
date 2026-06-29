@@ -42,7 +42,7 @@ export interface ApplicationListItem {
   contactLastName?: string
   approvalStatus: ApprovalStatus
   trustScore?: number | null
-  /// Computed by the API only for approved providers (BUG-107).
+  /// Computed by the API only for approved providers.
   /// Null on rejected/suspended/pending rows so the column renders empty.
   operationalStatus?: OperationalStatusType | null
   /// Per-provider checklist powering the operational-status tooltip.
@@ -100,7 +100,7 @@ export interface ProviderSettings {
   depositFixedAmount?: number | null
   cancellationPolicy: string
   cancellationPolicyCustom?: string | null
-  // Phase 8 — provider payout mode
+  // Provider payout mode
   payoutMode?: 'default_after_start' | 'offset_days' | 'policy_staged'
   earlyPayoutOffsetDays?: number | null
   payoutModeAgreementNote?: string | null

@@ -29,7 +29,7 @@ import {
 } from '@/services/disputes.services'
 
 /**
- * Phase 6 — Superadmin Disputes queue.
+ * Superadmin Disputes queue.
  *
  * Sorted server-side by `evidenceDueBy ASC NULLS LAST` so disputes nearest
  * their Stripe evidence deadline sit at the top. The "Open" tab is the

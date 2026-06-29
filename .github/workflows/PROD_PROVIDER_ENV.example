@@ -3,8 +3,7 @@
 # =============================================================================
 #
 # Paste into GitHub Variable `PROD_PROVIDER_ENV`. Injected as runtime env on
-# `ca-provider-wc-prod`. None of these values are secret — see Phase 2 of the
-# deployment plan.
+# `ca-provider-wc-prod`. None of these values are secret
 # =============================================================================
 
 APP_URL=https://provider.world-camps.org

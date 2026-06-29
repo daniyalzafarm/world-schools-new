@@ -9,7 +9,7 @@ import { NotificationCategory, NotificationType } from './websocket.types'
  *  - the notification preferences UI (one section per category)
  *  - the QA matrix generator
  *
- * Catalog phases populate this map alongside their NotificationType
+ * New entries populate this map alongside their NotificationType
  * additions — catalog validation tests will fail CI when a type lacks
  * a category mapping.
  */

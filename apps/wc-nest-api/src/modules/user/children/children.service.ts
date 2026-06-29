@@ -50,7 +50,7 @@ export class UserChildrenService {
       },
     })
 
-    // Phase 7g (audit bug #2): keep parent's profile-completion score in
+    // Keep parent's profile-completion score in
     // sync. "At least one child" is worth 15 points in the parent formula
     // and many parents create their first child here.
     await this.profileCompletion.enqueueRecomputeForParent(parent.id)

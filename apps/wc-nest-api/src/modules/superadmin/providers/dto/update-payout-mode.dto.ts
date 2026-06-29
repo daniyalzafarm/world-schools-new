@@ -3,7 +3,7 @@ import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-
 import { PayoutMode } from '../../../../generated/client/enums'
 
 /**
- * Phase 8 — superadmin sets a provider's payout mode.
+ * Superadmin sets a provider's payout mode.
  *
  * Modes:
  *   - `default_after_start`: ONE payout on first business day after camp
@@ -17,7 +17,7 @@ import { PayoutMode } from '../../../../generated/client/enums'
  *     existing deposit + cancellation-policy settings).
  *
  * `agreementNote` is REQUIRED for any non-default mode — preserves the
- * Phase-5 audit discipline (off-platform agreement reference).
+ * audit discipline (off-platform agreement reference).
  */
 export class UpdatePayoutModeDto {
   @ApiProperty({

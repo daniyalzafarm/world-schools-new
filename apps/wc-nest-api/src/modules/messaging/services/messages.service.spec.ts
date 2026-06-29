@@ -3,6 +3,9 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { MessagesService } from './messages.service'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { RedisService } from '../../redis/redis.service'
+import { RedisPubSubService } from './redis-pub-sub.service'
+import { ConversationsService } from './conversations.service'
+import { AttachmentsService } from './attachments.service'
 import { NotFoundException, BadRequestException } from '@nestjs/common'
 import {
   SenderType,
@@ -103,6 +106,7 @@ describe('MessagesService', () => {
     messageBookmark: {
       create: jest.fn(),
       delete: jest.fn(),
+      findUnique: jest.fn(),
     },
     messageEditHistory: {
       create: jest.fn(),
@@ -113,12 +117,34 @@ describe('MessagesService', () => {
     $transaction: jest.fn((callback: any) => callback(mockPrismaService)),
   }
 
+  // The service uses redis.getClient() for SCAN-based cache invalidation
+  // (deleteKeysByPattern). Provide a stub client that returns no keys.
+  const mockRedisClient = {
+    scan: jest.fn().mockResolvedValue(['0', []]),
+    del: jest.fn().mockResolvedValue(0),
+  }
+
   const mockRedisService = {
     get: jest.fn(),
     setex: jest.fn(),
     del: jest.fn(),
     exists: jest.fn(),
     isReady: jest.fn().mockReturnValue(true),
+    getClient: jest.fn(() => mockRedisClient),
+  }
+
+  const mockRedisPubSubService = {
+    publishMessage: jest.fn().mockResolvedValue(undefined),
+    getProviderUsers: jest.fn().mockResolvedValue([]),
+  }
+
+  const mockConversationsService = {
+    invalidateConversationCache: jest.fn().mockResolvedValue(undefined),
+    getProviderIdForUser: jest.fn().mockResolvedValue(null),
+  }
+
+  const mockAttachmentsService = {
+    resolveMessageAttachmentsUrls: jest.fn(async (messages: any) => messages),
   }
 
   beforeEach(async () => {
@@ -127,6 +153,9 @@ describe('MessagesService', () => {
         MessagesService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: RedisService, useValue: mockRedisService },
+        { provide: RedisPubSubService, useValue: mockRedisPubSubService },
+        { provide: ConversationsService, useValue: mockConversationsService },
+        { provide: AttachmentsService, useValue: mockAttachmentsService },
         { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
@@ -155,13 +184,25 @@ describe('MessagesService', () => {
       }
 
       mockRedisService.exists.mockResolvedValue(0)
+      mockRedisService.get.mockResolvedValue(null)
       mockPrismaService.message.create.mockResolvedValue(mockMessage)
       mockPrismaService.conversation.update.mockResolvedValue({})
       mockPrismaService.conversationParticipant.updateMany.mockResolvedValue({ count: 1 })
+      // sendMessage re-fetches the conversation (with participants) for cache
+      // invalidation; it throws NotFoundException if this returns null.
+      mockPrismaService.conversation.findUnique.mockResolvedValue({
+        id: mockConversationId,
+        type: 'USER_PROVIDER',
+        contextType: null,
+        metadata: null,
+        participants: [{ userId: mockUserId }],
+      })
 
       const result = await service.sendMessage(dto)
 
-      expect(result).toEqual(mockMessage)
+      // sendMessage attaches `attachments: null` to the returned message when
+      // there are no attachments; mockMessage already has attachments: null.
+      expect(result).toEqual({ ...mockMessage, attachments: null })
       expect(prisma.message.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -213,6 +254,13 @@ describe('MessagesService', () => {
       mockPrismaService.message.create.mockResolvedValue(replyMessage)
       mockPrismaService.conversation.update.mockResolvedValue({})
       mockPrismaService.conversationParticipant.updateMany.mockResolvedValue({ count: 1 })
+      mockPrismaService.conversation.findUnique.mockResolvedValue({
+        id: mockConversationId,
+        type: 'USER_PROVIDER',
+        contextType: null,
+        metadata: null,
+        participants: [{ userId: mockUserId }],
+      })
 
       const result = await service.sendMessage(dto)
 
@@ -241,6 +289,13 @@ describe('MessagesService', () => {
       mockPrismaService.message.create.mockResolvedValue(scheduledMessage)
       mockPrismaService.conversation.update.mockResolvedValue({})
       mockPrismaService.conversationParticipant.updateMany.mockResolvedValue({ count: 1 })
+      mockPrismaService.conversation.findUnique.mockResolvedValue({
+        id: mockConversationId,
+        type: 'USER_PROVIDER',
+        contextType: null,
+        metadata: null,
+        participants: [{ userId: mockUserId }],
+      })
 
       const result = await service.sendMessage(dto)
 
@@ -262,14 +317,19 @@ describe('MessagesService', () => {
 
       const result = await service.getMessages(dto)
 
-      expect(result).toEqual([mockMessage])
+      // getMessages now returns a pagination envelope. Each item is rebuilt with
+      // an `attachments` field (null when no messageAttachments relation).
+      expect(result.data).toEqual([{ ...mockMessage, attachments: null }])
+      expect(result.hasMore).toBe(false)
+      expect(result.nextCursor).toBeNull()
       expect(prisma.message.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             conversationId: mockConversationId,
             isDeleted: false,
           }),
-          take: 50,
+          // Implementation fetches one extra row (limit + 1) to detect hasMore.
+          take: 51,
         })
       )
     })
@@ -312,8 +372,11 @@ describe('MessagesService', () => {
 
       const result = await service.getMessages(dto)
 
-      expect(result.length).toBe(3)
-      expect(result).toEqual(messages)
+      // Pagination envelope: messages live under `result.data`, rebuilt with
+      // an `attachments: null` field since there is no messageAttachments relation.
+      expect(result.data.length).toBe(3)
+      expect(result.data).toEqual(messages.map(m => ({ ...m, attachments: null })))
+      expect(result.hasMore).toBe(false)
     })
   })
 
@@ -454,7 +517,8 @@ describe('MessagesService', () => {
 
       const result = await service.markAsRead(dto)
 
-      expect(result).toEqual(readReceipt)
+      // markAsRead returns only the read timestamp, not the full receipt row.
+      expect(result).toEqual({ readAt: readReceipt.readAt })
       expect(prisma.messageReadReceipt.create).toHaveBeenCalled()
     })
 
@@ -477,9 +541,7 @@ describe('MessagesService', () => {
 
       const result = await service.markAsRead(dto)
 
-      expect(result.id).toBe(readReceipt.id)
-      expect(result.messageId).toBe(readReceipt.messageId)
-      expect(result.userId).toBe(readReceipt.userId)
+      expect(result.readAt).toEqual(readReceipt.readAt)
       expect(prisma.messageReadReceipt.create).toHaveBeenCalled()
     })
   })
@@ -504,7 +566,9 @@ describe('MessagesService', () => {
 
       const result = await service.markAsDelivered(dto)
 
-      expect(result).toEqual(deliveryReceipt)
+      // markAsDelivered returns the internal receipt summary { deliveredAt, created },
+      // not the full delivery receipt row.
+      expect(result).toEqual({ deliveredAt: deliveryReceipt.deliveredAt, created: true })
       expect(prisma.messageDeliveryReceipt.create).toHaveBeenCalled()
     })
   })
@@ -525,6 +589,8 @@ describe('MessagesService', () => {
         createdAt: new Date(),
       }
 
+      // addReaction first loads the message (for conversationId/senderId) before creating.
+      mockPrismaService.message.findUnique.mockResolvedValue(mockMessage)
       mockPrismaService.messageReaction.create.mockResolvedValue(reaction)
 
       const result = await service.addReaction(dto)
@@ -550,6 +616,8 @@ describe('MessagesService', () => {
         emoji: '👍',
       }
 
+      // removeReaction loads the message first (for conversationId/senderId).
+      mockPrismaService.message.findUnique.mockResolvedValue(mockMessage)
       mockPrismaService.messageReaction.delete.mockResolvedValue({})
 
       await service.removeReaction(dto)
@@ -583,6 +651,8 @@ describe('MessagesService', () => {
         createdAt: new Date(),
       }
 
+      // bookmarkMessage verifies the message exists before creating the bookmark.
+      mockPrismaService.message.findUnique.mockResolvedValue(mockMessage)
       mockPrismaService.messageBookmark.create.mockResolvedValue(bookmark)
 
       const result = await service.bookmarkMessage(dto)
@@ -599,6 +669,8 @@ describe('MessagesService', () => {
         userId: mockUserId,
       }
 
+      // unbookmarkMessage looks up the bookmark id (for the broadcast) before deleting.
+      mockPrismaService.messageBookmark.findUnique.mockResolvedValue({ id: 'bookmark-1' })
       mockPrismaService.messageBookmark.delete.mockResolvedValue({})
 
       await service.unbookmarkMessage(dto)
@@ -623,6 +695,12 @@ describe('MessagesService', () => {
         userId: mockUserId,
       }
 
+      // pinMessage loads the message (not yet pinned) and checks the pin count (< 5).
+      mockPrismaService.message.findUnique.mockResolvedValue({
+        conversationId: mockConversationId,
+        isPinned: false,
+      })
+      mockPrismaService.message.count.mockResolvedValue(0)
       mockPrismaService.message.update.mockResolvedValue({
         ...mockMessage,
         isPinned: true,
@@ -643,6 +721,12 @@ describe('MessagesService', () => {
         messageId: mockMessageId,
       }
 
+      // unpinMessage loads the message first and requires it to be currently pinned.
+      mockPrismaService.message.findUnique.mockResolvedValue({
+        conversationId: mockConversationId,
+        isPinned: true,
+        pinnedBy: mockUserId,
+      })
       mockPrismaService.message.update.mockResolvedValue({
         ...mockMessage,
         isPinned: false,

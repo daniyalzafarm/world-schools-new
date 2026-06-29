@@ -9,7 +9,7 @@ const LOCK_TTL_SECONDS = 600
 const DELETE_BATCH_SIZE = 1000
 
 /**
- * H1 audit fix — bounded retention for the `stripe_webhook_events` table.
+ * Bounded retention for the `stripe_webhook_events` table.
  *
  * Every Stripe webhook delivery inserts a row keyed by `event.id` (used to
  * dedup retries). At production throughput the table accumulates indefinitely;
@@ -51,14 +51,14 @@ export class WebhookEventRetentionCron {
     }
     try {
       const result = await this.runBatch()
-      // M4 audit fix: emit a deletion summary at info level on every run so
+      // Emit a deletion summary at info level on every run so
       // alerting + dashboards can detect a stuck cron (gap in expected
       // emissions) without having to poll the table directly.
       this.logger.log(
         `webhook-event-retention completed: deleted=${result.deleted} retentionDays=${this.configService.stripeConfig.webhookEventRetentionDays}`
       )
     } catch (err) {
-      // M4 audit fix: a failed retention cron will silently let the
+      // A failed retention cron will silently let the
       // stripe_webhook_events table grow unbounded. ERROR-level log so the
       // existing alert hook fires and an operator can intervene.
       this.logger.error(

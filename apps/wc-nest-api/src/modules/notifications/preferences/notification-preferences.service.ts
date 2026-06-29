@@ -45,7 +45,7 @@ export class NotificationPreferencesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Phase 12 — returns the full preference list for the given audience, merged
+   * Returns the full preference list for the given audience, merged
    * with any opt-out rows. Transactional entries are returned with
    * `enabled: true, transactional: true` so the UI can render them locked.
    *
@@ -85,7 +85,7 @@ export class NotificationPreferencesService {
   }
 
   /**
-   * Phase 12 — bulk-upsert preferences. Validates each item's templateKey
+   * Bulk-upsert preferences. Validates each item's templateKey
    * belongs to the given audience (silent skip otherwise). Single transaction
    * so the whole save either lands or nothing does. `audience` comes from the
    * app-prefixed controller (see `listForUser`).
@@ -156,8 +156,8 @@ export class NotificationPreferencesService {
   }
 
   /**
-   * Upsert a single preference. Used by the preferences UI's PATCH endpoint
-   * (Phase 12). Idempotent.
+   * Upsert a single preference. Used by the preferences UI's PATCH endpoint.
+   * Idempotent.
    */
   async setPreference(
     userId: string,

@@ -8,7 +8,7 @@ import {
 } from '@world-schools/wc-frontend-utils'
 import apiClient from '@/utils/api-client'
 
-// Phase 12 — provider notification preferences page. Backend filters
+// provider notification preferences page. Backend filters
 // preferences to the provider audience based on the authenticated user.
 export default function NotificationPreferencesProviderPage() {
   const prefs = useNotificationPreferences({

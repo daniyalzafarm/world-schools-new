@@ -6,7 +6,7 @@ import ParentRefundIssued from '../../emails/refund/parent-refund-issued'
 import { renderEmail } from '../lib/renderer'
 
 /**
- * Phase 14c — XSS defense regression test.
+ * XSS defense regression test.
  *
  * React Email escapes all interpolated values by default; this spec guards
  * against a future regression where someone introduces `dangerouslySetInnerHTML`

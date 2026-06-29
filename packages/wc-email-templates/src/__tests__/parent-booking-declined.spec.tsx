@@ -33,8 +33,8 @@ describe('ParentBookingDeclined', () => {
   })
 
   it('does NOT render child name in the email (GDPR data-minimisation, even though props carry it)', async () => {
-    // BUG-190 added `childName` to the props so the in-app notification can
-    // disambiguate multi-child households. The EMAIL must still NOT surface it
+    // `childName` is in the props so the in-app notification can disambiguate
+    // multi-child households. The EMAIL must still NOT surface it
     // (email is a forwardable channel) — this test enforces that boundary even
     // though PreviewProps now includes a child name.
     const { html } = await renderEmail(ParentBookingDeclined, PreviewProps)

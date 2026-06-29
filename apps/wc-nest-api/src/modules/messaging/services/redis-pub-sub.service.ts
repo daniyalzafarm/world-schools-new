@@ -135,7 +135,7 @@ export class RedisPubSubService implements OnModuleInit, OnApplicationBootstrap 
 
       switch (channel) {
         case 'messages:new': {
-          // ✅ Broadcast to participant user rooms (not just conversation room)
+          // Broadcast to participant user rooms (not just conversation room)
           // This ensures users receive message:new even for conversations they haven't joined
           // Include tempId so clients can deduplicate against optimistic messages
           const messagePayload = {
@@ -260,11 +260,11 @@ export class RedisPubSubService implements OnModuleInit, OnApplicationBootstrap 
         }
 
         case 'conversations:new':
-          // ✅ NEW: Broadcast new conversation to provider users or specific users
+          // Broadcast new conversation to provider users or specific users
           await this.handleNewConversation(data)
           break
 
-        // ✅ NEW: Cache invalidation handlers
+        // Cache invalidation handlers
         case 'cache:invalidate:conversations':
           await this.handleConversationCacheInvalidation(data)
           break
@@ -302,7 +302,7 @@ export class RedisPubSubService implements OnModuleInit, OnApplicationBootstrap 
   }
 
   /**
-   * ✅ NEW: Handle new conversation broadcast to provider users
+   * Handle new conversation broadcast to provider users
    */
   private async handleNewConversation(data: {
     conversation: any
@@ -354,7 +354,7 @@ export class RedisPubSubService implements OnModuleInit, OnApplicationBootstrap 
   }
 
   /**
-   * ✅ NEW: Handle conversation cache invalidation across replicas
+   * Handle conversation cache invalidation across replicas
    */
   private async handleConversationCacheInvalidation(data: {
     userIds: string[]
@@ -380,7 +380,7 @@ export class RedisPubSubService implements OnModuleInit, OnApplicationBootstrap 
   }
 
   /**
-   * ✅ NEW: Handle message cache invalidation across replicas
+   * Handle message cache invalidation across replicas
    */
   private async handleMessageCacheInvalidation(data: { conversationId: string }) {
     this.logger.debug(`Invalidating message cache for conversation ${data.conversationId}`)
@@ -388,7 +388,7 @@ export class RedisPubSubService implements OnModuleInit, OnApplicationBootstrap 
   }
 
   /**
-   * ✅ NEW: Handle metrics cache invalidation across replicas
+   * Handle metrics cache invalidation across replicas
    */
   private async handleMetricsCacheInvalidation(data: { conversationId: string }) {
     this.logger.debug(`Invalidating metrics cache for conversation ${data.conversationId}`)
@@ -401,7 +401,7 @@ export class RedisPubSubService implements OnModuleInit, OnApplicationBootstrap 
    * Result is cached in Redis for 60 seconds to avoid repeated DB queries on every
    * message broadcast for USER_PROVIDER conversations.
    *
-   * ✅ PUBLIC: Called from MessagesService and ConversationsService for cache invalidation.
+   * Called from MessagesService and ConversationsService for cache invalidation.
    */
   async getProviderUsers(providerId: string): Promise<{ id: string }[]> {
     const cacheKey = `provider:users:${providerId}`

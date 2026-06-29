@@ -5,15 +5,15 @@ import { propLoaders } from '../resolvers/prop-loaders'
 /**
  * CI guard for catalog integrity.
  *
- * These assertions catch the most common drift that bit pre-v28: a new
+ * These assertions catch the most common drift: a new
  * NotificationType added without a corresponding template, resolver, or
- * preference category. The full 126-entry catalog will land in phases
- * 7-9; until then, these tests scope to entries actually registered.
+ * preference category. As the full 126-entry catalog is built out
+ * incrementally, these tests scope to entries actually registered.
  */
 describe('Notification Catalog', () => {
   const entries = listCatalogEntries()
 
-  it('has at least one entry registered (Phase 4 proof-of-concept)', () => {
+  it('has at least one entry registered (proof-of-concept)', () => {
     expect(entries.length).toBeGreaterThanOrEqual(1)
   })
 
@@ -24,8 +24,8 @@ describe('Notification Catalog', () => {
   })
 
   it('every entry resolver key exists in the recipient registry', () => {
-    // Array form — dotted resolver keys (none today, but Phase 7+ may have
-    // some) would be misparsed by `toHaveProperty`'s string-path syntax.
+    // Array form — dotted resolver keys (none today, but some may be
+    // added later) would be misparsed by `toHaveProperty`'s string-path syntax.
     for (const entry of entries) {
       expect(recipientResolvers).toHaveProperty([entry.resolver])
     }

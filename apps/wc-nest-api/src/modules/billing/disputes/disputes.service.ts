@@ -184,7 +184,7 @@ export class DisputesService {
           bookingGroupId: payment.bookingGroupId,
           paymentId: payment.id,
         })
-        // v28 Phase 8 — provider-side mirror. The catalog entry uses the
+        // provider-side mirror. The catalog entry uses the
         // `providerOwnerForBooking` resolver so only the camp owner sees
         // it; chargebacks are commercially sensitive and the spec puts
         // them on a single accountable person.
@@ -193,7 +193,7 @@ export class DisputesService {
           bookingGroupId: payment.bookingGroupId,
           paymentId: payment.id,
         })
-        // v28 Phase 9 — superadmin mirror. Stripe imposes hard response
+        // superadmin mirror. Stripe imposes hard response
         // deadlines on chargebacks; the admin team gets a parallel alert
         // so platform-level response coordination starts immediately.
         notify(this.eventEmitter, NotificationType.SuperadminDisputeFiled, {
@@ -241,9 +241,9 @@ export class DisputesService {
       outcome,
     })
 
-    // v28 catalog dispatch — only fire on the transition into a terminal
-    // outcome (won / lost) and only once per outcome change. Phase 8
-    // adds the provider-side mirrors (single recipient = camp owner).
+    // only fire on the transition into a terminal
+    // outcome (won / lost) and only once per outcome change, including
+    // the provider-side mirrors (single recipient = camp owner).
     if (outcome !== prevOutcome) {
       const parentType =
         outcome === DisputeOutcome.won
@@ -264,7 +264,7 @@ export class DisputesService {
       }
       if (parentType) notify(this.eventEmitter, parentType, ctx)
       if (providerType) notify(this.eventEmitter, providerType, ctx)
-      // v28 Phase 9 — single superadmin "resolved" notification regardless
+      // single superadmin "resolved" notification regardless
       // of outcome; the loader includes `outcome` in props for the
       // template to render the "in favour of …" sentence.
       if (outcome === DisputeOutcome.won || outcome === DisputeOutcome.lost) {
@@ -277,7 +277,7 @@ export class DisputesService {
   }
 
   /**
-   * Phase 6 follow-up: handle `charge.dispute.funds_withdrawn` and
+   * handle `charge.dispute.funds_withdrawn` and
    * `charge.dispute.funds_reinstated`. Stripe debits the connected account
    * immediately on dispute and may reinstate if the dispute is later won;
    * tracking the most recent timestamp lets the admin UI surface a "Funds
@@ -318,7 +318,7 @@ export class DisputesService {
     })
   }
 
-  // ===== Phase 6: Superadmin UI =====================================
+  // ===== Superadmin UI =====================================
 
   /**
    * Paginated list for the superadmin disputes queue. Sorted by `evidenceDueBy

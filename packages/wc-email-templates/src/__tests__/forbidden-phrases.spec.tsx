@@ -4,10 +4,10 @@ import { describe, expect, it } from 'vitest'
 import { renderEmail } from '../lib/renderer'
 
 /**
- * Phase 2 plan item, deferred to Phase 8 — payment-domain templates only
- * become numerous enough at this point for the lint to be meaningful.
+ * Payment-domain templates only become numerous enough at this point for the
+ * lint to be meaningful.
  *
- * From `WorldCamps_Notifications_v28.xlsx → Notes & Conventions`: certain
+ * From the WorldCamps notifications catalog → Notes & Conventions: certain
  * payment terminology is forbidden because it mischaracterises how the
  * platform handles funds under Direct Charges (funds live on the connected
  * account, NOT in a platform escrow). If a template ever ships with one

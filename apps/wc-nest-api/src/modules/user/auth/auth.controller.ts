@@ -77,7 +77,7 @@ export class UserAuthController {
   ) {}
 
   /**
-   * Phase 7.5 — refresh `Parent.profileCompletion` from the current
+   * Refresh `Parent.profileCompletion` from the current
    * User + Parent state. Called from every endpoint on this controller
    * that mutates a profile-completion-scored field. Cheap: a single
    * SELECT + conditional UPDATE inside `ProfileCompletionService`.
@@ -907,7 +907,7 @@ export class UserAuthController {
       }
     })
 
-    // Phase 7.5 (audit bug #4): recompute profile-completion so the
+    // Recompute profile-completion so the
     // `Parent_Profile_Incomplete` reminder is gated against fresh state.
     await this.recomputeParentCompletionByUserId(user.id)
 
@@ -942,7 +942,7 @@ export class UserAuthController {
       data: { profilePhotoUrl: uploadResult.url },
     })
 
-    // Phase 7.5 (audit bug #4): photo upload moves the parent's score by
+    // Photo upload moves the parent's score by
     // 10 points — recompute so the incomplete-profile cron stays honest.
     await this.recomputeParentCompletionByUserId(user.id)
 
@@ -983,7 +983,7 @@ export class UserAuthController {
       data: { profilePhotoUrl: null },
     })
 
-    // Phase 7.5 (audit bug #4): photo delete drops the parent's score —
+    // Photo delete drops the parent's score —
     // recompute so the incomplete-profile cron picks it up next cycle.
     await this.recomputeParentCompletionByUserId(user.id)
 
@@ -1070,7 +1070,7 @@ export class UserAuthController {
       },
     })
 
-    // Phase 7.5 (audit bug #4): adding/changing phone tips the basic-
+    // Adding/changing phone tips the basic-
     // contact 40-pt slice — recompute so the incomplete-profile cron
     // stops nagging once all three of firstName/lastName/phone are set.
     await this.recomputeParentCompletionByUserId(user.id)

@@ -43,7 +43,7 @@ function DonutTooltip({
 /**
  * Custom legend rendered directly from the `slices` array — name, value, and
  * color all come from the same object in a single iteration, so the percentage
- * can never be paired with the wrong label (BUG-125). Avoids recharts' auto
+ * can never be paired with the wrong label. Avoids recharts' auto
  * legend payload + name-matching indirection, which swapped percentages.
  */
 function DonutLegend({ slices, total }: { slices: DonutSlice[]; total: number }) {

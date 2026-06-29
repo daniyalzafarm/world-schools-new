@@ -20,7 +20,7 @@ import { RedisService } from '../redis/redis.service'
  * loosely-coupled event handler that receives events from the
  * global gateway and uses the WebSocketService for responses.
  *
- * Phase 2: Uses createMessageViaWebSocket() which:
+ * Uses createMessageViaWebSocket() which:
  * - Validates sender is a participant
  * - Determines sender type (USER/PROVIDER) from participant data
  * - Applies rate limiting (10 messages per minute)

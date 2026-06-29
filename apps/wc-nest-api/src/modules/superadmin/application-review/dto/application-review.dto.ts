@@ -65,7 +65,7 @@ export class ApproveApplicationDto {
 export class RejectApplicationDto {
   @ApiProperty({ description: 'Reason for rejection (max 2000 chars)' })
   @IsString()
-  // Phase 10 follow-up: cap admin-typed free-text. Schema column is
+  // Cap admin-typed free-text. Schema column is
   // VARCHAR(2000); enforce at the DTO so 400s come back as clean validation
   // errors rather than DB constraint violations.
   @MaxLength(2000)
@@ -113,7 +113,7 @@ export class ReviewDocumentDto {
   @ApiPropertyOptional({ description: 'Rejection reason (if rejected, max 2000 chars)' })
   @IsOptional()
   @IsString()
-  // Phase 10 follow-up: same bound as `RejectApplicationDto.reason`. Both
+  // Same bound as `RejectApplicationDto.reason`. Both
   // paths write admin-typed free text into a `rejectionReason` column; both
   // need the cap to keep email-deliverability + payload sizes sane.
   @MaxLength(2000)

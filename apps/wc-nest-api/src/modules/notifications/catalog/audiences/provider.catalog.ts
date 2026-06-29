@@ -37,15 +37,15 @@ import type { CatalogEntry } from '../types'
  * Provider-audience catalog entries (53 entries — within the spec's ~55
  * target; the small deficit is the parked-entries section below).
  *
- * Phase 5 cutover landed the three Booking-WebSocket-handler holdovers
- * (Accepted / Declined / RequestReceived). Phase 8 fills the rest in
+ * The three Booking-WebSocket-handler holdovers
+ * (Accepted / Declined / RequestReceived) come first; the rest follow in
  * domain batches: onboarding → booking lifecycle → payments/payouts →
  * refunds/disputes → messaging → reviews → pre-camp/operations → support.
- * Phase 8.5 wired the three audit-flagged orphans
+ * The three previously-orphaned entries
  * (`ProviderReviewResponsePublished`, `ProviderConnectStripeNudge`,
- * `ProviderPayoutDelayed`).
+ * `ProviderPayoutDelayed`) are now wired.
  *
- * **Reserved-for-future-feature entries** (Phase 8 audit) — registered +
+ * **Reserved-for-future-feature entries** — registered +
  * tested + loader-backed but no domain commit point today:
  *  - `ProviderBookingModified` — needs a modify-confirmed-booking flow.
  *  - `ProviderReviewRemoved` — needs an admin "remove published review"
@@ -60,7 +60,7 @@ import type { CatalogEntry } from '../types'
  */
 
 // ============================================================================
-// Phase 5 cutover entries
+// Booking-WebSocket-handler holdover entries
 // ============================================================================
 
 const providerBookingAccepted: CatalogEntry<ProviderBookingInAppProps | null> = {
@@ -114,7 +114,7 @@ const providerBookingRequestReceived: CatalogEntry<ProviderBookingInAppProps | n
   templateKey: 'provider.booking.requestReceived',
   audience: 'provider',
   category: NotificationCategory.Booking,
-  // BUG-179: spec requires in_app + email — a camp that isn't logged in must
+  // spec requires in_app + email — a camp that isn't logged in must
   // still hear about a request that auto-expires in 72h.
   channels: ['in_app', 'email'],
   salutation: 'none',
@@ -148,7 +148,7 @@ const providerBookingRequestReceived: CatalogEntry<ProviderBookingInAppProps | n
 }
 
 // ============================================================================
-// Phase 8a — Onboarding (11 entries)
+// Onboarding (11 entries)
 // ============================================================================
 
 function makeApplicationStatusEntry(
@@ -358,7 +358,7 @@ const providerFirstBooking = makeProfileMilestoneEntry(
 )
 
 // ============================================================================
-// Phase 8b — Booking lifecycle (10 new entries; 3 above from Phase 5)
+// Booking lifecycle (10 new entries; 3 holdovers above)
 // ============================================================================
 
 function makeBookingEventEntry(
@@ -463,7 +463,7 @@ const providerBookingCancelledByFamily = makeBookingEventEntry(
   'cancelledByFamily',
   ['in_app', 'email'],
   'live',
-  // BUG-189: render the full child + refund + retained + payout summary the
+  // render the full child + refund + retained + payout summary the
   // cancel handler threads via `extra.detail`, not just the program name.
   props => props.detail ?? `Program: ${props.programName}`
 )
@@ -478,7 +478,7 @@ const providerBookingRequestWithdrawn = makeBookingEventEntry(
   NotificationType.ProviderBookingRequestWithdrawn,
   'provider.booking.requestWithdrawn',
   'requestWithdrawn',
-  // BUG-187: a camp that isn't logged in would otherwise miss a withdrawal.
+  // a camp that isn't logged in would otherwise miss a withdrawal.
   ['in_app', 'email'],
   'live'
 )
@@ -491,7 +491,7 @@ const providerBookingModified = makeBookingEventEntry(
 )
 
 // ============================================================================
-// Phase 8c — Payments + payouts (6 entries)
+// Payments + payouts (6 entries)
 // ============================================================================
 
 function makePayoutEventEntry(
@@ -611,7 +611,7 @@ const providerPayoutDelayed = makePayoutEventEntry(
 )
 
 // ============================================================================
-// Phase 8d — Refunds + disputes (7 entries)
+// Refunds + disputes (7 entries)
 // ============================================================================
 
 function makeRefundEventEntry(
@@ -770,7 +770,7 @@ const providerDisputeResolvedLost = makeDisputeEventEntry(
 )
 
 // ============================================================================
-// Phase 8e — Messaging (3 entries)
+// Messaging (3 entries)
 // ============================================================================
 
 function makeMessagingEntry(
@@ -847,7 +847,7 @@ const providerMessagingUnanswered48h = makeMessagingEntry(
 )
 
 // ============================================================================
-// Phase 8f — Reviews (4 entries)
+// Reviews (4 entries)
 // ============================================================================
 
 function makeReviewEntry(
@@ -935,7 +935,7 @@ const providerReviewRemoved = makeReviewEntry(
 )
 
 // ============================================================================
-// Phase 8g — Pre-camp + operations + seasonal (7 entries)
+// Pre-camp + operations + seasonal (7 entries)
 // ============================================================================
 
 function makePreCampEntry(
@@ -1040,7 +1040,7 @@ const providerProgramsNotUpdated60d = makeOperationsNudgeEntry(
 )
 
 // ============================================================================
-// Phase 8h — Support (2 entries)
+// Support (2 entries)
 // ============================================================================
 
 function makeSupportEventEntry(
@@ -1102,11 +1102,11 @@ const providerSupportTicketStatusChanged = makeSupportEventEntry(
 // ============================================================================
 
 export const providerCatalog: ReadonlyArray<CatalogEntry<unknown>> = [
-  // Phase 5 cutover
+  // Booking-WebSocket-handler holdovers
   providerBookingAccepted as unknown as CatalogEntry<unknown>,
   providerBookingDeclined as unknown as CatalogEntry<unknown>,
   providerBookingRequestReceived as unknown as CatalogEntry<unknown>,
-  // Phase 8a — onboarding
+  // onboarding
   providerApplicationReceived as unknown as CatalogEntry<unknown>,
   providerApplicationApproved as unknown as CatalogEntry<unknown>,
   providerApplicationDeclined as unknown as CatalogEntry<unknown>,
@@ -1118,7 +1118,7 @@ export const providerCatalog: ReadonlyArray<CatalogEntry<unknown>> = [
   providerProfileIncomplete as unknown as CatalogEntry<unknown>,
   providerProfilePublished as unknown as CatalogEntry<unknown>,
   providerFirstBooking as unknown as CatalogEntry<unknown>,
-  // Phase 8b — booking lifecycle
+  // booking lifecycle
   providerBookingRequest48hReminder as unknown as CatalogEntry<unknown>,
   providerBookingRequestFinalReminder as unknown as CatalogEntry<unknown>,
   providerBookingRequestExpired as unknown as CatalogEntry<unknown>,
@@ -1126,14 +1126,14 @@ export const providerCatalog: ReadonlyArray<CatalogEntry<unknown>> = [
   providerBookingCancelledNonPayment as unknown as CatalogEntry<unknown>,
   providerBookingRequestWithdrawn as unknown as CatalogEntry<unknown>,
   providerBookingModified as unknown as CatalogEntry<unknown>,
-  // Phase 8c — payments + payouts
+  // payments + payouts
   providerPayoutScheduleConfirmed as unknown as CatalogEntry<unknown>,
   providerBalanceCollected as unknown as CatalogEntry<unknown>,
   providerPayoutReminder as unknown as CatalogEntry<unknown>,
   providerPayoutReleased as unknown as CatalogEntry<unknown>,
   providerPayoutFailed as unknown as CatalogEntry<unknown>,
   providerPayoutDelayed as unknown as CatalogEntry<unknown>,
-  // Phase 8d — refunds + disputes
+  // refunds + disputes
   providerRefundIssued as unknown as CatalogEntry<unknown>,
   providerRefundFailed as unknown as CatalogEntry<unknown>,
   providerReimbursementOwed as unknown as CatalogEntry<unknown>,
@@ -1141,16 +1141,16 @@ export const providerCatalog: ReadonlyArray<CatalogEntry<unknown>> = [
   providerDisputeEvidenceDue as unknown as CatalogEntry<unknown>,
   providerDisputeResolvedWon as unknown as CatalogEntry<unknown>,
   providerDisputeResolvedLost as unknown as CatalogEntry<unknown>,
-  // Phase 8e — messaging
+  // messaging
   providerMessagingNewFromFamily as unknown as CatalogEntry<unknown>,
   providerMessagingUnanswered24h as unknown as CatalogEntry<unknown>,
   providerMessagingUnanswered48h as unknown as CatalogEntry<unknown>,
-  // Phase 8f — reviews
+  // reviews
   providerReviewNew as unknown as CatalogEntry<unknown>,
   providerReviewResponsePublished as unknown as CatalogEntry<unknown>,
   providerReviewNotRespondedReminder as unknown as CatalogEntry<unknown>,
   providerReviewRemoved as unknown as CatalogEntry<unknown>,
-  // Phase 8g — pre-camp + operations + seasonal
+  // pre-camp + operations + seasonal
   providerPreCampRosterReady as unknown as CatalogEntry<unknown>,
   providerPreCampChecklist as unknown as CatalogEntry<unknown>,
   providerPreCampDayBefore as unknown as CatalogEntry<unknown>,
@@ -1158,7 +1158,7 @@ export const providerCatalog: ReadonlyArray<CatalogEntry<unknown>> = [
   providerSeasonEnded as unknown as CatalogEntry<unknown>,
   providerProgramsNotUpdated30d as unknown as CatalogEntry<unknown>,
   providerProgramsNotUpdated60d as unknown as CatalogEntry<unknown>,
-  // Phase 8h — support
+  // support
   providerSupportTicketReply as unknown as CatalogEntry<unknown>,
   providerSupportTicketStatusChanged as unknown as CatalogEntry<unknown>,
 ]

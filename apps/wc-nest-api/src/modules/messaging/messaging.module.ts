@@ -110,7 +110,7 @@ export class MessagingModule implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly conversationsService: ConversationsService) {}
 
   async onModuleInit() {
-    // ✅ PHASE 5 FIX: Warm cache on startup
+    // Warm cache on startup
     this.logger.log('Initializing messaging module...')
     await this.conversationsService.warmCache()
 

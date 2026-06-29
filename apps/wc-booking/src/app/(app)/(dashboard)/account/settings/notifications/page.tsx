@@ -8,10 +8,9 @@ import {
 } from '@world-schools/wc-frontend-utils'
 import apiClient from '@/utils/api-client'
 
-// Phase 12 — parent notification preferences page. The shared component +
-// hook in wc-frontend-utils handles all rendering + optimistic state; this
-// file just wires the API calls. The backend filters preferences to the
-// parent audience automatically from the authenticated user.
+// The shared component + hook in wc-frontend-utils handles all
+// rendering + optimistic state; this file just wires the API calls.
+// The backend filters preferences to the parent audience automatically from the authenticated user.
 export default function NotificationPreferencesParentPage() {
   const prefs = useNotificationPreferences({
     fetchPreferences: async () => {

@@ -181,7 +181,7 @@ export class SupportTicketsService {
       return ticket
     })
 
-    // v28 Phase 9 — notify all superadmins of the new ticket so it can
+    // Notify all superadmins of the new ticket so it can
     // be triaged. Single notify() outside the transaction matches the
     // dispatcher's eventually-consistent contract.
     notify(this.eventEmitter, NotificationType.SuperadminSupportTicketNew, {
@@ -559,7 +559,7 @@ export class SupportTicketsService {
         this.logger.error('Failed to publish ticket status update event', err)
       })
 
-    // v28 catalog dispatch — both audiences get a status-change entry; the
+    // Both audiences get a status-change entry; the
     // resolver scopes each to its own requester type (PARENT vs PROVIDER).
     notify(this.eventEmitter, NotificationType.ParentSupportTicketStatusChanged, {
       supportTicketId: updated.id,

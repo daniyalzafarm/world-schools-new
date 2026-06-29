@@ -17,7 +17,7 @@ const SUCCESS_STATUSES: ReadonlySet<string> = new Set([
   'processing',
 ])
 
-// B1 audit fix: how long to wait on the post-3DS `syncPayment` reconciliation
+// how long to wait on the post-3DS `syncPayment` reconciliation
 // before redirecting. Stripe official guidance treats webhooks as the source
 // of truth — so we're racing the (faster) sync call against an upper bound,
 // not blocking on it. After the timeout we still redirect, but we surface a
@@ -33,12 +33,12 @@ const POST_SYNC_REDIRECT_DELAY_MS = 1_500
  * 3DS / step-up landing + recovery page.
  *
  * Two paths arrive here:
- *   1. **Inline 3DS return** (Phase 2): Stripe redirects the parent after
+ *   1. **Inline 3DS return** : Stripe redirects the parent after
  *      they complete a 3DS challenge triggered from the booking flow's
  *      `confirmPayment`. The URL carries `payment_intent` +
  *      `payment_intent_client_secret` (or the SetupIntent equivalents).
  *      We retrieve the live intent and surface the outcome.
- *   2. **Off-session recovery** (Phase 3): the balance-charge cron tried to
+ *   2. **Off-session recovery** : the balance-charge cron tried to
  *      charge the parent's saved card, Stripe returned `requires_action`
  *      because the issuer demands a fresh 3DS challenge. We email the
  *      parent a link to this same page with `payment_intent_client_secret`
@@ -56,7 +56,7 @@ export default function PaymentAuthorizePage() {
   const [status, setStatus] = useState<PageStatus>('loading')
   const [message, setMessage] = useState<string | null>(null)
   const [verifying, setVerifying] = useState(false)
-  // B1 audit fix: track whether the post-success `syncPayment` actually
+  // track whether the post-success `syncPayment` actually
   // completed (vs. timed out). Drives the badge on the success panel so the
   // parent knows whether to expect a fresh state on /bookings or whether
   // the webhook is still catching up.
@@ -201,7 +201,7 @@ export default function PaymentAuthorizePage() {
     }
   }, [params, resolveStatus])
 
-  // B1 audit fix: redirect on success only AFTER the post-success sync has
+  // redirect on success only AFTER the post-success sync has
   // either committed or timed out. Waiting on the sync (with a hard
   // `SYNC_TIMEOUT_MS` cap) means the booking-detail page the parent lands on
   // sees fresh data instead of racing the webhook. The
@@ -221,8 +221,7 @@ export default function PaymentAuthorizePage() {
   // so we don't need to mount <Elements> — `handleNextAction` walks the
   // parent through the issuer flow and returns/redirects with the outcome.
   // We deliberately keep all transient state local (no Zustand writes) so
-  // a parent-tree re-render can never remount Stripe.js mid-flow — the same
-  // hazard that bit the Phase 2 booking submit path.
+  // a parent-tree re-render can never remount Stripe.js mid-flow.
   const handleVerify = useCallback(async () => {
     const stripeAccountId = stripeAccountRef.current
     if (!stripeAccountId) {
@@ -281,7 +280,7 @@ export default function PaymentAuthorizePage() {
         ) : status === 'succeeded' ? (
           <>
             <h1 className="text-xl font-semibold text-foreground">Payment confirmed</h1>
-            {/* H7 audit fix: by this point Stripe has returned `succeeded` /
+            {/* by this point Stripe has returned `succeeded` /
                 `requires_capture` / `processing` on the intent — the payment
                 IS confirmed regardless of how long our internal sync takes.
                 Copy must affirm that, not leave the parent guessing whether
@@ -312,7 +311,7 @@ export default function PaymentAuthorizePage() {
               {message ??
                 'Your card could not be verified. You can try a different card on your booking.'}
             </p>
-            {/* H3 audit fix: high-friction "Return to bookings" forced the
+            {/* high-friction "Return to bookings" forced the
                 parent to find their booking manually. When we have the
                 booking-group id from the return URL, deep-link straight
                 back to the booking detail page so the retry flow is one
@@ -336,7 +335,7 @@ export default function PaymentAuthorizePage() {
 }
 
 /**
- * B1 audit fix — runs `bookingGroupsService.syncPayment` post-3DS-return
+ * Runs `bookingGroupsService.syncPayment` post-3DS-return
  * with a hard `SYNC_TIMEOUT_MS` ceiling and reports the outcome via
  * `setSyncStatus`. Stripe's direct-charges spec is explicit that the
  * webhook is the authoritative path; this call is the dev-parity / latency

@@ -175,7 +175,7 @@ export function WishlistCompareTable({
   }
 
   // Only render the columns that are in use, plus a single empty "add a camp"
-  // slot when editable — avoids the trailing blank placeholder columns (BUG-005).
+  // slot when editable — avoids the trailing blank placeholder columns.
   const filledCount = slots.filter(Boolean).length
   const visibleCount = readOnly ? Math.max(filledCount, 1) : Math.min(SLOT_COUNT, filledCount + 1)
 

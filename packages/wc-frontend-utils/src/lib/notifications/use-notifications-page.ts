@@ -6,7 +6,7 @@ import {
 } from '@world-schools/wc-types'
 
 /**
- * Phase 11 — filters are configurable per audience. Each app passes its
+ * Filters are configurable per audience. Each app passes its
  * own `filters` array (parent / provider / superadmin have different
  * meaningful tabs). A filter either references one or more
  * `NotificationCategory` values OR has a `special` predicate
@@ -113,7 +113,7 @@ export function useNotificationsPage({
 
   // Prepend real-time notifications from WebSocket.
   //
-  // Phase 14d — also reset the pagination cursor. The keyset-style cursor
+  // Also reset the pagination cursor. The keyset-style cursor
   // (last loaded row's id) is technically still correct after a prepend
   // because the next page fetches strictly older rows, but a notification
   // arriving via WS between a Load-more click and the server response can
@@ -158,7 +158,7 @@ export function useNotificationsPage({
   const onLoadMore = useCallback(() => {
     if (isLoadingMore || !hasMore) return
     setIsLoadingMore(true)
-    // Phase 14d — `nextCursor` is null after a WS arrival reset; in that
+    // `nextCursor` is null after a WS arrival reset; in that
     // case load from the top and dedup against the in-memory set so we
     // don't render the same row twice.
     fetchRef

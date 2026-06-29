@@ -12,7 +12,7 @@ const LOCK_TTL_SECONDS = 300 // 5 min — comfortably longer than a worst-case b
 const BATCH_SIZE = 200
 
 /**
- * v28 spec drivers (Parent sheet):
+ * Spec drivers (Parent sheet):
  *  - #38 Abandoned Checkout — 3h Nudge  (in-app only)
  *  - #39 Abandoned Checkout — 2 Day Reminder  (in-app + email)
  *  - #40 Abandoned Checkout — 4 Day Reminder  (in-app + email)
@@ -23,11 +23,11 @@ const BATCH_SIZE = 200
  * are excluded per the spec qualification) AND `lastActivityAt < now - 3h`
  * AND `abandonedNotifiedAt` is unset.
  *
- * Phase 6 deliverable: this file. It runs hourly, identifies candidates,
+ * This file runs hourly, identifies candidates,
  * and LOGS them — no DB write, no notification. Lets ops observe volume
  * before the catalog entries land.
  *
- * Phase 7 wiring (TODO):
+ * TODO: Wiring to complete:
  *  1. Add `NotificationType.ParentCheckoutAbandoned3h/2d/4d/6d` enum values
  *     + catalog entries + React Email templates.
  *  2. Replace the diagnostic log below with:
@@ -39,7 +39,7 @@ const BATCH_SIZE = 200
  *     // ... 4d, 6d ...
  *     ```
  *  3. Stamp `abandonedNotifiedAt: new Date()` so this cron is idempotent.
- *  4. The `NotificationsCancelService` Phase 7 helper `cancelForCheckout(id)`
+ *  4. The `NotificationsCancelService` helper `cancelForCheckout(id)`
  *     removes the delayed jobs when the parent submits / completes / abandons
  *     for real.
  */
@@ -85,7 +85,7 @@ export class AbandonDetectionCron {
         return
       }
 
-      // Phase 7f (audit bug #1) wiring: fire the 3h nudge live, fan out
+      // Fire the 3h nudge live, fan out
       // 2d / 4d / 6d follow-ups as scheduled (delayed) jobs, and stamp
       // `abandonedNotifiedAt` so the next cron tick doesn't re-emit. Cancel
       // helpers in `NotificationsCancelService` remove the delayed jobs

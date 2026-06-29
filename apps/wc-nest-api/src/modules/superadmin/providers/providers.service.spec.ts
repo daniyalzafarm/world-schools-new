@@ -10,11 +10,11 @@ import { RedisService } from '../../redis/redis.service'
 import { SuperAdminProvidersService } from './providers.service'
 
 /**
- * Phase 5 — covers `setAppFee` and `setEarlyPayoutConfig`. The other methods
+ * Covers `setAppFee` and `setEarlyPayoutConfig`. The other methods
  * on this service are integration-tested via controllers and aren't exercised
  * here.
  */
-describe('SuperAdminProvidersService — Phase 5 settings', () => {
+describe('SuperAdminProvidersService — settings', () => {
   let service: SuperAdminProvidersService
   let prisma: any
 
@@ -117,7 +117,7 @@ describe('SuperAdminProvidersService — Phase 5 settings', () => {
     })
   })
 
-  // ─── setPayoutMode (Phase 8) ───────────────────────────────────────
+  // ─── setPayoutMode ───────────────────────────────────────
 
   describe('setPayoutMode', () => {
     it('writes offset_days mode + offsetDays + audit fields when configuring offset_days', async () => {
@@ -212,7 +212,7 @@ describe('SuperAdminProvidersService — Phase 5 settings', () => {
       expect(call.data).not.toHaveProperty('payoutModeAgreedByAdminId')
     })
 
-    it('Phase-5 audit fix A8: rejects when provider has not completed onboarding (no ProviderSettings)', async () => {
+    it('rejects when provider has not completed onboarding (no ProviderSettings)', async () => {
       prisma.providerSettings.findUnique.mockResolvedValueOnce(null)
 
       await expect(

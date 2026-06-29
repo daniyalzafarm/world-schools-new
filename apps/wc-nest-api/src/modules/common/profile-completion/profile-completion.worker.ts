@@ -13,7 +13,7 @@ export interface ProfileCompletionJobData {
 }
 
 /**
- * Phase 14d worker for the `profile-completion` queue. Each job is a
+ * Worker for the `profile-completion` queue. Each job is a
  * `{ kind, id }` pair; we fan out to the existing synchronous
  * `recomputeForParent` / `recomputeForProvider`. The queue's deterministic
  * `jobId: profile_<kind>_<id>` collapses concurrent enqueues; this worker

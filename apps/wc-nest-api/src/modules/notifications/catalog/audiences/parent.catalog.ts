@@ -65,17 +65,17 @@ import { propLoaders } from '../../resolvers/prop-loaders'
 import type { CatalogEntry } from '../types'
 
 /**
- * Parent-audience catalog entries (52 total per v28 spec).
+ * Parent-audience catalog entries (52 total).
  *
- * Phase 4 lands the proof-of-concept entry (Parent_Booking_Accepted) so
- * the full dispatcher → worker → render → send loop can be exercised
- * end-to-end. Subsequent phases append entries in domain batches:
+ * The proof-of-concept entry (Parent_Booking_Accepted) lets the full
+ * dispatcher → worker → render → send loop be exercised end-to-end.
+ * Remaining entries are appended in domain batches:
  * booking → payment → refund/dispute → wishlist → reminder.
  *
- * **Reserved-for-future-feature entries** (Phase 7.5 audit): the catalog
+ * **Reserved-for-future-feature entries**: the catalog
  * entries below are registered + tested + loader-backed, but won't fire
  * today because the domain commit point they listen for doesn't exist yet.
- * Listed here so Phase 8 / future feature work knows the wiring is ready:
+ * Listed here so future feature work knows the wiring is ready:
  *  - `ParentBookingModified` — needs a modify-confirmed-booking flow.
  *  - `ParentWishlistPriceDrop` — needs session-price-change detection.
  *  - `ParentWishlistFillingUp` — needs capacity-threshold scanner.
@@ -118,7 +118,7 @@ const parentBookingAccepted: CatalogEntry<ParentBookingAcceptedProps | null> = {
     // Extra fields the parent app's notification list reads for display
     // (campName for the title, bookingGroupNumber for the reference badge).
     // Matches what the legacy BookingWebSocketHandler used to populate so
-    // frontends don't regress at Phase 5 cutover.
+    // frontends don't regress.
     metadata: props =>
       props ? { bookingGroupNumber: props.bookingRef, campName: props.campName } : {},
   },
@@ -154,7 +154,7 @@ const parentBookingDeclined: CatalogEntry<ParentBookingDeclinedProps | null> = {
       if (!props) return 'Your booking request was declined.'
       const range = props.sessionRange ? ` on ${props.sessionRange}` : ''
       const reason = props.declineReason ? ` Reason: ${props.declineReason}.` : ''
-      // BUG-190: name the child + add a re-engagement nudge toward similar camps.
+      // name the child + add a re-engagement nudge toward similar camps.
       return `${props.childName}'s booking request for ${props.campName}${range} was declined. No charge has been made.${reason} Browse similar programs to find another great fit.`
     },
     entityType: NotificationEntityType.BookingGroup,
@@ -343,7 +343,7 @@ const parentBookingRequestWithdrawn: CatalogEntry<ParentBookingRequestWithdrawnP
   },
   inApp: {
     title: props => (props ? `Request withdrawn — ${props.campName}` : 'Booking request withdrawn'),
-    // BUG-184: add the re-engagement sentence the email already carries, and
+    // add the re-engagement sentence the email already carries, and
     // point the CTA at "browse programs" (/camps) instead of the now-empty
     // booking detail — a withdrawn request has nothing useful to view.
     body: props =>
@@ -360,7 +360,7 @@ const parentBookingRequestWithdrawn: CatalogEntry<ParentBookingRequestWithdrawnP
 }
 
 // ============================================================================
-// Phase 7b — payment lifecycle (~9 entries)
+// payment lifecycle (~9 entries)
 // ============================================================================
 
 const parentPaymentDepositConfirmed: CatalogEntry<ParentPaymentDepositConfirmedProps | null> = {
@@ -584,7 +584,7 @@ const parentPaymentCancelledNonPayment: CatalogEntry<ParentPaymentCancelledNonPa
   }
 
 // ============================================================================
-// Phase 7c — refund / dispute (~5 entries)
+// refund / dispute (~5 entries)
 // ============================================================================
 
 const parentRefundIssued: CatalogEntry<ParentRefundIssuedProps | null> = {
@@ -732,7 +732,7 @@ const parentDisputeResolvedLost = makeDisputeResolvedEntry(
 )
 
 // ============================================================================
-// Phase 7e — messaging / support (~3 entries)
+// messaging / support (~3 entries)
 // ============================================================================
 
 const parentMessagingNewFromCamp: CatalogEntry<ParentMessagingNewFromCampProps | null> = {
@@ -827,7 +827,7 @@ const parentSupportTicketStatusChanged: CatalogEntry<ParentSupportTicketStatusCh
   }
 
 // ============================================================================
-// Phase 7f — wishlist / conversion (~12 entries)
+// wishlist / conversion (~12 entries)
 // ============================================================================
 
 const parentWishlistEmpty: CatalogEntry<ParentWishlistEmptyProps | null> = {
@@ -1012,7 +1012,7 @@ const parentCheckoutAbandoned6d = makeAbandonedCheckoutEntry(
 )
 
 // ============================================================================
-// Phase 7g — pre/post-camp + reviews + profile (~9 entries)
+// pre/post-camp + reviews + profile (~9 entries)
 // ============================================================================
 
 function makePreCampEntry(
@@ -1166,7 +1166,7 @@ const parentProfileIncomplete: CatalogEntry<ParentProfileIncompleteProps | null>
 }
 
 export const parentCatalog: ReadonlyArray<CatalogEntry<unknown>> = [
-  // Booking (Phase 7a + scheduled)
+  // Booking (+ scheduled)
   parentBookingAccepted as unknown as CatalogEntry<unknown>,
   parentBookingDeclined as unknown as CatalogEntry<unknown>,
   parentBookingRequestSubmitted as unknown as CatalogEntry<unknown>,
@@ -1175,7 +1175,7 @@ export const parentCatalog: ReadonlyArray<CatalogEntry<unknown>> = [
   parentBookingCancelled as unknown as CatalogEntry<unknown>,
   parentBookingModified as unknown as CatalogEntry<unknown>,
   parentBookingRequestWithdrawn as unknown as CatalogEntry<unknown>,
-  // Payment (Phase 7b)
+  // Payment
   parentPaymentDepositConfirmed as unknown as CatalogEntry<unknown>,
   parentPaymentBalanceReminder14d as unknown as CatalogEntry<unknown>,
   parentPaymentBalanceReminder7d as unknown as CatalogEntry<unknown>,
@@ -1185,17 +1185,17 @@ export const parentCatalog: ReadonlyArray<CatalogEntry<unknown>> = [
   parentPaymentBalanceFailedSecond as unknown as CatalogEntry<unknown>,
   parentPaymentBalanceFailedFinal as unknown as CatalogEntry<unknown>,
   parentPaymentCancelledNonPayment as unknown as CatalogEntry<unknown>,
-  // Refund / Dispute (Phase 7c)
+  // Refund / Dispute
   parentRefundIssued as unknown as CatalogEntry<unknown>,
   parentRefundFailed as unknown as CatalogEntry<unknown>,
   parentDisputeOpened as unknown as CatalogEntry<unknown>,
   parentDisputeResolvedWon as unknown as CatalogEntry<unknown>,
   parentDisputeResolvedLost as unknown as CatalogEntry<unknown>,
-  // Messaging / Support (Phase 7e)
+  // Messaging / Support
   parentMessagingNewFromCamp as unknown as CatalogEntry<unknown>,
   parentSupportTicketReply as unknown as CatalogEntry<unknown>,
   parentSupportTicketStatusChanged as unknown as CatalogEntry<unknown>,
-  // Wishlist / Conversion (Phase 7f)
+  // Wishlist / Conversion
   parentWishlistEmpty as unknown as CatalogEntry<unknown>,
   parentWishlistItemsNoBooking7d as unknown as CatalogEntry<unknown>,
   parentWishlistItemsNoBooking21d as unknown as CatalogEntry<unknown>,
@@ -1208,7 +1208,7 @@ export const parentCatalog: ReadonlyArray<CatalogEntry<unknown>> = [
   parentCheckoutAbandoned2d as unknown as CatalogEntry<unknown>,
   parentCheckoutAbandoned4d as unknown as CatalogEntry<unknown>,
   parentCheckoutAbandoned6d as unknown as CatalogEntry<unknown>,
-  // Pre/Post-camp + Reviews + Profile (Phase 7g)
+  // Pre/Post-camp + Reviews + Profile
   parentPreCampChecklist14d as unknown as CatalogEntry<unknown>,
   parentPreCampPackingReminder7d as unknown as CatalogEntry<unknown>,
   parentPreCampDayBefore as unknown as CatalogEntry<unknown>,

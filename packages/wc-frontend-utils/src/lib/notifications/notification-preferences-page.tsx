@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Info, X } from 'lucide-react'
 import { NotificationCategory } from '@world-schools/wc-types'
 
-// Phase 12 — shared notification preferences UI used by wc-booking,
+// Shared notification preferences UI used by wc-booking,
 // wc-provider, and wc-superadmin. Sections grouped by category;
 // transactional rows render locked with an info tooltip.
 //

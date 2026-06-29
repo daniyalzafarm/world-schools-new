@@ -17,7 +17,7 @@ export class ReimbursementsService {
    * Idempotent — if a Reimbursement already exists for the (refundId), return it.
    *
    * Accepts an optional `tx` so the caller can run this inside the same
-   * transaction as the Refund insert. Phase-7 audit fix H4: previously the
+   * transaction as the Refund insert. Previously the
    * Refund row was created in a transaction but `createIfNeeded` ran outside,
    * meaning a DB blip on this call left the Refund row with
    * `requiresReimbursement=true` but no Reimbursement to track it. Caller

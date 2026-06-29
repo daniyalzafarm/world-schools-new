@@ -549,7 +549,7 @@ export default function MessagesPage() {
         </div>
       </div>
     ) : !activeConversation && draftConversation ? (
-      // ✅ WhatsApp Web pattern: Show draft conversation UI
+      // WhatsApp Web pattern: Show draft conversation UI
       <div className="flex h-full flex-col bg-white dark:bg-gray-900">
         {/* Chat Header for Draft */}
         <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 h-20">
