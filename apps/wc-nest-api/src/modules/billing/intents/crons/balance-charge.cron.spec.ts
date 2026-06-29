@@ -217,7 +217,7 @@ describe('BalanceChargeCron', () => {
       expect(retry.status).toBe('failed')
       expect(retry.attemptCount).toEqual({ lt: 2 })
       expect(retry.nextRetryAt).toMatchObject({ lte: expect.any(Date) })
-      // Stuck step-up — requires_action older than 48h. Phase 3 fix Q3.
+      // Stuck step-up — requires_action older than 48h.
       expect(stuck.status).toBe('requires_action')
       expect(stuck.updatedAt).toMatchObject({ lte: expect.any(Date) })
     })

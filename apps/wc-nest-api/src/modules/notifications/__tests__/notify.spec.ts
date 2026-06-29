@@ -1,7 +1,7 @@
 import { NotificationType } from '@world-schools/wc-types'
 import { NOTIFICATION_DISPATCH_EVENT, notify } from '../dispatcher/notify'
 
-describe('notify() helper (Phase 14c hardening)', () => {
+describe('notify() helper (hardening)', () => {
   it('emits the canonical event payload to the EventEmitter', () => {
     const emit = jest.fn()
     const events = { emit } as never

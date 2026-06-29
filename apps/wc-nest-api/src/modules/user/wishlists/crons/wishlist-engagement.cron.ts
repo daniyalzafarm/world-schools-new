@@ -11,9 +11,9 @@ const LOCK_TTL_SECONDS = 600
 const BATCH_SIZE = 500
 
 /**
- * Phase 7.5 — weekly wishlist-engagement nudge.
+ * Weekly wishlist-engagement nudge.
  *
- * Drives three v28 spec catalog entries:
+ * Drives three catalog entries:
  *  - `ParentWishlistEmpty` — parents who have a Parent row but no wishlist
  *    items at all (and signed up >= 7 days ago, so we don't pester a
  *    brand-new account before they've had a chance to browse).
@@ -28,7 +28,7 @@ const BATCH_SIZE = 500
  * single delivery row per (parent × tier) per week.
  *
  * Recommend pairing with a per-user weekly cooldown timestamp on Parent
- * once promotional volume warrants it. Out of scope for Phase 7.5.
+ * once promotional volume warrants it. Out of scope for now.
  */
 @Injectable()
 export class WishlistEngagementCron {

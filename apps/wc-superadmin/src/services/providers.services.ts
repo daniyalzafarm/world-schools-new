@@ -8,7 +8,7 @@ export interface UpdateAppFeePayload {
 }
 
 /**
- * Phase 8 — superadmin sets a provider's payout mode.
+ * Superadmin sets a provider's payout mode.
  *  - default_after_start: single payout day after camp starts (no extra fields)
  *  - offset_days: single payout X days before camp starts (offsetDays + agreementNote required)
  *  - policy_staged: multi-tranche releases driven by deposit + cancellation policy (agreementNote required)

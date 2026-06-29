@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { PrismaService } from '../../../prisma/prisma.service'
 import { DisputesService } from '../../billing/disputes/disputes.service'
 import { PaymentIntentsService } from '../../billing/intents/payment-intents.service'
@@ -55,7 +56,7 @@ describe('StripeWebhookService', () => {
     refundsService = {
       markRefundCompleted: jest.fn(),
       syncFromCharge: jest.fn(),
-      // H1 audit fix: the EFW handler auto-refunds actionable warnings.
+      // The EFW handler auto-refunds actionable warnings.
       processFraudRefund: jest.fn().mockResolvedValue([]),
     }
     payoutsService = {
@@ -75,6 +76,7 @@ describe('StripeWebhookService', () => {
         { provide: RefundsService, useValue: refundsService },
         { provide: PayoutsService, useValue: payoutsService },
         { provide: DisputesService, useValue: disputesService },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile()
 
@@ -192,7 +194,7 @@ describe('StripeWebhookService', () => {
 
   describe('handleAccountDeauthorized', () => {
     it('clears Stripe fields on the matching provider but PRESERVES appFeePercentage', async () => {
-      // B2: app-fee fields are superadmin-managed and must survive a
+      // App-fee fields are superadmin-managed and must survive a
       // deauth/reauth round-trip. The pre-fix update cleared them, which was
       // incoherent with the resource_missing scrub in StripeConnectService.
       prisma.provider.findUnique.mockResolvedValue({ id: 'prov-1' })
@@ -211,6 +213,8 @@ describe('StripeWebhookService', () => {
           stripePayoutsEnabled: false,
           stripeDetailsSubmitted: false,
           stripeAttentionRequired: false,
+          stripeAccountDisconnectedAt: expect.any(Date),
+          stripeAccountDisconnectedReason: 'stripe_webhook_deauthorized',
         },
       })
       const data = prisma.provider.update.mock.calls[0][0].data
@@ -219,7 +223,7 @@ describe('StripeWebhookService', () => {
     })
 
     it('logs at INFO and skips when the provider was already cleared (post-scrub convergence)', async () => {
-      // H7: receiving a deauth for an already-scrubbed account is a healthy
+      // Receiving a deauth for an already-scrubbed account is a healthy
       // convergence outcome (the resource_missing path beat the webhook).
       // We log INFO, not WARN, so the signal doesn't collide with orphan
       // alerts.
@@ -328,7 +332,7 @@ describe('StripeWebhookService', () => {
     })
   })
 
-  describe('dispatch — Connect account event types added in P1 audit', () => {
+  describe('dispatch — Connect account event types', () => {
     function eventOf(type: string, object: Record<string, unknown>, account?: string) {
       return {
         id: `evt_${type}_${Math.random().toString(36).slice(2)}`,
@@ -449,11 +453,9 @@ describe('StripeWebhookService', () => {
   })
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Audit-fix coverage for the Destination Charges + Elements production
-  // audit. Each test names the audit code (B2/B3/B4/B5/P1) to keep code,
-  // tests, and the audit doc in lockstep.
+  // Coverage for the Destination Charges + Elements webhook handlers.
   // ──────────────────────────────────────────────────────────────────────────
-  describe('audit fixes — Destination Charges + Elements', () => {
+  describe('Destination Charges + Elements', () => {
     function eventOf(type: string, object: Record<string, unknown>, account?: string) {
       return {
         id: `evt_${type}_${Math.random().toString(36).slice(2)}`,
@@ -467,7 +469,7 @@ describe('StripeWebhookService', () => {
       prisma.stripeWebhookEvent.upsert.mockResolvedValueOnce({ id, processedAt: null })
     }
 
-    it('B2: routes payment_intent.requires_action to PaymentIntentsService.markRequiresAction', async () => {
+    it('routes payment_intent.requires_action to PaymentIntentsService.markRequiresAction', async () => {
       const ev = eventOf('payment_intent.requires_action', {
         id: 'pi_async',
         status: 'requires_action',
@@ -481,7 +483,7 @@ describe('StripeWebhookService', () => {
       })
     })
 
-    it('P1: routes payment_intent.processing to PaymentIntentsService.markProcessing', async () => {
+    it('routes payment_intent.processing to PaymentIntentsService.markProcessing', async () => {
       const ev = eventOf('payment_intent.processing', { id: 'pi_proc' })
       unprocessed(ev.id)
       paymentIntentsService.markProcessing = jest.fn()
@@ -489,7 +491,7 @@ describe('StripeWebhookService', () => {
       expect(paymentIntentsService.markProcessing).toHaveBeenCalledWith({ id: 'pi_proc' })
     })
 
-    it('P1: payment_intent.partially_funded is audit-logged, no DB write', async () => {
+    it('payment_intent.partially_funded is audit-logged, no DB write', async () => {
       const ev = eventOf('payment_intent.partially_funded', {
         id: 'pi_part',
         amount_received: 500,
@@ -556,7 +558,7 @@ describe('StripeWebhookService', () => {
       }
     )
 
-    it('B5: application_fee.updated (SDK literal omitted) routes via prefix-match in default branch', async () => {
+    it('application_fee.updated (SDK literal omitted) routes via prefix-match in default branch', async () => {
       const ev = eventOf('application_fee.updated', { id: 'fee_2', amount: 100 })
       unprocessed(ev.id)
       const logSpy = jest.spyOn(service['logger'], 'log').mockImplementation(() => undefined)
@@ -566,7 +568,7 @@ describe('StripeWebhookService', () => {
       )
     })
 
-    it('B3 + H1: radar.early_fraud_warning.created annotates the matching Payment, emits ERROR log, AND auto-refunds when actionable=true', async () => {
+    it('radar.early_fraud_warning.created annotates the matching Payment, emits ERROR log, AND auto-refunds when actionable=true', async () => {
       const efw = {
         id: 'efw_1',
         charge: 'ch_target',
@@ -602,11 +604,11 @@ describe('StripeWebhookService', () => {
       expect(errSpy).toHaveBeenCalledWith(
         expect.stringContaining('radar.early_fraud_warning paymentId=pay-1')
       )
-      // H1 audit fix: actionable EFW triggers auto-refund on the booking.
+      // Actionable EFW triggers auto-refund on the booking.
       expect(refundsService.processFraudRefund).toHaveBeenCalledWith({ bookingGroupId: 'bg-1' })
     })
 
-    it('H1: radar.early_fraud_warning auto-refund swallows Stripe failures so the webhook stays green', async () => {
+    it('radar.early_fraud_warning auto-refund swallows Stripe failures so the webhook stays green', async () => {
       // Auto-refund must NOT propagate errors back to Stripe — the alert log
       // + Payment annotation are already persisted, and an admin can retry
       // the refund manually.
@@ -633,7 +635,7 @@ describe('StripeWebhookService', () => {
       expect(refundsService.processFraudRefund).toHaveBeenCalled()
     })
 
-    it('H1: radar.early_fraud_warning does NOT auto-refund when actionable=false', async () => {
+    it('radar.early_fraud_warning does NOT auto-refund when actionable=false', async () => {
       const efw = {
         id: 'efw_nonactionable',
         charge: 'ch_low_confidence',
@@ -658,7 +660,7 @@ describe('StripeWebhookService', () => {
       expect(refundsService.processFraudRefund).not.toHaveBeenCalled()
     })
 
-    it('B3: radar.early_fraud_warning preserves an existing failureCode on the Payment row', async () => {
+    it('radar.early_fraud_warning preserves an existing failureCode on the Payment row', async () => {
       const efw = {
         id: 'efw_2',
         charge: 'ch_target',
@@ -683,7 +685,7 @@ describe('StripeWebhookService', () => {
       expect((prisma as any).payment.update).not.toHaveBeenCalled()
     })
 
-    it('B3: radar.early_fraud_warning with no charge or intent id logs a warn and returns', async () => {
+    it('radar.early_fraud_warning with no charge or intent id logs a warn and returns', async () => {
       const ev = eventOf('radar.early_fraud_warning.created', { id: 'efw_orphan' })
       unprocessed(ev.id)
       const warnSpy = jest.spyOn(service['logger'], 'warn').mockImplementation(() => undefined)

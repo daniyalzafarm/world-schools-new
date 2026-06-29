@@ -129,7 +129,7 @@ describe('RefundsService', () => {
     stripe = {
       client: {
         refunds: { create: jest.fn() },
-        // C2 audit fix: every refund first validates the live charge against
+        // every refund first validates the live charge against
         // the Payment row. Default mock derives the charge amount/currency
         // from whatever payments the test has set up via `payment.findMany`,
         // so single-charge and multi-charge tests both work without
@@ -537,7 +537,7 @@ describe('RefundsService', () => {
   })
 
   describe('processCampCancelRefund', () => {
-    it('Phase 8: issues full refund + creates Reimbursement when at least one tranche has paid', async () => {
+    it('issues full refund + creates Reimbursement when at least one tranche has paid', async () => {
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(makeGroup())
       prisma.payment.findMany.mockResolvedValueOnce([makePayment()])
       prisma.refund.findUnique.mockResolvedValue(null)
@@ -560,11 +560,11 @@ describe('RefundsService', () => {
           refundId: 'r-1',
           currency: 'eur',
         }),
-        expect.anything() // Phase-7 H4: tx client passed as 2nd arg
+        expect.anything() // tx client passed as 2nd arg
       )
     })
 
-    it('Phase 8: does NOT create Reimbursement when no tranches have released yet', async () => {
+    it('does NOT create Reimbursement when no tranches have released yet', async () => {
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(makeGroup())
       prisma.payment.findMany.mockResolvedValueOnce([makePayment()])
       prisma.refund.findUnique.mockResolvedValue(null)
@@ -580,7 +580,7 @@ describe('RefundsService', () => {
       expect(reimbursements.createIfNeeded).not.toHaveBeenCalled()
     })
 
-    it('Phase 8: cancelByCamp invokes payouts.cancelPendingTranches so the cron stops firing', async () => {
+    it('cancelByCamp invokes payouts.cancelPendingTranches so the cron stops firing', async () => {
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(makeGroup())
       prisma.payment.findMany.mockResolvedValueOnce([makePayment()])
       prisma.refund.findUnique.mockResolvedValue(null)
@@ -599,12 +599,12 @@ describe('RefundsService', () => {
       )
     })
 
-    it('Phase-7 H4: createIfNeeded throwing rolls back the Refund row + refundedAmount increment', async () => {
+    it('createIfNeeded throwing rolls back the Refund row + refundedAmount increment', async () => {
       prisma.bookingGroup.findUnique.mockResolvedValueOnce(makeGroup())
       prisma.payment.findMany.mockResolvedValueOnce([makePayment()])
       prisma.refund.findUnique.mockResolvedValue(null)
       stripe.client.refunds.create.mockResolvedValue({ id: 're_1', status: 'succeeded' })
-      // Phase 8: at least one tranche has paid → createIfNeeded gets called.
+      // at least one tranche has paid → createIfNeeded gets called.
       prisma.bookingPayoutSchedule.count.mockResolvedValueOnce(1)
       prisma.refund.create.mockResolvedValue({
         id: 'r-1',
@@ -712,7 +712,7 @@ describe('RefundsService', () => {
       })
       // No prior dispute Refund row exists.
       prisma.refund.findUnique.mockResolvedValueOnce(null)
-      // Phase 8: orphan-recovery uses tranche table to decide reimbursement.
+      // orphan-recovery uses tranche table to decide reimbursement.
       // Pretend at least one tranche has paid so requiresReimbursement=true.
       prisma.bookingPayoutSchedule.count.mockResolvedValueOnce(1)
       prisma.refund.create.mockResolvedValueOnce({
@@ -747,7 +747,7 @@ describe('RefundsService', () => {
     })
   })
 
-  // -------- Phase 4: previewParentCancel ---------------------------------
+  // -------- previewParentCancel ---------------------------------
 
   describe('previewParentCancel', () => {
     it('returns mode=not_cancelable for terminal-status bookings (does not throw)', async () => {
@@ -857,7 +857,7 @@ describe('RefundsService', () => {
     })
   })
 
-  // -------- Phase 4: cancelForParent dispatch ----------------------------
+  // -------- cancelForParent dispatch ----------------------------
 
   describe('cancelForParent', () => {
     it('rejects when booking is in a terminal status (defends against preview→confirm race)', async () => {
@@ -957,7 +957,7 @@ describe('RefundsService', () => {
       expect(params).not.toHaveProperty('reverse_transfer')
     })
 
-    // -------- C1 audit fix: parent ownership defense-in-depth ------------
+    // -------- parent ownership defense-in-depth ------------
 
     it('throws ForbiddenException when the caller is a different parent (cross-parent attack)', async () => {
       // Booking belongs to PARENT_ID; caller resolves to a different Parent
@@ -983,7 +983,7 @@ describe('RefundsService', () => {
     })
   })
 
-  // -------- C2 audit fix: charge validation pre-flight -----------------
+  // -------- charge validation pre-flight -----------------
 
   describe('issueRefund charge validation', () => {
     it('throws when the live Stripe charge is not captured (still on auth)', async () => {
@@ -1056,7 +1056,7 @@ describe('RefundsService', () => {
     })
   })
 
-  // -------- Phase 4: admin orchestrators ---------------------------------
+  // -------- admin orchestrators ---------------------------------
 
   describe('cancelByCamp', () => {
     it('voids the auth (no refund) when there are no succeeded payments', async () => {
@@ -1183,9 +1183,9 @@ describe('RefundsService', () => {
     })
   })
 
-  // -------- Phase 4 audit regression tests -------------------------------
+  // -------- audit regression tests -------------------------------
 
-  describe('issueRefund — Phase 2-pattern bug fix (audit Q1)', () => {
+  describe('issueRefund — synchronous-success bug fix', () => {
     /**
      * Stripe routinely returns `succeeded` synchronously for card refunds.
      * If issueRefund wrote that status without also incrementing
@@ -1244,7 +1244,7 @@ describe('RefundsService', () => {
     })
   })
 
-  describe('recoverOrphanRefund — audit Q1b', () => {
+  describe('recoverOrphanRefund', () => {
     /**
      * When Stripe sends a refund webhook for a refund we didn't initiate
      * (lost dispute auto-refund, manual Stripe-dashboard refund), the
@@ -1266,7 +1266,7 @@ describe('RefundsService', () => {
       })
       // No prior dispute row.
       prisma.refund.findUnique.mockResolvedValueOnce(null)
-      // Phase 8: shouldFlagReimbursement queries the tranche table — default
+      // shouldFlagReimbursement queries the tranche table — default
       // mock returns 0 so requiresReimbursement=false here.
       prisma.refund.create.mockImplementation(async ({ data }: any) => ({
         id: 'r-recov',

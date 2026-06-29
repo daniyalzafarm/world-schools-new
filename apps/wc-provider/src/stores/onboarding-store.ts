@@ -80,7 +80,7 @@ interface OnboardingStore {
   fetchDocuments: () => Promise<void>
   deleteDocument: (documentId: string) => Promise<void>
   completeStep4: () => Promise<void>
-  // C3 audit fix: return whether the save succeeded so callers can branch on
+  // return whether the save succeeded so callers can branch on
   // success vs. failure. Previously `saveDepositSettings` would throw on
   // failure while `saveProviderSettings` returned void silently — the
   // inconsistency caused dead try/catch in one page and silent navigation

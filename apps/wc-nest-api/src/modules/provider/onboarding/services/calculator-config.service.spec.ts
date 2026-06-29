@@ -45,10 +45,10 @@ describe('CalculatorConfigService', () => {
     expect(config).toEqual({ currency: 'USD', appFeePercentage: 10 })
   })
 
-  // Phase 5 audit fix A1: when `appFeeCustom=false` we must IGNORE any value
+  // When `appFeeCustom=false` we must IGNORE any value
   // sitting on `Provider.appFeePercentage` (it's preserved across toggle-off
   // for re-toggle UX) and fall back to the live system default.
-  it('Phase-5 A1: ignores appFeePercentage when appFeeCustom=false (toggle-off case)', async () => {
+  it('ignores appFeePercentage when appFeeCustom=false (toggle-off case)', async () => {
     prisma.provider.findUnique.mockResolvedValueOnce({
       appFeeCustom: false,
       appFeePercentage: new Prisma.Decimal('20'), // stale custom value, preserved on row

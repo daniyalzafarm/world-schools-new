@@ -452,7 +452,7 @@ export class ProviderAuthController {
       response.setHeader('x-refresh-token', appTokens.refreshToken)
     }
 
-    // Fire-and-forget — powers BUG-107 Inactive operational state.
+    // Fire-and-forget — powers the Inactive operational state.
     void this.authService.recordProviderLastLogin(user.id)
 
     return ResponseUtil.success({ user: result.user })
@@ -973,7 +973,7 @@ export class ProviderAuthController {
       response.setHeader('x-refresh-token', appTokens.refreshToken)
     }
 
-    // Fire-and-forget — powers BUG-107 Inactive operational state.
+    // Fire-and-forget — powers the Inactive operational state.
     void this.authService.recordProviderLastLogin(user.id)
 
     return ResponseUtil.success({ user })

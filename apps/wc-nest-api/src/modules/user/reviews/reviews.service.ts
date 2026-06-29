@@ -320,11 +320,11 @@ export class UserReviewsService {
       })
     })
 
-    // v28 Phase 8 — provider-side notification on every new published
+    // Provider-side notification on every new published
     // review. Resolver targets the full provider staff.
     if (review) {
       notify(this.eventEmitter, NotificationType.ProviderReviewNew, { reviewId: review.id })
-      // v28 Phase 9 — superadmin "review flagged" mirror. The spec lacks
+      // Superadmin "review flagged" mirror. The spec lacks
       // a dedicated "flag" workflow today, so we fire on every verified
       // review submission and let the admin spot-check. When a moderation
       // flag feature ships, narrow this to flagged-only.

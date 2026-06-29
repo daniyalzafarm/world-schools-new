@@ -366,7 +366,7 @@ describe('validateChildAgainstCamp — per-session age band', () => {
     expect(res.eligible).toBe(true)
   })
 
-  it('reports only the session band in the message (BUG-160)', () => {
+  it('reports only the session band in the message', () => {
     const res = validateChildAgainstCamp(
       emma,
       { ...camp(), ageGroups: getSessionAgeGroups(CAMP_AGE_GROUPS, session) },

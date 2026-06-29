@@ -8,7 +8,7 @@ import type { PrismaService } from '../../../prisma/prisma.service'
  *
  * The render assertions exercise the catalog entries' pure title/body/
  * subject/redirectUrl builders directly (no DB). The loader assertions mock
- * a minimal Prisma so the DB-backed fixes (BUG-166 expiry race, BUG-190 child
+ * a minimal Prisma so the DB-backed fixes (expiry race, child
  * name) are pinned.
  */
 
@@ -28,7 +28,7 @@ const render = {
 }
 
 describe('notification bug fixes', () => {
-  describe('BUG-168/169/170 — provider booking in-app renders camp + reference (not undefined)', () => {
+  describe('provider booking in-app renders camp + reference (not undefined)', () => {
     const props = {
       bookingGroupId: 'bg-1',
       bookingGroupNumber: 'WC-2026-0001',
@@ -52,7 +52,7 @@ describe('notification bug fixes', () => {
     })
   })
 
-  describe('BUG-179 — provider.booking.requestReceived also sends email', () => {
+  describe('provider.booking.requestReceived also sends email', () => {
     it('declares the email channel + a campName subject', () => {
       const e = entry(NotificationType.ProviderBookingRequestReceived)
       expect(e.channels).toContain('email')
@@ -65,13 +65,13 @@ describe('notification bug fixes', () => {
     })
   })
 
-  describe('BUG-187 — provider.booking.requestWithdrawn also sends email', () => {
+  describe('provider.booking.requestWithdrawn also sends email', () => {
     it('declares the email channel', () => {
       expect(entry(NotificationType.ProviderBookingRequestWithdrawn).channels).toContain('email')
     })
   })
 
-  describe('BUG-184 — parent.booking.requestWithdrawn re-engagement + browse CTA', () => {
+  describe('parent.booking.requestWithdrawn re-engagement + browse CTA', () => {
     const props = { campName: 'Nike Golf Camps', programName: '1-week camp' }
     it('body includes the re-engagement sentence', () => {
       expect(render.body(NotificationType.ParentBookingRequestWithdrawn, props)).toContain(
@@ -83,7 +83,7 @@ describe('notification bug fixes', () => {
     })
   })
 
-  describe('BUG-190 — parent.booking.declined names the child', () => {
+  describe('parent.booking.declined names the child', () => {
     it('in-app body includes the child name', () => {
       const body = render.body(NotificationType.ParentBookingDeclined, {
         childName: 'Emma',
@@ -94,7 +94,7 @@ describe('notification bug fixes', () => {
     })
   })
 
-  describe('BUG-189 — provider.booking.cancelledByFamily surfaces the financial detail', () => {
+  describe('provider.booking.cancelledByFamily surfaces the financial detail', () => {
     it('in-app body renders the threaded detail, not just the program', () => {
       const detail =
         "Emma's place was cancelled. Refund of USD 1950.00 issued to the family; Acme retains USD 50.00 under the cancellation policy."
@@ -107,7 +107,7 @@ describe('notification bug fixes', () => {
     })
   })
 
-  describe('BUG-171-175 — superadmin redirect builders are null-safe', () => {
+  describe('superadmin redirect builders are null-safe', () => {
     it.each([
       NotificationType.SuperadminCampStripeDisconnected,
       NotificationType.SuperadminDisputeResolved,
@@ -135,7 +135,7 @@ describe('notification loader fixes', () => {
     bookings: [{ child: { firstName: 'Emma' } }],
   }
 
-  describe('BUG-166 — ParentBookingExpired loader fires once the request has lapsed', () => {
+  describe('ParentBookingExpired loader fires once the request has lapsed', () => {
     const load = propLoaders[NotificationType.ParentBookingExpired]
 
     it('returns props (with camp name) when the booking already flipped to expired', async () => {
@@ -170,7 +170,7 @@ describe('notification loader fixes', () => {
     })
   })
 
-  describe('BUG-190 — parent.booking.declined loader includes the child name', () => {
+  describe('parent.booking.declined loader includes the child name', () => {
     it('maps bookings[0].child.firstName to childName', async () => {
       const load = propLoaders[NotificationType.ParentBookingDeclined]
       const props = (await load(

@@ -60,7 +60,7 @@ interface CancelBookingModalProps {
 }
 
 /**
- * Phase 4 — parent-facing booking cancel flow.
+ * parent-facing booking cancel flow.
  *
  * On open: fetches the live refund preview from the server. The preview is
  * authoritative — the modal does no client-side policy math, it renders
@@ -72,10 +72,6 @@ interface CancelBookingModalProps {
  * moment — if a webhook flipped the status between preview and confirm
  * (extremely rare but possible), the server's status guard rejects the
  * cancel rather than silently downgrading to a different mode.
- *
- * UI principle from the Phase 2 lessons: NO global-store mutations during
- * the preview-or-cancel async flow. State stays local; the parent page is
- * notified via `onCancelled` only after the server confirms success.
  */
 export function CancelBookingModal({
   bookingGroupId,

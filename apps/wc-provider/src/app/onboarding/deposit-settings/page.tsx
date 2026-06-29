@@ -156,7 +156,7 @@ export default function OnboardingStep5DepositSettingsPage() {
     return false
   }
 
-  // M9 audit fix: compute every breakdown value at FULL precision. Rounding
+  // compute every breakdown value at FULL precision. Rounding
   // to whole units inside the helper (`Math.round` per line item) lets the
   // table sub-rows drift from the headline total when a currency uses
   // fractional minor units (e.g. €499.99 + €1500.01 = €2000, not €500 +
@@ -207,7 +207,7 @@ export default function OnboardingStep5DepositSettingsPage() {
       } else {
         const amount = parseFloat(depositFixedAmount)
         if (isNaN(amount) || amount < 1) {
-          // H5 audit fix: render the minimum in the provider's configured
+          // render the minimum in the provider's configured
           // currency rather than a hardcoded "$1" — EUR/GBP/JPY providers
           // would otherwise see a USD message that contradicts the rest of
           // the UI. `formatCurrency` respects zero-decimal currencies (JPY,
@@ -234,7 +234,7 @@ export default function OnboardingStep5DepositSettingsPage() {
         depositRequired && depositType === 'fixed' ? parseFloat(depositFixedAmount) : null,
     }
 
-    // C3 audit fix: `saveDepositSettings` returns a boolean (no longer
+    // `saveDepositSettings` returns a boolean (no longer
     // throws), with the human-readable error left on `state.error`. Branch
     // on the boolean and surface the server error via toast rather than
     // navigating silently past failed saves.

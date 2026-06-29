@@ -105,7 +105,7 @@ export function computeApplicationFee(amount: DecimalLike, appFeePercentage: Dec
 }
 
 /**
- * M2 audit fix: Stripe's minimum charge amount per currency. Below these
+ * Stripe's minimum charge amount per currency. Below these
  * thresholds Stripe rejects `paymentIntents.create` with
  * `amount_too_small`. Returned in the **major** unit (€/$/¥) for direct
  * use by validation / form layers.
@@ -169,7 +169,7 @@ const STRIPE_MIN_CHARGE_MAJOR: Record<string, number> = {
 }
 
 /**
- * M2 audit fix: returns the Stripe-imposed minimum charge amount in the
+ * Returns the Stripe-imposed minimum charge amount in the
  * major unit for the given currency. Use this to gate provider settings
  * (e.g. fixed deposit amount) so providers can't configure values that
  * will fail at PaymentIntent create time with `amount_too_small`.

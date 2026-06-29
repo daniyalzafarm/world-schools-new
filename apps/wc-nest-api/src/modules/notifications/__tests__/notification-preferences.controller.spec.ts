@@ -22,7 +22,7 @@ const mockedListCatalogEntries = listCatalogEntries as jest.MockedFunction<
   typeof listCatalogEntries
 >
 
-describe('UserNotificationPreferencesController — Phase 14c hardening', () => {
+describe('UserNotificationPreferencesController — hardening', () => {
   let controller: UserNotificationPreferencesController
   let service: { listForUser: jest.Mock; bulkSetPreferences: jest.Mock }
   let redis: { isReady: jest.Mock; getClient: jest.Mock }

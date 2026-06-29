@@ -80,7 +80,7 @@ export class ConversationsService {
   async createConversation(dto: CreateConversationDto) {
     const { userId, participantId, participantType, contextType, contextId, initialMessage } = dto
 
-    // ✅ NEW: Require initial message
+    // Require initial message
     if (!initialMessage || initialMessage.trim().length === 0) {
       throw new BadRequestException('Initial message is required to create a conversation')
     }
@@ -215,34 +215,34 @@ export class ConversationsService {
       }
     }
 
-    // ✅ PHASE 2 FIX: Collect all users whose cache needs invalidation
+    // Collect all users whose cache needs invalidation
     const userIdsToInvalidate: string[] = [userId]
 
-    // ✅ PHASE 2 FIX: Add other participant for USER_SUPERADMIN conversations
+    // Add other participant for USER_SUPERADMIN conversations
     if (participantType !== 'provider') {
       userIdsToInvalidate.push(participantId)
     }
 
-    // ✅ PHASE 2 FIX: Invalidate cache for all affected users
+    // Invalidate cache for all affected users
     for (const userIdToInvalidate of userIdsToInvalidate) {
       await this.invalidateConversationCache(userIdToInvalidate)
     }
 
-    // ✅ PHASE 2 FIX: For provider conversations, invalidate provider users' cache
+    // For provider conversations, invalidate provider users' cache
     if (participantType === 'provider') {
-      // ✅ LOCAL invalidation for provider users on current replica
+      // Local invalidation for provider users on current replica
       const providerUsers = await this.redisPubSub.getProviderUsers(participantId)
       for (const providerUser of providerUsers) {
         await this.invalidateConversationCache(providerUser.id)
       }
 
-      // ✅ Broadcast to all replicas to invalidate provider users' cache
+      // Broadcast to all replicas to invalidate provider users' cache
       await this.redisPubSub.publishMessage('cache:invalidate:conversations', {
         userIds: userIdsToInvalidate,
         providerId: participantId, // participantId is the provider ID
       })
 
-      // ✅ NEW: Emit WebSocket event to provider users for real-time conversation list updates
+      // Emit WebSocket event to provider users for real-time conversation list updates
       this.logger.log(
         `[Real-time] Publishing conversations:new event for provider ${participantId}`
       )
@@ -273,7 +273,7 @@ export class ConversationsService {
         userIds: userIdsToInvalidate,
       })
 
-      // ✅ NEW: Emit WebSocket event to superadmin users for real-time conversation list updates
+      // Emit WebSocket event to superadmin users for real-time conversation list updates
       await this.redisPubSub.publishMessage('conversations:new', {
         conversation,
         userIds: userIdsToInvalidate,
@@ -284,7 +284,7 @@ export class ConversationsService {
       `Cache invalidated for new conversation ${conversation.id} and ${userIdsToInvalidate.length} users`
     )
 
-    // ✅ Enrich conversation with provider data for USER_PROVIDER conversations
+    // Enrich conversation with provider data for USER_PROVIDER conversations
     // This matches the enrichment done in getConversations() to ensure consistent data structure
     let enrichedConversation = conversation
     if (participantType === 'provider') {
@@ -659,7 +659,7 @@ export class ConversationsService {
     }`
     const cached = await this.redis.get(cacheKey)
     if (cached) {
-      // ✅ PHASE 5 FIX: Track cache hit
+      // Track cache hit
       this.logger.log({
         event: 'cache.conversations.hit',
         filter,
@@ -670,7 +670,7 @@ export class ConversationsService {
       return JSON.parse(cached)
     }
 
-    // ✅ PHASE 5 FIX: Track cache miss
+    // Track cache miss
     this.logger.log({
       event: 'cache.conversations.miss',
       filter,
@@ -725,7 +725,7 @@ export class ConversationsService {
     // Resolve participant avatars (SAS URLs) so the sidebar shows real photos.
     await this.enrichParticipantPhotos(conversations)
 
-    // ✅ PHASE 2 FIX: Collect all unique provider IDs (avoid N+1 queries)
+    // Collect all unique provider IDs (avoid N+1 queries)
     const providerIds = new Set<string>()
     for (const conv of conversations) {
       const metadata = conv.metadata as { providerId?: string } | null
@@ -734,7 +734,7 @@ export class ConversationsService {
       }
     }
 
-    // ✅ PHASE 2 FIX: Batch load all providers in ONE query
+    // Batch load all providers in ONE query
     const providers = await this.prisma.provider.findMany({
       where: { id: { in: Array.from(providerIds) } },
       select: {
@@ -744,7 +744,7 @@ export class ConversationsService {
       },
     })
 
-    // ✅ PHASE 2 FIX: Create provider lookup map for O(1) access
+    // Create provider lookup map for O(1) access
     const providerMap = new Map(providers.map(p => [p.id, p]))
 
     // Resolve camp identity (name/location/photo) for camp-/booking-context conversations
@@ -759,7 +759,7 @@ export class ConversationsService {
       conversations.map(c => c.id)
     )
 
-    // ✅ PHASE 2 FIX: Enrich conversations using the provider map (no additional queries)
+    // Enrich conversations using the provider map (no additional queries)
     const enrichedConversations = conversations.map(conv => {
       const metadata = conv.metadata as { providerId?: string } | null
       const campContext = campContextMap.get(conv.id)
@@ -953,10 +953,10 @@ export class ConversationsService {
     // Invalidate cache
     await this.invalidateConversationCache(userId)
 
-    // ✅ PHASE 3 FIX: Invalidate metrics cache
+    // Invalidate metrics cache
     await this.redis.del(`conversation:metrics:${conversationId}`)
 
-    // ✅ PHASE 3 FIX: Broadcast cache invalidation to all replicas
+    // Broadcast cache invalidation to all replicas
     await this.redisPubSub.publishMessage('cache:invalidate:conversations', {
       userIds: [userId],
     })
@@ -1105,10 +1105,10 @@ export class ConversationsService {
       await this.invalidateConversationCache(participant.userId)
     }
 
-    // ✅ PHASE 3 FIX: Invalidate metrics cache
+    // Invalidate metrics cache
     await this.redis.del(`conversation:metrics:${conversationId}`)
 
-    // ✅ PHASE 3 FIX: Broadcast cache invalidation to all replicas
+    // Broadcast cache invalidation to all replicas
     const participantUserIds = conversation.participants.map(p => p.userId)
     await this.redisPubSub.publishMessage('cache:invalidate:conversations', {
       userIds: participantUserIds,
@@ -1328,8 +1328,8 @@ export class ConversationsService {
 
   /**
    * Helper: Invalidate conversation cache for a user
-   * ✅ UPDATED: Now uses SCAN instead of KEYS and includes providerId
-   * ✅ PUBLIC: Called from RedisPubSubService for cross-replica cache invalidation
+   * Now uses SCAN instead of KEYS and includes providerId
+   * Called from RedisPubSubService for cross-replica cache invalidation
    */
   async invalidateConversationCache(userId: string): Promise<void> {
     const now = Date.now()
@@ -1354,7 +1354,7 @@ export class ConversationsService {
   }
 
   /**
-   * ✅ NEW: Delete cache keys by pattern using SCAN (non-blocking)
+   * Delete cache keys by pattern using SCAN (non-blocking)
    * Replaces KEYS command which blocks Redis in production
    */
   private async deleteKeysByPattern(pattern: string): Promise<void> {
@@ -1430,7 +1430,7 @@ export class ConversationsService {
   }
 
   /**
-   * ✅ PHASE 5 FIX: Warm cache for active users on application startup
+   * Warm cache for active users on application startup
    * Reduces cold start latency
    */
   async warmCache() {
@@ -1465,7 +1465,7 @@ export class ConversationsService {
   }
 
   /**
-   * ✅ PHASE 5 FIX: Get Redis cache metrics for monitoring
+   * Get Redis cache metrics for monitoring
    * Tracks memory usage, key count, and eviction rate
    */
   async getCacheMetrics(): Promise<{
@@ -1513,7 +1513,7 @@ export class ConversationsService {
   }
 
   /**
-   * ✅ PHASE 5 FIX: Parse Redis INFO command output
+   * Parse Redis INFO command output
    * @param info - Raw INFO output
    * @param key - Key to extract
    * @returns Parsed value

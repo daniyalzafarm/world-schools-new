@@ -7,7 +7,7 @@ import {
 } from './notification-categories'
 import { NotificationCategory, NotificationType } from './websocket.types'
 
-describe('NOTIFICATION_CATEGORY map (Phase 14c exhaustiveness gate)', () => {
+describe('NOTIFICATION_CATEGORY map (exhaustiveness gate)', () => {
   it('covers every NotificationType enum member — no silent System fallthrough', () => {
     expect(findUnmappedNotificationTypes()).toEqual([])
   })

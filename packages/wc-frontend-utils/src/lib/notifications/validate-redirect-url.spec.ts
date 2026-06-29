@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { validateRedirectUrl } from './notifications-page-content'
 
-describe('validateRedirectUrl (Phase 14c open-redirect guard)', () => {
+describe('validateRedirectUrl (open-redirect guard)', () => {
   it.each([
     ['/bookings/BG-1', '/bookings/BG-1'],
     ['/account/settings', '/account/settings'],

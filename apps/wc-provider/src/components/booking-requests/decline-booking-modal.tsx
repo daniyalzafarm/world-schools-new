@@ -74,7 +74,7 @@ const REASON_CONFIG: Array<{
 ]
 
 /**
- * Decline-with-reason modal (BUG-118). The controlled list comes from
+ * Decline-with-reason modal. The controlled list comes from
  * Provider Terms v1.7 §5.1(h)(iii) — providers must select one before the
  * Decline button enables. Every reason except capacity-or-scheduling carries
  * a required contextual note so the Platform can review per §5.1(h)(iv)

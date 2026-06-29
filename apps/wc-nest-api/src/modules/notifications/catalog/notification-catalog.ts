@@ -10,9 +10,9 @@ import type { CatalogEntry } from './types'
  * code reviewable in domain-sized chunks while this map gives the
  * dispatcher, worker, and tests a single lookup point.
  *
- * The map is `Partial<Record<NotificationType, ...>>` while phases 4-9
- * are in progress (legacy types and 119 yet-to-add types are absent);
- * once the cutover completes, the partial wrapper can be tightened to
+ * The map is `Partial<Record<NotificationType, ...>>` while the catalog
+ * is built out (legacy types and yet-to-add types are absent);
+ * once complete, the partial wrapper can be tightened to
  * `Record` and the catalog validation test pinned to exhaustiveness.
  */
 function buildCatalog(): Partial<Record<NotificationType, CatalogEntry<unknown>>> {

@@ -10,9 +10,9 @@ export interface ParentBookingDeclinedProps {
   firstName?: string | null
   /**
    * Child the declined request was for. Carried for the in-app notification
-   * (BUG-190 — disambiguates multi-child households) but deliberately NOT
-   * rendered in this email: the v28 spec keeps the child's name out of the
-   * decline email for GDPR data-minimisation (email is a forwardable channel).
+   * (disambiguates multi-child households) but deliberately NOT rendered in
+   * this email: the child's name is kept out of the decline email for GDPR
+   * data-minimisation (email is a forwardable channel).
    */
   childName: string
   campName: string
@@ -30,7 +30,7 @@ export interface ParentBookingDeclinedProps {
 /**
  * Parent — Booking request not confirmed.
  *
- * Spec: WorldCamps_Notifications_v28.xlsx → "For Parents" #4 (Booking Request
+ * Spec: WorldCamps notifications catalog → "For Parents" #4 (Booking Request
  * Declined). Tone: neutral framing of the reason — declines are a logistical
  * reality, not a rejection of the family.
  */

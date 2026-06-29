@@ -329,7 +329,7 @@ describe('NotificationLiveWorker.process (runNotificationJob)', () => {
     })
   })
 
-  describe('loader-throws hardening (Phase 14c)', () => {
+  describe('loader-throws hardening', () => {
     it('writes a "failed" delivery row per requested channel when loadProps throws', async () => {
       mockedGetCatalogEntry.mockReturnValue(
         makeEntry({

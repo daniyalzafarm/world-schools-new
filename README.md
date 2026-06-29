@@ -1,87 +1,133 @@
-# WorldSchools
+# World Schools
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+An Nx monorepo for the World Schools platform: a booking marketplace for school
+camps, the provider portal that runs them, a super-admin back office, and the
+NestJS API that powers all three.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is almost ready ✨.
+## Tech stack
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/intro#learn-nx?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+- **Monorepo:** Nx 22
+- **Frontend:** Next.js 16, React 19, Tailwind CSS v4, HeroUI
+- **Backend:** NestJS 11, Passport.js (JWT + local), Helmet, Socket.io
+- **Database:** PostgreSQL via Prisma 7 (`@prisma/adapter-pg`)
+- **Cache / pub-sub:** Redis (ioredis, `@socket.io/redis-adapter`)
+- **Storage:** Azure Blob Storage
+- **Payments:** Stripe (Connect, payment intents, webhooks)
+- **Testing:** Jest (NestJS), Vitest (React/Next.js)
+- **Package manager:** npm (Node `>=20.9 <21`)
 
-## Finish your CI setup
+## Applications
 
-[Click here to finish setting up your workspace!](https://cloud.nx.app/connect/AIRV4hSxqt)
+| App             | Type    | Dev port | Description                       |
+| --------------- | ------- | -------- | --------------------------------- |
+| `wc-booking`    | Next.js | 4303     | Booking frontend for parents      |
+| `wc-provider`   | Next.js | 4302     | Provider portal                   |
+| `wc-superadmin` | Next.js | 4301     | Super-admin dashboard             |
+| `wc-nest-api`   | NestJS  | 3000     | Backend API for the above three   |
 
+The repo also contains a separate `schoolable-web` / `schoolable-nest-api`
+product; the setup below covers the World Schools (`wc-*`) apps.
 
-## Run tasks
+## Shared packages
 
-To run tasks with Nx use:
+| Package                                       | Description                                          |
+| --------------------------------------------- | ---------------------------------------------------- |
+| `global-utils`                                | Cross-product utilities                              |
+| `ui-web`                                      | Shared React UI component library                    |
+| `wc-types` / `wc-utils` / `wc-frontend-utils` | World Schools types, server utils, frontend utils    |
+| `wc-email-templates`                          | Transactional email templates                        |
 
-```sh
-npx nx <target> <project-name>
+## Prerequisites
+
+- Node.js `>=20.9 <21` and npm
+- PostgreSQL 14+
+- Redis 6+
+- An Azure Blob Storage account (file uploads) and Stripe account (payments) for
+  full functionality
+
+## Getting started
+
+```bash
+# 1. Install dependencies (from the repo root)
+npm install
+
+# 2. Configure environment for each app you want to run
+cp apps/wc-nest-api/.env.example   apps/wc-nest-api/.env
+cp apps/wc-booking/.env.example    apps/wc-booking/.env
+cp apps/wc-provider/.env.example   apps/wc-provider/.env
+cp apps/wc-superadmin/.env.example apps/wc-superadmin/.env
+# then edit each .env with your DB, Redis, Azure and Stripe values
+
+# 3. Set up the database (API)
+npx nx prisma:generate wc-nest-api
+npx nx prisma:migrate wc-nest-api
+npx nx prisma:seed wc-nest-api
+
+# 4. Run the apps (one per terminal)
+npx nx serve wc-nest-api     # http://localhost:3000  (Swagger at /docs)
+npx nx dev   wc-booking      # http://localhost:4303
+npx nx dev   wc-provider     # http://localhost:4302
+npx nx dev   wc-superadmin   # http://localhost:4301
 ```
 
-For example:
+After seeding, a default super-admin is available — see
+[apps/wc-nest-api/README.md](apps/wc-nest-api/README.md) for the credentials and
+API details. **Change the seeded credentials before deploying.**
 
-```sh
-npx nx build myproject
+## Common commands
+
+```bash
+# Dev servers
+npx nx serve wc-nest-api
+npx nx dev <wc-booking | wc-provider | wc-superadmin>
+
+# Build / test / lint a single project
+npx nx build <project>
+npx nx test  <project>
+npx nx lint  <project> --fix
+
+# Across the workspace
+npx nx run-many -t build --all
+npx nx affected -t test
+npx nx affected -t lint
+
+# Prisma (wc-nest-api)
+npx nx prisma:generate wc-nest-api    # regenerate client after schema changes
+npx nx prisma:migrate  wc-nest-api    # create + apply a dev migration
+npx nx prisma:seed     wc-nest-api    # seed initial data
+npx nx prisma:studio   wc-nest-api    # open Prisma Studio
+
+# Dependency graph
+npx nx graph
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+Each `wc-*` app also has its own README with app-specific details, and the API
+README documents auth, RBAC and the database schema.
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Deployment
 
-### Lint command groups
+CI/CD is GitHub Actions → Azure Container Apps. The staging workflow builds and
+deploys on every `wc-v*.*.*` tag; the production workflow promotes the same
+images by digest. See [DEPLOYMENT.md](DEPLOYMENT.md) for infrastructure, the
+GitHub secrets/variables to configure, and the release flow.
 
-This workspace defines grouped lint commands for common project sets:
+## Known gaps
 
-- `npx nx lint wc` – lints (with `--fix`) all `wc-*` projects.
-- `npx nx lint sc` – lints (with `--fix`) all `schoolable-*` projects.
-- `npx nx lint pkgs` – lints (with `--fix`) all library/package projects.
+Areas that are intentionally stubbed or unfinished (marked with `// TODO:` in the
+code), worth knowing before extending the platform:
 
-Internally these are small meta projects that invoke `nx run-many` with the appropriate filters, so you do not have to list each project individually.
+- **Account verification** — email and SMS verification endpoints, plus
+  password-reset email delivery, are stubbed in the API auth modules and need a
+  real email/SMS provider wired in.
+- **Privacy settings** — the "delete account" / "export data" actions on the
+  account → settings → privacy pages (all three frontends) are UI-only and not yet
+  connected to backend endpoints.
+- **Abandonment & report notifications** — the booking abandon-detection cron and
+  the messaging report flow currently log placeholders instead of dispatching
+  notifications.
+- **Misc** — child photo upload (booking) and exposing `User.createdAt` from the
+  API are not yet implemented.
 
-## Add new projects
+## License
 
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
-
-To install a new plugin you can use the `nx add` command. Here's an example of adding the React plugin:
-```sh
-npx nx add @nx/react
-```
-
-Use the plugin's generator to create new projects. For example, to create a new React app or library:
-
-```sh
-# Generate an app
-npx nx g @nx/react:app demo
-
-# Generate a library
-npx nx g @nx/react:lib some-lib
-```
-
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
-
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/getting-started/intro#learn-nx?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+MIT

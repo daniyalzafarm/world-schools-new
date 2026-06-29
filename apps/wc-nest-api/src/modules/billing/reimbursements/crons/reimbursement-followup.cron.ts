@@ -10,7 +10,7 @@ const LOCK_TTL_SECONDS = 600 // 10 min — comfortably longer than a worst-case 
 
 /**
  * Daily reminder cron for overdue reimbursements (the camp's debt to the
- * platform after a post-payout refund). Mirrors the Phase 3 balance-charge
+ * platform after a post-payout refund). Mirrors the balance-charge
  * cron pattern: Redis SET-NX lock, batch processing, per-row best-effort
  * email send, idempotent at the row level via `lastReminderSentAt` + the
  * 24h cooldown enforced by `findOverdueForReminder`.

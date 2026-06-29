@@ -13,7 +13,7 @@ const LOCK_TTL_SECONDS = 600
 const BATCH_SIZE = 200
 
 /**
- * B9 audit fix — proactive monitor for the card-network authorization-window
+ * Proactive monitor for the card-network authorization-window
  * cliff.
  *
  * Per Stripe's manual-capture documentation, an uncaptured authorization

@@ -188,7 +188,7 @@ export interface CreateConversationDto {
   participantType: 'provider' | 'superadmin'
   contextType?: ContextType
   contextId?: string
-  initialMessage: string // ✅ Required (no longer optional)
+  initialMessage: string // Required (no longer optional)
   subject?: string
 }
 

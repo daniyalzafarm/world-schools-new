@@ -66,7 +66,7 @@ function groupByDate(items: WsNotificationPayload[]): DateGroup[] {
 // Notification icon
 // ---------------------------------------------------------------------------
 
-// Phase 11 — one variant per visually-distinct family. Maps every
+// One variant per visually-distinct family. Maps every
 // `NotificationCategory` to its rendering colour + icon. All 123 catalog
 // entries land in one of these via `categoryFor()`.
 type IconVariant = 'booking' | 'message' | 'payment' | 'review' | 'onboarding' | 'security'
@@ -199,7 +199,7 @@ function getActions(notification: WsNotificationPayload): NotifAction[] {
   const redirectUrl = notification.metadata?.['redirectUrl'] as string | undefined
   if (!redirectUrl) return []
 
-  // Action label derives from the v28 category — keeps copy consistent
+  // Action label derives from the notification category — keeps copy consistent
   // across the ~120 catalog entries without an exhaustive switch.
   const category = categoryFor(notification.type)
   const label =
@@ -226,7 +226,7 @@ export interface NotificationsPageContentProps {
   filteredNotifications: WsNotificationPayload[]
   filter: NotificationFilter
   /**
-   * Phase 11 — per-audience filter chips. Sourced from the hook so each
+   * Per-audience filter chips. Sourced from the hook so each
    * app drives its own tab set (parent / provider / superadmin all carry
    * different meaningful categories).
    */

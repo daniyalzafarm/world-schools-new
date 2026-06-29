@@ -66,7 +66,7 @@ export interface RemoveReactionDto {
 export interface BookmarkMessageDto {
   messageId: string
   userId: string
-  note?: string // PHASE 6: Optional note field
+  note?: string // Optional note field
 }
 
 export interface UnbookmarkMessageDto {
@@ -110,7 +110,7 @@ export interface SearchMessagesDto {
   conversationId?: string
   limit?: number
   offset?: number
-  // PHASE 6.8: Enhanced search filters
+  // Enhanced search filters
   contentType?: string // Filter by content type (TEXT, IMAGE, FILE, etc.)
   senderId?: string // Filter by sender
   startDate?: Date // Filter by date range start

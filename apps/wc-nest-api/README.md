@@ -54,8 +54,8 @@ A NestJS backend API for the World Schools platform with multi-tenant RBAC, auth
 
 After seeding, you can log in with:
 
-- **Email**: `admin@worldschools.com`
-- **Password**: `admin123`
+- **Email**: `admin@world-camps.org`
+- **Password**: `Camps@231`
 
 ⚠️ **Important**: Change these credentials in production!
 
@@ -110,8 +110,8 @@ The API uses JWT-based authentication with support for:
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "admin@worldschools.com",
-    "password": "admin123"
+    "email": "admin@world-camps.org",
+    "password": "Camps@231"
   }'
 ```
 

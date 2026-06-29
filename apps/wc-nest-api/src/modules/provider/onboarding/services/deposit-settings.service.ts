@@ -51,7 +51,7 @@ export class DepositSettingsService {
             'Deposit fixed amount is required when deposit type is fixed'
           )
         }
-        // M2 audit fix: validate against the Stripe-imposed minimum charge
+        // Validate against the Stripe-imposed minimum charge
         // amount for the provider's configured currency, not a hardcoded $1.
         // A provider on JPY needs ¥50 minimum; one on EUR needs €0.50; the
         // previous "$1" would either be too loose (JPY) or impossible to

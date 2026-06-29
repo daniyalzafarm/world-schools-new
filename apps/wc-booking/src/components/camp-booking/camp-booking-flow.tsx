@@ -1774,7 +1774,6 @@ function ReviewStep({
   // After successful Stripe confirmation, the store flips both `hasSubmitted`
   // and `paymentConfirmed` to true. Wait until BOTH are true before redirecting
   // — `hasSubmitted` alone is set by the legacy submit-without-payment flow
-  // (deprecated after Phase 2 but kept for backwards-safety in tests).
   useEffect(() => {
     if (hasSubmitted && paymentConfirmed) {
       const handle = window.setTimeout(() => {

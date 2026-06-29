@@ -13,7 +13,7 @@ import { PaymentIntentsService } from '../payment-intents.service'
 const LOCK_KEY = 'cron:lock:balance-charge'
 const LOCK_TTL_SECONDS = 600 // 10 min — comfortably longer than a worst-case batch
 const BATCH_SIZE = 100
-// H5 audit fix: maxAttempts and STEP_UP_ABANDON_HOURS come from
+// maxAttempts and STEP_UP_ABANDON_HOURS come from
 // `ConfigService.billingConfig` (env-driven) rather than hardcoded constants.
 // The `@Cron` decorator below still uses a literal `EVERY_30_MINUTES` because
 // Nest schedule decorators don't accept dynamic values at decorate-time —
@@ -38,7 +38,7 @@ const BATCH_SIZE = 100
  *    attempt collapses to the same intent on Stripe.
  *  - DB-side: `chargeOffSession` delegates a succeeded charge through
  *    `markSucceeded`, which short-circuits if the row's status is already
- *    `succeeded`. (This is the same guard that bit Phase 2's capture flow when
+ *    `succeeded`. (This is the same guard that bit the capture flow when
  *    the synchronous status write pre-empted the webhook — fixed there and
  *    intentionally mirrored here.)
  *  - Cron-side: the Redis lock prevents two instances of the cron from
@@ -126,7 +126,7 @@ export class BalanceChargeCron {
             attemptCount: { lt: maxAttempts },
             nextRetryAt: { lte: now },
           },
-          // Phase 3 fix Q3: stuck `requires_action` rows. The parent was
+          // stuck `requires_action` rows. The parent was
           // emailed a 3DS recovery link but didn't complete the challenge
           // within the 48h window. `updatedAt` reliably tracks "time
           // entered requires_action" because no other code path updates a
@@ -158,7 +158,7 @@ export class BalanceChargeCron {
     for (const { id, status: priorStatus } of candidates) {
       try {
         if (priorStatus === PaymentStatus.requires_action) {
-          // Phase 3 fix Q3: stuck step-up. Cancel the live Stripe intent
+          // stuck step-up. Cancel the live Stripe intent
           // and mark the row terminal. The post-state inspection below
           // sees status=failed && attemptCount>=maxAttempts and routes
           // through the existing exhausted branch (BookingGroup →
@@ -229,9 +229,9 @@ export class BalanceChargeCron {
             data: { status: BookingGroupStatus.payment_failed },
           })
           await this.notifications.notifyPaymentFailedFinal(after.id)
-          // v28 catalog dispatch — final-attempt failure. Distinct from the
-          // legacy notifications.notifyPaymentFailedFinal email which the
-          // catalog cutover will retire in a future phase; both fire today
+          // final-attempt failure. Distinct from the
+          // legacy notifications.notifyPaymentFailedFinal email which will
+          // eventually be retired; both fire today
           // since the legacy path still serves any consumer keyed off the
           // template id.
           notify(this.eventEmitter, NotificationType.ParentPaymentBalanceFailedFinal, {

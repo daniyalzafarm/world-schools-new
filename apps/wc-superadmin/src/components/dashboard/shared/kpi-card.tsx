@@ -9,10 +9,10 @@ import { CHART_COLORS } from '@/lib/chart-theme'
 interface KpiCardProps {
   label: string
   value: string
-  /** Pre-formatted previous-period value, shown beneath the label (BUG-127). */
+  /** Pre-formatted previous-period value, shown beneath the label. */
   previousValue?: string
   /** Prior period had no data — show a neutral "New" badge instead of a
-   *  misleading "↑ 100%" divide-by-zero trend (BUG-130). */
+   *  misleading "↑ 100%" divide-by-zero trend. */
   isNewPeriod?: boolean
   icon: ReactNode
   iconBgClass?: string
