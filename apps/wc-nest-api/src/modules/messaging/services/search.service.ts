@@ -10,7 +10,7 @@ export class SearchService {
 
   /**
    * Search messages using PostgreSQL full-text search
-   * PHASE 6.8: Enhanced with additional filters (contentType, senderId, date range)
+   * Enhanced with additional filters (contentType, senderId, date range)
    */
   async searchMessages(dto: SearchMessagesDto) {
     const {
@@ -41,7 +41,7 @@ export class SearchService {
       },
     }
 
-    // PHASE 6.8: Apply additional filters
+    // Apply additional filters
     if (conversationId) {
       where.conversationId = conversationId
     }
@@ -106,7 +106,7 @@ export class SearchService {
   /**
    * Search messages using full-text search with ranking
    * This uses the search_vector column and PostgreSQL ts_rank
-   * PHASE 6.8: Enhanced with additional filters
+   * Enhanced with additional filters
    */
   async searchMessagesFullText(dto: SearchMessagesDto) {
     const {
@@ -131,7 +131,7 @@ export class SearchService {
     const params: any[] = [query, userId]
     let paramIndex = 3
 
-    // PHASE 6.8: Add optional filters
+    // Add optional filters
     if (conversationId) {
       conditions.push(`m.conversation_id = $${paramIndex}`)
       params.push(conversationId)

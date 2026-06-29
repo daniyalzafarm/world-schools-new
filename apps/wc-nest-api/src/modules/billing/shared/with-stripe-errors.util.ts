@@ -2,7 +2,7 @@ import Stripe from 'stripe'
 import { mapStripeError } from '../../stripe/stripe-error.util'
 
 /**
- * M6 audit fix: backoff parameters for `StripeRateLimitError` (HTTP 429).
+ * Backoff parameters for `StripeRateLimitError` (HTTP 429).
  * Stripe's rate limits are per-account and per-resource and recover quickly;
  * a short exponential retry with jitter is the canonical mitigation. Total
  * worst-case wait across all retries is ~700ms — small enough not to
@@ -56,7 +56,7 @@ export interface WithStripeErrorsOptions {
  * billing service uses the same translation layer without copying the
  * inner try/catch block from `stripe-connect.service.ts`.
  *
- * M6 audit fix: also retries with exponential backoff + jitter on
+ * Also retries with exponential backoff + jitter on
  * `StripeRateLimitError` (HTTP 429) up to `RATE_LIMIT_MAX_RETRIES` times.
  * Non-rate-limit errors propagate immediately. This is a process-local
  * mitigation, not a circuit breaker — Stripe's official guidance is to

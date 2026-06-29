@@ -10,7 +10,7 @@ import { ProfileCompletionService } from '../../common/profile-completion/profil
 const BATCH_SIZE = 500
 
 /**
- * Phase 8 — provider engagement crons.
+ * Provider engagement crons.
  *
  * One injectable, multiple `@Cron` methods — keeps the provider-side
  * scheduled triggers in a single grep-able file rather than fanning out

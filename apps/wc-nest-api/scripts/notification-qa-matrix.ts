@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Phase 13 — Notification QA matrix generator.
+ * Notification QA matrix generator.
  *
  * Reads the catalog, renders each entry's in-app + email strings against
  * its template's `PreviewProps`, and writes `docs/notifications-qa.md` —
@@ -243,7 +243,7 @@ function pushPrerequisites(lines: string[]): void {
     '| `SUPERADMIN_PORTAL_URL` | `http://localhost:4301` | Same — superadmin redirect URLs wrong. |'
   )
   lines.push(
-    '| `BULL_BOARD_USER` / `BULL_BOARD_PASSWORD` | _unset_ | `/admin/queues` returns **503 in every environment** (Phase 14c hardening — no dev fallback). Notifications themselves still work; this only blocks the ops dashboard. |'
+    '| `BULL_BOARD_USER` / `BULL_BOARD_PASSWORD` | _unset_ | `/admin/queues` returns **503 in every environment**. Notifications themselves still work; this only blocks the ops dashboard. |'
   )
   lines.push('')
 
@@ -335,7 +335,7 @@ async function main(): Promise<void> {
   lines.push('')
   lines.push(`> Generated ${now} from \`apps/wc-nest-api/scripts/notification-qa-matrix.ts\`.`)
   lines.push(
-    '> Re-run after any catalog or template change. Source spec: `WorldCamps_Notifications_v28.xlsx`.'
+    '> Re-run after any catalog or template change. Source spec: `WorldCamps_Notifications.xlsx`.'
   )
   lines.push('')
   lines.push(`Total entries: **${entries.length}**.`)

@@ -1,7 +1,7 @@
 /**
  * Public surface of the billing/ module.
  *
- * Importers (e.g. `BookingGroupsService` in Phase 2, the Stripe webhook
+ * Importers (e.g. `BookingGroupsService`, the Stripe webhook
  * dispatcher) should import from `modules/billing` rather than reaching into
  * the sub-module paths directly. This keeps the billing internals free to
  * reorganize without rippling import changes across the app.

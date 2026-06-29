@@ -22,7 +22,7 @@ const TIERS: Tier[] = [
 ]
 
 /**
- * Phase 7.5 — daily post-camp review cron.
+ * Daily post-camp review cron.
  *
  * For each tier, find BookingGroups whose `session.endDate` was exactly
  * `daysAfterEnd` ± 1d ago. Tiers run independently so a single cron pass

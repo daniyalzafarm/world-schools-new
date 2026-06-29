@@ -333,17 +333,17 @@ export class CampsService {
       },
     })
 
-    // Phase 7g (audit bug #2): publishing the provider's first camp shifts
+    // Publishing the provider's first camp shifts
     // their profile-completion score by 30 points. Worth recomputing here
     // so the "incomplete profile" reminder is gated against fresh state.
     await this.profileCompletion.enqueueRecomputeForProvider(providerId)
 
-    // v28 catalog dispatch (Phase 8a) — one-shot "you're live" notification
+    // One-shot "you're live" notification
     // on the first publish only. Subsequent publishes are silent (the
     // provider already knows the publish flow works at that point).
     if (priorPublishedCount === 0) {
       notify(this.eventEmitter, NotificationType.ProviderProfilePublished, { providerId })
-      // v28 Phase 9 — superadmin mirror surfaces the camp's first live
+      // Superadmin mirror surfaces the camp's first live
       // listing in the admin feed so platform-health monitoring + spot-
       // checks happen on day one.
       notify(this.eventEmitter, NotificationType.SuperadminCampFirstListingLive, { providerId })
@@ -1174,7 +1174,7 @@ export class CampsService {
         where: { providerId },
         _sum: { paidAmount: true },
       }),
-      // BUG-111: this counter used to filter by `session.startDate`, which
+      // This counter used to filter by `session.startDate`, which
       // made any booking confirmed in month X for a camp that ran in month
       // X+n show as £0 in the current month. Filter by `respondedAt` (when
       // the provider accepted, which is also when capture completes) and

@@ -2,7 +2,7 @@ import { NotificationCategory } from '@world-schools/wc-types'
 import type { NotificationFilterConfig } from './use-notifications-page'
 
 /**
- * Audience-specific filter sets for the notifications page (Phase 14d).
+ * Audience-specific filter sets for the notifications page.
  *
  * Replaces the per-app inline definitions in `wc-booking`, `wc-provider`,
  * and `wc-superadmin` so a new category never has to be added in three

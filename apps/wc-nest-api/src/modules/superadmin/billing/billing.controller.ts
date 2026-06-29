@@ -17,7 +17,7 @@ import { CancelForceMajeureDto } from './dto/cancel-force-majeure.dto'
 import { ListReimbursementsDto } from './dto/list-reimbursements.dto'
 
 /**
- * Admin-side billing endpoints for Phase 4:
+ * Admin-side billing endpoints:
  *   - Camp-cancel + force-majeure refund triggers (BookingGroup-scoped).
  *   - Reimbursement list / settle / write-off (the camp's debt to the
  *     platform under Accounts v2 `losses.payments='application'` —

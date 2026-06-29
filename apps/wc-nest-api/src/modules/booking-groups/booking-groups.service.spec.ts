@@ -33,11 +33,11 @@ const CONSENT: BookingSubmitConsent = {
 }
 
 /**
- * Phase 2 wiring tests. Focuses on the new submit → authorize → capture →
- * decline-cancel paths added in Phase 2; the existing draft/list/get tests
+ * Wiring tests. Focuses on the submit → authorize → capture →
+ * decline-cancel paths; the existing draft/list/get tests
  * are covered separately at higher levels.
  */
-describe('BookingGroupsService — Phase 2 billing wiring', () => {
+describe('BookingGroupsService — billing wiring', () => {
   let service: BookingGroupsService
   let prisma: any
   let payments: any
@@ -70,7 +70,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         // Payments revamp (Spec v2.3): per-Listing deposit toggle (default on).
         depositEnabled: true,
       },
-      // C4 audit fix: session capacity fields are now selected by submit
+      // session capacity fields are now selected by submit
       // so it can re-check availability. Default: 20-spot single-cohort
       // session — generous so existing fixtures aren't accidentally at-cap.
       session: {
@@ -108,12 +108,12 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
         findFirst: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
-        // C5 audit fix: submitForParent transitions draft→request via a
+        // submitForParent transitions draft→request via a
         // status-guarded updateMany. Default mock: 1 row updated (the
         // happy path — we won the race). Tests for the lost-race path
         // override this to return `{ count: 0 }`.
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-        // Phase 8: submitForParent does a `count(where: providerId)` to
+        // submitForParent does a `count(where: providerId)` to
         // detect a provider's very first booking and dispatch the
         // `ProviderFirstBooking` notification. Default `2` so the
         // existing tests don't accidentally tip the count to 1.
@@ -178,7 +178,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
     // blocked by the eligibility gate. Eligibility-specific tests override this.
     eligibilityService = { evaluateChildren: jest.fn().mockResolvedValue([]) }
 
-    // C5 audit fix: submit acquires a Redis SET-NX lock. Default mock: lock
+    // submit acquires a Redis SET-NX lock. Default mock: lock
     // is always available (`set` returns 'OK'). Tests that exercise the
     // contended path override `redisClient.set` to return `null`.
     const redisClient = {
@@ -306,8 +306,8 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
 
       const result = await service.submitForParent('u-1', 'bg-1', CONSENT)
 
-      // C5 audit fix: the draft→request transition is a status-guarded
-      // `updateMany` (so concurrent submits can't both transition). Phase 8:
+      // the draft→request transition is a status-guarded
+      // `updateMany` (so concurrent submits can't both transition).
       // transferDate is no longer written here (it's a cached pointer
       // derived from the tranche schedule generated at acceptance).
       expect(prisma.bookingGroup.updateMany).toHaveBeenCalledWith(
@@ -462,7 +462,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
 
       await expect(service.submitForParent('u-1', 'bg-1', CONSENT)).rejects.toThrow('stripe down')
 
-      // C5 audit fix: the forward transition is now `updateMany` (status-
+      // the forward transition is now `updateMany` (status-
       // guarded), but the rollback on Stripe failure stays as a plain
       // `update` since at rollback time we know the row is in `request`
       // status. So we should see: one updateMany (forward), one update
@@ -527,7 +527,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
     // Payments revamp (Spec v2.3): the payout-mode snapshot at submit is removed
     // (the platform no longer schedules payouts — Standard automatic payouts).
 
-    // ─── C4 audit fix: session-capacity recheck at submit ───
+    // ─── session-capacity recheck at submit ───
 
     it('throws ConflictException when the session is at capacity by the time submit runs', async () => {
       const dayMs = 24 * 60 * 60 * 1000
@@ -630,7 +630,7 @@ describe('BookingGroupsService — Phase 2 billing wiring', () => {
       expect(payments.authorizeDeposit).toHaveBeenCalledWith('bg-1')
     })
 
-    // ─── C5 audit fix: submit-lock serializes concurrent retries ───
+    // ─── submit-lock serializes concurrent retries ───
 
     it('throws ConflictException when another submit for the same booking is in flight (Redis lock contended)', async () => {
       // Override the default lock-acquire success with a `null` result —

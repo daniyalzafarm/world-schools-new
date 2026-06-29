@@ -10,11 +10,11 @@ import { RedisService } from '../../redis/redis.service'
 import { SuperAdminProvidersService } from './providers.service'
 
 /**
- * Phase 5 — covers `setAppFee` and `setEarlyPayoutConfig`. The other methods
+ * Covers `setAppFee` and `setEarlyPayoutConfig`. The other methods
  * on this service are integration-tested via controllers and aren't exercised
  * here.
  */
-describe('SuperAdminProvidersService — Phase 5 settings', () => {
+describe('SuperAdminProvidersService — settings', () => {
   let service: SuperAdminProvidersService
   let prisma: any
 

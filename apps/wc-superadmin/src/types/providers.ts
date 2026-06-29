@@ -76,7 +76,7 @@ export interface ProviderDetail {
     firstName: string | null
     lastName: string | null
   }
-  // Phase 5 — app fee override
+  // App fee override
   appFeeCustom: boolean
   appFeePercentage: number | null
   appFeeUpdatedAt: string | null

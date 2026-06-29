@@ -6,14 +6,14 @@ import { EmailTemplateService } from '../../../common/email-templates/email-temp
 import type { ParentCancelMode } from '../refunds.service'
 
 /**
- * Phase 4 — refund/cancellation-side notifications.
+ * Refund/cancellation-side notifications.
  *
  * Why a separate service: the refund pipeline lives in `RefundsService`
  * (Stripe + DB orchestration). Email rendering + send pull in the email
  * template service, the Stripe SDK retrieve flow, and the parent's email
  * lookup — coupling that to `RefundsService` would make the core refund
  * flow harder to test and change. Keeping notifications fire-and-forget
- * here mirrors the Phase 3 `BillingPaymentNotificationsService` pattern
+ * here mirrors the `BillingPaymentNotificationsService` pattern
  * we landed for off-session charges.
  *
  * All sends are best-effort. A failed email logs and returns rather than

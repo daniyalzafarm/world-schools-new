@@ -407,7 +407,7 @@ export default function OnboardingStep6CancellationPolicyPage() {
       termsAgreed: true,
     }
 
-    // C3 audit fix: `saveProviderSettings` never throws (apiClient converts
+    // `saveProviderSettings` never throws (apiClient converts
     // errors to `ApiResult`, store wrapper returns a boolean). The previous
     // try/catch was dead code, and `router.push` ran unconditionally — silently
     // navigating past failed saves. Now we branch on the boolean and surface

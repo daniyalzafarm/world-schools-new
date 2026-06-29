@@ -145,9 +145,9 @@ export class ProviderReviewsService {
       },
     })
 
-    // Phase 7.5 — notify only on the create path (first publish). Edits to
+    // Notify only on the create path (first publish). Edits to
     // an existing response stay silent to avoid spamming the parent every
-    // time the camp tweaks wording. Phase 8.5 — mirror the provider-side
+    // time the camp tweaks wording. Mirror the provider-side
     // confirmation so other staff on the same provider see that the
     // response went out (catalog uses `allProviderUsersForReview`).
     if (!existing) {

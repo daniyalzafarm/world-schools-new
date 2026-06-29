@@ -167,7 +167,7 @@ export class SuperAdminProvidersService {
   }
 
   /**
-   * Phase 5 — set the per-provider app-fee override.
+   * Set the per-provider app-fee override.
    *
    * When `custom = true`, REQUIRES `appFeePercentage`. When false, the saved
    * percentage is preserved on the row (so toggling back on retains the
@@ -312,7 +312,7 @@ export class SuperAdminProvidersService {
     }
   }
 
-  // M3 audit fix: `remove(id)` is intentionally removed. See the matching
+  // `remove(id)` is intentionally removed. See the matching
   // comment on the deleted DELETE endpoint in the superadmin providers
   // controller. Providers cannot be deleted post-onboarding — their row is
   // the foreign-key spine for the entire billing audit trail (Payment,

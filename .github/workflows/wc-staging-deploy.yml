@@ -22,7 +22,7 @@ env:
   API_CONTAINER_APP_NAME: ca-api-wc-stg
 
   # Prisma migrate Container Apps Job (one-shot ephemeral runner inside the VNet).
-  # Created out-of-band; see AZURE_SETUP_WC_STAGING.md.
+  # Created out-of-band; see DEPLOYMENT.md.
   MIGRATION_JOB_NAME: caj-migrate-wc-stg
 
 jobs:
@@ -163,7 +163,7 @@ jobs:
   # ----------------------------------------------------------
   # Database migrations — must run BEFORE API deploy so the new code never
   # serves traffic against an old schema. Uses Azure Container Apps Job
-  # (created out-of-band; see AZURE_SETUP_WC_STAGING.md migration-job section)
+  # (created out-of-band; see DEPLOYMENT.md migration-job section)
   # so migration runs inside the VNet against the private Postgres endpoint.
   # ----------------------------------------------------------
   run-staging-migrations:

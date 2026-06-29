@@ -231,7 +231,7 @@ export class BookingGroupsService {
     }
   }
 
-  // C5 audit fix: how long the submit lock is held. Submit is a sub-second
+  // how long the submit lock is held. Submit is a sub-second
   // operation in the happy path, but the PaymentIntent create round-trip
   // plus DB writes can occasionally hit 5-10 seconds under load — 30s is
   // generous without being so long that a stuck request blocks legitimate
@@ -818,7 +818,7 @@ export class BookingGroupsService {
           totalAmount: newGroupSubtotal,
           discountTotal: 0,
           specialRequest: params.specialRequest ?? undefined,
-          // v28 abandon tracking: saveAddOns is the clearest "parent is
+          // abandon tracking: saveAddOns is the clearest "parent is
           // actively progressing through checkout" signal — flip the flag
           // so the abandon-detection cron treats this draft as eligible
           // for nudges. Refresh `lastActivityAt` to reset the 3h window.
@@ -829,7 +829,7 @@ export class BookingGroupsService {
       })
     })
 
-    // v28 catalog entry `parent.booking.modified` is intentionally NOT
+    // catalog entry `parent.booking.modified` is intentionally NOT
     // fired here — `saveAddOnsForParent` rejects non-draft bookings up
     // top, and a parent editing their own draft doesn't need a "your
     // booking was modified" email. The catalog entry sits ready for the
@@ -961,7 +961,7 @@ export class BookingGroupsService {
           // Legal-guardian confirmation captured on the Children step. The DTO
           // already enforces `guardianConsent === true`; stamp when it was given.
           guardianConsentAt: params.guardianConsent ? now : null,
-          // v28 abandon tracking: record activity at draft creation so the
+          // abandon tracking: record activity at draft creation so the
           // abandon-detection cron can measure idle time. `checkoutStarted`
           // stays false until the parent actually fills in participant or
           // payment details (see `markCheckoutStarted` callers).
@@ -1130,9 +1130,9 @@ export class BookingGroupsService {
         // Pull the most-recent Payment row so the parent app can decide on
         // reload whether to render the Stripe form (no payment yet, or card
         // not yet authorized) vs. the success panel (already authorized).
-        // We order by createdAt DESC + take 1 — for Phase 2 a BookingGroup
-        // has at most one in-flight Payment at a time; Phase 3 introduces
-        // balance Payments which are evaluated separately by the cron.
+        // We order by createdAt DESC + take 1 — a BookingGroup
+        // has at most one in-flight Payment at a time; balance Payments
+        // are evaluated separately by the cron.
         payments: {
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -1220,7 +1220,7 @@ export class BookingGroupsService {
       // Latest Payment summary — used by the booking flow to decide whether
       // to render the Stripe form on reload (the card hasn't been authorized
       // yet) or the success panel (already authorized, awaiting accept). Null
-      // for legacy bookings that pre-date Phase 2.
+      // for legacy bookings.
       payment: bookingGroup.payments[0]
         ? {
             id: bookingGroup.payments[0].id,
@@ -2356,7 +2356,7 @@ export class BookingGroupsService {
             depositEnabled: true,
           },
         },
-        // C4 audit fix: select the capacity fields so submit can re-check
+        // select the capacity fields so submit can re-check
         // session availability before locking in a PaymentIntent. The select
         // mirrors what `sessionTotalCapacity` consumes — both single-spot
         // and per-age-group session types are covered.
@@ -2709,7 +2709,7 @@ export class BookingGroupsService {
       requestExpiresAt: expiresAt.toISOString(),
     })
 
-    // v28 catalog dispatch — parent confirmation that their request has
+    // parent confirmation that their request has
     // been sent (in_app + email), plus provider staff in-app with the
     // requestExpiresAt countdown via metadata. The WS event above stays
     // for the live UI nudge; catalog persists + handles future channels.
@@ -2722,7 +2722,7 @@ export class BookingGroupsService {
       extra: { requestExpiresAt: expiresAt.toISOString() },
     })
 
-    // Phase 8 — one-shot ProviderFirstBooking on the provider's very first
+    // one-shot ProviderFirstBooking on the provider's very first
     // request. Detected by checking the BookingGroup count before this
     // one was inserted; we re-query because the insert above already
     // committed.
@@ -2736,7 +2736,7 @@ export class BookingGroupsService {
       })
     }
 
-    // Phase 7 scheduled fan-out: fire a "still pending" nudge at the 48h
+    // scheduled fan-out: fire a "still pending" nudge at the 48h
     // mark and an "expired" notice at the 72h mark. Loaders return null
     // when the request has already transitioned out of `request`, so a
     // parent who accepted/withdrew in the interim doesn't get an obsolete
@@ -2757,7 +2757,7 @@ export class BookingGroupsService {
       new Date(submitTs + 72 * 60 * 60 * 1000)
     )
 
-    // Phase 8 — provider-side scheduled mirrors for the same 48h/72h
+    // provider-side scheduled mirrors for the same 48h/72h
     // window. The 48h fires the response-window reminder; the final-12h
     // fires at +60h; expiry notification at +72h. All three loaders
     // short-circuit when the booking has transitioned out of `request`.
@@ -2964,7 +2964,7 @@ export class BookingGroupsService {
         totalAmount: true,
         camp: { select: { name: true } },
         provider: { select: { settings: { select: { currency: true } } } },
-        // BUG-189: child name for the provider cancellation notice.
+        // child name for the provider cancellation notice.
         bookings: { select: { child: { select: { firstName: true } } }, take: 1 },
       },
     })
@@ -3006,7 +3006,7 @@ export class BookingGroupsService {
       .reduce((acc, r) => acc.plus(r.amount), new Prisma.Decimal(0))
       .toFixed(2)
 
-    // v28 catalog dispatch — split between "request withdrawn" (pre-accept)
+    // split between "request withdrawn" (pre-accept)
     // and "booking cancelled" (post-accept) so the parent sees honest copy.
     // The pre-existing `refundsNotifications.notifyParentCancelled` covers
     // the refund-mode detail email; the catalog entry persists the in-app
@@ -3017,7 +3017,7 @@ export class BookingGroupsService {
       notify(this.eventEmitter, NotificationType.ParentBookingRequestWithdrawn, {
         bookingGroupId: owned.id,
       })
-      // v28 Phase 8 — provider-side mirror.
+      // provider-side mirror.
       notify(this.eventEmitter, NotificationType.ProviderBookingRequestWithdrawn, {
         bookingGroupId: owned.id,
       })
@@ -3028,7 +3028,7 @@ export class BookingGroupsService {
           refundAmount: Number(refundedTotal) > 0 ? `${ownedCurrency} ${refundedTotal}` : '',
         },
       })
-      // v28 Phase 8 — provider-side mirror. BUG-189: surface the full financial
+      // provider-side mirror. Surface the full financial
       // picture (child, refund issued, what the camp retains, payout impact) so
       // the camp isn't left guessing — the spec calls this out explicitly to
       // prevent payout disputes.
@@ -3068,7 +3068,7 @@ export class BookingGroupsService {
   }
 
   /**
-   * Provider-initiated cancellation of a booking (BUG-188).
+   * Provider-initiated cancellation of a booking.
    *
    * Mirrors the admin "camp cancel" path: a camp-initiated cancellation issues a
    * 100% refund to the family (and a Reimbursement row if the payout already
@@ -3380,11 +3380,10 @@ export class BookingGroupsService {
       sessionEndDate: bookingGroup.session.endDate.toISOString(),
     })
 
-    // v28 catalog dispatch — parent confirmation email + in-app, plus
+    // parent confirmation email + in-app, plus
     // provider staff in-app. The legacy `BookingWebSocketHandler` still
     // listens to the `BookingStatusChanged` event but only for the live
-    // WS UI nudge (notification + email creation moved here in Phase 5
-    // cutover).
+    // WS UI nudge (notification + email creation moved here).
     notify(this.eventEmitter, NotificationType.ParentBookingAccepted, {
       bookingGroupId: bookingGroup.id,
     })
@@ -3411,7 +3410,7 @@ export class BookingGroupsService {
       notify(this.eventEmitter, tier.type, { bookingGroupId: bookingGroup.id }, runAt)
     }
 
-    // Phase 8 — provider pre-camp scheduled fan-out. Resolver
+    // provider pre-camp scheduled fan-out. Resolver
     // (`allProviderUsersForCamp`) targets the camp's full staff; the
     // loader runs `prisma.booking.count` for the participant count, so
     // the roster + checklist + day-before emails always reflect current
@@ -3451,7 +3450,7 @@ export class BookingGroupsService {
       )
     }
 
-    // Phase 7.5 — post-camp delegation lives in the daily post-camp-review
+    // post-camp delegation lives in the daily post-camp-review
     // cron (no scheduled emit here) so a session whose endDate is moved
     // out doesn't strand obsolete BullMQ jobs in Redis.
 
@@ -3563,7 +3562,7 @@ export class BookingGroupsService {
       declineReason: args.declineReason,
     })
 
-    // v28 catalog dispatch — parent decline email + in-app, plus provider
+    // parent decline email + in-app, plus provider
     // staff in-app confirmation. Decline reason is read from the booking row
     // by the prop loader (just persisted above), so no need to thread it
     // through `extra`.
@@ -3575,7 +3574,7 @@ export class BookingGroupsService {
       providerId,
     })
 
-    // Phase 7.5 — 24h after a decline, surface similar programs to the
+    // 24h after a decline, surface similar programs to the
     // parent so they have a path forward instead of an empty dead end.
     // Resolver needs `parentUserId` to fan-out without a booking lookup.
     notify(

@@ -18,14 +18,14 @@ import { PostCampReviewCron } from './crons/post-camp-review.cron'
 /**
  * BookingGroupsModule depends on BillingModule for the
  * `submitForParent → authorize` and `acceptForProvider → capture` /
- * `declineForProvider → cancel` flows added in Phase 2. There is no
+ * `declineForProvider → cancel` flows. There is no
  * back-edge from billing → booking-groups (the webhook handlers do not
  * call into BookingGroupsService), so this is a clean one-way dependency.
  *
  * RedisModule is needed for the C5 submit-lock that serializes concurrent
  * submit attempts against the same (user, bookingGroup) pair.
  *
- * Phase 5 cutover (v28 notifications): NotificationsModule + EmailTemplatesModule
+ * NotificationsModule + EmailTemplatesModule
  * imports dropped. BookingGroupsService now dispatches notifications via the
  * EventEmitter2-based `notify()` helper; the catalog dispatcher (booted by
  * NotificationsModule from AppModule) picks them up. BookingWebSocketHandler

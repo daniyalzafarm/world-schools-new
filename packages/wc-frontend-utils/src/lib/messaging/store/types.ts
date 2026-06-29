@@ -150,7 +150,7 @@ export interface MessagingActions {
 
   /**
    * Create a new conversation with an initial message
-   * ✅ NEW: Implements lazy conversation creation pattern
+   * Implements lazy conversation creation pattern
    */
   createConversationWithMessage: (params: {
     userId: string

@@ -52,7 +52,7 @@ const providersPermissions: PermissionGroup = {
     { id: 'providers.create', name: 'Create providers' },
     { id: 'providers.read', name: 'Read providers' },
     { id: 'providers.update', name: 'Update providers' },
-    // M3 audit fix: `providers.delete` permission removed — providers are
+    // `providers.delete` permission removed — providers are
     // not deletable post-onboarding (see superadmin providers controller).
   ],
 }
@@ -173,10 +173,10 @@ const disputesPermissions: PermissionGroup = {
   ],
 }
 
-// Phase 4 reimbursements + force-majeure refund triggers ship with `billing.read`
+// reimbursements + force-majeure refund triggers ship with `billing.read`
 // and `billing.write`. They were never registered in this config, so granular
 // role-based assignment was effectively impossible (only the wildcard role
-// could call them). Phase 6 surfaces the same gap during audit — fix it here.
+// could call them).
 const billingPermissions: PermissionGroup = {
   name: 'Billing',
   permissions: [

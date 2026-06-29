@@ -308,7 +308,7 @@ describe('computeBookingFinancialSnapshot', () => {
   })
 })
 
-describe('computeBookingFinancialSnapshot — app fee custom toggle (Phase 5)', () => {
+describe('computeBookingFinancialSnapshot — app fee custom toggle', () => {
   it('uses Provider.appFeePercentage when appFeeCustom=true', () => {
     const result = computeBookingFinancialSnapshot({
       totalAmount: new Prisma.Decimal('1000.00'),

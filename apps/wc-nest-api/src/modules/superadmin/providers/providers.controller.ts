@@ -104,7 +104,7 @@ export class SuperAdminProvidersController {
   // removed — the platform no longer schedules payouts (Standard automatic
   // payouts; providers manage their own schedule in their Stripe dashboard).
 
-  // M3 audit fix: the superadmin Provider delete endpoint is removed.
+  // The superadmin Provider delete endpoint is removed.
   // Providers are not deletable once onboarding completes — they carry the
   // foreign-key spine for every Payment / Booking / Payout / Refund /
   // Reimbursement in the system, and deleting one would cascade across the

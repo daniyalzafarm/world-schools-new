@@ -25,7 +25,7 @@ type ExpressMiddleware = (req: BasicAuthRequest, res: BasicAuthResponse, next: N
  * `BULL_BOARD_PASSWORD` are unset, the route serves a 503 — including in
  * dev, staging, and preview deployments. The previous "skip auth if no env
  * vars in non-production" shortcut was a real attacker surface on any
- * non-production URL; Phase 14c removes it.
+ * non-production URL, so it has been removed.
  *
  * Credential comparison uses `crypto.timingSafeEqual` to neutralise the
  * length-and-byte-by-byte timing side channels that `===` exposes.

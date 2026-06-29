@@ -17,7 +17,7 @@ import { NOTIFICATION_DISPATCH_EVENT, type NotificationDispatchEvent } from './n
  * "disable this one trigger" toggles are slightly worse; cognitive load,
  * test boilerplate, and BullMQ coupling are dramatically better.
  * Per-trigger enabled/disabled lives on the catalog entry itself (not
- * implemented here yet — Phase 7+ can add an `enabled: boolean` field
+ * implemented here yet — an `enabled: boolean` field can be added
  * if needed).
  */
 @Injectable()

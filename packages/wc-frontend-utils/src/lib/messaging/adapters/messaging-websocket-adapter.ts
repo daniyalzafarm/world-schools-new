@@ -38,17 +38,17 @@ export interface MessagingWebSocketAdapter {
   onMessageError(handler: (data: any) => void): () => void
   isConnected(): boolean
 
-  // Typing indicators (Phase D)
+  // Typing indicators
   startTyping(conversationId: string): void
   stopTyping(conversationId: string): void
   onTypingStart(handler: (data: any) => void): () => void
   onTypingStop(handler: (data: any) => void): () => void
 
-  // Presence (Phase D)
+  // Presence
   updatePresence(status: 'online' | 'away' | 'offline'): void
   onPresenceUpdate(handler: (data: any) => void): () => void
 
-  // Receipts (Phase D)
+  // Receipts
   markAsRead(messageId: string, conversationId: string): void
   markAsDelivered(messageId: string, conversationId: string, deliveryLatencyMs?: number): void
   onReadReceipt(handler: (data: any) => void): () => void
@@ -57,7 +57,7 @@ export interface MessagingWebSocketAdapter {
   // Conversation events
   onConversationNew(handler: (data: any) => void): () => void
 
-  // Connection lifecycle (Phase E)
+  // Connection lifecycle
   onConnected(handler: () => void): () => void
   onDisconnected(handler: (data: any) => void): () => void
 }

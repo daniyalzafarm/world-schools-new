@@ -42,7 +42,7 @@ export interface ApplicationListItem {
   contactLastName?: string
   approvalStatus: ApprovalStatus
   trustScore?: number | null
-  /// Computed by the API only for approved providers (BUG-107).
+  /// Computed by the API only for approved providers.
   /// Null on rejected/suspended/pending rows so the column renders empty.
   operationalStatus?: OperationalStatusType | null
   /// Per-provider checklist powering the operational-status tooltip.

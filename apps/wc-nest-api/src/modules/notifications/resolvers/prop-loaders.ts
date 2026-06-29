@@ -137,7 +137,7 @@ const parentBookingAccepted: PropLoader<ParentBookingAcceptedProps | null> = asy
 /**
  * Render a session window as a human-readable range, mirroring the format
  * the legacy `BookingWebSocketHandler.formatSessionRange()` produced so
- * cutover doesn't change copy parents have already seen in prior emails.
+ * the copy stays consistent with what parents have already seen in prior emails.
  */
 function formatSessionRange(start: Date | null | undefined, end: Date | null | undefined): string {
   if (!start || !end) return ''
@@ -187,7 +187,7 @@ const parentBookingDeclined: PropLoader<ParentBookingDeclinedProps | null> = asy
   return {
     salutation: 'hi',
     firstName: bg.parent.user.firstName,
-    // BUG-190: name the child so multi-child households know which request was
+    // Name the child so multi-child households know which request was
     // declined.
     childName: bg.bookings[0]?.child?.firstName ?? 'your child',
     campName: bg.camp.name,
@@ -370,7 +370,7 @@ const parentBookingRequestWithdrawn: PropLoader<ParentBookingRequestWithdrawnPro
 }
 
 // ============================================================================
-// Phase 7b — payment loaders
+// Payment loaders
 // ============================================================================
 
 /**
@@ -610,7 +610,7 @@ const parentPaymentCancelledNonPayment: PropLoader<
 }
 
 // ============================================================================
-// Phase 7c — refund / dispute loaders
+// Refund / dispute loaders
 // ============================================================================
 
 const parentRefundIssued: PropLoader<ParentRefundIssuedProps | null> = async (
@@ -766,7 +766,7 @@ function buildDisputeResolved(
 }
 
 // ============================================================================
-// Phase 7e — messaging / support loaders
+// Messaging / support loaders
 // ============================================================================
 
 const parentMessagingNewFromCamp: PropLoader<ParentMessagingNewFromCampProps | null> = async (
@@ -906,7 +906,7 @@ function humanizeTicketStatus(s: string): string {
 }
 
 // ============================================================================
-// Phase 7f — wishlist / conversion loaders
+// Wishlist / conversion loaders
 // ============================================================================
 
 const parentWishlistEmpty: PropLoader<ParentWishlistEmptyProps | null> = async (
@@ -1036,7 +1036,7 @@ function buildAbandonedCheckout(
 }
 
 // ============================================================================
-// Phase 7g — pre/post-camp + review + profile loaders
+// Pre/post-camp + review + profile loaders
 // ============================================================================
 
 function buildPreCamp(
@@ -1184,7 +1184,7 @@ const parentBookingRequestPendingState: PropLoader<
 /**
  * Loader for the scheduled auto-expiry trigger (`ParentBookingExpired`).
  *
- * BUG-166: the expiry notification is scheduled for submit+72h, but the
+ * The expiry notification is scheduled for submit+72h, but the
  * `BookingResponseExpiryCron` flips `request → expired` at that same mark.
  * Reusing `parentBookingRequestPendingState` (which requires `status ===
  * 'request'`) made this notification render nothing — by the time it fired the
@@ -1213,7 +1213,7 @@ const parentBookingExpiredState: PropLoader<ParentBookingRequestSubmittedProps |
 }
 
 // ============================================================================
-// Phase 8 — provider loaders
+// Provider loaders
 // ============================================================================
 
 /** Common provider context: company name + dashboard root. */
@@ -1685,7 +1685,7 @@ function buildProviderSupportEvent(
 }
 
 // ============================================================================
-// Phase 9 — superadmin loaders
+// Superadmin loaders
 // ============================================================================
 
 const SUPERADMIN_APP_BASE_URL = process.env.SUPERADMIN_PORTAL_URL ?? 'http://localhost:4301'

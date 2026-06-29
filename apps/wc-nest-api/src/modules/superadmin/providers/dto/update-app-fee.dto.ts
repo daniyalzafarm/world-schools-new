@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger'
 import { IsBoolean, IsNumber, IsOptional, Max, Min } from 'class-validator'
 
 /**
- * Phase 5 — superadmin sets a per-provider app-fee override.
+ * Superadmin sets a per-provider app-fee override.
  *
  * When `custom` is false the system falls back to `SystemSettings.defaultAppFee`
  * (the existing value of `appFeePercentage` is preserved on the row so toggling

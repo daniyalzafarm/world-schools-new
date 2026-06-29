@@ -97,7 +97,7 @@ describe('PaymentIntentsService', () => {
     }
     stripeConnect = {
       assertProviderPaymentReady: jest.fn().mockResolvedValue(undefined),
-      // H4 audit fix: off-session balance charge calls the live variant.
+      // off-session balance charge calls the live variant.
       assertProviderPaymentReadyLive: jest.fn().mockResolvedValue(undefined),
     }
 
@@ -446,7 +446,7 @@ describe('PaymentIntentsService', () => {
     }
 
     it('charges with off_session+confirm and delegates to markSucceeded so BookingGroup advances', async () => {
-      // Regression for the same shape of bug fixed in the Phase 2 capture
+      // Regression for the same shape of bug fixed in the capture
       // path: chargeOffSession used to write `Payment.status = succeeded`
       // synchronously, which then short-circuited markSucceeded's idempotency
       // check (`if status === succeeded return`) and the BookingGroup never
@@ -617,7 +617,7 @@ describe('PaymentIntentsService', () => {
       expect(updateCall![0].data.nextRetryAt).toBeNull()
     })
 
-    // Phase 3 audit fix Q2: BookingGroup status guard.
+    // BookingGroup status guard.
     it.each(['cancelled', 'declined', 'expired', 'fully_refunded', 'payment_failed', 'disputed'])(
       'marks the Payment canceled and skips Stripe when BookingGroup is in terminal status %s',
       async terminalStatus => {
@@ -648,7 +648,7 @@ describe('PaymentIntentsService', () => {
       }
     )
 
-    // Phase 3 audit fix Q6+Q8: no-saved-PM short-circuit. Replaces the prior
+    // no-saved-PM short-circuit. Replaces the prior
     // throw, which caused the cron to log the same error every 30 min and
     // the booking to sit in `processing` forever.
     it('marks the Payment failed/MAX_ATTEMPTS without throwing when the parent has no default saved PM', async () => {
@@ -684,7 +684,7 @@ describe('PaymentIntentsService', () => {
     })
   })
 
-  // Phase 3 audit fix Q3: stuck `requires_action` cleanup.
+  // stuck `requires_action` cleanup.
   describe('markStepUpAbandoned', () => {
     it('cancels the live Stripe intent on the connected account and marks the Payment failed/MAX_ATTEMPTS', async () => {
       prisma.payment.findUnique.mockResolvedValueOnce({
@@ -1531,7 +1531,7 @@ describe('PaymentIntentsService', () => {
   // H8) so traceability between code, tests, and the audit doc is direct.
   // ──────────────────────────────────────────────────────────────────────────
 
-  describe('audit fixes', () => {
+  describe('off-session edge cases', () => {
     function makeOffSessionPayment(overrides: Partial<any> = {}) {
       return {
         id: 'pay-os-1',

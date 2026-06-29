@@ -202,7 +202,7 @@ export default function StripeAccountPage() {
   // defeating useCallback. A ref keeps the callback identity stable.
   const isOpeningDashboardRef = useRef(false)
 
-  // B4 audit fix: shared Stripe Connect instance for the embedded surfaces
+  // shared Stripe Connect instance for the embedded surfaces
   // mounted further down (`ConnectNotificationBanner`, `ConnectAccountManagement`).
   // We gate initialization on `accountStatus?.hasAccount` so we never spin up an
   // AccountSession for a provider who hasn't run /onboarding/stripe-connect yet.
@@ -321,7 +321,7 @@ export default function StripeAccountPage() {
   }
 
   const state = deriveState(accountStatus)
-  // B4 audit fix: only spin up the embedded Connect surface when there's
+  // only spin up the embedded Connect surface when there's
   // actually a Stripe account on the provider. Avoids a useless `accountSession`
   // POST that would 400 on the backend (`Stripe account has not been created`).
   const showEmbeddedSurface = accountStatus.hasAccount

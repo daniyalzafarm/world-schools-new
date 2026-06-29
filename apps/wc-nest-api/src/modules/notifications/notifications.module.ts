@@ -29,14 +29,14 @@ import { NotificationsFailureListener } from './observability/notifications-fail
  * Notifications Module
  *
  * Persistent in-app notifications with real-time WebSocket delivery, backed
- * by a BullMQ catalog-driven dispatcher (see v28 spec). Architecture:
+ * by a BullMQ catalog-driven dispatcher. Architecture:
  *
  * - Domain services commit DB state and emit `notification.dispatch` via
  *   EventEmitter2 (helper: `notifications/dispatcher/notify.ts`).
- * - `NotificationDispatcher` (Phase 4) looks up the catalog entry, resolves
+ * - `NotificationDispatcher` looks up the catalog entry, resolves
  *   recipients, applies preferences, and enqueues one BullMQ job per
  *   (recipient × channel).
- * - `NotificationWorker` (Phase 4) consumes jobs: re-hydrates props,
+ * - `NotificationWorker` consumes jobs: re-hydrates props,
  *   renders React Email, calls `NotificationsService.create` for in-app,
  *   `EmailService.sendEmail` for email, and writes a `NotificationDelivery`
  *   audit row gated by a unique index for idempotency.
@@ -44,8 +44,8 @@ import { NotificationsFailureListener } from './observability/notifications-fail
  *
  * NotificationsService remains the single in-app persistence entry point —
  * the worker calls into it. Pre-catalog callers (BookingWebSocketHandler,
- * SupportTicketsService) still inject it directly; Phase 5 migrates them
- * to the catalog and removes the direct calls.
+ * SupportTicketsService) still inject it directly; a later migration moves
+ * them to the catalog and removes the direct calls.
  */
 @Module({
   imports: [

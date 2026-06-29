@@ -21,18 +21,18 @@ import { BookingDeclineReason } from './bookings.types'
 // ---------------------------------------------------------------------------
 
 /**
- * Notification type catalog key. v28 spec uses the dotted-namespace
+ * Notification type catalog key. Uses the dotted-namespace
  * `<audience>.<domain>.<event>` convention. Entries are added incrementally
- * as catalog phases land.
+ * as new catalog entries land.
  *
- * Phase 5 cutover (complete): the 7 pre-v28 legacy values have been
- * removed. The 3 that were in use (BookingAccepted/Declined/RequestReceived)
- * are now `parent.booking.accepted` + `provider.booking.accepted` (etc.).
+ * The 7 legacy values have been removed. The 3 that were in use
+ * (BookingAccepted/Declined/RequestReceived) are now
+ * `parent.booking.accepted` + `provider.booking.accepted` (etc.).
  * The other 4 (BookingExpired, MessageNew, SupportTicketUpdated, SystemAlert)
  * were never emitted by any code path and were dropped without replacement.
  */
 export enum NotificationType {
-  // ---- v28 catalog — parent : booking lifecycle ----
+  // ---- parent : booking lifecycle ----
   ParentBookingRequestSubmitted = 'parent.booking.requestSubmitted',
   ParentBookingRequestStillPending = 'parent.booking.requestStillPending',
   ParentBookingAccepted = 'parent.booking.accepted',
@@ -42,12 +42,12 @@ export enum NotificationType {
   ParentBookingModified = 'parent.booking.modified',
   ParentBookingRequestWithdrawn = 'parent.booking.requestWithdrawn',
 
-  // ---- v28 catalog — provider : booking lifecycle ----
+  // ---- provider : booking lifecycle ----
   ProviderBookingAccepted = 'provider.booking.accepted',
   ProviderBookingDeclined = 'provider.booking.declined',
   ProviderBookingRequestReceived = 'provider.booking.requestReceived',
 
-  // ---- v28 catalog — parent : payment lifecycle ----
+  // ---- parent : payment lifecycle ----
   ParentPaymentDepositConfirmed = 'parent.payment.depositConfirmed',
   ParentPaymentBalanceReminder14d = 'parent.payment.balanceReminder14d',
   ParentPaymentBalanceReminder7d = 'parent.payment.balanceReminder7d',
@@ -58,19 +58,19 @@ export enum NotificationType {
   ParentPaymentBalanceFailedFinal = 'parent.payment.balanceFailedFinal',
   ParentPaymentCancelledNonPayment = 'parent.payment.cancelledNonPayment',
 
-  // ---- v28 catalog — parent : refund / dispute ----
+  // ---- parent : refund / dispute ----
   ParentRefundIssued = 'parent.refund.issued',
   ParentRefundFailed = 'parent.refund.failed',
   ParentDisputeOpened = 'parent.dispute.opened',
   ParentDisputeResolvedWon = 'parent.dispute.resolvedWon',
   ParentDisputeResolvedLost = 'parent.dispute.resolvedLost',
 
-  // ---- v28 catalog — parent : messaging / support ----
+  // ---- parent : messaging / support ----
   ParentMessagingNewFromCamp = 'parent.messaging.newFromCamp',
   ParentSupportTicketReply = 'parent.support.ticketReply',
   ParentSupportTicketStatusChanged = 'parent.support.ticketStatusChanged',
 
-  // ---- v28 catalog — parent : wishlist / conversion ----
+  // ---- parent : wishlist / conversion ----
   ParentWishlistEmpty = 'parent.wishlist.empty',
   ParentWishlistItemsNoBooking7d = 'parent.wishlist.itemsNoBooking7d',
   ParentWishlistItemsNoBooking21d = 'parent.wishlist.itemsNoBooking21d',
@@ -84,7 +84,7 @@ export enum NotificationType {
   ParentCheckoutAbandoned4d = 'parent.checkout.abandoned4d',
   ParentCheckoutAbandoned6d = 'parent.checkout.abandoned6d',
 
-  // ---- v28 catalog — parent : pre/post-camp + reviews + profile ----
+  // ---- parent : pre/post-camp + reviews + profile ----
   ParentPreCampChecklist14d = 'parent.preCamp.checklist14d',
   ParentPreCampPackingReminder7d = 'parent.preCamp.packingReminder7d',
   ParentPreCampDayBefore = 'parent.preCamp.dayBefore',
@@ -95,7 +95,7 @@ export enum NotificationType {
   ParentReviewRemoved = 'parent.review.removed',
   ParentProfileIncomplete = 'parent.profile.incomplete',
 
-  // ---- v28 catalog — provider : onboarding ----
+  // ---- provider : onboarding ----
   ProviderApplicationReceived = 'provider.application.received',
   ProviderApplicationApproved = 'provider.application.approved',
   ProviderApplicationDeclined = 'provider.application.declined',
@@ -108,7 +108,7 @@ export enum NotificationType {
   ProviderFirstBooking = 'provider.booking.firstBooking',
   ProviderStripeDisconnected = 'provider.onboarding.stripeDisconnected',
 
-  // ---- v28 catalog — provider : booking lifecycle ----
+  // ---- provider : booking lifecycle ----
   ProviderBookingRequest48hReminder = 'provider.booking.request48hReminder',
   ProviderBookingRequestFinalReminder = 'provider.booking.requestFinalReminder',
   ProviderBookingRequestExpired = 'provider.booking.requestExpired',
@@ -122,7 +122,7 @@ export enum NotificationType {
   // live "balance collected" capture notification survives.
   ProviderBalanceCollected = 'provider.payments.balanceCollected',
 
-  // ---- v28 catalog — provider : refunds / disputes ----
+  // ---- provider : refunds / disputes ----
   ProviderRefundIssued = 'provider.refund.issued',
   ProviderRefundFailed = 'provider.refund.failed',
   ProviderReimbursementOwed = 'provider.reimbursement.owed',
@@ -131,7 +131,7 @@ export enum NotificationType {
   ProviderDisputeResolvedWon = 'provider.dispute.resolvedWon',
   ProviderDisputeResolvedLost = 'provider.dispute.resolvedLost',
 
-  // ---- v28 catalog — provider : messaging / reviews / support ----
+  // ---- provider : messaging / reviews / support ----
   ProviderMessagingNewFromFamily = 'provider.messaging.newFromFamily',
   ProviderMessagingUnanswered24h = 'provider.messaging.unanswered24h',
   ProviderMessagingUnanswered48h = 'provider.messaging.unanswered48h',
@@ -142,7 +142,7 @@ export enum NotificationType {
   ProviderSupportTicketReply = 'provider.support.ticketReply',
   ProviderSupportTicketStatusChanged = 'provider.support.ticketStatusChanged',
 
-  // ---- v28 catalog — provider : pre-camp + operations + seasonal ----
+  // ---- provider : pre-camp + operations + seasonal ----
   ProviderPreCampRosterReady = 'provider.preCamp.rosterReady',
   ProviderPreCampChecklist = 'provider.preCamp.checklist',
   ProviderPreCampDayBefore = 'provider.preCamp.dayBefore',
@@ -151,18 +151,18 @@ export enum NotificationType {
   ProviderProgramsNotUpdated30d = 'provider.programs.notUpdated30d',
   ProviderProgramsNotUpdated60d = 'provider.programs.notUpdated60d',
 
-  // ---- v28 catalog — superadmin : support tickets (2) ----
+  // ---- superadmin : support tickets (2) ----
   SuperadminSupportTicketNew = 'superadmin.support.ticketNew',
   SuperadminSupportTicketReply = 'superadmin.support.ticketReply',
 
-  // ---- v28 catalog — superadmin : onboarding (5) ----
+  // ---- superadmin : onboarding (5) ----
   SuperadminCampApplicationNew = 'superadmin.camp.applicationNew',
   SuperadminVerificationDocsUploaded = 'superadmin.camp.verificationDocsUploaded',
   SuperadminVerificationDocsNotUploaded = 'superadmin.camp.verificationDocsNotUploaded',
   SuperadminCampProfileIncomplete14d = 'superadmin.camp.profileIncomplete14d',
   SuperadminCampFirstListingLive = 'superadmin.camp.firstListingLive',
 
-  // ---- v28 catalog — superadmin : booking lifecycle (2) ----
+  // ---- superadmin : booking lifecycle (2) ----
   SuperadminBookingCancelledNonPayment = 'superadmin.booking.cancelledNonPayment',
   SuperadminCampUnresponsiveExpiredRequests = 'superadmin.camp.unresponsiveExpiredRequests',
 
@@ -177,14 +177,14 @@ export enum NotificationType {
   // the booking was routed to payment review — ops must triage (never auto-cancel).
   SuperadminPaymentReviewNeeded = 'superadmin.payment.reviewNeeded',
 
-  // ---- v28 catalog — superadmin : platform health (2) ----
+  // ---- superadmin : platform health (2) ----
   SuperadminCampStripeDisconnected = 'superadmin.camp.stripeDisconnected',
   SuperadminCampDeletionRequested = 'superadmin.camp.deletionRequested',
 
-  // ---- v28 catalog — superadmin : reviews (1) ----
+  // ---- superadmin : reviews (1) ----
   SuperadminReviewFlagged = 'superadmin.review.flagged',
 
-  // ---- v28 catalog — superadmin : seasonal / profile (2) ----
+  // ---- superadmin : seasonal / profile (2) ----
   SuperadminCampProfileNeedsAttention60d = 'superadmin.camp.profileNeedsAttention60d',
   SuperadminCampProfileDeactivated = 'superadmin.camp.profileDeactivated',
 }

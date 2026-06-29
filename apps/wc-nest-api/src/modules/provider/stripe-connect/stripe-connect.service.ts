@@ -379,7 +379,7 @@ export class StripeConnectService {
     //
     // App-fee fields (`appFeeCustom`, `appFeePercentage`) are intentionally NOT
     // touched here — they are managed exclusively by the superadmin via the
-    // Settings tab on the provider detail page (Phase 5). New providers fall
+    // Settings tab on the provider detail page. New providers fall
     // back to `SystemSettings.defaultAppFee` until a custom rate is negotiated.
     const claim = await this.prisma.provider.updateMany({
       where: { id: providerId, stripeAccountId: null },
@@ -597,7 +597,7 @@ export class StripeConnectService {
       detailsSubmitted,
     })
 
-    // Phase 7g (audit bug #2): Stripe charges-enabled is worth 20 pts in
+    // Stripe charges-enabled is worth 20 pts in
     // the provider's profile-completion formula. Recompute on every
     // onboarding finalize so the "incomplete profile" reminder is gated
     // against current state.
@@ -649,7 +649,7 @@ export class StripeConnectService {
         stripePayoutsEnabled: false,
         stripeDetailsSubmitted: false,
         stripeAttentionRequired: false,
-        // Mirrored from the deauth-webhook path so the v28 notification
+        // Mirrored from the deauth-webhook path so the notification
         // catalog reads the same fields whether the disconnect arrived as
         // an explicit deauth event or was discovered via a `resource_missing`
         // probe.
@@ -712,7 +712,7 @@ export class StripeConnectService {
   }
 
   /**
-   * H4 audit fix: live variant of `assertProviderPaymentReady` for paths where
+   * Live variant of `assertProviderPaymentReady` for paths where
    * the cached DB flags could be dangerously stale.
    *
    * The cached check is fine for the booking-create / submit flow — the
