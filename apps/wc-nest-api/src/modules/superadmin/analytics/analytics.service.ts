@@ -101,6 +101,14 @@ const FUNNEL_LOST_REASONS: Record<BookingGroupStatus, { reason: string; label: s
   [BookingGroupStatus.partially_refunded]: { reason: 'refunded', label: 'refunded' },
   [BookingGroupStatus.fully_refunded]: { reason: 'refunded', label: 'refunded' },
   [BookingGroupStatus.disputed]: { reason: 'disputed', label: 'disputed' },
+  // Payments revamp (Spec v2.3) request-anchored states. In-flight pipeline
+  // states bucket as 'pending' like their legacy equivalents; payment_review is
+  // a capture-failure state, bucketed with payment_failed.
+  [BookingGroupStatus.payment_authorized]: { reason: 'pending', label: 'still pending' },
+  [BookingGroupStatus.provider_accepted]: { reason: 'pending', label: 'still pending' },
+  [BookingGroupStatus.waiting_for_grace_deadline]: { reason: 'pending', label: 'still pending' },
+  [BookingGroupStatus.deposit_captured]: { reason: 'pending', label: 'still pending' },
+  [BookingGroupStatus.payment_review]: { reason: 'payment_failed', label: 'payment failed' },
 }
 
 /**

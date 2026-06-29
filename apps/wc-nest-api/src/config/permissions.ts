@@ -52,6 +52,7 @@ const providersPermissions: PermissionGroup = {
     { id: 'providers.create', name: 'Create providers' },
     { id: 'providers.read', name: 'Read providers' },
     { id: 'providers.update', name: 'Update providers' },
+    { id: 'providers.write', name: 'Write providers' },
     // `providers.delete` permission removed — providers are
     // not deletable post-onboarding (see superadmin providers controller).
   ],
